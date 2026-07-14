@@ -1,0 +1,122 @@
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:finance_app/features/transactions/domain/transaction.dart';
+import 'package:finance_app/features/transactions/domain/transaction_type.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  group('Transaction.signedAmount', () {
+    test('is positive for income', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.income,
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      expect(transaction.signedAmount, 100);
+    });
+
+    test('is negative for expense', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      expect(transaction.signedAmount, -100);
+    });
+  });
+
+  group('Transaction Firestore round-trip', () {
+    test('toFirestore/fromFirestore preserves every field', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 'ignored-by-doc-id',
+        type: TransactionType.expense,
+        amount: 49.99,
+        dateTime: DateTime(2026, 3, 14, 9, 30),
+        accountId: 'acc-1',
+        categoryId: 'cat-1',
+        notes: 'Coffee',
+        createdAt: DateTime(2026, 3, 14, 9, 30),
+      );
+
+      await collection.doc('t1').set(original);
+      final snapshot = await collection.doc('t1').get();
+      final restored = snapshot.data()!;
+
+      expect(restored.id, 't1');
+      expect(restored.type, TransactionType.expense);
+      expect(restored.amount, 49.99);
+      expect(restored.dateTime, DateTime(2026, 3, 14, 9, 30));
+      expect(restored.accountId, 'acc-1');
+      expect(restored.categoryId, 'cat-1');
+      expect(restored.notes, 'Coffee');
+      expect(restored.isDeleted, isFalse);
+      expect(restored.receiptPurpose, isNull);
+    });
+
+    test('preserves a non-null receiptPurpose', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.income,
+        amount: 500,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        receiptPurpose: 'splitExpenseSettlement',
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.receiptPurpose, 'splitExpenseSettlement');
+    });
+
+    test('preserves audit trail and soft-delete state', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.income,
+        amount: 10,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      transaction.recordEdit(field: 'amount', oldValue: '10', newValue: '20');
+      transaction.amount = 20;
+      transaction.markDeleted();
+
+      await collection.doc('t1').set(transaction);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.amount, 20);
+      expect(restored.editHistory, hasLength(1));
+      expect(restored.editHistory.first.field, 'amount');
+      expect(restored.isDeleted, isTrue);
+    });
+  });
+}

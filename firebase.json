@@ -1,0 +1,6 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {"platforms":{"android":{"default":{"projectId":"financeapp-585eb","appId":"1:570188084565:android:0c7820ca8654808325ebdc","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"financeapp-585eb","configurations":{"android":"1:570188084565:android:0c7820ca8654808325ebdc","ios":"1:570188084565:ios:80f2efe469991ac825ebdc","macos":"1:570188084565:ios:80f2efe469991ac825ebdc","web":"1:570188084565:web:8016cc26cc7e9c1225ebdc","windows":"1:570188084565:web:2c1351d50b62789325ebdc"}}}}}
+}
