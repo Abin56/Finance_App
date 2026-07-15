@@ -12,6 +12,10 @@ import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/domain/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../expense/presentation/widgets/split_expense_form_sheet.dart';
+import '../../../sms_inbox/domain/merchant/merchant_category_suggester.dart';
+import '../../../sms_inbox/domain/sms_prefill.dart';
+import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/widgets/sms_suggestion_hint.dart';
 import '../../domain/transaction.dart';
 import '../../domain/transaction_type.dart';
 import '../providers/transaction_providers.dart';
@@ -26,13 +30,34 @@ import '../providers/transaction_providers.dart';
 /// close this screen and open [SplitExpenseFormSheet] instead — the
 /// existing split engine, not a second implementation of it.
 class AddExpenseScreen extends ConsumerStatefulWidget {
-  const AddExpenseScreen({super.key, this.transaction});
+  const AddExpenseScreen({super.key, this.transaction, this.smsPrefill, this.initialType});
 
   final Transaction? transaction;
 
-  static Future<void> show(BuildContext context, {Transaction? transaction}) {
+  /// Set when this screen was opened from the SMS Inbox's convert sheet —
+  /// seeds the amount/description/date/account/category fields as normal,
+  /// fully editable initial values (never locked/read-only, since a parsed
+  /// SMS is a best guess). On successful save, the linked SMS row is marked
+  /// imported. Mutually exclusive with [transaction] (SMS conversion always
+  /// creates a brand-new transaction, never edits an existing one).
+  final SmsPrefill? smsPrefill;
+
+  /// Which segment to start on when creating from an [smsPrefill] — "My
+  /// Income" opens on [TransactionType.income], every other SMS target that
+  /// reuses this screen (My Expense, Credit Card Purchase) leaves the
+  /// default [TransactionType.expense].
+  final TransactionType? initialType;
+
+  static Future<void> show(
+    BuildContext context, {
+    Transaction? transaction,
+    SmsPrefill? smsPrefill,
+    TransactionType? initialType,
+  }) {
     return Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => AddExpenseScreen(transaction: transaction)),
+      MaterialPageRoute(
+        builder: (_) => AddExpenseScreen(transaction: transaction, smsPrefill: smsPrefill, initialType: initialType),
+      ),
     );
   }
 
@@ -43,16 +68,32 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
 class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(
-    text: widget.transaction == null ? '' : widget.transaction!.amount.toStringAsFixed(2),
+    text: widget.transaction != null
+        ? widget.transaction!.amount.toStringAsFixed(2)
+        : (widget.smsPrefill == null ? '' : widget.smsPrefill!.amount.toStringAsFixed(2)),
   );
-  late final _descriptionController = TextEditingController(text: widget.transaction?.description ?? '');
-  late TransactionType _type = widget.transaction?.type ?? TransactionType.expense;
-  late DateTime _dateTime = widget.transaction?.dateTime ?? DateTime.now();
-  late String? _accountId = widget.transaction?.accountId;
-  late String? _categoryId = widget.transaction?.categoryId;
+  late final _descriptionController = TextEditingController(
+    text: widget.transaction?.description ?? widget.smsPrefill?.merchantOrSender ?? '',
+  );
+  late TransactionType _type = widget.transaction?.type ?? widget.initialType ?? TransactionType.expense;
+  late DateTime _dateTime = widget.transaction?.dateTime ?? widget.smsPrefill?.dateTime ?? DateTime.now();
+  late String? _accountId = widget.transaction?.accountId ?? widget.smsPrefill?.suggestedAccountId;
+  late String? _categoryId = widget.transaction?.categoryId ?? widget.smsPrefill?.suggestedCategoryId;
   bool _isSaving = false;
   String? _accountError;
   String? _categoryError;
+
+  /// The suggestion hint's source, but only while the suggested category is
+  /// still the one selected. The moment the user picks something else the
+  /// hint disappears, because it would then be describing a category that is
+  /// no longer there — and it must never look like the app is arguing with a
+  /// choice the user just made.
+  SuggestionSource? get _activeCategorySuggestion {
+    final prefill = widget.smsPrefill;
+    if (prefill?.suggestedCategoryId == null) return null;
+    if (_categoryId != prefill!.suggestedCategoryId) return null;
+    return prefill.categorySuggestionSource;
+  }
 
   bool get _isEditing => widget.transaction != null;
 
@@ -135,15 +176,29 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           notes: widget.transaction!.notes,
         );
       } else {
-        await repository.createTransaction(
+        final created = await repository.createTransaction(
           type: _type,
           amount: amount,
           dateTime: _dateTime,
           accountId: _accountId!,
           categoryId: _categoryId!,
           description: description,
-          notes: '',
+          notes: widget.smsPrefill?.note ?? '',
         );
+
+        final smsPrefill = widget.smsPrefill;
+        if (smsPrefill != null) {
+          await ref.read(smsInboxItemsProvider.notifier).markImported(smsPrefill.smsId, linkedEntityId: created.id);
+          // Learn from the category the user actually settled on — which may
+          // differ from the one suggested — so the next SMS from this
+          // merchant starts where they left off. Only ever reached from an
+          // SMS conversion, so a plain manual entry records nothing.
+          await ref.read(merchantMemoriesProvider.notifier).record(
+                merchant: smsPrefill.merchantOrSender,
+                transactionType: _type,
+                categoryId: _categoryId!,
+              );
+        }
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -282,6 +337,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   ),
                 ),
               ),
+              if (_activeCategorySuggestion case final source?)
+                SmsSuggestionHint(source: source, merchant: widget.smsPrefill?.merchantOrSender),
               const SizedBox(height: AppSizes.sm),
               Text.rich(
                 TextSpan(

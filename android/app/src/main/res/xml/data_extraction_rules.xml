@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (API 31+) backup/transfer rules. `allowBackup="false"` in the
+     manifest only stops Drive backup on this API level; device-to-device
+     transfer is governed here and would otherwise still copy app data.
+
+     Both paths are disabled for the same reason: flutter_secure_storage's
+     encrypted app-lock PIN is bound to the hardware Android Keystore, and that
+     key is never backed up or transferred. Copying the blob without its key
+     yields an undecryptable PIN on the restored device. FlowFi's real data
+     round-trips through Firestore, so neither path buys the user anything.
+
+     See PLAY_STORE.md > "`allowBackup` is unset, and that is a real bug". -->
+<data-extraction-rules>
+    <cloud-backup disableIfNoEncryptionCapabilities="false">
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

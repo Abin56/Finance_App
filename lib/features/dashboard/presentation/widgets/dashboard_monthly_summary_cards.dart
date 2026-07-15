@@ -19,6 +19,11 @@ class DashboardMonthlySummaryCards extends StatelessWidget {
   Widget build(BuildContext context) {
     final net = income - expenses;
     return Row(
+      // At larger text scales a wrapped label makes one card taller than the
+      // others; without this the shorter cards centre and float out of line.
+      // (Not `stretch` — this Row sits in a scroll view, so its vertical
+      // extent is unbounded and stretch would assert.)
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           child: _SummaryCard(

@@ -22,6 +22,7 @@ class CreditorsScreen extends ConsumerWidget {
     final peopleAsync = ref.watch(peopleStreamProvider);
 
     return Scaffold(
+      
       appBar: AppBar(title: const Text('People Who Need to Pay Me')),
       body: peopleAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

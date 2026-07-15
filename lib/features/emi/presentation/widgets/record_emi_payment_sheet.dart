@@ -13,6 +13,8 @@ import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../../sms_inbox/domain/sms_prefill.dart';
+import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../domain/emi.dart';
 import '../providers/emi_providers.dart';
 
@@ -29,16 +31,22 @@ import '../providers/emi_providers.dart';
 /// changes with every payment (unlike Bills/Loans, which only reschedule on
 /// create/edit).
 class RecordEmiPaymentSheet extends ConsumerStatefulWidget {
-  const RecordEmiPaymentSheet({super.key, required this.emi, required this.installment});
+  const RecordEmiPaymentSheet({super.key, required this.emi, required this.installment, this.smsPrefill});
 
   final Emi emi;
   final Installment installment;
 
-  static Future<void> show(BuildContext context, Emi emi, Installment installment) {
+  /// Set when opened from the SMS Inbox's "EMI Payment" option — seeds the
+  /// principal field with the full SMS amount and the date/note, since bank
+  /// SMS never break a payment into principal/interest; interest stays at
+  /// its theoretical default and remains user-editable either way.
+  final SmsPrefill? smsPrefill;
+
+  static Future<void> show(BuildContext context, Emi emi, Installment installment, {SmsPrefill? smsPrefill}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => RecordEmiPaymentSheet(emi: emi, installment: installment),
+      builder: (_) => RecordEmiPaymentSheet(emi: emi, installment: installment, smsPrefill: smsPrefill),
     );
   }
 
@@ -48,7 +56,9 @@ class RecordEmiPaymentSheet extends ConsumerStatefulWidget {
 
 class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final _principalController = TextEditingController(text: _defaultPrincipal.toStringAsFixed(2));
+  late final _principalController = TextEditingController(
+    text: (widget.smsPrefill?.amount ?? _defaultPrincipal).toStringAsFixed(2),
+  );
   late final _interestController = TextEditingController(text: _defaultInterest.toStringAsFixed(2));
   final _gstController = TextEditingController();
   final _igstController = TextEditingController();
@@ -57,8 +67,8 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
   final _serviceChargeController = TextEditingController();
   final _penaltyController = TextEditingController();
   final _otherChargesController = TextEditingController();
-  final _noteController = TextEditingController();
-  DateTime _date = DateTime.now();
+  late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
+  late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   bool _isSaving = false;
   bool _someoneElsePaid = false;
   String? _selectedPersonId;
@@ -211,6 +221,13 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
         ref.read(emiRepositoryProvider).rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
       }
 
+      final smsPrefill = widget.smsPrefill;
+      if (smsPrefill != null) {
+        await ref.read(smsInboxItemsProvider.notifier).markImported(
+              smsPrefill.smsId,
+              linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
+            );
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

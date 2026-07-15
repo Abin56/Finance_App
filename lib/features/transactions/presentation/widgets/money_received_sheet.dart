@@ -23,6 +23,8 @@ import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../savings/domain/savings_goal.dart';
 import '../../../savings/presentation/providers/savings_providers.dart';
+import '../../../sms_inbox/domain/sms_prefill.dart';
+import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../../transactions/domain/transaction_type.dart';
 
 /// Bottom sheet for recording money that came in, classified by *why* it
@@ -34,13 +36,20 @@ import '../../../transactions/domain/transaction_type.dart';
 /// `ReceiptClassificationRouter.classify` does the rest — this sheet never
 /// hand-rolls the ledger/installment/savings side effects itself.
 class MoneyReceivedSheet extends ConsumerStatefulWidget {
-  const MoneyReceivedSheet({super.key});
+  const MoneyReceivedSheet({super.key, this.smsPrefill});
 
-  static Future<void> show(BuildContext context) {
+  /// Set when opened from the SMS Inbox's "Someone Paid Me" option — seeds
+  /// amount/date/account/category as normal editable initial values.
+  /// `purpose` is deliberately left for the user to pick: an SMS can tell
+  /// you money arrived, never *why*, and guessing wrong here would silently
+  /// misroute a ledger/installment/savings side effect.
+  final SmsPrefill? smsPrefill;
+
+  static Future<void> show(BuildContext context, {SmsPrefill? smsPrefill}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const MoneyReceivedSheet(),
+      builder: (_) => MoneyReceivedSheet(smsPrefill: smsPrefill),
     );
   }
 
@@ -50,12 +59,14 @@ class MoneyReceivedSheet extends ConsumerStatefulWidget {
 
 class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
-  final _noteController = TextEditingController();
-  DateTime _date = DateTime.now();
+  late final _amountController = TextEditingController(
+    text: widget.smsPrefill == null ? '' : widget.smsPrefill!.amount.toStringAsFixed(2),
+  );
+  late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
+  late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   ReceiptPurpose? _purpose;
-  String? _accountId;
-  String? _categoryId;
+  late String? _accountId = widget.smsPrefill?.suggestedAccountId;
+  late String? _categoryId = widget.smsPrefill?.suggestedCategoryId;
   String? _personId;
   String? _loanId;
   String? _emiId;
@@ -127,7 +138,7 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         targetInstallments: targetInstallments,
         pendingSplitParticipants: pendingSplitParticipants,
       );
-      await ref.read(receiptClassificationRouterProvider).classify(
+      final transaction = await ref.read(receiptClassificationRouterProvider).classify(
             purpose: purpose,
             amount: double.parse(_amountController.text.trim()),
             date: _date,
@@ -136,6 +147,11 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
             target: target,
             note: _noteController.text.trim(),
           );
+
+      final smsPrefill = widget.smsPrefill;
+      if (smsPrefill != null) {
+        await ref.read(smsInboxItemsProvider.notifier).markImported(smsPrefill.smsId, linkedEntityId: transaction.id);
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

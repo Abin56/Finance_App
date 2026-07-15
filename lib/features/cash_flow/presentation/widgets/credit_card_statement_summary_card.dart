@@ -26,7 +26,7 @@ class CreditCardStatementSummaryCard extends ConsumerWidget {
       return PlaceholderCard(
         icon: Icons.credit_card_outlined,
         title: 'No credit cards yet',
-        message: 'Add a card to track its statement cycle and outstanding balance.',
+        message: 'Add a card to track its statement cycle and remaining balance.',
         onTap: () => context.push(AppRoutes.creditCards),
       );
     }
@@ -99,7 +99,10 @@ class _CardStatementTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _Stat(label: 'Outstanding', value: CurrencyFormatter.instance.format(summary.standing.outstanding)),
+                child: _Stat(
+                  label: 'Remaining to Pay',
+                  value: CurrencyFormatter.instance.format(summary.standing.outstanding),
+                ),
               ),
               Expanded(
                 child: _Stat(

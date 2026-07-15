@@ -90,6 +90,55 @@ void main() {
       expect(restored.receiptPurpose, 'splitExpenseSettlement');
     });
 
+    test('preserves a non-null transferId and reports isTransfer', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        transferId: 'transfer-1',
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.transferId, 'transfer-1');
+      expect(restored.isTransfer, isTrue);
+    });
+
+    test('defaults transferId to null and isTransfer to false for a normal transaction', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.transferId, isNull);
+      expect(restored.isTransfer, isFalse);
+    });
+
     test('preserves audit trail and soft-delete state', () async {
       final firestore = FakeFirebaseFirestore();
       final collection = firestore.collection('transactions').withConverter<Transaction>(

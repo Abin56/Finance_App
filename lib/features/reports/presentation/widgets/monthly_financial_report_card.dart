@@ -74,7 +74,7 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
           _ReportRow('Pending Loans', pendingLoans),
           _ReportRow('Money To Receive', moneyToReceive),
           _ReportRow('Money Collected', moneyCollected),
-          _ReportRow('Credit Card Outstanding', ccOutstanding),
+          _ReportRow('Credit Card Remaining to Pay', ccOutstanding),
           _ReportRow('Credit Utilization %', utilization, isPercent: true),
           _ReportRow('Interest Paid', interestPaid),
           const _NotTrackedRow('GST Paid'),

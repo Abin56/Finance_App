@@ -157,4 +157,58 @@ void main() {
       expect(await transactionRepository.getByKey(transaction.id), isNull);
     });
   });
+
+  group('TransactionRepository.createTransferPair', () {
+    test('moves the balance from source to destination, not net-zero on either', () async {
+      final source = await seedAccount(name: 'Source', openingBalance: 1000);
+      final destination = await seedAccount(name: 'Destination', openingBalance: 500);
+
+      await transactionRepository.createTransferPair(
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        sourceAccountId: source.id,
+        destinationAccountId: destination.id,
+        categoryId: 'cat-transfer',
+      );
+
+      final updatedSource = await accountRepository.getByKey(source.id);
+      final updatedDestination = await accountRepository.getByKey(destination.id);
+      expect(updatedSource!.currentBalance, 700);
+      expect(updatedDestination!.currentBalance, 800);
+    });
+
+    test('both legs share one transferId and are marked isTransfer', () async {
+      final source = await seedAccount(name: 'Source');
+      final destination = await seedAccount(name: 'Destination');
+
+      final (sourceLeg, destinationLeg) = await transactionRepository.createTransferPair(
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        sourceAccountId: source.id,
+        destinationAccountId: destination.id,
+        categoryId: 'cat-transfer',
+      );
+
+      expect(sourceLeg.isTransfer, isTrue);
+      expect(destinationLeg.isTransfer, isTrue);
+      expect(sourceLeg.transferId, destinationLeg.transferId);
+      expect(sourceLeg.type, TransactionType.expense);
+      expect(destinationLeg.type, TransactionType.income);
+    });
+
+    test('rejects transferring an account to itself', () async {
+      final account = await seedAccount();
+
+      expect(
+        () => transactionRepository.createTransferPair(
+          amount: 100,
+          dateTime: DateTime(2026, 1, 1),
+          sourceAccountId: account.id,
+          destinationAccountId: account.id,
+          categoryId: 'cat-transfer',
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+  });
 }

@@ -57,8 +57,10 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
     final now = DateTime.now();
     final range = _period.rangeFor(now);
 
+    // Transfers between the user's own accounts aren't real spending —
+    // excluded so a transfer's source leg doesn't inflate category totals.
     final periodExpenses = allTransactions
-        .where((t) => t.type == TransactionType.expense && range.contains(t.dateTime))
+        .where((t) => t.type == TransactionType.expense && range.contains(t.dateTime) && !t.isTransfer)
         .toList();
     final categoryTransactions = periodExpenses.where((t) => t.categoryId == category.id).toList()
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));

@@ -186,5 +186,46 @@ void main() {
       expect(cashFlow.moneyOut, 1350);
       expect(cashFlow.net, 3650);
     });
+
+    test('excludes a transfer between the user\'s own accounts from both moneyIn and moneyOut', () async {
+      final now = DateTime.now();
+      final accounts = container.read(accountRepositoryProvider);
+      final source = await accounts.createAccount(
+        name: 'Wallet',
+        type: AccountType.cash,
+        openingBalance: 10000,
+        colorValue: 0xFF000000,
+      );
+      final destination = await accounts.createAccount(
+        name: 'Savings',
+        type: AccountType.bank,
+        openingBalance: 0,
+        colorValue: 0xFF000000,
+      );
+
+      final transactions = container.read(transactionRepositoryProvider);
+      await transactions.createTransaction(
+        type: TransactionType.income,
+        amount: 5000,
+        dateTime: now,
+        accountId: source.id,
+        categoryId: 'salary',
+      );
+      // A transfer's two legs must not count as real income/expense — if
+      // they did, moneyIn and moneyOut would both include this 2000.
+      await transactions.createTransferPair(
+        amount: 2000,
+        dateTime: now,
+        sourceAccountId: source.id,
+        destinationAccountId: destination.id,
+        categoryId: 'transfer',
+      );
+
+      await container.read(transactionsStreamProvider.future);
+
+      final cashFlow = container.read(cashFlowThisMonthProvider);
+      expect(cashFlow.moneyIn, 5000);
+      expect(cashFlow.moneyOut, 0);
+    });
   });
 }

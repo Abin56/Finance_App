@@ -9,6 +9,8 @@ import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../../sms_inbox/domain/sms_prefill.dart';
+import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../providers/expense_providers.dart';
 
@@ -18,13 +20,18 @@ import '../providers/expense_providers.dart';
 /// fields plus one required person picker and calls
 /// `ExpenseRepository.assignToPerson`.
 class AssignExpenseSheet extends ConsumerStatefulWidget {
-  const AssignExpenseSheet({super.key});
+  const AssignExpenseSheet({super.key, this.smsPrefill});
 
-  static Future<void> show(BuildContext context) {
+  /// Set when opened from the SMS Inbox's "Paid for Someone Else" option —
+  /// seeds description/amount/date/account/category as normal editable
+  /// initial values. The person must still be picked manually.
+  final SmsPrefill? smsPrefill;
+
+  static Future<void> show(BuildContext context, {SmsPrefill? smsPrefill}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const AssignExpenseSheet(),
+      builder: (_) => AssignExpenseSheet(smsPrefill: smsPrefill),
     );
   }
 
@@ -34,13 +41,15 @@ class AssignExpenseSheet extends ConsumerStatefulWidget {
 
 class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
-  final _notesController = TextEditingController();
-  DateTime _date = DateTime.now();
+  late final _descriptionController = TextEditingController(text: widget.smsPrefill?.merchantOrSender ?? '');
+  late final _amountController = TextEditingController(
+    text: widget.smsPrefill == null ? '' : widget.smsPrefill!.amount.toStringAsFixed(2),
+  );
+  late final _notesController = TextEditingController(text: widget.smsPrefill?.note ?? '');
+  late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
-  String? _accountId;
-  String? _categoryId;
+  late String? _accountId = widget.smsPrefill?.suggestedAccountId;
+  late String? _categoryId = widget.smsPrefill?.suggestedCategoryId;
   String? _personId;
   String? _accountError;
   String? _categoryError;
@@ -90,7 +99,7 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
     try {
       final repository = ref.read(expenseRepositoryProvider);
       final person = people.firstWhere((p) => p.id == _personId);
-      await repository.assignToPerson(
+      final expense = await repository.assignToPerson(
         description: _descriptionController.text.trim(),
         totalAmount: double.parse(_amountController.text.trim()),
         date: _date,
@@ -101,6 +110,13 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
         notes: _notesController.text.trim(),
         dueDate: _dueDate,
       );
+
+      final smsPrefill = widget.smsPrefill;
+      if (smsPrefill != null) {
+        await ref
+            .read(smsInboxItemsProvider.notifier)
+            .markImported(smsPrefill.smsId, linkedEntityId: expense.transactionId);
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

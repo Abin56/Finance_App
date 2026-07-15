@@ -3,10 +3,18 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- SMS Inbox feature: on-demand read of the device SMS inbox for
+         review/manual-conversion only. Deliberately no RECEIVE_SMS — there
+         is no background/live SMS listener, only an explicit user-triggered
+         scan (see lib/features/sms_inbox/data/sms_inbox_repository.dart). -->
+    <uses-permission android:name="android.permission.READ_SMS"/>
     <application
         android:label="FlowFi"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"

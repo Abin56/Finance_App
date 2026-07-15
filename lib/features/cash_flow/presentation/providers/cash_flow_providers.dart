@@ -284,7 +284,10 @@ typedef CashFlowSummary = ({double moneyIn, double moneyOut, double net});
 final cashFlowThisMonthProvider = Provider<CashFlowSummary>((ref) {
   final now = DateTime.now();
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
-  final monthTransactions = transactions.where((t) => t.dateTime.isSameMonth(now) && !t.isDeleted);
+  // Transfers between the user's own accounts aren't real income/expense —
+  // excluded so a transfer's two legs don't inflate both Money In and
+  // Money Out.
+  final monthTransactions = transactions.where((t) => t.dateTime.isSameMonth(now) && !t.isDeleted && !t.isTransfer);
 
   final income = monthTransactions
       .where((t) => t.type == TransactionType.income)

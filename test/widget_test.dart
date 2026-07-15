@@ -11,6 +11,7 @@ import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
 import 'package:finance_app/core/constants/app_strings.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
+import 'package:finance_app/features/dashboard/presentation/widgets/dashboard_monthly_summary_cards.dart';
 
 void main() {
   setUpAll(() async {
@@ -33,10 +34,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Overall Balance'), findsOneWidget);
+    expect(find.text('Total Balance'), findsOneWidget);
     expect(find.byIcon(Icons.home_rounded), findsOneWidget);
-    expect(find.text('This Month Income'), findsOneWidget);
-    expect(find.text('This Month Expense'), findsOneWidget);
+
+    // Scoped to the summary card: these labels also appear elsewhere on the
+    // dashboard (e.g. quick actions), so a bare text finder is ambiguous.
+    final summaryCards = find.byType(DashboardMonthlySummaryCards);
+    expect(summaryCards, findsOneWidget);
+    for (final label in ['Income', 'Expense', 'Savings']) {
+      expect(find.descendant(of: summaryCards, matching: find.text(label)), findsOneWidget);
+    }
   });
 
   testWidgets('Cash Flow tab shows the moved planning sections', (WidgetTester tester) async {
@@ -76,7 +83,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.descendant(of: find.byType(BottomAppBar), matching: find.text('More')));
+    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'More'), findsOneWidget);

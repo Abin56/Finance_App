@@ -33,13 +33,16 @@ import '../../features/reports/domain/reports_period.dart';
 import '../../features/reports/presentation/screens/category_spending_detail_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/savings/presentation/screens/savings_screen.dart';
+import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/security/presentation/lock_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/transactions/presentation/screens/transaction_detail_screen.dart';
+import '../../features/sms_inbox/presentation/screens/sms_inbox_screen.dart';
 import '../../features/transactions/presentation/screens/transactions_screen.dart';
 import '../services/security/app_lock_controller.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
+import 'fab_visibility.dart';
 import 'router_refresh_notifier.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -60,6 +63,7 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 ///   to `/lock` regardless of where the user was headed.
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = RouterRefreshNotifier(ref);
+  final modalCounter = ref.read(modalRouteCountProvider.notifier);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -111,6 +115,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.categories,
         builder: (context, state) => const CategoriesScreen(),
+      ),
+      // Top-level, like every other full-screen drill-in: rendering it inside
+      // a shell branch would put it under the shell's FAB and nav bar, and
+      // its sheets with it.
+      GoRoute(
+        path: AppRoutes.smsInbox,
+        builder: (context, state) => const SmsInboxScreen(),
       ),
       GoRoute(
         path: AppRoutes.budget,
@@ -205,6 +216,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: AppRoutes.search,
+        builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.trash,
         builder: (context, state) => const TrashHubScreen(),
       ),
@@ -218,8 +233,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+        // Every branch observes its own navigator so any sheet or dialog a tab
+        // screen opens hides the FAB without the call site knowing. A
+        // NavigatorObserver binds to a single Navigator, hence one instance
+        // per branch over the shared counter.
         branches: [
           StatefulShellBranch(
+            observers: [FabHidingModalObserver(modalCounter)],
             routes: [
               GoRoute(
                 path: AppRoutes.dashboard,
@@ -229,6 +249,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            observers: [FabHidingModalObserver(modalCounter)],
             routes: [
               GoRoute(
                 path: AppRoutes.transactions,
@@ -239,6 +260,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            observers: [FabHidingModalObserver(modalCounter)],
             routes: [
               GoRoute(
                 path: AppRoutes.cashFlow,
@@ -248,6 +270,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            observers: [FabHidingModalObserver(modalCounter)],
             routes: [
               GoRoute(
                 path: AppRoutes.people,
@@ -257,6 +280,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            observers: [FabHidingModalObserver(modalCounter)],
             routes: [
               GoRoute(
                 path: AppRoutes.more,

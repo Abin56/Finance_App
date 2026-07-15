@@ -49,11 +49,13 @@ final categoryBudgetsProvider = Provider<List<Budget>>((ref) {
   return budgets.where((b) => b.type == BudgetType.monthly && b.categoryId != null).toList();
 });
 
-/// Total expense spending for today, for the Daily Budget card.
+/// Total expense spending for today, for the Daily Budget card. Transfers
+/// between the user's own accounts aren't real spending, so they're
+/// excluded — otherwise a transfer's source leg would count against budgets.
 final todaySpentProvider = Provider<double>((ref) {
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
   return transactions
-      .where((t) => t.type == TransactionType.expense && t.dateTime.isToday)
+      .where((t) => t.type == TransactionType.expense && t.dateTime.isToday && !t.isTransfer)
       .fold(0.0, (total, t) => total + t.amount);
 });
 
@@ -62,7 +64,7 @@ final todaySpentProvider = Provider<double>((ref) {
 final monthSpentProvider = Provider.family<double, DateTime>((ref, month) {
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
   return transactions
-      .where((t) => t.type == TransactionType.expense && t.dateTime.isSameMonth(month))
+      .where((t) => t.type == TransactionType.expense && t.dateTime.isSameMonth(month) && !t.isTransfer)
       .fold(0.0, (total, t) => total + t.amount);
 });
 
@@ -76,7 +78,8 @@ final categorySpentProvider = Provider.family<double, String>((ref, categoryId) 
         (t) =>
             t.type == TransactionType.expense &&
             t.categoryId == categoryId &&
-            t.dateTime.isSameMonth(now),
+            t.dateTime.isSameMonth(now) &&
+            !t.isTransfer,
       )
       .fold(0.0, (total, t) => total + t.amount);
 });

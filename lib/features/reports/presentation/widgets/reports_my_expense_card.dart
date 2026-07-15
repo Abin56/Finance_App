@@ -21,8 +21,6 @@ class ReportsMyExpenseCard extends StatelessWidget {
 
   final MyExpenseBreakdown breakdown;
 
-  /// Same live figure as "Outstanding Amount" below — one calculation,
-  /// two labels, per Task 7.
   final double moneyToReceive;
   final double moneyReceived;
 
@@ -52,7 +50,9 @@ class ReportsMyExpenseCard extends StatelessWidget {
             children: [
               Expanded(child: _Stat(label: 'Money Received', value: moneyReceived, color: AppColors.success)),
               const SizedBox(width: AppSizes.md),
-              Expanded(child: _Stat(label: 'Outstanding Amount', value: moneyToReceive, color: AppColors.pending)),
+              // Holds the two-column grid so "Money Received" stays in its
+              // column rather than stretching across the card.
+              const Expanded(child: SizedBox.shrink()),
             ],
           ),
         ],

@@ -106,6 +106,11 @@ class PersonStatementHeader extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.lg),
           Row(
+            // From ~1.3x text scale "Total Paid Back" wraps in a third-width
+            // column and the other two don't, so that column is taller;
+            // without this the shorter ones centre and their amounts drop out
+            // of line.
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: _StatColumn(label: 'Total Paid Back', value: _totalSettled, color: AppColors.success)),
               Expanded(child: _StatColumn(label: 'You Lent', value: _youLent, color: AppColors.success)),
@@ -180,12 +185,20 @@ class _StatRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: context.textTheme.bodyMedium?.copyWith(
-              color: context.colors.onSurface.withValues(alpha: 0.6),
+          // Expanded, not a bare Text: these labels run long ("Total expenses
+          // this person will pay"), and from ~1.3x text scale the label plus
+          // its amount no longer fit a 360dp phone — the Row overflowed by up
+          // to 183px at 2.0x. Giving the label the leftover width lets it wrap
+          // instead of running past the card edge.
+          Expanded(
+            child: Text(
+              label,
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.6),
+              ),
             ),
           ),
+          const SizedBox(width: AppSizes.md),
           Text(CurrencyFormatter.instance.format(value), style: context.textTheme.bodyMedium),
         ],
       ),

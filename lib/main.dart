@@ -15,6 +15,7 @@ import 'core/services/security/app_lock_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
+import 'features/sms_inbox/data/sms_inbox_database.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -37,6 +38,7 @@ Future<void> main() async {
 
   await LocalSettingsService.init();
   await ReminderNotificationService.init();
+  await SmsInboxDatabase.init();
 
   runApp(const ProviderScope(child: FinanceApp()));
 }

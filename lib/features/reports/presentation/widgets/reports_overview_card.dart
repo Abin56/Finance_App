@@ -30,6 +30,10 @@ class ReportsOverviewCard extends StatelessWidget {
 
     return AppCard(
       child: Row(
+        // From ~1.3x text scale "Total Expenses" wraps and the others don't, so
+        // the columns differ in height; without this the shorter ones centre
+        // and their text drops out of line.
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: _OverviewStat(

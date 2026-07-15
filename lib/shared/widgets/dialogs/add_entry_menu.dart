@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../features/expense/presentation/widgets/split_expense_form_sheet.dart';
 import '../../../features/transactions/presentation/screens/add_expense_screen.dart';
+import '../../../features/transactions/presentation/screens/transfer_screen.dart';
 import '../../../features/transactions/presentation/widgets/money_received_sheet.dart';
 
 /// The bottom sheet behind every "add" entry point in the app (the History
@@ -31,6 +32,12 @@ Future<void> showAddEntryMenu(BuildContext context) async {
             title: const Text('Money received'),
             onTap: () => Navigator.of(sheetContext).pop('received'),
           ),
+          ListTile(
+            leading: const Icon(Icons.swap_horiz_rounded),
+            title: const Text('Transfer between accounts'),
+            subtitle: const Text('Move money between two of your own accounts'),
+            onTap: () => Navigator.of(sheetContext).pop('transfer'),
+          ),
         ],
       ),
     ),
@@ -40,6 +47,8 @@ Future<void> showAddEntryMenu(BuildContext context) async {
     await MoneyReceivedSheet.show(context);
   } else if (choice == 'split') {
     await SplitExpenseFormSheet.show(context);
+  } else if (choice == 'transfer') {
+    await TransferScreen.show(context);
   } else {
     await AddExpenseScreen.show(context);
   }

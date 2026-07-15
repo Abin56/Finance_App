@@ -43,7 +43,7 @@ class MoneyToReceiveCard extends ConsumerWidget {
         onTap: () => context.push(AppRoutes.loans),
       ),
       (
-        label: 'Other Receivables',
+        label: 'Other Money to Receive',
         breakdown: ref.watch(otherReceivablesProvider),
         onTap: () => context.push(AppRoutes.people),
       ),

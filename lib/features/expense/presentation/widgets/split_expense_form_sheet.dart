@@ -18,6 +18,8 @@ import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../people/presentation/widgets/person_form_sheet.dart';
+import '../../../sms_inbox/domain/sms_prefill.dart';
+import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../data/expense_repository.dart';
 import '../../domain/expense.dart';
@@ -91,10 +93,20 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
     this.existingExpense,
     this.assignOnly = false,
     this.editing,
+    this.smsPrefill,
   });
 
   final ConvertToSplitPrefill? convertFrom;
   final Expense? existingExpense;
+
+  /// Set when opened from the SMS Inbox's "Split Expense" option. Unlike
+  /// [convertFrom] (which assumes a `Transaction` already exists and routes
+  /// through `convertToSplit`, which deliberately never creates a new one),
+  /// an SMS has never created any `Transaction` — so this seeds the same
+  /// brand-new-creation fields the plain "Share an expense" flow already
+  /// renders (editable, not locked) and still saves via `createExpense`.
+  /// Mutually exclusive with [convertFrom]/[editing].
+  final SmsPrefill? smsPrefill;
 
   /// Part 1's "Assign to Person" entry point — always implies [convertFrom]
   /// is set (assigning only makes sense for an existing transaction). Locks
@@ -119,6 +131,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
     Expense? existingExpense,
     bool assignOnly = false,
     Expense? editing,
+    SmsPrefill? smsPrefill,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -128,6 +141,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
         existingExpense: existingExpense,
         assignOnly: assignOnly,
         editing: editing,
+        smsPrefill: smsPrefill,
       ),
     );
   }
@@ -139,15 +153,19 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
 class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _descriptionController = TextEditingController(
-    text: widget.editing?.description ?? widget.convertFrom?.description ?? '',
+    text: widget.editing?.description ?? widget.convertFrom?.description ?? widget.smsPrefill?.merchantOrSender ?? '',
   );
   late final _amountController = TextEditingController(
     text: widget.editing != null
         ? widget.editing!.totalAmount.toStringAsFixed(2)
-        : (widget.convertFrom == null ? '' : widget.convertFrom!.totalAmount.toStringAsFixed(2)),
+        : widget.convertFrom != null
+            ? widget.convertFrom!.totalAmount.toStringAsFixed(2)
+            : (widget.smsPrefill == null ? '' : widget.smsPrefill!.amount.toStringAsFixed(2)),
   );
-  late final _notesController = TextEditingController(text: widget.editing?.notes ?? widget.convertFrom?.notes ?? '');
-  late DateTime _date = widget.editing?.date ?? widget.convertFrom?.date ?? DateTime.now();
+  late final _notesController = TextEditingController(
+    text: widget.editing?.notes ?? widget.convertFrom?.notes ?? widget.smsPrefill?.note ?? '',
+  );
+  late DateTime _date = widget.editing?.date ?? widget.convertFrom?.date ?? widget.smsPrefill?.dateTime ?? DateTime.now();
 
   /// Null while editing means "leave every current installment's due date
   /// alone" (see `ExpenseRepository.editExpense`'s `dueDate` param) — only
@@ -155,8 +173,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   /// brand-new schedule (create/convert), always non-null so a real due
   /// date — not the expense's own date — is threaded through from the start.
   late DateTime? _dueDate = widget.editing == null ? _date.add(const Duration(days: 7)) : null;
-  late String? _accountId = widget.editing?.accountId ?? widget.convertFrom?.accountId;
-  late String? _categoryId = widget.editing?.categoryId ?? widget.convertFrom?.categoryId;
+  late String? _accountId = widget.editing?.accountId ?? widget.convertFrom?.accountId ?? widget.smsPrefill?.suggestedAccountId;
+  late String? _categoryId =
+      widget.editing?.categoryId ?? widget.convertFrom?.categoryId ?? widget.smsPrefill?.suggestedCategoryId;
   String? _accountError;
   String? _categoryError;
 
@@ -388,7 +407,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
           dueDate: _dueDate,
         );
       } else {
-        await repository.createExpense(
+        final expense = await repository.createExpense(
           description: _descriptionController.text.trim(),
           totalAmount: double.parse(_amountController.text.trim()),
           date: _date,
@@ -399,6 +418,13 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
           notes: _notesController.text.trim(),
           dueDate: _dueDate,
         );
+
+        final smsPrefill = widget.smsPrefill;
+        if (smsPrefill != null) {
+          await ref
+              .read(smsInboxItemsProvider.notifier)
+              .markImported(smsPrefill.smsId, linkedEntityId: expense.transactionId);
+        }
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {

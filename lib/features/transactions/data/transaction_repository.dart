@@ -24,6 +24,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     String description = '',
     String notes = '',
     String? receiptPurpose,
+    String? transferId,
   }) async {
     final transaction = Transaction(
       id: IdGenerator.generate(),
@@ -35,6 +36,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
       description: description,
       notes: notes,
       receiptPurpose: receiptPurpose,
+      transferId: transferId,
       createdAt: DateTime.now(),
     );
     await add(transaction.id, transaction);
@@ -44,6 +46,57 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     await accountRepository.adjustBalance(account, transaction.signedAmount);
 
     return transaction;
+  }
+
+  /// Moves money between two of the user's own accounts — an expense leg
+  /// on [sourceAccountId] + an income leg on [destinationAccountId],
+  /// sharing one [Transaction.transferId] so aggregations can recognize and
+  /// exclude the pair (a transfer isn't real income or spending). Reuses
+  /// [createTransaction] twice; no new balance math lives here.
+  ///
+  /// Not atomic across the two writes (this repository has no other
+  /// multi-write path wrapped in a Firestore transaction either) — if the
+  /// second leg fails, the first leg is soft-deleted as a best-effort
+  /// rollback rather than left as an orphaned single-sided "transfer".
+  Future<(Transaction, Transaction)> createTransferPair({
+    required double amount,
+    required DateTime dateTime,
+    required String sourceAccountId,
+    required String destinationAccountId,
+    required String categoryId,
+    String notes = '',
+  }) async {
+    if (sourceAccountId == destinationAccountId) {
+      throw const AppException('Choose two different accounts to transfer between');
+    }
+
+    final transferId = IdGenerator.generate();
+
+    final sourceLeg = await createTransaction(
+      type: TransactionType.expense,
+      amount: amount,
+      dateTime: dateTime,
+      accountId: sourceAccountId,
+      categoryId: categoryId,
+      notes: notes,
+      transferId: transferId,
+    );
+
+    try {
+      final destinationLeg = await createTransaction(
+        type: TransactionType.income,
+        amount: amount,
+        dateTime: dateTime,
+        accountId: destinationAccountId,
+        categoryId: categoryId,
+        notes: notes,
+        transferId: transferId,
+      );
+      return (sourceLeg, destinationLeg);
+    } catch (e) {
+      await softDeleteTransaction(sourceLeg);
+      rethrow;
+    }
   }
 
   /// Handles every edit permutation — amount, type, or account can each

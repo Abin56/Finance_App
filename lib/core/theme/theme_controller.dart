@@ -26,7 +26,7 @@ class ThemeModeController extends Notifier<ThemeMode> {
   ThemeMode _fromString(String? value) {
     return ThemeMode.values.firstWhere(
       (e) => e.name == value,
-      orElse: () => ThemeMode.system,
+      orElse: () => ThemeMode.light,
     );
   }
 }

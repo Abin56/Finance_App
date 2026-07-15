@@ -11,21 +11,28 @@ import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../../sms_inbox/domain/sms_prefill.dart';
+import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 
 /// Bottom sheet for recording a payment against a loan installment.
 /// Supports partial payments (amount less than what's remaining) and
 /// early/advance payments (any date) with no special handling — any
 /// positive amount and date is accepted.
 class RecordLoanPaymentSheet extends ConsumerStatefulWidget {
-  const RecordLoanPaymentSheet({super.key, required this.installment});
+  const RecordLoanPaymentSheet({super.key, required this.installment, this.smsPrefill});
 
   final Installment installment;
 
-  static Future<void> show(BuildContext context, Installment installment) {
+  /// Set when opened from the SMS Inbox's "Loan Payment" option (after the
+  /// user picked which loan/installment via the obligation picker) — seeds
+  /// amount/date/note instead of the installment's full remaining amount/now.
+  final SmsPrefill? smsPrefill;
+
+  static Future<void> show(BuildContext context, Installment installment, {SmsPrefill? smsPrefill}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => RecordLoanPaymentSheet(installment: installment),
+      builder: (_) => RecordLoanPaymentSheet(installment: installment, smsPrefill: smsPrefill),
     );
   }
 
@@ -36,10 +43,10 @@ class RecordLoanPaymentSheet extends ConsumerStatefulWidget {
 class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(
-    text: widget.installment.remainingAmount.toStringAsFixed(2),
+    text: (widget.smsPrefill?.amount ?? widget.installment.remainingAmount).toStringAsFixed(2),
   );
-  final _noteController = TextEditingController();
-  DateTime _date = DateTime.now();
+  late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
+  late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   bool _isSaving = false;
   bool _someoneElsePaid = false;
   String? _selectedPersonId;
@@ -109,6 +116,14 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
         date: _date,
         note: _resolveNote(payer),
       );
+
+      final smsPrefill = widget.smsPrefill;
+      if (smsPrefill != null) {
+        await ref.read(smsInboxItemsProvider.notifier).markImported(
+              smsPrefill.smsId,
+              linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
+            );
+      }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

@@ -42,6 +42,7 @@ abstract class AppRoutes {
   static const String calendar = '/calendar';
   static const String search = '/search';
   static const String accounts = '/accounts';
+  static const String smsInbox = '/sms-inbox';
   static const String lock = '/lock';
 
   static const String dashboardName = 'dashboard';

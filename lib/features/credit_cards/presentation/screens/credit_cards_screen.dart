@@ -13,7 +13,7 @@ import '../../domain/credit_card_status.dart';
 import '../providers/credit_card_providers.dart';
 import '../widgets/credit_card_form_sheet.dart';
 
-/// Every credit card, each tile showing Outstanding/Available/Next Due —
+/// Every credit card, each tile showing Remaining to Pay/Available/Next Due —
 /// mirrors [BillsScreen]'s list-of-entities shape without the search/filter
 /// chrome (out of scope for this pass; a handful of cards doesn't need it
 /// the way a long bill list does).
@@ -41,7 +41,7 @@ class CreditCardsScreen extends ConsumerWidget {
             return EmptyState(
               icon: Icons.credit_card_outlined,
               title: 'No credit cards yet',
-              subtitle: 'Add a card to track its statement cycle and outstanding balance.',
+              subtitle: 'Add a card to track its statement cycle and remaining balance.',
               action: FilledButton(
                 onPressed: () => CreditCardFormSheet.show(context),
                 child: const Text('Add your first card'),
@@ -136,9 +136,13 @@ class _CreditCardTile extends ConsumerWidget {
           ),
           const SizedBox(height: AppSizes.sm),
           Row(
+            // Values sit above their labels, and "Remaining to Pay" wraps to two
+            // lines in a third-width column on a 360dp phone. Top-align so the
+            // wrapped label can't push its value out of line with the others.
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _Stat(label: 'Outstanding', value: CurrencyFormatter.instance.format(standing.outstanding)),
+                child: _Stat(label: 'Remaining to Pay', value: CurrencyFormatter.instance.format(standing.outstanding)),
               ),
               Expanded(
                 child: _Stat(label: 'Available', value: CurrencyFormatter.instance.format(standing.available)),

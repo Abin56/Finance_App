@@ -77,8 +77,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     final now = DateTime.now();
     final lastMonth = DateTime(now.year, now.month - 1);
-    final monthTransactions = transactions.where((t) => t.dateTime.isSameMonth(now)).toList();
-    final lastMonthTransactions = transactions.where((t) => t.dateTime.isSameMonth(lastMonth)).toList();
+    // Transfers between the user's own accounts aren't real income/expense —
+    // excluded so a transfer's two legs don't inflate both totals.
+    final monthTransactions = transactions.where((t) => t.dateTime.isSameMonth(now) && !t.isTransfer).toList();
+    final lastMonthTransactions =
+        transactions.where((t) => t.dateTime.isSameMonth(lastMonth) && !t.isTransfer).toList();
 
     double totalFor(List<Transaction> list, TransactionType type) =>
         list.where((t) => t.type == type).fold(0.0, (total, t) => total + t.amount);

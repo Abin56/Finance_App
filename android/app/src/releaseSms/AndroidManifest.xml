@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Empty overlay used *instead of* src/release/AndroidManifest.xml when
+         FLOWFI_SMS=1 is set, for personal sideloaded builds that keep the SMS
+         Inbox feature. Contributes nothing, so READ_SMS from src/main and from
+         flutter_sms_inbox survives the merge.
+
+         Never use this for an artifact destined for Google Play.
+         See PLAY_STORE.md > "SMS Inbox and the Play build". -->
+</manifest>

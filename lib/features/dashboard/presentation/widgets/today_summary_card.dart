@@ -20,7 +20,9 @@ class TodaySummaryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
-    final today = transactions.where((t) => t.dateTime.isToday && !t.isDeleted);
+    // Transfers between the user's own accounts aren't real income/expense —
+    // excluded here so a transfer's two legs don't inflate both totals.
+    final today = transactions.where((t) => t.dateTime.isToday && !t.isDeleted && !t.isTransfer);
 
     final income = today
         .where((t) => t.type == TransactionType.income)

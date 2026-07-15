@@ -59,6 +59,18 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.4
 
+  # SMS Inbox — local-only SMS scan/parse/review layer (see
+  # lib/features/sms_inbox). sqflite/path back the device-local dedup+status
+  # store (deliberately NOT Firestore, see SmsInboxRepository doc comment).
+  # flutter_sms_inbox reads the Android SMS content provider on demand
+  # (Android-only; no-op on iOS, which has no public SMS-reading API).
+  # permission_handler gives a clean cross-platform permission API for the
+  # SMS access request/denied/settings flow.
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  flutter_sms_inbox: ^1.0.3
+  permission_handler: ^11.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -73,6 +85,9 @@ dev_dependencies:
   # Firebase test fakes (offline, no real project/credentials needed)
   fake_cloud_firestore: ^3.1.0
   firebase_auth_mocks: ^0.14.2
+
+  # In-memory sqflite for SMS Inbox repository tests under `flutter test`
+  sqflite_common_ffi: ^2.3.4
 
   # Launcher icon generation (dev-only tool, not a runtime dependency)
   flutter_launcher_icons: ^0.14.3

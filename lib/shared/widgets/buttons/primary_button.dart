@@ -36,7 +36,10 @@ class PrimaryButton extends StatelessWidget {
                   Icon(icon, size: AppSizes.iconSm),
                   const SizedBox(width: AppSizes.sm),
                 ],
-                Text(label),
+                // Flexible so a long label ellipsizes instead of overflowing
+                // the row at 360dp — the button's width is set by its parent,
+                // and the label can't always be guaranteed short.
+                Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
               ],
             ),
     );

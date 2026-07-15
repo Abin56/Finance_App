@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../shared/widgets/dialogs/add_entry_menu.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 import '../extensions/context_extensions.dart';
+import 'fab_visibility.dart';
 
 /// Bottom-navigation shell wrapping the five screen tabs (Dashboard,
 /// History, Cash Flow, People, More) plus a "+" button that opens the
@@ -15,8 +17,12 @@ import '../extensions/context_extensions.dart';
 /// Uses Flutter's Material 3 [NavigationBar], which lays out and spaces
 /// its destinations itself — that avoids the alignment drift a hand-rolled
 /// Row + fixed-width notch gap produced across different screen widths.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({super.key, required this.navigationShell});
+
+  /// Material's "quick" band — long enough to read as a deliberate motion,
+  /// short enough not to delay a tap on the sheet underneath.
+  static const _fabToggleDuration = Duration(milliseconds: 250);
 
   final StatefulNavigationShell navigationShell;
 
@@ -41,12 +47,31 @@ class AppShell extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fabVisible = ref.watch(fabVisibleProvider);
+
     return Scaffold(
       body: navigationShell,
-      floatingActionButton: _GradientFab(
-        heroTag: 'app_shell_fab',
-        onPressed: () => showAddEntryMenu(context),
+      // Scaled/faded in place rather than swapped for null: the FAB keeps its
+      // slot, so nothing else in the Scaffold reflows as it comes and goes.
+      // IgnorePointer stops the invisible FAB from swallowing taps meant for
+      // the sheet beneath it — the actual bug being fixed.
+      floatingActionButton: IgnorePointer(
+        ignoring: !fabVisible,
+        child: AnimatedScale(
+          scale: fabVisible ? 1 : 0,
+          duration: _fabToggleDuration,
+          curve: fabVisible ? Curves.easeOutBack : Curves.easeInCubic,
+          child: AnimatedOpacity(
+            opacity: fabVisible ? 1 : 0,
+            duration: _fabToggleDuration,
+            curve: Curves.easeInOut,
+            child: _GradientFab(
+              heroTag: 'app_shell_fab',
+              onPressed: () => showAddEntryMenu(context),
+            ),
+          ),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       bottomNavigationBar: NavigationBarTheme(

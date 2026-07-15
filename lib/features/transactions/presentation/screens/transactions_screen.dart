@@ -13,6 +13,9 @@ import '../../../accounts/domain/account.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/domain/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/screens/sms_inbox_screen.dart';
+import '../../../sms_inbox/presentation/widgets/sms_inbox_entry_chip.dart';
 import '../../data/transaction_repository.dart';
 import '../../domain/transaction.dart' as domain;
 import '../providers/history_providers.dart';
@@ -110,6 +113,20 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             tooltip: 'Filters',
             onPressed: _openFilters,
           ),
+          Builder(
+            builder: (context) {
+              final pendingCount = ref.watch(smsPendingCountProvider);
+              return IconButton(
+                icon: Badge(
+                  label: Text('$pendingCount'),
+                  isLabelVisible: pendingCount > 0,
+                  child: const Icon(Icons.mark_email_unread_outlined),
+                ),
+                tooltip: 'SMS Inbox',
+                onPressed: () => SmsInboxScreen.show(context),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             tooltip: 'Trash',
@@ -147,9 +164,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, 0),
-            child: HistoryFilterChips(
-              selected: _historyFilter,
-              onChanged: (filter) => setState(() => _historyFilter = filter),
+            child: Row(
+              children: [
+                Expanded(
+                  child: HistoryFilterChips(
+                    selected: _historyFilter,
+                    onChanged: (filter) => setState(() => _historyFilter = filter),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.xs),
+                const SmsInboxEntryChip(),
+              ],
             ),
           ),
           Expanded(

@@ -52,10 +52,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final fiscalYearStartMonth = ref.watch(fiscalYearStartMonthProvider);
     final now = DateTime.now();
     final range = _period.rangeFor(now, fiscalYearStartMonth: fiscalYearStartMonth);
-    final periodTransactions = transactions.where((t) => range.contains(t.dateTime)).toList();
+    // Transfers between the user's own accounts aren't real income/expense —
+    // excluded so a transfer's two legs don't inflate both totals.
+    final periodTransactions = transactions.where((t) => range.contains(t.dateTime) && !t.isTransfer).toList();
 
     final previousRange = _previousRangeFor(_period, now, fiscalYearStartMonth);
-    final previousTransactions = transactions.where((t) => previousRange.contains(t.dateTime)).toList();
+    final previousTransactions =
+        transactions.where((t) => previousRange.contains(t.dateTime) && !t.isTransfer).toList();
 
     double totalFor(List<Transaction> list, TransactionType type) =>
         list.where((t) => t.type == type).fold(0.0, (total, t) => total + t.amount);

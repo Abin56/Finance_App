@@ -63,6 +63,10 @@ class PaymentsDueCard extends ConsumerWidget {
           ],
           const Divider(height: AppSizes.lg),
           Row(
+            // At larger text scales "Already Paid" wraps and the other two
+            // don't, so the columns differ in height; without this the shorter
+            // ones centre and their amounts drop out of line.
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: _FooterStat(label: 'Total Due', value: total.due)),
               Expanded(

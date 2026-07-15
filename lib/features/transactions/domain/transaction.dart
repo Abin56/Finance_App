@@ -18,6 +18,7 @@ class Transaction extends SoftDeletableEntity {
     this.description = '',
     this.notes = '',
     this.receiptPurpose,
+    this.transferId,
   });
 
   @override
@@ -37,6 +38,18 @@ class Transaction extends SoftDeletableEntity {
   /// transaction (manual entries, and the account-balance effect of a
   /// split/assigned `Expense`).
   final String? receiptPurpose;
+
+  /// Set on both legs of a transfer between two of the user's own accounts
+  /// (an expense leg on the source account + an income leg on the
+  /// destination account, sharing this id) — see
+  /// `TransactionRepository.createTransferPair`. Null for every other
+  /// transaction. Aggregations that sum income/expense totals (Dashboard,
+  /// Reports, Cash Flow, Budgets, Person balances) must exclude
+  /// [isTransfer] transactions, or a transfer's two legs double-count into
+  /// both totals even though no money actually left the user overall.
+  final String? transferId;
+
+  bool get isTransfer => transferId != null;
 
   final DateTime createdAt;
 
@@ -60,6 +73,7 @@ class Transaction extends SoftDeletableEntity {
       description: data['description'] as String? ?? '',
       notes: data['notes'] as String? ?? '',
       receiptPurpose: data['receiptPurpose'] as String?,
+      transferId: data['transferId'] as String?,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
@@ -79,6 +93,7 @@ class Transaction extends SoftDeletableEntity {
       'description': description,
       'notes': notes,
       'receiptPurpose': receiptPurpose,
+      'transferId': transferId,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),

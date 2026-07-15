@@ -10,16 +10,35 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val keystoreProperties = Properties()
+// Release signing credentials. Absent on a fresh clone and on CI — the file is
+// gitignored, so every value below has to stay optional at configuration time.
 val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(keystorePropertiesFile.inputStream())
+val hasKeystore = keystorePropertiesFile.exists()
+val keystoreProperties = Properties()
+if (hasKeystore) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
+// Personal sideloaded builds can keep the SMS Inbox feature; Play builds cannot.
+// See src/release/AndroidManifest.xml for why this is a manifest-merge override
+// rather than a plain edit to src/main.
+val keepSmsPermission = System.getenv("FLOWFI_SMS") == "1"
+if (keepSmsPermission) {
+    logger.lifecycle("FLOWFI_SMS=1: keeping READ_SMS — this build is NOT valid for a Play Store upload.")
 }
 
 android {
     namespace = "com.example.finance_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+
+    // Play builds must not ship READ_SMS (see src/release/AndroidManifest.xml).
+    // Stripping is the default so that forgetting the flag yields a compliant
+    // upload rather than a rejected one; FLOWFI_SMS=1 opts a personal sideloaded
+    // build back in by swapping the overlay for an empty one.
+    if (keepSmsPermission) {
+        sourceSets.getByName("release").manifest.srcFile("src/releaseSms/AndroidManifest.xml")
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -28,10 +47,13 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // NOT PLAY-STORE PUBLISHABLE AS-IS: Google Play rejects any `com.example.*`
+        // applicationId. Renaming this is a coordinated change — the id is also
+        // baked into google-services.json, and the google-services plugin fails the
+        // build ("No matching client found for package name") if the two disagree.
+        // Do not edit this line alone; follow PLAY_STORE.md > "Renaming the
+        // application ID", which sequences the Firebase Console registration first.
         applicationId = "com.example.finance_app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -39,17 +61,26 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+        // Only declared when key.properties exists. The previous unconditional
+        // `keystoreProperties["keyAlias"] as String` threw on a null cast during
+        // Gradle's configuration phase, which fails *every* variant (debug and
+        // profile included) on any machine without the keystore, not just release.
+        if (hasKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Null without key.properties. Deliberately no debug-signing fallback:
+            // a debug-signed artifact looks valid and would be caught only on
+            // upload, whereas the task guard below fails fast with a real reason.
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             // Resource shrinking strips Crashlytics' build-ID resource (it's only
             // read via native/reflection lookup, so the shrinker sees it as unused),
@@ -76,6 +107,16 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+// Fail with an actionable message instead of silently emitting an unsigned
+// (uninstallable, un-uploadable) artifact. Keyed off the requested task names so
+// that debug and profile builds still work without the keystore present.
+if (!hasKeystore && gradle.startParameter.taskNames.any { it.contains("Release") }) {
+    throw GradleException(
+        "Release signing requires android/key.properties, which is gitignored and " +
+            "absent. See PLAY_STORE.md > 'Keystore management' to create it."
+    )
 }
 
 // Gradle 9 removed Groovy from the runtime classpath, which breaks the
