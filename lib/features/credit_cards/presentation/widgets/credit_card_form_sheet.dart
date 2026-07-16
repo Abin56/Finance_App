@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
@@ -39,14 +40,14 @@ class CreditCardFormSheet extends ConsumerStatefulWidget {
 
 class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
   late final _statementDayController = TextEditingController(text: widget.card?.statementDay.toString() ?? '');
   late final _paymentDueDayController = TextEditingController(text: widget.card?.paymentDueDay.toString() ?? '');
   late final _creditLimitController = TextEditingController(text: widget.card?.creditLimit.toStringAsFixed(2) ?? '');
   late final _minimumDuePercentController = TextEditingController(
     text: widget.card?.minimumDuePercent?.toString() ?? '',
   );
-  late final _lastFourDigitsController = TextEditingController(text: widget.card?.lastFourDigits ?? '');
+  late final _lastFourDigitsController = TextEditingController(text: widget.card?.lastFourDigits ?? '')
+    ..addListener(() => setState(() {}));
   late final _annualFeeController = TextEditingController(
     text: widget.card == null || widget.card!.annualFee == 0 ? '' : widget.card!.annualFee.toStringAsFixed(2),
   );
@@ -81,14 +82,13 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   @override
   void initState() {
     super.initState();
-    // Prefill from the linked account so editing can change its name/bank/color/notes.
+    // Prefill from the linked account so editing can change its bank/color/notes.
     final card = widget.card;
     if (card != null) {
       final account = (ref.read(accountsStreamProvider).value ?? const [])
           .where((a) => a.id == card.accountId)
           .firstOrNull;
       if (account != null) {
-        _nameController.text = account.name;
         _bankId = account.bankId ?? BankRegistry.matchByName(account.name)?.id;
         _colorValue = account.colorValue;
         _notesController.text = account.notes ?? '';
@@ -98,7 +98,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
 
   @override
   void dispose() {
-    _nameController.dispose();
     _statementDayController.dispose();
     _paymentDueDayController.dispose();
     _creditLimitController.dispose();
@@ -147,11 +146,16 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
 
       final cardHolderName =
           _cardHolderNameController.text.trim().isEmpty ? null : _cardHolderNameController.text.trim();
+      final lastFourDigits = _lastFourDigitsController.text.trim();
+      final computedName = cardDisplayName(
+        bank: BankRegistry.byId(_bankId),
+        networkLabel: _cardNetwork?.label,
+        last4: lastFourDigits.isEmpty ? null : lastFourDigits,
+      );
 
       if (_isEditing) {
         // Sync the linked account's name/bank/color/notes — that's what a
         // card's display identity actually is (a card IS an account).
-        final newName = _nameController.text.trim();
         final account = (ref.read(accountsStreamProvider).value ?? const [])
             .where((a) => a.id == widget.card!.accountId)
             .firstOrNull;
@@ -159,7 +163,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           final notes = _notesController.text.trim();
           await ref.read(accountRepositoryProvider).editAccount(
                 account,
-                name: newName.isNotEmpty && newName != account.name ? newName : null,
+                name: computedName,
                 bankId: _bankId,
                 clearBankId: _bankId == null,
                 colorValue: _colorValue,
@@ -177,7 +181,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           autoPay: _autoPay,
           status: _status,
           cardNetwork: _cardNetwork,
-          lastFourDigits: _lastFourDigitsController.text.trim().isEmpty ? null : _lastFourDigitsController.text.trim(),
+          lastFourDigits: lastFourDigits.isEmpty ? null : lastFourDigits,
           annualFee: _parseOptionalAmount(_annualFeeController.text) ?? 0,
           joiningFee: _parseOptionalAmount(_joiningFeeController.text) ?? 0,
           interestRatePercent: _parseOptionalAmount(_interestRateController.text),
@@ -194,7 +198,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         var accountId = _linkedAccountId;
         if (accountId == null) {
           final account = await ref.read(accountRepositoryProvider).createAccount(
-                name: _nameController.text.trim(),
+                name: computedName,
                 type: AccountType.card,
                 openingBalance: 0,
                 colorValue: _colorValue,
@@ -211,7 +215,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           minimumDuePercent: minimumDuePercent,
           autoPay: _autoPay,
           cardNetwork: _cardNetwork,
-          lastFourDigits: _lastFourDigitsController.text.trim().isEmpty ? null : _lastFourDigitsController.text.trim(),
+          lastFourDigits: lastFourDigits.isEmpty ? null : lastFourDigits,
           annualFee: _parseOptionalAmount(_annualFeeController.text) ?? 0,
           joiningFee: _parseOptionalAmount(_joiningFeeController.text) ?? 0,
           interestRatePercent: _parseOptionalAmount(_interestRateController.text),
@@ -265,20 +269,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
             children: [
               Text(_isEditing ? 'Card Settings' : 'Add a credit card', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _nameController,
-                enabled: _linkedAccountId == null,
-                decoration: const InputDecoration(
-                  labelText: 'Card name',
-                  helperText: 'e.g. HDFC Millennia, Amazon Pay ICICI',
-                ),
-                textInputAction: TextInputAction.next,
-                // Required, except when linking an existing account (create only).
-                validator: (value) {
-                  if (!_isEditing && _linkedAccountId != null) return null;
-                  return Validators.required(value);
-                },
-              ),
               if (!_isEditing && unusedCardAccounts.isNotEmpty) ...[
                 const SizedBox(height: AppSizes.md),
                 DropdownButtonFormField<String?>(
@@ -302,7 +292,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                   decoration: const InputDecoration(labelText: 'Bank'),
                   child: Row(
                     children: [
-                      BankAvatar(bankId: _bankId, fallbackName: _nameController.text, size: 28),
+                      BankAvatar(bankId: _bankId, size: 28),
                       const SizedBox(width: AppSizes.sm),
                       Expanded(
                         child: Text(
@@ -313,6 +303,19 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                       const Icon(Icons.chevron_right_rounded),
                     ],
                   ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSizes.xs, left: AppSizes.md),
+                child: Text(
+                  'Shown as "${cardDisplayName(
+                    bank: BankRegistry.byId(_bankId),
+                    networkLabel: _cardNetwork?.label,
+                    last4: _lastFourDigitsController.text.trim().isEmpty
+                        ? null
+                        : _lastFourDigitsController.text.trim(),
+                  )}"',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
               const SizedBox(height: AppSizes.md),

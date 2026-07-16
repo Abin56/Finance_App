@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
@@ -40,7 +41,8 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
   );
   late final _accountHolderNameController = TextEditingController(text: widget.account?.accountHolderName);
   late final _notesController = TextEditingController(text: widget.account?.notes);
-  late final _accountNumberLast4Controller = TextEditingController(text: widget.account?.accountNumberLast4);
+  late final _accountNumberLast4Controller = TextEditingController(text: widget.account?.accountNumberLast4)
+    ..addListener(() => setState(() {}));
   late AccountType _type = widget.account?.type ?? AccountType.cash;
   late int _colorValue = widget.account?.colorValue ?? AppColors.categoryPalette.first.toARGB32();
 
@@ -57,6 +59,19 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
   bool _isSaving = false;
 
   bool get _isEditing => widget.account != null;
+
+  /// Once a bank is picked for a bank/card-type account, its name is
+  /// computed from the bank + last 4 digits rather than typed — "SBI" and
+  /// the account number already identify it without asking the user for a
+  /// redundant label. Cash/wallet/business/other accounts have no bank to
+  /// compute from, so they keep the manual name field.
+  bool get _isBankLinked =>
+      (_type == AccountType.bank || _type == AccountType.card) && BankRegistry.byId(_bankId) != null;
+
+  String get _computedName => bankAccountDisplayName(
+        bank: BankRegistry.byId(_bankId)!,
+        last4: _accountNumberLast4Controller.text.trim(),
+      );
 
   @override
   void dispose() {
@@ -91,10 +106,11 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       final accountNumberLast4 = _accountNumberLast4Controller.text.trim();
       final accountHolderName = _accountHolderNameController.text.trim();
       final notes = _notesController.text.trim();
+      final name = _isBankLinked ? _computedName : _nameController.text.trim();
       if (_isEditing) {
         await repository.editAccount(
           widget.account!,
-          name: _nameController.text.trim(),
+          name: name,
           type: _type,
           colorValue: _colorValue,
           bankId: _bankId,
@@ -108,7 +124,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
         );
       } else {
         await repository.createAccount(
-          name: _nameController.text.trim(),
+          name: name,
           type: _type,
           openingBalance: double.parse(_openingBalanceController.text.trim()),
           colorValue: _colorValue,
@@ -150,13 +166,6 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Account name'),
-                validator: Validators.required,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: AppSizes.md),
               DropdownButtonFormField<AccountType>(
                 initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Type'),
@@ -187,6 +196,23 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                       ],
                     ),
                   ),
+                ),
+                if (_isBankLinked)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSizes.xs, left: AppSizes.md),
+                    child: Text(
+                      'Shown as "$_computedName"',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+              ],
+              if (!_isBankLinked) ...[
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: 'Account name'),
+                  validator: Validators.required,
+                  textInputAction: TextInputAction.next,
                 ),
               ],
               const SizedBox(height: AppSizes.md),
