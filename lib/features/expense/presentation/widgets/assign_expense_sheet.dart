@@ -20,18 +20,24 @@ import '../providers/expense_providers.dart';
 /// fields plus one required person picker and calls
 /// `ExpenseRepository.assignToPerson`.
 class AssignExpenseSheet extends ConsumerStatefulWidget {
-  const AssignExpenseSheet({super.key, this.smsPrefill});
+  const AssignExpenseSheet({super.key, this.smsPrefill, this.initialPerson});
 
   /// Set when opened from the SMS Inbox's "Paid for Someone Else" option —
   /// seeds description/amount/date/account/category as normal editable
   /// initial values. The person must still be picked manually.
   final SmsPrefill? smsPrefill;
 
-  static Future<void> show(BuildContext context, {SmsPrefill? smsPrefill}) {
+  /// Set when opened from that person's own Contact Ledger screen — the
+  /// person is already known from context, so the picker below is skipped
+  /// entirely instead of asking the user to pick who they already picked
+  /// by navigating there.
+  final Person? initialPerson;
+
+  static Future<void> show(BuildContext context, {SmsPrefill? smsPrefill, Person? initialPerson}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => AssignExpenseSheet(smsPrefill: smsPrefill),
+      builder: (_) => AssignExpenseSheet(smsPrefill: smsPrefill, initialPerson: initialPerson),
     );
   }
 
@@ -50,11 +56,13 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   late String? _accountId = widget.smsPrefill?.suggestedAccountId;
   late String? _categoryId = widget.smsPrefill?.suggestedCategoryId;
-  String? _personId;
+  late String? _personId = widget.initialPerson?.id;
   String? _accountError;
   String? _categoryError;
   String? _personError;
   bool _isSaving = false;
+
+  bool get _personLocked => widget.initialPerson != null;
 
   @override
   void dispose() {
@@ -144,7 +152,10 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Say who will pay this expense', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                _personLocked ? 'Add expense for ${widget.initialPerson!.name}' : 'Say who will pay this expense',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: AppSizes.lg),
               TextFormField(
                 controller: _descriptionController,
@@ -193,18 +204,24 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 }),
               ),
               const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<String>(
-                initialValue: people.any((p) => p.id == _personId) ? _personId : null,
-                decoration: InputDecoration(labelText: 'Person', errorText: _personError),
-                items: [
-                  for (final person in people)
-                    DropdownMenuItem(value: person.id, child: Text(person.name)),
-                ],
-                onChanged: (value) => setState(() {
-                  _personId = value;
-                  _personError = null;
-                }),
-              ),
+              if (_personLocked)
+                InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Person'),
+                  child: Text(widget.initialPerson!.name),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: people.any((p) => p.id == _personId) ? _personId : null,
+                  decoration: InputDecoration(labelText: 'Person', errorText: _personError),
+                  items: [
+                    for (final person in people)
+                      DropdownMenuItem(value: person.id, child: Text(person.name)),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _personId = value;
+                    _personError = null;
+                  }),
+                ),
               const SizedBox(height: AppSizes.md),
               OutlinedButton.icon(
                 onPressed: _pickDate,

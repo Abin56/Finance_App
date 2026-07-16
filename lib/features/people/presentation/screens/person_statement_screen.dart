@@ -171,7 +171,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     return [
       if (_tab == _LedgerTab.history) ...[
         FilledButton.icon(
-          onPressed: () => AddExpenseChooser.show(context),
+          onPressed: () => AddExpenseChooser.show(context, forPerson: person),
           icon: const Icon(Icons.add),
           label: const Text('Add Expense'),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),

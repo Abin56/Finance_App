@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../people/domain/person.dart';
 import 'assign_expense_sheet.dart';
 import 'split_expense_form_sheet.dart';
 
@@ -11,7 +12,10 @@ import 'split_expense_form_sheet.dart';
 abstract class AddExpenseChooser {
   AddExpenseChooser._();
 
-  static Future<void> show(BuildContext context) async {
+  /// [forPerson] is set when opened from that person's own Contact Ledger
+  /// screen — the person is already known from context, so both flows below
+  /// pre-fill it instead of asking the user to pick it again.
+  static Future<void> show(BuildContext context, {Person? forPerson}) async {
     final choice = await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -34,9 +38,9 @@ abstract class AddExpenseChooser {
     );
     if (!context.mounted || choice == null) return;
     if (choice == 'split') {
-      await SplitExpenseFormSheet.show(context);
+      await SplitExpenseFormSheet.show(context, initialParticipant: forPerson);
     } else {
-      await AssignExpenseSheet.show(context);
+      await AssignExpenseSheet.show(context, initialPerson: forPerson);
     }
   }
 }

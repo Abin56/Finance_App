@@ -95,6 +95,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
     this.assignOnly = false,
     this.editing,
     this.smsPrefill,
+    this.initialParticipant,
   });
 
   final ConvertToSplitPrefill? convertFrom;
@@ -124,6 +125,13 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
   /// `convertToAssigned`/`createExpense`.
   final Expense? editing;
 
+  /// Set when opened from that person's own Contact Ledger screen — seeds
+  /// the first "share with" row with this person instead of a blank row, so
+  /// the user isn't asked to pick again who they already navigated to. Still
+  /// editable/removable like any other row (a shared expense can include
+  /// more people than just this one).
+  final Person? initialParticipant;
+
   /// Resolves to `true` only when the expense was saved, so callers show a
   /// success confirmation only on an actual save (not on cancel/back).
   static Future<bool?> show(
@@ -133,6 +141,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
     bool assignOnly = false,
     Expense? editing,
     SmsPrefill? smsPrefill,
+    Person? initialParticipant,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -143,6 +152,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
         assignOnly: assignOnly,
         editing: editing,
         smsPrefill: smsPrefill,
+        initialParticipant: initialParticipant,
       ),
     );
   }
@@ -202,7 +212,12 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   /// is set, prefilled from that expense's non-"Me" participants instead of
   /// a single blank row.
   late final List<_ParticipantRow> _participants = widget.editing == null
-      ? [_ParticipantRow()]
+      ? [
+          if (widget.initialParticipant != null)
+            _ParticipantRow(initialName: widget.initialParticipant!.name)..personId = widget.initialParticipant!.id
+          else
+            _ParticipantRow(),
+        ]
       : [
           for (final p in widget.editing!.participants.where((p) => !p.isMe))
             _ParticipantRow(initialName: p.name)
