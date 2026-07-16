@@ -25,6 +25,7 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
     double? interestRatePercent,
     String? rewardNotes,
     String? autoDebitAccount,
+    String? cardHolderName,
   }) async {
     _validate(
       statementDay: statementDay,
@@ -49,6 +50,7 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
       interestRatePercent: interestRatePercent,
       rewardNotes: rewardNotes,
       autoDebitAccount: autoDebitAccount,
+      cardHolderName: cardHolderName,
     );
     await add(card.id, card);
     return card;
@@ -70,6 +72,8 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
     double? interestRatePercent,
     String? rewardNotes,
     String? autoDebitAccount,
+    String? cardHolderName,
+    bool clearCardHolderName = false,
   }) async {
     _validate(
       statementDay: statementDay ?? card.statementDay,
@@ -155,6 +159,21 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
       newValue: autoDebitAccount,
       apply: (v) => card.autoDebitAccount = v,
     );
+    if (clearCardHolderName) {
+      card.recordEdit(
+        field: 'cardHolderName',
+        oldValue: card.cardHolderName ?? 'none',
+        newValue: 'none',
+      );
+      card.cardHolderName = null;
+    } else {
+      card.updateField(
+        field: 'cardHolderName',
+        oldValue: card.cardHolderName,
+        newValue: cardHolderName,
+        apply: (v) => card.cardHolderName = v,
+      );
+    }
 
     await update(card);
   }

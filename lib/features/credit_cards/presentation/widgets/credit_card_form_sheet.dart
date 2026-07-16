@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/data/bank_registry.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_picker_sheet.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/domain/account_type.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
@@ -55,6 +58,8 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   );
   late final _rewardNotesController = TextEditingController(text: widget.card?.rewardNotes ?? '');
   late final _autoDebitAccountController = TextEditingController(text: widget.card?.autoDebitAccount ?? '');
+  late final _cardHolderNameController = TextEditingController(text: widget.card?.cardHolderName ?? '');
+  late final _notesController = TextEditingController();
 
   /// Only used in create mode when the user chooses to link an already-existing
   /// (unused) card account instead of having a new one created for them.
@@ -62,6 +67,13 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   late bool _autoPay = widget.card?.autoPay ?? false;
   late CreditCardStatus _status = widget.card?.status ?? CreditCardStatus.active;
   late CardNetwork? _cardNetwork = widget.card?.cardNetwork;
+
+  /// The linked account's bank/color, mirrored here for editing and synced
+  /// back onto the [Account] on save — a credit card IS an account, so its
+  /// bank identity and color live there, not on [CreditCardProfile].
+  String? _bankId;
+  int _colorValue = AppColors.primary.toARGB32();
+  int? _colorAppliedByBank;
   bool _isSaving = false;
 
   bool get _isEditing => widget.card != null;
@@ -69,13 +81,18 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   @override
   void initState() {
     super.initState();
-    // Prefill the name with the linked account's name so editing can rename it.
+    // Prefill from the linked account so editing can change its name/bank/color/notes.
     final card = widget.card;
     if (card != null) {
       final account = (ref.read(accountsStreamProvider).value ?? const [])
           .where((a) => a.id == card.accountId)
           .firstOrNull;
-      if (account != null) _nameController.text = account.name;
+      if (account != null) {
+        _nameController.text = account.name;
+        _bankId = account.bankId ?? BankRegistry.matchByName(account.name)?.id;
+        _colorValue = account.colorValue;
+        _notesController.text = account.notes ?? '';
+      }
     }
   }
 
@@ -92,7 +109,23 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
     _interestRateController.dispose();
     _rewardNotesController.dispose();
     _autoDebitAccountController.dispose();
+    _cardHolderNameController.dispose();
+    _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickBank() async {
+    final picked = await BankPickerSheet.show(context, currentBankId: _bankId);
+    if (picked == null) return;
+    final resolvedId = picked == BankRegistry.generic.id ? null : picked;
+    setState(() {
+      final bank = BankRegistry.byId(resolvedId);
+      if (bank != null && (_colorAppliedByBank == null || _colorValue == _colorAppliedByBank)) {
+        _colorValue = bank.primaryColor.toARGB32();
+        _colorAppliedByBank = _colorValue;
+      }
+      _bankId = resolvedId;
+    });
   }
 
   double? _parseOptionalAmount(String text) {
@@ -112,15 +145,27 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
       final paymentDueDay = int.parse(_paymentDueDayController.text.trim());
       final creditLimit = double.parse(_creditLimitController.text.trim());
 
+      final cardHolderName =
+          _cardHolderNameController.text.trim().isEmpty ? null : _cardHolderNameController.text.trim();
+
       if (_isEditing) {
-        // Rename the linked account if the name changed — that's what a card's
-        // display name actually is (a card IS an account).
+        // Sync the linked account's name/bank/color/notes — that's what a
+        // card's display identity actually is (a card IS an account).
         final newName = _nameController.text.trim();
         final account = (ref.read(accountsStreamProvider).value ?? const [])
             .where((a) => a.id == widget.card!.accountId)
             .firstOrNull;
-        if (account != null && newName.isNotEmpty && newName != account.name) {
-          await ref.read(accountRepositoryProvider).editAccount(account, name: newName);
+        if (account != null) {
+          final notes = _notesController.text.trim();
+          await ref.read(accountRepositoryProvider).editAccount(
+                account,
+                name: newName.isNotEmpty && newName != account.name ? newName : null,
+                bankId: _bankId,
+                clearBankId: _bankId == null,
+                colorValue: _colorValue,
+                notes: notes.isEmpty ? null : notes,
+                clearNotes: notes.isEmpty,
+              );
         }
         await repository.editCard(
           widget.card!,
@@ -140,6 +185,8 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           autoDebitAccount: _autoPay && _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
+          cardHolderName: cardHolderName,
+          clearCardHolderName: cardHolderName == null,
         );
       } else {
         // Use a linked existing card account if the user picked one; otherwise
@@ -150,7 +197,9 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                 name: _nameController.text.trim(),
                 type: AccountType.card,
                 openingBalance: 0,
-                colorValue: AppColors.primary.toARGB32(),
+                colorValue: _colorValue,
+                bankId: _bankId,
+                notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
               );
           accountId = account.id;
         }
@@ -170,6 +219,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           autoDebitAccount: _autoPay && _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
+          cardHolderName: cardHolderName,
         );
       }
       if (mounted) Navigator.of(context).pop();
@@ -244,6 +294,36 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                   onChanged: (value) => setState(() => _linkedAccountId = value),
                 ),
               ],
+              const SizedBox(height: AppSizes.md),
+              InkWell(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                onTap: _pickBank,
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Bank'),
+                  child: Row(
+                    children: [
+                      BankAvatar(bankId: _bankId, fallbackName: _nameController.text, size: 28),
+                      const SizedBox(width: AppSizes.sm),
+                      Expanded(
+                        child: Text(
+                          BankRegistry.byId(_bankId)?.name ?? 'Select bank (optional)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSizes.md),
+              TextFormField(
+                controller: _cardHolderNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Card holder name (optional)',
+                  helperText: 'Name printed on the card, e.g. ABIN JOHN',
+                ),
+                textCapitalization: TextCapitalization.characters,
+              ),
               const SizedBox(height: AppSizes.md),
               if (_isEditing) ...[
                 DropdownButtonFormField<CreditCardStatus>(
@@ -332,6 +412,45 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                   childrenPadding: EdgeInsets.zero,
                   title: const Text('More options (optional)'),
                   children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: AppSizes.sm,
+                            runSpacing: AppSizes.sm,
+                            children: [
+                              for (final color in AppColors.categoryPalette)
+                                GestureDetector(
+                                  onTap: () => setState(() => _colorValue = color.toARGB32()),
+                                  child: CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: color,
+                                    child: _colorValue == color.toARGB32()
+                                        ? const Icon(Icons.check, color: Colors.white, size: 16)
+                                        : null,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        if (BankRegistry.byId(_bankId) != null)
+                          TextButton(
+                            onPressed: () => setState(() {
+                              final color = BankRegistry.byId(_bankId)!.primaryColor.toARGB32();
+                              _colorValue = color;
+                              _colorAppliedByBank = color;
+                            }),
+                            child: const Text('Reset to bank color'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSizes.sm),
+                    TextFormField(
+                      controller: _notesController,
+                      decoration: const InputDecoration(labelText: 'Notes'),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: AppSizes.sm),
                     TextFormField(
                       controller: _minimumDuePercentController,
                       decoration: const InputDecoration(

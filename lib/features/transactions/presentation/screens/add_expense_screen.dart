@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/domain/account.dart';
 import '../../../accounts/domain/account_type.dart';
@@ -566,7 +567,9 @@ class _PaymentMethodChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChoiceChip(
       label: Text(account.name),
-      avatar: Icon(account.type.icon, size: AppSizes.iconSm),
+      avatar: account.type == AccountType.bank || account.type == AccountType.card
+          ? BankAvatar(bankId: account.bankId, fallbackName: account.name, size: AppSizes.iconSm + 2)
+          : Icon(account.type.icon, size: AppSizes.iconSm),
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: context.colors.primary.withValues(alpha: 0.15),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
 import '../../domain/account.dart';
 import '../../domain/account_type.dart';
 
@@ -28,15 +29,18 @@ class AccountTile extends StatelessWidget {
           padding: const EdgeInsets.all(AppSizes.lg),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+              if (account.type == AccountType.bank || account.type == AccountType.card)
+                BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 44)
+              else
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  ),
+                  child: Icon(account.type.icon, color: color),
                 ),
-                child: Icon(account.type.icon, color: color),
-              ),
               const SizedBox(width: AppSizes.md),
               Expanded(
                 child: Column(

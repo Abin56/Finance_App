@@ -30,6 +30,7 @@ class CreditCardProfile extends SoftDeletableEntity {
     this.interestRatePercent,
     this.rewardNotes,
     this.autoDebitAccount,
+    this.cardHolderName,
   });
 
   @override
@@ -85,6 +86,10 @@ class CreditCardProfile extends SoftDeletableEntity {
   /// account auto-debit draws from, informational only.
   String? autoDebitAccount;
 
+  /// Display-only — printed name on the physical card, distinct from the
+  /// linked account's [Account.name] (the card's nickname).
+  String? cardHolderName;
+
   final DateTime createdAt;
 
   factory CreditCardProfile.fromFirestore(
@@ -109,6 +114,7 @@ class CreditCardProfile extends SoftDeletableEntity {
       interestRatePercent: (data['interestRatePercent'] as num?)?.toDouble(),
       rewardNotes: data['rewardNotes'] as String?,
       autoDebitAccount: data['autoDebitAccount'] as String?,
+      cardHolderName: data['cardHolderName'] as String?,
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -134,6 +140,7 @@ class CreditCardProfile extends SoftDeletableEntity {
       'interestRatePercent': interestRatePercent,
       'rewardNotes': rewardNotes,
       'autoDebitAccount': autoDebitAccount,
+      'cardHolderName': cardHolderName,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),

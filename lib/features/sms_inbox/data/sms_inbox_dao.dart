@@ -53,8 +53,11 @@ class SmsInboxDao {
     for (final item in items) {
       batch.insert(SmsInboxDatabase.tableName, _toRow(item), conflictAlgorithm: ConflictAlgorithm.ignore);
     }
+    // A conflict ignored via ConflictAlgorithm.ignore reports back as `0` on
+    // some sqflite backends and `null` on others (observed with
+    // sqflite_common_ffi, used by tests) — both mean "not inserted".
     final results = await batch.commit();
-    return results.where((rowId) => (rowId as int) != 0).length;
+    return results.where((rowId) => rowId != null && rowId != 0).length;
   }
 
   /// The earliest-stored non-duplicate row sharing [dedupKey] — the

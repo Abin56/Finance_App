@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
@@ -25,6 +26,7 @@ class CreditCardsScreen extends ConsumerWidget {
     final cardsAsync = ref.watch(creditCardsStreamProvider);
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final accountNameById = {for (final a in accounts) a.id: a.name};
+    final accountBankIdById = {for (final a in accounts) a.id: a.bankId};
 
     return Scaffold(
       appBar: AppBar(title: const Text('Credit Cards')),
@@ -61,6 +63,7 @@ class CreditCardsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: AppSizes.sm),
                   child: _CreditCardTile(
                     name: accountNameById[card.accountId] ?? 'Card',
+                    bankId: accountBankIdById[card.accountId],
                     cardId: card.id,
                     status: card.status,
                     cardNetwork: card.cardNetwork,
@@ -82,11 +85,13 @@ class _CreditCardTile extends ConsumerWidget {
     required this.cardId,
     required this.status,
     required this.onTap,
+    this.bankId,
     this.cardNetwork,
     this.lastFourDigits,
   });
 
   final String name;
+  final String? bankId;
   final String cardId;
   final CreditCardStatus status;
   final CardNetwork? cardNetwork;
@@ -107,6 +112,8 @@ class _CreditCardTile extends ConsumerWidget {
         children: [
           Row(
             children: [
+              BankAvatar(bankId: bankId, fallbackName: name, size: 32),
+              const SizedBox(width: AppSizes.sm),
               if (cardNetwork != null) ...[
                 Icon(cardNetwork!.icon, size: AppSizes.iconSm),
                 const SizedBox(width: AppSizes.xs),

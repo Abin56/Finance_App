@@ -41,6 +41,27 @@ void main() {
       final m = msg('VM-ICICIB', 'Rs.50,000.00 credited to a/c XX1234 on 15-07-26. Info: NEFT salary. Avl Bal Rs.75,000.00');
       expect(SmsFinancialFilter.isFinancial(m), isTrue);
     });
+
+    test('accepts a genuine debit whose merchant name happens to contain "Sale Store"', () {
+      // Regression: the promotional negative-list pattern for "sale ...
+      // shop/buy/store" used to reject this outright, silently dropping a
+      // real transaction SMS with no recovery path.
+      final m = msg(
+        'VM-HDFCBK',
+        'Rs.1500.00 spent at Flipkart Big Billion Sale Store on your HDFC Bank Debit Card XX1234.',
+      );
+      expect(SmsFinancialFilter.isFinancial(m), isTrue);
+    });
+
+    test('still rejects a promo that merely quotes an amount with no transaction verb', () {
+      final m = msg('AD-OFFERS', 'Get a cashback offer of Rs.500 off your next purchase! Sale is now live.');
+      expect(SmsFinancialFilter.isFinancial(m), isFalse);
+    });
+
+    test('OTP is rejected even if the message also contains a transaction verb', () {
+      final m = msg('VM-HDFCBK', '123456 is your OTP to authorize a payment of Rs.500 debited from a/c XX1234. Do not share OTP.');
+      expect(SmsFinancialFilter.isFinancial(m), isFalse);
+    });
   });
 
   group('bank-specific parsing', () {

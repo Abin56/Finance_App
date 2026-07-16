@@ -163,6 +163,39 @@ void main() {
         expect(applied.activeCount, 2);
       });
 
+      testWidgets('an invalid Min/Max range shows an error and Apply does not take effect', (tester) async {
+        // Regression: Min/Max amount fields weren't cross-validated, so a
+        // range that can never match anything (Min > Max) silently applied
+        // with no explanation.
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(harness());
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('open filters'));
+        await tester.pumpAndSettle();
+
+        final minField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Min');
+        final maxField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Max');
+        final sheetList = find
+            .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
+            .first;
+        await tester.scrollUntilVisible(minField, 200, scrollable: sheetList);
+
+        await tester.enterText(minField, '5000');
+        await tester.pumpAndSettle();
+        await tester.enterText(maxField, '100');
+        await tester.pumpAndSettle();
+
+        expect(find.text('Min must not be greater than Max.'), findsOneWidget);
+
+        await tester.tap(find.text('Apply Filters'));
+        await tester.pumpAndSettle();
+
+        expect(container.read(smsFilterCriteriaProvider).hasActiveFilters, isFalse);
+      });
+
       testWidgets('closing without applying discards the draft', (tester) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1.0;

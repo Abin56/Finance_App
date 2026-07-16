@@ -33,6 +33,7 @@ void main() {
         interestRatePercent: 3.5,
         rewardNotes: '5% cashback on dining',
         autoDebitAccount: 'Savings XXXX',
+        cardHolderName: 'ABIN JOHN',
       );
 
       expect(card.cardNetwork, CardNetwork.mastercard);
@@ -42,6 +43,7 @@ void main() {
       expect(card.interestRatePercent, 3.5);
       expect(card.rewardNotes, '5% cashback on dining');
       expect(card.autoDebitAccount, 'Savings XXXX');
+      expect(card.cardHolderName, 'ABIN JOHN');
     });
 
     test('defaults fees to 0 and network to null when not provided', () async {
@@ -103,6 +105,7 @@ void main() {
         rewardNotes: '2x points on fuel',
         autoPay: true,
         autoDebitAccount: 'Checking XXXX',
+        cardHolderName: 'MANEESH MADHU',
       );
 
       expect(card.cardNetwork, CardNetwork.rupay);
@@ -112,6 +115,7 @@ void main() {
       expect(card.rewardNotes, '2x points on fuel');
       expect(card.autoPay, true);
       expect(card.autoDebitAccount, 'Checking XXXX');
+      expect(card.cardHolderName, 'MANEESH MADHU');
     });
 
     test('rejects changing last-4-digits to an invalid value', () async {

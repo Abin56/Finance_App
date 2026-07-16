@@ -10,6 +10,7 @@ import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
@@ -523,7 +524,17 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                       decoration: InputDecoration(labelText: 'Account', errorText: _accountError),
                       items: [
                         for (final account in accounts)
-                          DropdownMenuItem(value: account.id, child: Text(account.name)),
+                          DropdownMenuItem(
+                            value: account.id,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 20),
+                                const SizedBox(width: AppSizes.sm),
+                                Flexible(child: Text(account.name, overflow: TextOverflow.ellipsis)),
+                              ],
+                            ),
+                          ),
                       ],
                       onChanged: (value) => setState(() {
                         _accountId = value;

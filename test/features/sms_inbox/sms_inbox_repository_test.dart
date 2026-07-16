@@ -163,6 +163,41 @@ void main() {
       expect(updated.duplicateReason, isNull);
     });
 
+    test('a single scan with several brand-new messages reports the correct batched count', () async {
+      // Regression: scanInbox used to insert one row at a time; batching
+      // the inserts (via db.batch()) must still report the same accurate
+      // new-item count, including on backends that report an ignored
+      // conflict as `null` rather than `0`.
+      final second = RawSmsMessage(
+        address: 'VM-ICICIB',
+        body: 'Rs.980.00 debited from a/c XX9999 on 15-07-26 to VPA zomato@icici. Ref No 111222333444.',
+        date: DateTime(2026, 7, 15, 19, 0),
+      );
+      final third = RawSmsMessage(
+        address: 'VM-SBIBNK',
+        body: 'Rs.2,000.00 credited to a/c XX8888 on 15-07-26. Info: NEFT.',
+        date: DateTime(2026, 7, 15, 20, 0),
+      );
+      final repository = SmsInboxRepository(dao, _FakeSmsReaderAdapter([financialSms, second, third]));
+
+      expect(await repository.scanInbox(), 3);
+      expect(await repository.getAll(), hasLength(3));
+    });
+
+    test('a batched scan mixing already-stored and brand-new messages counts only the new ones', () async {
+      final repository = SmsInboxRepository(dao, _FakeSmsReaderAdapter([financialSms]));
+      await repository.scanInbox();
+
+      final second = RawSmsMessage(
+        address: 'VM-ICICIB',
+        body: 'Rs.980.00 debited from a/c XX9999 on 15-07-26 to VPA zomato@icici. Ref No 111222333444.',
+        date: DateTime(2026, 7, 15, 19, 0),
+      );
+      final rescanRepository = SmsInboxRepository(dao, _FakeSmsReaderAdapter([financialSms, second]));
+      expect(await rescanRepository.scanInbox(), 1, reason: 'only the second message is new');
+      expect(await rescanRepository.getAll(), hasLength(2));
+    });
+
     test('a converted item stays imported across a re-scan', () async {
       final repository = SmsInboxRepository(dao, _FakeSmsReaderAdapter([financialSms]));
       await repository.scanInbox();
@@ -189,6 +224,22 @@ void main() {
 
       await repository.restore(item.id);
       expect((await repository.getAll()).single.status, SmsImportStatus.pending);
+    });
+
+    test('restore clears the stale ignoredAt timestamp rather than leaving it behind', () async {
+      // Regression: updateStatus's conditional map-entry syntax omitted the
+      // 'ignored_at' column entirely when no new value was given, so a
+      // restored item kept its old ignore timestamp even though it was
+      // pending again.
+      final repository = SmsInboxRepository(dao, _FakeSmsReaderAdapter([financialSms]));
+      await repository.scanInbox();
+      final item = (await repository.getAll()).single;
+
+      await repository.markIgnored(item.id);
+      expect((await repository.getAll()).single.ignoredAt, isNotNull);
+
+      await repository.restore(item.id);
+      expect((await repository.getAll()).single.ignoredAt, isNull);
     });
 
     test('getByStatus filters correctly', () async {

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/account.dart';
+import '../../domain/account_type.dart';
 import '../providers/account_providers.dart';
 
 /// Soft-deleted accounts awaiting restore or permanent deletion.
@@ -41,6 +43,9 @@ class AccountsTrashScreen extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppSizes.radiusLg),
                 ),
+                leading: account.type == AccountType.bank || account.type == AccountType.card
+                    ? BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 36)
+                    : Icon(account.type.icon),
                 title: Text(account.name),
                 subtitle: Text('Deleted ${account.deletedAt!.toLocal()}'.split('.').first),
                 trailing: Row(

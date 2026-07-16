@@ -17,6 +17,10 @@ class Account extends SoftDeletableEntity {
     required this.colorValue,
     required this.createdAt,
     this.isDefault = false,
+    this.bankId,
+    this.accountHolderName,
+    this.notes,
+    this.accountNumberLast4,
   });
 
   @override
@@ -28,6 +32,20 @@ class Account extends SoftDeletableEntity {
   int colorValue;
   bool isDefault;
   final DateTime createdAt;
+
+  /// References a [BankInfo] in the shared bank registry — display data
+  /// (name, logo color) is always resolved live from there, never copied
+  /// onto this entity, so a future branding correction applies everywhere
+  /// automatically. Null for accounts with no bank picked yet (including
+  /// every account created before this feature existed).
+  String? bankId;
+
+  /// Optional metadata — none of this feeds any calculation.
+  String? accountHolderName;
+  String? notes;
+
+  /// Last 4 digits only; the full account number is never stored.
+  String? accountNumberLast4;
 
   /// Document id is sourced from `snapshot.id` (Firestore's own enforced
   /// uniqueness), not a body field, so the two can never drift apart.
@@ -45,6 +63,10 @@ class Account extends SoftDeletableEntity {
       colorValue: data['colorValue'] as int,
       isDefault: data['isDefault'] as bool? ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      bankId: data['bankId'] as String?,
+      accountHolderName: data['accountHolderName'] as String?,
+      notes: data['notes'] as String?,
+      accountNumberLast4: data['accountNumberLast4'] as String?,
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -62,6 +84,10 @@ class Account extends SoftDeletableEntity {
       'colorValue': colorValue,
       'isDefault': isDefault,
       'createdAt': Timestamp.fromDate(createdAt),
+      'bankId': bankId,
+      'accountHolderName': accountHolderName,
+      'notes': notes,
+      'accountNumberLast4': accountNumberLast4,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),

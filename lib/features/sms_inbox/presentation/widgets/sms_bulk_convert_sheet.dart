@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
@@ -208,7 +209,14 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
                   for (final account in accounts)
                     DropdownMenuItem(
                       value: account.id,
-                      child: Text(account.name, overflow: TextOverflow.ellipsis),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 20),
+                          const SizedBox(width: AppSizes.sm),
+                          Flexible(child: Text(account.name, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ),
                     ),
                 ],
                 onChanged: (value) => setState(() {

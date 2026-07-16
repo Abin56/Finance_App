@@ -28,6 +28,17 @@ class _FakeSmsReaderAdapter extends SmsReaderAdapter {
   Future<List<RawSmsMessage>> readInbox() async => const [];
 }
 
+/// A repository whose markImported always throws — simulates a linking
+/// failure that happens *after* the real transaction was already created.
+class _ThrowingMarkImportedRepository extends SmsInboxRepository {
+  _ThrowingMarkImportedRepository(super.dao, super.reader);
+
+  @override
+  Future<void> markImported(String id, {required String linkedEntityId, String? linkedEntityRoute}) {
+    throw Exception('simulated linking failure');
+  }
+}
+
 /// Bulk convert writes real transactions against real balances, so this
 /// drives it through the *actual* `TransactionRepository` over a fake
 /// Firestore rather than a stub. That's the point: it proves the loop reuses
@@ -225,6 +236,30 @@ void main() {
     final stored = await inboxRepository.getAll();
     expect(stored.firstWhere((item) => item.id == 'dupe').status, SmsImportStatus.pending);
   });
+
+  test(
+    'a markImported failure after a successful create still counts as converted, not failed',
+    () async {
+      // Regression: markImported/merchant-memory used to run inside the same
+      // try/catch as the create call, so a failure here (after the real
+      // transaction already existed) was reported as `failed` — inviting a
+      // retry that would create a second transaction for the same SMS.
+      final throwingInbox = _ThrowingMarkImportedRepository(SmsInboxDao(database), _FakeSmsReaderAdapter());
+      final throwingConverter = SmsBulkConverter(
+        transactionRepository,
+        throwingInbox,
+        MerchantMemoryRepository(memoryDao),
+      );
+      final items = await seed([smsItem(id: 'a', amount: 100)]);
+
+      final result = await throwingConverter.convert(items, config());
+
+      expect(result.converted, 1, reason: 'the transaction was really created');
+      expect(result.failed, 0);
+      final created = await transactionRepository.getAll();
+      expect(created, hasLength(1));
+    },
+  );
 
   test('a failed create leaves its SMS pending and does not stop the rest', () async {
     // A transaction against a deleted account is the realistic failure: the

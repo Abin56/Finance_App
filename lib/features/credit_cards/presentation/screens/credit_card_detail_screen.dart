@@ -8,6 +8,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/num_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
@@ -26,7 +27,8 @@ bool _hasCardInfo(CreditCardProfile card) {
       card.joiningFee > 0 ||
       card.interestRatePercent != null ||
       (card.rewardNotes != null && card.rewardNotes!.isNotEmpty) ||
-      (card.autoPay && card.autoDebitAccount != null);
+      (card.autoPay && card.autoDebitAccount != null) ||
+      (card.cardHolderName != null && card.cardHolderName!.isNotEmpty);
 }
 
 /// Card metadata not already covered by [_CardUsageCard] — network, last 4
@@ -51,6 +53,8 @@ class _CardInfoSection extends StatelessWidget {
         children: [
           Text('Card info', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.sm),
+          if (card.cardHolderName != null && card.cardHolderName!.isNotEmpty)
+            _textRow(context, 'Card holder', card.cardHolderName!),
           if (card.cardNetwork != null) _textRow(context, 'Network', card.cardNetwork!.label),
           if (card.lastFourDigits != null) _textRow(context, 'Card number', '•••• ${card.lastFourDigits}'),
           if (card.annualFee > 0) _amountRow(context, 'Annual fee', card.annualFee),
@@ -129,6 +133,8 @@ class CreditCardDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Row(
           children: [
+            BankAvatar(bankId: account?.bankId, fallbackName: account?.name, size: 32),
+            const SizedBox(width: AppSizes.sm),
             Flexible(child: Text(account?.name ?? 'Credit Card', overflow: TextOverflow.ellipsis)),
             if (!card.status.isActive) ...[
               const SizedBox(width: AppSizes.sm),

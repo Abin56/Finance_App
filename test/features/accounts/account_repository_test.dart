@@ -1,4 +1,5 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:finance_app/core/errors/app_exception.dart';
 import 'package:finance_app/features/accounts/data/account_repository.dart';
 import 'package:finance_app/features/accounts/domain/account.dart';
 import 'package:finance_app/features/accounts/domain/account_type.dart';
@@ -159,6 +160,75 @@ void main() {
       await repository.editAccount(account, name: 'Renamed');
 
       expect(account.openingBalance, 1000);
+    });
+  });
+
+  group('AccountRepository — bank/holder/notes/account-number fields', () {
+    test('persists bankId/accountHolderName/notes/accountNumberLast4 at creation', () async {
+      final account = await repository.createAccount(
+        name: 'HDFC Savings',
+        type: AccountType.bank,
+        openingBalance: 1000,
+        colorValue: 0xFF000000,
+        bankId: 'hdfc',
+        accountHolderName: 'Abin John',
+        notes: 'Primary salary account',
+        accountNumberLast4: '1234',
+      );
+
+      expect(account.bankId, 'hdfc');
+      expect(account.accountHolderName, 'Abin John');
+      expect(account.notes, 'Primary salary account');
+      expect(account.accountNumberLast4, '1234');
+    });
+
+    test('rejects an account number that is not exactly 4 digits', () async {
+      await expectLater(
+        repository.createAccount(
+          name: 'HDFC Savings',
+          type: AccountType.bank,
+          openingBalance: 1000,
+          colorValue: 0xFF000000,
+          accountNumberLast4: '123',
+        ),
+        throwsA(isA<AppException>()),
+      );
+    });
+
+    test('editAccount updates bankId/accountHolderName/notes/accountNumberLast4', () async {
+      final account = await repository.createAccount(
+        name: 'HDFC Savings',
+        type: AccountType.bank,
+        openingBalance: 1000,
+        colorValue: 0xFF000000,
+      );
+
+      await repository.editAccount(
+        account,
+        bankId: 'sbi',
+        accountHolderName: 'Maneesh Madhu',
+        notes: 'Joint account',
+        accountNumberLast4: '5678',
+      );
+
+      expect(account.bankId, 'sbi');
+      expect(account.accountHolderName, 'Maneesh Madhu');
+      expect(account.notes, 'Joint account');
+      expect(account.accountNumberLast4, '5678');
+    });
+
+    test('editAccount clears bankId when clearBankId is true', () async {
+      final account = await repository.createAccount(
+        name: 'HDFC Savings',
+        type: AccountType.bank,
+        openingBalance: 1000,
+        colorValue: 0xFF000000,
+        bankId: 'hdfc',
+      );
+
+      await repository.editAccount(account, clearBankId: true);
+
+      expect(account.bankId, isNull);
     });
   });
 
