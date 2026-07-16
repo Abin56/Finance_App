@@ -14,7 +14,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../domain/emi.dart';
 import '../providers/emi_providers.dart';
 
@@ -221,13 +221,11 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
         ref.read(emiRepositoryProvider).rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
       }
 
-      final smsPrefill = widget.smsPrefill;
-      if (smsPrefill != null) {
-        await ref.read(smsInboxItemsProvider.notifier).markImported(
-              smsPrefill.smsId,
-              linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
-            );
-      }
+      await completeSmsImport(
+        ref,
+        smsPrefill: widget.smsPrefill,
+        linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
+      );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

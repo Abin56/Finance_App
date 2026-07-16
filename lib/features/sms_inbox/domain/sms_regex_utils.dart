@@ -22,7 +22,7 @@ abstract class SmsRegexUtils {
   );
 
   static final RegExp _debitPattern = RegExp(
-    r'\b(debited|debit|spent|paid|withdrawn|deducted)\b',
+    r'\b(debited|spent|paid|withdrawn|deducted)\b',
     caseSensitive: false,
   );
 
@@ -76,23 +76,26 @@ abstract class SmsRegexUtils {
   }
 
   static String? extractMerchant(String body) {
-    final vpaMatch = _upiVpaPattern.firstMatch(body);
-    if (vpaMatch != null) return vpaMatch.group(1);
+    // The VPA pattern (`word@word`) matches any email-shaped substring, not
+    // just a genuine UPI VPA — bank SMS routinely include a support email
+    // ("mail us at customercare@hdfcbank.com") that would otherwise be
+    // mistaken for the merchant. Only trust it when the message is actually
+    // UPI-related; otherwise fall through to the merchant-name pattern.
+    final looksLikeUpi = body.toLowerCase().contains('upi') || body.toLowerCase().contains('vpa');
+    if (looksLikeUpi) {
+      final vpaMatch = _upiVpaPattern.firstMatch(body);
+      if (vpaMatch != null) return vpaMatch.group(1);
+    }
     final merchantMatch = _merchantPattern.firstMatch(body);
     return merchantMatch?.group(1)?.trim();
   }
 
   static SmsTransactionCategory guessCategory(String body, SmsTransactionDirection? direction) {
     final lower = body.toLowerCase();
-    if (lower.contains('upi')) {
-      return direction == SmsTransactionDirection.credit
-          ? SmsTransactionCategory.upiReceive
-          : SmsTransactionCategory.upiPayment;
-    }
-    // Checked before the generic IMPS/NEFT/RTGS match below since a
-    // salary/refund/bill credit often *arrives via* NEFT/IMPS — the more
-    // specific reason for the money movement should win over the generic
-    // rail it travelled on.
+    // Specific-reason checks are all tried before the generic-rail checks
+    // below (UPI/IMPS/NEFT/RTGS) — a salary/refund/bill credit often
+    // *arrives via* UPI/NEFT/IMPS, and the more specific reason for the
+    // money movement should win over the generic rail it travelled on.
     if (lower.contains('salary')) return SmsTransactionCategory.salaryCredit;
     if (lower.contains('refund')) return SmsTransactionCategory.refund;
     if (lower.contains('cash deposit') || lower.contains('deposited cash')) return SmsTransactionCategory.cashDeposit;
@@ -104,6 +107,11 @@ abstract class SmsRegexUtils {
     }
     if (lower.contains('auto debit') || lower.contains('autopay') || lower.contains('standing instruction')) {
       return SmsTransactionCategory.autoDebit;
+    }
+    if (lower.contains('upi')) {
+      return direction == SmsTransactionDirection.credit
+          ? SmsTransactionCategory.upiReceive
+          : SmsTransactionCategory.upiPayment;
     }
     if (RegExp(r'\b(imps|neft|rtgs)\b', caseSensitive: false).hasMatch(body)) {
       return SmsTransactionCategory.impsNeftRtgs;

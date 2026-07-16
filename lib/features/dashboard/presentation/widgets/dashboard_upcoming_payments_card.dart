@@ -3,14 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
 import '../../../../shared/widgets/states/payment_urgency_badge.dart';
+import '../../../../shared/widgets/states/shimmer_box.dart';
+import '../../../bills/presentation/providers/bill_providers.dart';
 import '../../../cash_flow/presentation/providers/cash_flow_providers.dart';
+import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
+import '../../../emi/presentation/providers/emi_providers.dart';
+import '../../../lending/presentation/providers/loan_providers.dart';
+import 'dashboard_preview_row.dart';
+import 'dashboard_section_card.dart';
 
 /// Dashboard-scale preview of the Cash Flow Center's unified upcoming-
 /// payments timeline ([upcomingPaymentsTimelineProvider], already computed
@@ -42,43 +46,7 @@ class DashboardUpcomingPaymentsCard extends ConsumerWidget {
     return 'Due in ${days}d';
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final items = ref.watch(upcomingPaymentsTimelineProvider).take(3).toList();
-
-    if (items.isEmpty) {
-      return const PlaceholderCard(
-        icon: Icons.event_note_outlined,
-        title: 'No upcoming payments',
-        message: 'EMIs, bills, loans, and credit card dues will appear here as they come up.',
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusCard),
-        boxShadow: AppShadows.soft(context),
-      ),
-      padding: const EdgeInsets.all(AppSizes.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final item in items) _PaymentRow(item: item, icon: _iconFor(item.kind), dueLabel: _dueLabel(item.dueDate)),
-        ],
-      ),
-    );
-  }
-}
-
-class _PaymentRow extends StatelessWidget {
-  const _PaymentRow({required this.item, required this.icon, required this.dueLabel});
-
-  final UpcomingPaymentItem item;
-  final IconData icon;
-  final String dueLabel;
-
-  void _onTap(BuildContext context) {
+  void _onTap(BuildContext context, UpcomingPaymentItem item) {
     switch (item.kind) {
       case UpcomingPaymentKind.emi:
         context.push('${AppRoutes.emis}/${item.routeId}');
@@ -92,49 +60,87 @@ class _PaymentRow extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => _onTap(context),
-      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
-              child: Icon(icon, color: AppColors.primary),
-            ),
-            const SizedBox(width: AppSizes.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item.title, style: context.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 2),
-                  Text(
-                    dueLabel,
-                    style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
-                  ),
-                ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Approximation: these are the top-level lists the timeline aggregates
+    // from (see upcomingPaymentsTimelineProvider). Per-item installment
+    // streams resolve near-instantly once these are known, so a rare
+    // false-negative here is cosmetic only — the skeleton disappearing a
+    // beat early, never a data-correctness issue.
+    final loading = ref.watch(emisStreamProvider).isLoading ||
+        ref.watch(loansStreamProvider).isLoading ||
+        ref.watch(billsStreamProvider).isLoading ||
+        ref.watch(creditCardsStreamProvider).isLoading;
+    if (loading) {
+      return const DashboardSectionCard(child: _UpcomingPaymentsSkeleton());
+    }
+
+    final items = ref.watch(upcomingPaymentsTimelineProvider).take(3).toList();
+
+    if (items.isEmpty) {
+      return PlaceholderCard(
+        icon: Icons.event_note_outlined,
+        title: 'No upcoming payments',
+        message: 'EMIs, bills, loans, and credit card dues will appear here as they come up.',
+        radius: AppSizes.radiusCard,
+        actionLabel: 'Open Cash Flow',
+        onTap: () => context.push(AppRoutes.cashFlow),
+      );
+    }
+
+    return DashboardSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final item in items)
+            DashboardPreviewRow(
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+                child: Icon(_iconFor(item.kind), color: AppColors.primary),
               ),
+              title: item.title,
+              caption: _dueLabel(item.dueDate),
+              amount: item.remaining,
+              statusBadge: PaymentUrgencyBadge(urgency: item.urgency, compact: true),
+              onTap: () => _onTap(context, item),
             ),
-            const SizedBox(width: AppSizes.sm),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  CurrencyFormatter.instance.format(item.remaining),
-                  style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                PaymentUrgencyBadge(urgency: item.urgency, compact: true),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
+    );
+  }
+}
+
+class _UpcomingPaymentsSkeleton extends StatelessWidget {
+  const _UpcomingPaymentsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(height: AppSizes.md),
+          Row(
+            children: [
+              const ShimmerBox(width: 44, height: 44, borderRadius: AppSizes.radiusPill),
+              const SizedBox(width: AppSizes.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    ShimmerBox(width: 130, height: 16),
+                    SizedBox(height: AppSizes.xs),
+                    ShimmerBox(width: 70, height: 10),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSizes.sm),
+              const ShimmerBox(width: 60, height: 16),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

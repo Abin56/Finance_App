@@ -24,7 +24,7 @@ import '../../../people/presentation/providers/people_providers.dart';
 import '../../../savings/domain/savings_goal.dart';
 import '../../../savings/presentation/providers/savings_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../../transactions/domain/transaction_type.dart';
 
 /// Bottom sheet for recording money that came in, classified by *why* it
@@ -148,10 +148,7 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
             note: _noteController.text.trim(),
           );
 
-      final smsPrefill = widget.smsPrefill;
-      if (smsPrefill != null) {
-        await ref.read(smsInboxItemsProvider.notifier).markImported(smsPrefill.smsId, linkedEntityId: transaction.id);
-      }
+      await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: transaction.id);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

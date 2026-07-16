@@ -14,6 +14,8 @@ class PlaceholderCard extends StatelessWidget {
     required this.title,
     required this.message,
     this.onTap,
+    this.actionLabel,
+    this.radius = AppSizes.radiusLg,
   });
 
   final IconData icon;
@@ -21,10 +23,21 @@ class PlaceholderCard extends StatelessWidget {
   final String message;
   final VoidCallback? onTap;
 
+  /// Visible call-to-action ("Set a budget", "Add a transaction", ...) shown
+  /// under the message and wired to the same [onTap] — without this, an
+  /// empty card's only affordance is an invisible whole-card tap target.
+  final String? actionLabel;
+
+  /// Corner radius override — dashboard callers pass [AppSizes.radiusCard]
+  /// to match their loaded-state siblings, since this wraps [AppCard]'s
+  /// default [AppSizes.radiusLg] otherwise.
+  final double radius;
+
   @override
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
+      radius: radius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -52,6 +65,22 @@ class PlaceholderCard extends StatelessWidget {
               ),
             ],
           ),
+          if (actionLabel != null) ...[
+            const SizedBox(height: AppSizes.sm),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Text(
+                  actionLabel!,
+                  style: context.textTheme.labelLarge?.copyWith(
+                    color: context.colors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+              ],
+            ),
+          ],
         ],
       ),
     );

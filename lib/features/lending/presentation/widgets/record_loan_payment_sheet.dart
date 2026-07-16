@@ -12,7 +12,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 
 /// Bottom sheet for recording a payment against a loan installment.
 /// Supports partial payments (amount less than what's remaining) and
@@ -117,13 +117,11 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
         note: _resolveNote(payer),
       );
 
-      final smsPrefill = widget.smsPrefill;
-      if (smsPrefill != null) {
-        await ref.read(smsInboxItemsProvider.notifier).markImported(
-              smsPrefill.smsId,
-              linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
-            );
-      }
+      await completeSmsImport(
+        ref,
+        smsPrefill: widget.smsPrefill,
+        linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
+      );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

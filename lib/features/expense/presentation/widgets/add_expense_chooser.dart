@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'assign_expense_sheet.dart';
 import 'split_expense_form_sheet.dart';
 
-/// The "+ Add Expense" entry point shared by [ExpensesScreen] and the
-/// Contact Ledger (`PersonStatementScreen`) — a two-choice bottom sheet
-/// (share with several people vs. assign the whole thing to one person)
-/// funnelling into the same [SplitExpenseFormSheet]/[AssignExpenseSheet]
-/// either screen already used, so there's exactly one "add a shared
-/// expense" flow in the app, not a third copy per entry point.
+/// The "+ Add Expense" entry point used by the Contact Ledger
+/// (`PersonStatementScreen`) — a two-choice bottom sheet (share with several
+/// people vs. assign the whole thing to one person) funnelling into the
+/// same [SplitExpenseFormSheet]/[AssignExpenseSheet] the screen already
+/// used, so there's exactly one "add a shared expense" flow in the app.
 abstract class AddExpenseChooser {
   AddExpenseChooser._();
 

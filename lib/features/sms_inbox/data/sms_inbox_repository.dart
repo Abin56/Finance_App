@@ -45,7 +45,15 @@ class SmsInboxRepository {
   /// review.
   Future<int> scanInbox() async {
     final rawMessages = await _reader.readInbox();
-    var newCount = 0;
+    final items = <SmsInboxItem>[];
+
+    // Tracks the dedup-key → original-item-id assignments made *within this
+    // scan* (not yet committed to the DB) — so two duplicate messages that
+    // both arrive in the same scan are still correctly linked to each
+    // other, the same way the previous insert-per-message loop got this for
+    // free from each insert being visible to the next iteration's DB query
+    // before batching replaced it (see [SmsInboxDao.insertManyIfNew]).
+    final originalIdByDedupKeyThisScan = <String, String>{};
 
     for (final message in rawMessages) {
       if (!SmsFinancialFilter.isFinancial(message)) continue;
@@ -59,7 +67,8 @@ class SmsInboxRepository {
         body: message.body,
       );
 
-      final original = await _dao.findOriginalByDedupKey(dedupKey);
+      final storedOriginal = await _dao.findOriginalByDedupKey(dedupKey);
+      final originalId = storedOriginal?.id ?? originalIdByDedupKeyThisScan[dedupKey];
 
       final item = SmsInboxItem(
         id: IdGenerator.generate(),
@@ -71,17 +80,22 @@ class SmsInboxRepository {
         rawMessage: message,
         parsed: parsed,
         dedupKey: dedupKey,
-        duplicateOfId: original?.id,
-        duplicateReason: original == null ? null : _reasonFor(parsed?.referenceNumber),
+        duplicateOfId: originalId,
+        duplicateReason: originalId == null ? null : _reasonFor(parsed?.referenceNumber),
         status: SmsImportStatus.pending,
         createdAt: DateTime.now(),
       );
+      items.add(item);
 
-      final inserted = await _dao.insertIfNew(item);
-      if (inserted) newCount++;
+      // Only the earliest item for a given dedup key in this scan should be
+      // remembered as "the original" for a later duplicate in the same
+      // scan — mirrors findOriginalByDedupKey's own earliest-wins rule.
+      if (originalId == null) {
+        originalIdByDedupKeyThisScan[dedupKey] = item.id;
+      }
     }
 
-    return newCount;
+    return _dao.insertManyIfNew(items);
   }
 
   /// A shared reference number is what `SmsDedupKey` prefers when present, so
@@ -120,8 +134,10 @@ class SmsInboxRepository {
     return _dao.updateStatusMany(ids, status: SmsImportStatus.ignored, ignoredAt: DateTime.now());
   }
 
-  /// Moves an ignored item back to pending review.
-  Future<void> restore(String id) => _dao.updateStatus(id, status: SmsImportStatus.pending);
+  /// Moves an ignored item back to pending review, clearing the stale
+  /// `ignoredAt` timestamp from the earlier ignore rather than leaving it
+  /// behind on a now-pending row.
+  Future<void> restore(String id) => _dao.updateStatus(id, status: SmsImportStatus.pending, clearIgnoredAt: true);
 
   /// Un-flags a message the duplicate rules got wrong, returning it to the
   /// normal inbox. Purely a visibility change — no financial record exists

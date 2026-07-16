@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -21,20 +23,46 @@ class ReminderNotificationService {
     tz_data.initializeTimeZones();
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    // Permission is deliberately NOT requested here (hence the `request*:
+    // false` flags): [init] runs during app startup, which would put the OS
+    // dialog on screen before the user has been told what the reminders are
+    // for. [requestPermission] owns the ask instead, so it happens under
+    // copy that explains it — onboarding's notifications page, or the first
+    // reminder actually being scheduled.
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
     await _plugin.initialize(
       const InitializationSettings(android: androidSettings, iOS: iosSettings),
     );
 
-    await _plugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-
     _initialized = true;
+  }
+
+  /// Asks the OS for notification permission, returning whether it's granted.
+  ///
+  /// Safe to call repeatedly: once the user has answered, both platforms
+  /// resolve with the standing decision instead of prompting again.
+  static Future<bool> requestPermission() async {
+    await init();
+
+    if (Platform.isAndroid) {
+      final granted = await _plugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+      return granted ?? false;
+    }
+
+    if (Platform.isIOS || Platform.isMacOS) {
+      final granted = await _plugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+      return granted ?? false;
+    }
+
+    return false;
   }
 
   /// Cancels every reminder for [ownerId] then schedules one per [offsets]
@@ -53,6 +81,11 @@ class ReminderNotificationService {
   }) async {
     await cancel(ownerId);
     if (offsets.isEmpty) return;
+
+    // The contextual fallback for anyone who never saw (or declined) the
+    // onboarding ask: scheduling a reminder is itself proof the user wants
+    // one, so it's a fair moment to prompt. A no-op once they've answered.
+    await requestPermission();
 
     for (final offset in offsets) {
       final fireDate = dueDate.subtract(Duration(days: offset));

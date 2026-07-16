@@ -14,7 +14,7 @@ import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../expense/presentation/widgets/split_expense_form_sheet.dart';
 import '../../../sms_inbox/domain/merchant/merchant_category_suggester.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../../sms_inbox/presentation/widgets/sms_suggestion_hint.dart';
 import '../../domain/transaction.dart';
 import '../../domain/transaction_type.dart';
@@ -186,19 +186,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           notes: widget.smsPrefill?.note ?? '',
         );
 
-        final smsPrefill = widget.smsPrefill;
-        if (smsPrefill != null) {
-          await ref.read(smsInboxItemsProvider.notifier).markImported(smsPrefill.smsId, linkedEntityId: created.id);
-          // Learn from the category the user actually settled on — which may
-          // differ from the one suggested — so the next SMS from this
-          // merchant starts where they left off. Only ever reached from an
-          // SMS conversion, so a plain manual entry records nothing.
-          await ref.read(merchantMemoriesProvider.notifier).record(
-                merchant: smsPrefill.merchantOrSender,
-                transactionType: _type,
-                categoryId: _categoryId!,
-              );
-        }
+        // Learn from the category the user actually settled on — which may
+        // differ from the one suggested — so the next SMS from this
+        // merchant starts where they left off. Only ever reached from an
+        // SMS conversion, so a plain manual entry records nothing. Any
+        // failure in linking/learning is swallowed inside this helper — the
+        // transaction above already saved, so it must never be reported as
+        // a save failure (see `completeSmsImport`).
+        await completeSmsImport(
+          ref,
+          smsPrefill: widget.smsPrefill,
+          linkedEntityId: created.id,
+          learnCategoryType: _type,
+          learnCategoryId: _categoryId,
+        );
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {

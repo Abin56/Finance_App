@@ -44,11 +44,16 @@ class ProgressBar extends StatelessWidget {
         ],
         ClipRRect(
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          child: LinearProgressIndicator(
-            value: clamped,
-            minHeight: height,
-            backgroundColor: context.colors.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: clamped),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            builder: (context, animatedValue, _) => LinearProgressIndicator(
+              value: animatedValue,
+              minHeight: height,
+              backgroundColor: context.colors.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
           ),
         ),
       ],

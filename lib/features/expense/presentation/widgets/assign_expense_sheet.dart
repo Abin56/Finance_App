@@ -10,7 +10,7 @@ import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../providers/expense_providers.dart';
 
@@ -111,12 +111,7 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
         dueDate: _dueDate,
       );
 
-      final smsPrefill = widget.smsPrefill;
-      if (smsPrefill != null) {
-        await ref
-            .read(smsInboxItemsProvider.notifier)
-            .markImported(smsPrefill.smsId, linkedEntityId: expense.transactionId);
-      }
+      await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

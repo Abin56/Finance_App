@@ -43,4 +43,9 @@ abstract class AppSizes {
   static const double inputHeight = 56;
   static const double bottomNavHeight = 64;
   static const double appBarHeight = 64;
+
+  /// Bottom padding a scrollable needs so its last item can scroll clear of
+  /// the floating "+" button: the 64pt FAB plus its 16pt margin, and [lg]
+  /// again so content rests below it rather than flush against it.
+  static const double fabClearance = 96;
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Local-only key/value settings (app-lock flags, theme mode) that never
@@ -13,6 +14,15 @@ class LocalSettingsService {
   static Future<void> init() async {
     _prefs ??= await SharedPreferences.getInstance();
   }
+
+  /// Drops the cached instance so the next [init] fetches a fresh one.
+  ///
+  /// Test-only, and needed because [init] caches for the whole process:
+  /// `SharedPreferences.setMockInitialValues` hands out a *new* instance,
+  /// leaving the cached one here still answering with the previous test's
+  /// values. Call this before re-initializing between tests.
+  @visibleForTesting
+  static void resetForTest() => _prefs = null;
 
   static SharedPreferences get _instance {
     final prefs = _prefs;

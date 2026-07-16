@@ -3,6 +3,10 @@
 abstract class AppRoutes {
   AppRoutes._();
 
+  // First run
+  static const String onboarding = '/onboarding';
+  static const String setupWizard = '/setup';
+
   // Auth
   static const String splash = '/splash';
   static const String login = '/login';
@@ -21,7 +25,6 @@ abstract class AppRoutes {
   static const String about = '/about';
   static const String trash = '/trash';
   static const String comingSoon = '/coming-soon';
-  static const String addTransaction = '/add-transaction';
   static const String categories = '/categories';
   static const String budget = '/budget';
   static const String savings = '/savings';
@@ -37,7 +40,6 @@ abstract class AppRoutes {
   static const String creditCards = '/creditCards';
   static const String creditCardDetail = '/creditCards/:cardId';
   static const String statementDetail = '/creditCards/:cardId/statements/:statementId';
-  static const String expenses = '/expenses';
   static const String transactionDetail = '/transactions/:transactionId';
   static const String calendar = '/calendar';
   static const String search = '/search';

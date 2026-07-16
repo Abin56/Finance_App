@@ -18,13 +18,16 @@ import '../../features/credit_cards/presentation/screens/statement_detail_screen
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/emi/presentation/screens/emi_detail_screen.dart';
 import '../../features/emi/presentation/screens/emis_screen.dart';
-import '../../features/expense/presentation/screens/expenses_screen.dart';
 import '../../features/lending/presentation/screens/loan_detail_screen.dart';
 import '../../features/lending/presentation/screens/loans_screen.dart';
 import '../../features/more/presentation/screens/about_screen.dart';
 import '../../features/more/presentation/screens/coming_soon_screen.dart';
 import '../../features/more/presentation/screens/more_screen.dart';
 import '../../features/more/presentation/screens/trash_hub_screen.dart';
+import '../../features/onboarding/presentation/providers/onboarding_providers.dart';
+import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
+import '../../features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
+import '../../features/setup_wizard/presentation/screens/setup_wizard_screen.dart';
 import '../../features/people/presentation/screens/creditors_screen.dart';
 import '../../features/people/presentation/screens/debtors_screen.dart';
 import '../../features/people/presentation/screens/people_screen.dart';
@@ -43,6 +46,7 @@ import '../services/security/app_lock_controller.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'fab_visibility.dart';
+import 'route_error_screen.dart';
 import 'router_refresh_notifier.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -53,7 +57,12 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 /// scroll position or pushed routes. The nav bar's central "+" button opens
 /// an add-entry sheet rather than navigating to a branch.
 ///
-/// `redirect` enforces two gates, auth taking priority over lock:
+/// `redirect` enforces four gates, in priority order:
+/// - Onboarding gate: until the intro tour has been seen (finished *or*
+///   skipped), every navigation goes to `/onboarding`. It runs ahead of the
+///   auth gate on purpose — people should learn what FlowFi does before
+///   being asked to sign in — and it means the tour is visible while
+///   [authStateProvider] is still resolving in the background.
 /// - Auth gate: while [authStateProvider] is resolving, every navigation
 ///   goes to `/splash`; once resolved, signed-out always goes to `/login`
 ///   regardless of lock state, and signed-in leaves `/splash`/`/login` for
@@ -61,6 +70,10 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 /// - Lock gate (only reached once signed in): whenever [AppLockController]
 ///   reports `pinEnabled && locked`, every navigation attempt is redirected
 ///   to `/lock` regardless of where the user was headed.
+/// - Setup gate (only reached once signed in and unlocked): until this
+///   account has completed *or* dismissed the first-time setup wizard, every
+///   navigation goes to `/setup`. Dismissing it marks it done, so it never
+///   permanently blocks the app.
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = RouterRefreshNotifier(ref);
   final modalCounter = ref.read(modalRouteCountProvider.notifier);
@@ -70,7 +83,16 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: AppRoutes.dashboard,
     debugLogDiagnostics: false,
     refreshListenable: refreshNotifier,
+    errorBuilder: (context, state) => const RouteErrorScreen(),
     redirect: (context, state) {
+      final goingToOnboarding = state.matchedLocation == AppRoutes.onboarding;
+      if (!ref.read(onboardingCompletedProvider)) {
+        return goingToOnboarding ? null : AppRoutes.onboarding;
+      }
+      // Seen already: send the tour's own location on, and let the gates
+      // below re-resolve it to login or the dashboard.
+      if (goingToOnboarding) return AppRoutes.dashboard;
+
       final authState = ref.read(authStateProvider);
       final goingToSplash = state.matchedLocation == AppRoutes.splash;
       final goingToLogin = state.matchedLocation == AppRoutes.login;
@@ -93,9 +115,28 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (isLocked && !goingToLock) return AppRoutes.lock;
       if (!isLocked && goingToLock) return AppRoutes.dashboard;
+
+      // Setup gate (only reached once signed in and unlocked): first-run
+      // configuration for this account. Runs behind the lock so a returning
+      // user with a PIN unlocks first, and a step that sets a PIN mid-wizard
+      // doesn't bounce them to the lock screen. Skipping the wizard marks it
+      // complete, so it never blocks access to the app.
+      final goingToSetup = state.matchedLocation == AppRoutes.setupWizard;
+      if (!ref.read(setupWizardCompletedProvider)) {
+        return goingToSetup ? null : AppRoutes.setupWizard;
+      }
+      if (goingToSetup) return AppRoutes.dashboard;
       return null;
     },
     routes: [
+      GoRoute(
+        path: AppRoutes.onboarding,
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.setupWizard,
+        builder: (context, state) => const SetupWizardScreen(),
+      ),
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const SplashScreen(),
@@ -181,10 +222,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           cardId: state.pathParameters['cardId']!,
           statementId: state.pathParameters['statementId']!,
         ),
-      ),
-      GoRoute(
-        path: AppRoutes.expenses,
-        builder: (context, state) => const ExpensesScreen(),
       ),
       GoRoute(
         path: AppRoutes.calendar,

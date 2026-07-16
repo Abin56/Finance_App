@@ -11,7 +11,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../domain/bill.dart';
 import '../providers/bill_providers.dart';
 
@@ -112,10 +112,7 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
         note: _resolveNote(payer),
       );
 
-      final smsPrefill = widget.smsPrefill;
-      if (smsPrefill != null) {
-        await ref.read(smsInboxItemsProvider.notifier).markImported(smsPrefill.smsId, linkedEntityId: widget.bill.id);
-      }
+      await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: widget.bill.id);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

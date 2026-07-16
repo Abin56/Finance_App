@@ -40,6 +40,23 @@ class SmsInboxDao {
     return rowId != 0;
   }
 
+  /// Batched equivalent of [insertIfNew] for a full inbox scan — one
+  /// `db.batch()` commit for up to 500 rows instead of 500 separate insert
+  /// statements, mirroring the batching [updateStatusMany] already uses for
+  /// bulk status changes. Returns how many rows were newly inserted (a
+  /// `UNIQUE(message_key)` conflict — already stored — contributes 0, same
+  /// as [insertIfNew]).
+  Future<int> insertManyIfNew(List<SmsInboxItem> items) async {
+    if (items.isEmpty) return 0;
+
+    final batch = _database.batch();
+    for (final item in items) {
+      batch.insert(SmsInboxDatabase.tableName, _toRow(item), conflictAlgorithm: ConflictAlgorithm.ignore);
+    }
+    final results = await batch.commit();
+    return results.where((rowId) => (rowId as int) != 0).length;
+  }
+
   /// The earliest-stored non-duplicate row sharing [dedupKey] — the
   /// "original" a new duplicate points at. Ordering by `created_at` keeps a
   /// duplicate chain flat: every duplicate references the one true original,
@@ -80,6 +97,7 @@ class SmsInboxDao {
     String? linkedEntityRoute,
     DateTime? importedAt,
     DateTime? ignoredAt,
+    bool clearIgnoredAt = false,
   }) async {
     await _database.update(
       SmsInboxDatabase.tableName,
@@ -88,7 +106,12 @@ class SmsInboxDao {
         'linked_entity_id': ?linkedEntityId,
         'linked_entity_route': ?linkedEntityRoute,
         'imported_at': ?importedAt?.millisecondsSinceEpoch,
-        'ignored_at': ?ignoredAt?.millisecondsSinceEpoch,
+        // The `?` shorthand above omits the key entirely when the value is
+        // null, leaving the column untouched — right for every other status
+        // transition, but restoring an ignored item needs to actually clear
+        // the stale timestamp, hence the explicit `null` here rather than
+        // `?ignoredAt`.
+        if (clearIgnoredAt) 'ignored_at': null else 'ignored_at': ?ignoredAt?.millisecondsSinceEpoch,
       },
       where: 'id = ?',
       whereArgs: [id],
@@ -122,6 +145,17 @@ class SmsInboxDao {
     );
   }
 
+  // KNOWN LIMITATION (tracked for the future Duplicate Management redesign,
+  // after the SMS Inbox UI redesign — not fixed here per product decision):
+  // deleting a row that other rows reference via `duplicate_of_id` (i.e.
+  // deleting an "original" rather than one of its duplicates) leaves those
+  // duplicates pointing at a nonexistent id. `findOriginalByDedupKey`
+  // filters `duplicate_of_id IS NULL`, so a later scan matching the same
+  // `dedup_key` won't find the orphaned duplicates as candidates and will
+  // insert a new, unflagged "original" — silently splitting one duplicate
+  // chain into two. Proper fix needs a decision on reassignment behavior
+  // (point orphans at the next-earliest remaining row, or warn/block the
+  // delete), which belongs with the broader duplicate-management UX work.
   Future<void> deleteByIds(List<String> ids) async {
     if (ids.isEmpty) return;
     final placeholders = List.filled(ids.length, '?').join(',');

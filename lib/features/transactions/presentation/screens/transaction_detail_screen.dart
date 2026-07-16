@@ -46,11 +46,31 @@ class TransactionDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+    final transactionsAsync = ref.watch(transactionsStreamProvider);
+
+    if (transactionsAsync.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Transaction')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final transactions = transactionsAsync.value ?? const [];
     final transaction = transactions.where((t) => t.id == transactionId).firstOrNull;
 
     if (transaction == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Transaction')),
+        body: EmptyState(
+          icon: Icons.receipt_long_outlined,
+          title: 'Transaction not found',
+          subtitle: 'This transaction may have been deleted.',
+          action: FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Go Back'),
+          ),
+        ),
+      );
     }
 
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];

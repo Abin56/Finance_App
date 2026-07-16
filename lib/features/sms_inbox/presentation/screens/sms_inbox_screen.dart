@@ -53,7 +53,7 @@ class SmsInboxScreen extends ConsumerStatefulWidget {
   ConsumerState<SmsInboxScreen> createState() => _SmsInboxScreenState();
 }
 
-class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> {
+class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBindingObserver {
   final Set<String> _selectedIds = {};
   bool _hasAutoScanned = false;
 
@@ -62,7 +62,36 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> {
   /// marking imported yet, creating duplicate transactions.
   bool _isBulkConverting = false;
 
+  /// Guards a single item against being converted twice concurrently — a
+  /// rapid double-trigger (double swipe, or opening convert from two entry
+  /// points before the first finishes) would otherwise both reach `route()`
+  /// and both create a transaction from the same SMS.
+  final Set<String> _convertingIds = {};
+
   bool get _selectionMode => _selectedIds.isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// The permission gate's own suggested recovery for "permanently denied"
+  /// sends the user to system Settings to grant access there. Nothing else
+  /// re-checks permission status on return, so without this the gate stays
+  /// stuck showing "denied" even after the user actually granted it.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      ref.read(smsAvailabilityProvider.notifier).recheck();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -340,9 +369,14 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> {
   }
 
   Future<void> _handleConvert(SmsInboxItem item) async {
-    final target = await SmsConvertSheet.show(context);
-    if (target == null || !mounted) return;
-    await ref.read(smsConversionRouterProvider).route(context, ref, item, target);
+    if (!_convertingIds.add(item.id)) return;
+    try {
+      final target = await SmsConvertSheet.show(context);
+      if (target == null || !mounted) return;
+      await ref.read(smsConversionRouterProvider).route(context, ref, item, target);
+    } finally {
+      _convertingIds.remove(item.id);
+    }
   }
 
   void _handleSelectAll() {

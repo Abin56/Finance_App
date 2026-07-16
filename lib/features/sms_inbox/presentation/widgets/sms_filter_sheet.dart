@@ -42,6 +42,11 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
 
   static String _amountText(double? amount) => amount == null ? '' : amount.toStringAsFixed(0);
 
+  /// True when both bounds are set and Min exceeds Max — a range that can
+  /// never match anything, with no explanation otherwise.
+  bool get _hasInvalidAmountRange =>
+      _draft.minAmount != null && _draft.maxAmount != null && _draft.minAmount! > _draft.maxAmount!;
+
   @override
   void dispose() {
     _minController.dispose();
@@ -52,6 +57,7 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
   void _update(SmsFilterCriteria next) => setState(() => _draft = next);
 
   void _apply() {
+    if (_hasInvalidAmountRange) return;
     ref.read(smsFilterCriteriaProvider.notifier).state = _draft;
     Navigator.of(context).pop();
   }
@@ -238,6 +244,7 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                               child: _AmountField(
                                 controller: _minController,
                                 label: 'Min',
+                                hasError: _hasInvalidAmountRange,
                                 onChanged: (value) => _update(
                                   value == null ? _draft.copyWith(clearMinAmount: true) : _draft.copyWith(minAmount: value),
                                 ),
@@ -248,6 +255,7 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                               child: _AmountField(
                                 controller: _maxController,
                                 label: 'Max',
+                                hasError: _hasInvalidAmountRange,
                                 onChanged: (value) => _update(
                                   value == null ? _draft.copyWith(clearMaxAmount: true) : _draft.copyWith(maxAmount: value),
                                 ),
@@ -255,6 +263,13 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                             ),
                           ],
                         ),
+                        if (_hasInvalidAmountRange) ...[
+                          const SizedBox(height: AppSizes.xs),
+                          Text(
+                            'Min must not be greater than Max.',
+                            style: context.textTheme.bodySmall?.copyWith(color: context.colors.error),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -445,11 +460,15 @@ class _Chip extends StatelessWidget {
 }
 
 class _AmountField extends StatelessWidget {
-  const _AmountField({required this.controller, required this.label, required this.onChanged});
+  const _AmountField({required this.controller, required this.label, required this.onChanged, this.hasError = false});
 
   final TextEditingController controller;
   final String label;
   final ValueChanged<double?> onChanged;
+
+  /// True when this field is part of an invalid Min/Max range — highlights
+  /// the border without duplicating the explanation text under both fields.
+  final bool hasError;
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +477,13 @@ class _AmountField extends StatelessWidget {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
       style: context.textTheme.bodyMedium,
-      decoration: InputDecoration(isDense: true, labelText: label, border: const OutlineInputBorder()),
+      decoration: InputDecoration(
+        isDense: true,
+        labelText: label,
+        border: const OutlineInputBorder(),
+        errorBorder: hasError ? OutlineInputBorder(borderSide: BorderSide(color: context.colors.error)) : null,
+        enabledBorder: hasError ? OutlineInputBorder(borderSide: BorderSide(color: context.colors.error)) : null,
+      ),
       // An unparseable or empty field clears the bound rather than pinning it
       // at 0, which would silently hide every row.
       onChanged: (value) => onChanged(double.tryParse(value.trim())),

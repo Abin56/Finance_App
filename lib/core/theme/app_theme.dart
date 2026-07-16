@@ -160,14 +160,32 @@ abstract class AppTheme {
         ),
       ),
 
+      // A solid primary pill with a contrasting icon: the tinted-primary
+      // indicator this replaced sat at 15% alpha, which all but vanished
+      // against the white light-mode surface.
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: colorScheme.primary.withValues(alpha: 0.15),
-        height: AppSizes.bottomNavHeight,
-        labelTextStyle: WidgetStateProperty.all(
-          textTheme.labelLarge?.copyWith(fontSize: 11),
+        indicatorColor: colorScheme.primary,
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
         ),
+        height: AppSizes.bottomNavHeight,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            size: AppSizes.iconMd,
+            color: states.contains(WidgetState.selected) ? colorScheme.onPrimary : textSecondary,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return textTheme.labelLarge?.copyWith(
+            fontSize: 11,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? colorScheme.primary : textSecondary,
+          );
+        }),
       ),
 
       floatingActionButtonTheme: FloatingActionButtonThemeData(

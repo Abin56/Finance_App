@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
 import 'package:finance_app/features/cash_flow/presentation/widgets/payments_due_card.dart';
-import 'package:finance_app/features/dashboard/presentation/widgets/dashboard_monthly_summary_cards.dart';
+import 'package:finance_app/features/dashboard/presentation/widgets/dashboard_spending_snapshot_card.dart';
 import 'package:finance_app/features/reports/presentation/widgets/reports_overview_card.dart';
 
 /// Cards that lay 3+ stats across one Row on a small (360dp) phone.
@@ -76,10 +76,23 @@ void main() {
       expectStatsAligned(tester, ['Total Income', 'Total Expenses', 'Net Savings']);
     });
 
-    testWidgets('DashboardMonthlySummaryCards stay aligned @${scale}x', (tester) async {
-      await pumpAt(tester, scale, const [],
-          const DashboardMonthlySummaryCards(income: 1234567.89, expenses: 987654.32));
-      expectStatsAligned(tester, ['Income', 'Expense', 'Savings']);
+    testWidgets('DashboardSpendingSnapshotCard stats stay aligned @${scale}x', (tester) async {
+      await pumpAt(
+        tester,
+        scale,
+        const [],
+        const DashboardSpendingSnapshotCard(
+          todayIncome: 1234567.89,
+          todayExpense: 987654.32,
+          monthIncome: 1234567.89,
+          monthExpense: 987654.32,
+          hasAnyTransactions: true,
+        ),
+      );
+      // 'Net' (not 'Savings') is unique to the Today row, so this pins down
+      // one row unambiguously — both rows share the same stat layout, so
+      // this still covers the shared component the bug lived in.
+      expectStatsAligned(tester, ['Income', 'Expense', 'Net']);
     });
 
     testWidgets('PaymentsDueCard footer stats stay aligned @${scale}x', (tester) async {

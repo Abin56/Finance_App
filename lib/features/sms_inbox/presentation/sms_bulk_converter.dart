@@ -7,6 +7,7 @@ import '../data/merchant_memory_repository.dart';
 import '../data/sms_inbox_repository.dart';
 import '../domain/sms_inbox_item.dart';
 import 'providers/sms_inbox_providers.dart';
+import 'sms_import_completion.dart';
 
 /// The shared answers the user gives once, then applied to every selected
 /// SMS. Everything *per-message* — amount, date, merchant — still comes from
@@ -118,15 +119,23 @@ class SmsBulkConverter {
           notes: config.notes,
         );
 
-        // Only after the real save succeeded, exactly as the single-convert
-        // path does — a failed create must never mark its SMS imported.
-        await _inbox.markImported(item.id, linkedEntityId: created.id);
-        await _memories.record(
-          merchant: merchant,
-          transactionType: config.type,
-          categoryId: config.categoryId,
-        );
+        // The transaction above is real and saved — this row is a success
+        // from here on, regardless of what happens next. Marking the SMS
+        // imported (and learning the merchant/category) is best-effort:
+        // `linkSmsImportViaRepositories` swallows its own failures so a
+        // linking hiccup can never be reported as `failed` (which would
+        // invite a retry that creates a second transaction for this SMS —
+        // the transaction already exists).
         converted++;
+        await linkSmsImportViaRepositories(
+          inboxRepository: _inbox,
+          memoryRepository: _memories,
+          smsId: item.id,
+          linkedEntityId: created.id,
+          merchant: merchant,
+          learnCategoryType: config.type,
+          learnCategoryId: config.categoryId,
+        );
       } catch (_) {
         failed++;
       }

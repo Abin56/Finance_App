@@ -188,7 +188,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   String _dateRangeLabel() {
-    if (_filter.startDate == null && _filter.endDate == null) return 'This Month';
+    if (_filter.startDate == null && _filter.endDate == null) return 'All Time';
     return 'Custom range';
   }
 

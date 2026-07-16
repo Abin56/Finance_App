@@ -11,14 +11,24 @@ import 'package:finance_app/core/router/app_router.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
 import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
+import 'package:finance_app/features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'package:finance_app/features/search/presentation/screens/search_screen.dart';
+import 'package:finance_app/features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
 
 /// Drives global Search through the real router, from its real entry point —
 /// `AppRoutes.search` was previously an unregistered constant, so route
 /// wiring and discoverability are the things most worth pinning down.
+/// Fixed uid so the per-account setup-wizard flag can be seeded.
+const _kUid = 'test-uid';
+
 void main() {
   setUpAll(() async {
-    SharedPreferences.setMockInitialValues({});
+    // A fully returning user: past both the onboarding and setup-wizard gates
+    // that run ahead of the dashboard, so routing reaches the real app.
+    SharedPreferences.setMockInitialValues({
+      onboardingCompletedKey: true,
+      setupWizardCompletedKey(_kUid): true,
+    });
     await LocalSettingsService.init();
   });
 
@@ -26,7 +36,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          firebaseAuthProvider.overrideWithValue(MockFirebaseAuth(signedIn: true)),
+          firebaseAuthProvider.overrideWithValue(
+            MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 'test@example.com')),
+          ),
           firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
         ],
         child: const _TestApp(),

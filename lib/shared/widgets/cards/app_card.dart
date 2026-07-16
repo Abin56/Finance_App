@@ -13,24 +13,26 @@ class AppCard extends StatelessWidget {
     this.onTap,
     this.padding = const EdgeInsets.all(AppSizes.lg),
     this.color,
+    this.radius = AppSizes.radiusLg,
   });
 
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry padding;
   final Color? color;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppSizes.radiusLg);
+    final borderRadius = BorderRadius.circular(radius);
 
     return Material(
       color: color ?? context.colors.surface,
-      borderRadius: radius,
+      borderRadius: borderRadius,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: radius,
+        borderRadius: borderRadius,
         child: Padding(padding: padding, child: child),
       ),
     );

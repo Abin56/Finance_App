@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../shared/widgets/dialogs/add_entry_menu.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
-import '../extensions/context_extensions.dart';
 import 'fab_visibility.dart';
 
 /// Bottom-navigation shell wrapping the five screen tabs (Dashboard,
@@ -74,22 +73,13 @@ class AppShell extends ConsumerWidget {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: NavigationBarTheme(
-        data: NavigationBarTheme.of(context).copyWith(
-          indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
-          labelTextStyle: WidgetStateProperty.resolveWith(
-            (states) => context.textTheme.labelLarge?.copyWith(
-              fontSize: 11,
-              fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
-            ),
-          ),
-        ),
-        child: NavigationBar(
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: (index) =>
-              navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
-          destinations: _destinations,
-        ),
+      // Styling (indicator, icon and label colors) lives in the app's
+      // navigationBarTheme so both themes stay in one place.
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: navigationShell.currentIndex,
+        onDestinationSelected: (index) =>
+            navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
+        destinations: _destinations,
       ),
     );
   }

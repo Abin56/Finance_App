@@ -202,6 +202,10 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
             children: [
               Text(_isEditing ? 'Edit loan' : 'Add loan', style: Theme.of(context).textTheme.titleLarge),
               const SizedBox(height: AppSizes.lg),
+              // TODO(future enhancement, post-Milestone 2): support inline Person
+              // creation from this dropdown ("+ Create New Person" -> bottom sheet
+              // -> auto-select), so a brand-new account isn't blocked from adding
+              // a loan by needing to leave this form first.
               DropdownButtonFormField<String>(
                 initialValue: _personId,
                 decoration: InputDecoration(

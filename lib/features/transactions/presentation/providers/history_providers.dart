@@ -59,21 +59,22 @@ final historyEntriesProvider = Provider<List<HistoryEntry>>((ref) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   final accounts = ref.watch(accountsStreamProvider).value ?? const [];
   final accountNameById = {for (final a in accounts) a.id: a.name};
-  final creditCardData = [
-    for (final card in cards)
+  final creditCardData = <CreditCardHistoryData>[];
+  for (final card in cards) {
+    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+    creditCardData.add(
       CreditCardHistoryData(
         cardName: accountNameById[card.accountId] ?? 'Card',
-        statements: ref.watch(statementsStreamProvider(card.id)).value ?? const [],
+        statements: statements,
         paymentsByStatementId: {
-          for (final statement in ref.watch(statementsStreamProvider(card.id)).value ?? const [])
+          for (final statement in statements)
             statement.id:
-                ref
-                    .watch(statementPaymentsStreamProvider((cardId: card.id, statementId: statement.id)))
-                    .value ??
+                ref.watch(statementPaymentsStreamProvider((cardId: card.id, statementId: statement.id))).value ??
                 const [],
         },
       ),
-  ];
+    );
+  }
 
   return HistoryBuilder.build(
     transactions: transactions,

@@ -13,29 +13,29 @@ import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
+import '../../../transactions/presentation/screens/add_expense_screen.dart';
 import '../../../transactions/presentation/widgets/transaction_tile.dart';
 import '../widgets/dashboard_balance_card.dart';
 import '../widgets/dashboard_budget_ring_card.dart';
 import '../widgets/dashboard_money_to_receive_card.dart';
-import '../widgets/dashboard_monthly_summary_cards.dart';
+import '../widgets/dashboard_spending_snapshot_card.dart';
 import '../widgets/dashboard_upcoming_payments_card.dart';
 import '../widgets/greeting_header.dart';
 import '../widgets/quick_actions_row.dart';
-import '../widgets/today_summary_card.dart';
 
-/// The Home tab — a premium, quick-glance overview (not a detailed
-/// financial center — that's the Cash Flow tab). Contains: Net Worth/
-/// Account Balance, this month's Income/Expense/Savings, Today's Summary,
-/// Upcoming Payments, Money To Receive, Budget Progress, Recent Activity,
-/// and Quick Actions. Upcoming Payments/Money To Receive are compact
-/// previews (top 3) of data the Cash Flow tab and Creditors list already
-/// own in full; every other feature (EMI, Savings, split expenses,
-/// Reports) stays one tap away via Quick Actions' "More" sheet or the More
-/// tab, not a dashboard section.
-///
-/// This Month and Today's summaries sit back-to-back near the top so the
-/// two numbers people check most often are visible without scrolling past
-/// Budget Progress or Recent Activity first.
+/// The Home tab — a premium "Overview" screen meant to answer "how is my
+/// financial situation today?" in under 5 seconds, not a detailed financial
+/// center (that's the Cash Flow tab). Order follows that priority: Total
+/// Balance, Spending Snapshot (Today + This Month), Upcoming Payments, Money
+/// To Receive, Quick Actions, Budget Progress, Recent Activity. Quick
+/// Actions sits above Budget Progress/Recent Activity deliberately — it's a
+/// high-frequency action surface, not a read-only section, and Budget
+/// Progress is a compact preview since the full ring view already lives on
+/// the Budget screen. Upcoming Payments/Money To Receive are compact
+/// previews (top 3) of data the Cash Flow tab and Creditors list already own
+/// in full; every other feature (EMI, Savings, split expenses, Reports)
+/// stays one tap away via Quick Actions' "More" sheet or the More tab, not a
+/// dashboard section.
 ///
 /// Every section animates in with a staggered fade + slide; pull-to-refresh
 /// re-reads live Firestore streams (cheap and instant since they're already
@@ -65,6 +65,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     const stagger = Duration(milliseconds: 60);
     const sectionGap = SizedBox(height: AppSizes.lg);
+    // The FAB floats over the body rather than displacing it, so the last
+    // section (Quick Actions) needs clearance for it — FAB height plus its
+    // margin — or "More" scrolls to rest underneath the button.
+    const listPadding = EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance);
 
     final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
@@ -82,6 +86,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final monthTransactions = transactions.where((t) => t.dateTime.isSameMonth(now) && !t.isTransfer).toList();
     final lastMonthTransactions =
         transactions.where((t) => t.dateTime.isSameMonth(lastMonth) && !t.isTransfer).toList();
+    final todayTransactions =
+        transactions.where((t) => t.dateTime.isToday && !t.isDeleted && !t.isTransfer).toList();
 
     double totalFor(List<Transaction> list, TransactionType type) =>
         list.where((t) => t.type == type).fold(0.0, (total, t) => total + t.amount);
@@ -90,6 +96,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final expenses = totalFor(monthTransactions, TransactionType.expense);
     final lastMonthIncome = totalFor(lastMonthTransactions, TransactionType.income);
     final lastMonthExpenses = totalFor(lastMonthTransactions, TransactionType.expense);
+    final todayIncome = totalFor(todayTransactions, TransactionType.income);
+    final todayExpense = totalFor(todayTransactions, TransactionType.expense);
     final netThisMonth = income - expenses;
     final netLastMonth = lastMonthIncome - lastMonthExpenses;
 
@@ -98,8 +106,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         changeVsLastMonth: netThisMonth - netLastMonth,
         changePercent: _percentChange(netThisMonth, netLastMonth),
       ),
-      DashboardMonthlySummaryCards(income: income, expenses: expenses),
-      const TodaySummaryCard(),
+      DashboardSpendingSnapshotCard(
+        todayIncome: todayIncome,
+        todayExpense: todayExpense,
+        monthIncome: income,
+        monthExpense: expenses,
+        hasAnyTransactions: transactions.isNotEmpty,
+      ),
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -114,6 +127,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const DashboardMoneyToReceiveCard(),
         ],
       ),
+      const QuickActionsRow(),
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -130,10 +144,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             onActionTap: () => context.goNamed(AppRoutes.transactionsName),
           ),
           if (recentTop5.isEmpty)
-            const PlaceholderCard(
+            PlaceholderCard(
               icon: Icons.receipt_long_outlined,
               title: 'No transactions yet',
               message: 'Income and expenses you add will show up here.',
+              radius: AppSizes.radiusCard,
+              actionLabel: 'Add a transaction',
+              onTap: () => AddExpenseScreen.show(context),
             )
           else
             for (final transaction in recentTop5)
@@ -148,7 +165,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
         ],
       ),
-      const QuickActionsRow(),
     ];
 
     return Scaffold(
@@ -156,7 +172,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         child: RefreshIndicator(
           onRefresh: _onRefresh,
           child: ListView.separated(
-            padding: const EdgeInsets.all(AppSizes.lg),
+            padding: listPadding,
             itemCount: blocks.length + 1,
             separatorBuilder: (_, _) => sectionGap,
             itemBuilder: (context, index) {

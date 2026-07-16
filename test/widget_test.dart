@@ -11,16 +11,31 @@ import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
 import 'package:finance_app/core/constants/app_strings.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
-import 'package:finance_app/features/dashboard/presentation/widgets/dashboard_monthly_summary_cards.dart';
+import 'package:finance_app/features/dashboard/presentation/widgets/dashboard_spending_snapshot_card.dart';
+import 'package:finance_app/features/onboarding/presentation/providers/onboarding_providers.dart';
+import 'package:finance_app/features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
+
+/// A fixed uid so the per-account setup-wizard flag can be seeded below —
+/// the mock's default uid is a random UUID, which nothing could pre-seed.
+const _kUid = 'test-uid';
+
+MockFirebaseAuth _signedInAuth() =>
+    MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 'test@example.com'));
 
 void main() {
   setUpAll(() async {
-    SharedPreferences.setMockInitialValues({});
+    // A fully returning user: past the onboarding gate *and* the setup-wizard
+    // gate, both of which run ahead of the dashboard. Without either flag the
+    // router parks every route on that first-run screen instead.
+    SharedPreferences.setMockInitialValues({
+      onboardingCompletedKey: true,
+      setupWizardCompletedKey(_kUid): true,
+    });
     await LocalSettingsService.init();
   });
 
   testWidgets('App boots to the dashboard tab', (WidgetTester tester) async {
-    final auth = MockFirebaseAuth(signedIn: true);
+    final auth = _signedInAuth();
     final firestore = FakeFirebaseFirestore();
 
     await tester.pumpWidget(
@@ -37,17 +52,14 @@ void main() {
     expect(find.text('Total Balance'), findsOneWidget);
     expect(find.byIcon(Icons.home_rounded), findsOneWidget);
 
-    // Scoped to the summary card: these labels also appear elsewhere on the
-    // dashboard (e.g. quick actions), so a bare text finder is ambiguous.
-    final summaryCards = find.byType(DashboardMonthlySummaryCards);
-    expect(summaryCards, findsOneWidget);
-    for (final label in ['Income', 'Expense', 'Savings']) {
-      expect(find.descendant(of: summaryCards, matching: find.text(label)), findsOneWidget);
-    }
+    // This account has no transactions at all, so the Spending Snapshot
+    // shows its empty state rather than a wall of ₹0 stats.
+    expect(find.byType(DashboardSpendingSnapshotCard), findsOneWidget);
+    expect(find.text('Spending Snapshot'), findsOneWidget);
   });
 
   testWidgets('Cash Flow tab shows the moved planning sections', (WidgetTester tester) async {
-    final auth = MockFirebaseAuth(signedIn: true);
+    final auth = _signedInAuth();
     final firestore = FakeFirebaseFirestore();
 
     await tester.pumpWidget(
@@ -69,7 +81,7 @@ void main() {
   });
 
   testWidgets('More tab lists secondary destinations and navigates to Reports', (WidgetTester tester) async {
-    final auth = MockFirebaseAuth(signedIn: true);
+    final auth = _signedInAuth();
     final firestore = FakeFirebaseFirestore();
 
     await tester.pumpWidget(

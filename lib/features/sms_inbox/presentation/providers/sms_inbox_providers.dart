@@ -86,10 +86,21 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
   /// Only ever triggered by an explicit user action (opening/refreshing the
   /// SMS Inbox screen) — never from Dashboard/History load, per the
   /// feature's performance requirement. Returns the number of new items.
+  ///
+  /// A failed read (permission revoked mid-session, or a plugin/platform
+  /// exception) is caught here rather than left unhandled — it puts this
+  /// state into `AsyncError`, which `SmsInboxScreen`'s existing
+  /// `itemsAsync.when(error: ...)` branch already renders, instead of
+  /// silently doing nothing.
   Future<int> scan() async {
-    final newCount = await ref.read(smsInboxRepositoryProvider).scanInbox();
-    await refresh();
-    return newCount;
+    try {
+      final newCount = await ref.read(smsInboxRepositoryProvider).scanInbox();
+      await refresh();
+      return newCount;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return 0;
+    }
   }
 
   Future<void> refresh() async {

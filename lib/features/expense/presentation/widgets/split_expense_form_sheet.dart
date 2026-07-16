@@ -19,7 +19,7 @@ import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../people/presentation/widgets/person_form_sheet.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../data/expense_repository.dart';
 import '../../domain/expense.dart';
@@ -419,12 +419,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
           dueDate: _dueDate,
         );
 
-        final smsPrefill = widget.smsPrefill;
-        if (smsPrefill != null) {
-          await ref
-              .read(smsInboxItemsProvider.notifier)
-              .markImported(smsPrefill.smsId, linkedEntityId: expense.transactionId);
-        }
+        await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {

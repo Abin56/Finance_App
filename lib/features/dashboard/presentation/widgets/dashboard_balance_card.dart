@@ -11,6 +11,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/animations/count_up_text.dart';
 import '../../../../shared/widgets/charts/mini_trend_chart.dart';
+import '../../../../shared/widgets/states/shimmer_box.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/domain/transaction_type.dart';
@@ -22,7 +23,7 @@ import '../../../transactions/presentation/providers/transaction_providers.dart'
 /// last month" comparison is a snapshot delta ([netWorth] now vs. last
 /// month's account balances aren't tracked historically, so this reads the
 /// month's net transaction flow instead — the same number
-/// [DashboardMonthlySummaryCards]/[CategoryBreakdownCard] already derive
+/// [DashboardSpendingSnapshotCard]/[CategoryBreakdownCard] already derive
 /// client-side from the live transaction stream).
 class DashboardBalanceCard extends ConsumerStatefulWidget {
   const DashboardBalanceCard({super.key, required this.changeVsLastMonth, required this.changePercent});
@@ -40,28 +41,9 @@ class DashboardBalanceCard extends ConsumerStatefulWidget {
 class _DashboardBalanceCardState extends ConsumerState<DashboardBalanceCard> {
   bool _hidden = false;
 
-  /// Cumulative net (income − expense) for each of the last 7 days, oldest
-  /// first — purely a display sparkline, derived client-side from the same
-  /// transaction stream every other Dashboard stat already watches (no new
-  /// data source).
-  List<double> _weeklyTrend(List<Transaction> transactions) {
-    final today = DateTime.now().dateOnly;
-    final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
-    var running = 0.0;
-    return [
-      for (final day in days)
-        running += transactions
-            .where((t) => t.dateTime.isSameDay(day))
-            .fold(0.0, (sum, t) => sum + (t.type == TransactionType.income ? t.amount : -t.amount)),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
-    final netWorth = ref.watch(netWorthProvider);
-    final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
-    final positive = widget.changeVsLastMonth >= 0;
-    final trend = _weeklyTrend(transactions);
+    final accountsAsync = ref.watch(accountsStreamProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -81,76 +63,172 @@ class _DashboardBalanceCardState extends ConsumerState<DashboardBalanceCard> {
           onTap: () => context.push(AppRoutes.accounts),
           child: Padding(
             padding: const EdgeInsets.all(AppSizes.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Total Balance',
-                          style: context.textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
-                        ),
-                        const SizedBox(width: AppSizes.xs),
-                        InkWell(
-                          onTap: () => setState(() => _hidden = !_hidden),
-                          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-                          child: Icon(
-                            _hidden ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                            size: AppSizes.iconSm,
-                            color: Colors.white.withValues(alpha: 0.85),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.85)),
-                  ],
-                ),
-                const SizedBox(height: AppSizes.sm),
-                _hidden
-                    ? Text(
-                        '••••••',
-                        style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-                      )
-                    : CountUpText(
-                        value: netWorth,
-                        formatter: CurrencyFormatter.instance.format,
-                        style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+            child: accountsAsync.isLoading
+                ? const _BalanceCardSkeleton()
+                : (accountsAsync.value ?? const []).isEmpty
+                    ? const _EmptyBalanceContent()
+                    : _BalanceCardContent(
+                        hidden: _hidden,
+                        onToggleHidden: () => setState(() => _hidden = !_hidden),
+                        changeVsLastMonth: widget.changeVsLastMonth,
+                        changePercent: widget.changePercent,
                       ),
-                const SizedBox(height: AppSizes.md),
-                if (widget.changePercent != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          positive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                          size: AppSizes.iconSm,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${CurrencyFormatter.instance.format(widget.changeVsLastMonth.abs())} '
-                          '(${widget.changePercent!.abs().toStringAsFixed(2)}%)',
-                          style: context.textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: AppSizes.lg),
-                MiniTrendChart(values: trend, color: Colors.white),
-              ],
-            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BalanceCardContent extends ConsumerWidget {
+  const _BalanceCardContent({
+    required this.hidden,
+    required this.onToggleHidden,
+    required this.changeVsLastMonth,
+    required this.changePercent,
+  });
+
+  final bool hidden;
+  final VoidCallback onToggleHidden;
+  final double changeVsLastMonth;
+  final double? changePercent;
+
+  /// Cumulative net (income − expense) for each of the last 7 days, oldest
+  /// first — purely a display sparkline, derived client-side from the same
+  /// transaction stream every other Dashboard stat already watches (no new
+  /// data source).
+  List<double> _weeklyTrend(List<Transaction> transactions) {
+    final today = DateTime.now().dateOnly;
+    final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
+    var running = 0.0;
+    return [
+      for (final day in days)
+        running += transactions
+            .where((t) => t.dateTime.isSameDay(day))
+            .fold(0.0, (sum, t) => sum + (t.type == TransactionType.income ? t.amount : -t.amount)),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final netWorth = ref.watch(netWorthProvider);
+    final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+    final positive = changeVsLastMonth >= 0;
+    final trend = _weeklyTrend(transactions);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Total Balance',
+                  style: context.textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                ),
+                const SizedBox(width: AppSizes.xs),
+                InkWell(
+                  onTap: onToggleHidden,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                  child: Icon(
+                    hidden ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                    size: AppSizes.iconSm,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+            Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.85)),
+          ],
+        ),
+        const SizedBox(height: AppSizes.sm),
+        hidden
+            ? Text(
+                '••••••',
+                style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+              )
+            : CountUpText(
+                value: netWorth,
+                formatter: CurrencyFormatter.instance.format,
+                style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+              ),
+        const SizedBox(height: AppSizes.md),
+        if (changePercent != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  positive ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                  size: AppSizes.iconSm,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${CurrencyFormatter.instance.format(changeVsLastMonth.abs())} '
+                  '(${changePercent!.abs().toStringAsFixed(2)}%)',
+                  style: context.textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: AppSizes.lg),
+        MiniTrendChart(values: trend, color: Colors.white),
+      ],
+    );
+  }
+}
+
+/// Shown before the very first account is added — the hero card's own
+/// call-to-action instead of a wall of zeros with no percent badge.
+class _EmptyBalanceContent extends StatelessWidget {
+  const _EmptyBalanceContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Total Balance',
+          style: context.textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+        ),
+        const SizedBox(height: AppSizes.sm),
+        Text(
+          'Add your first account',
+          style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+        ),
+        const SizedBox(height: AppSizes.xs),
+        Text(
+          'Track balances and transactions once an account is set up.',
+          style: context.textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.75)),
+        ),
+      ],
+    );
+  }
+}
+
+class _BalanceCardSkeleton extends StatelessWidget {
+  const _BalanceCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ShimmerBox(width: 100, height: 14, borderRadius: AppSizes.radiusSm),
+        SizedBox(height: AppSizes.sm),
+        ShimmerBox(width: 160, height: 32, borderRadius: AppSizes.radiusSm),
+        SizedBox(height: AppSizes.lg),
+        ShimmerBox(width: double.infinity, height: 40, borderRadius: AppSizes.radiusSm),
+      ],
     );
   }
 }

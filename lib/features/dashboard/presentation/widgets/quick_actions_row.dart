@@ -7,6 +7,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../expense/presentation/widgets/split_expense_form_sheet.dart';
+import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/screens/add_expense_screen.dart';
 import 'more_actions_sheet.dart';
 
@@ -27,14 +28,14 @@ class QuickActionsRow extends StatelessWidget {
             icon: Icons.remove_circle_outline_rounded,
             label: 'Add Expense',
             color: AppColors.expense,
-            onTap: () => AddExpenseScreen.show(context),
+            onTap: () => AddExpenseScreen.show(context, initialType: TransactionType.expense),
           ),
           const SizedBox(width: AppSizes.sm),
           _QuickAction(
             icon: Icons.add_circle_outline_rounded,
             label: 'Add Income',
             color: AppColors.income,
-            onTap: () => AddExpenseScreen.show(context),
+            onTap: () => AddExpenseScreen.show(context, initialType: TransactionType.income),
           ),
           const SizedBox(width: AppSizes.sm),
           _QuickAction(

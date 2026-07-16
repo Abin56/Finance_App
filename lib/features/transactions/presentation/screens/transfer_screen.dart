@@ -9,7 +9,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
-import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../domain/transaction_type.dart';
 import '../providers/transaction_providers.dart';
 
@@ -106,10 +106,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         notes: _noteController.text.trim(),
       );
 
-      final smsPrefill = widget.smsPrefill;
-      if (smsPrefill != null) {
-        await ref.read(smsInboxItemsProvider.notifier).markImported(smsPrefill.smsId, linkedEntityId: sourceLeg.id);
-      }
+      await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: sourceLeg.id);
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
