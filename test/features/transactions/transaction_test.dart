@@ -32,6 +32,75 @@ void main() {
     });
   });
 
+  group('Transaction.effectiveMonth', () {
+    test('returns dateTime\'s month when accountingMonth is null', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 7, 25),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 7, 25),
+      );
+      expect(transaction.effectiveMonth, DateTime(2026, 7));
+    });
+
+    test('returns accountingMonth when set, ignoring the real date', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 7, 25),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 7, 25),
+        accountingMonth: DateTime(2026, 8),
+      );
+      expect(transaction.effectiveMonth, DateTime(2026, 8));
+    });
+  });
+
+  group('Transaction.balanceEffect', () {
+    test('equals signedAmount when not excluded', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.income,
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      expect(transaction.balanceEffect, transaction.signedAmount);
+    });
+
+    test('is zero when excludeFromCalculations is true, regardless of amount/type', () {
+      final expense = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        excludeFromCalculations: true,
+      );
+      final income = Transaction(
+        id: 't2',
+        type: TransactionType.income,
+        amount: 500,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        excludeFromCalculations: true,
+      );
+      expect(expense.balanceEffect, 0);
+      expect(income.balanceEffect, 0);
+    });
+  });
+
   group('Transaction Firestore round-trip', () {
     test('toFirestore/fromFirestore preserves every field', () async {
       final firestore = FakeFirebaseFirestore();
@@ -137,6 +206,56 @@ void main() {
 
       expect(restored.transferId, isNull);
       expect(restored.isTransfer, isFalse);
+    });
+
+    test('preserves excludeFromCalculations and accountingMonth', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 7, 25),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 7, 25),
+        excludeFromCalculations: true,
+        accountingMonth: DateTime(2026, 8),
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.excludeFromCalculations, isTrue);
+      expect(restored.accountingMonth, DateTime(2026, 8));
+    });
+
+    test('defaults excludeFromCalculations to false and accountingMonth to null', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.excludeFromCalculations, isFalse);
+      expect(restored.accountingMonth, isNull);
     });
 
     test('preserves audit trail and soft-delete state', () async {

@@ -94,7 +94,7 @@ final transactionsForCardProvider = Provider.family<List<Transaction>, String>((
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   final card = cards.where((c) => c.id == cardId).firstOrNull;
   if (card == null) return const [];
-  final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+  final transactions = ref.watch(calculableTransactionsProvider);
   return transactions.where((t) => t.accountId == card.accountId).toList();
 });
 

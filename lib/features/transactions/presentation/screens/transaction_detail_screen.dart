@@ -16,6 +16,7 @@ import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/expense_status_pill.dart';
+import '../../../../shared/widgets/states/transaction_flag_badge.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../expense/domain/expense.dart';
@@ -611,10 +612,24 @@ class _TransactionHeroCard extends StatelessWidget {
               ),
             ],
           ),
+          if (transaction.excludeFromCalculations || transaction.accountingMonth != null) ...[
+            const SizedBox(height: AppSizes.sm),
+            TransactionFlagBadge(
+              excludeFromCalculations: transaction.excludeFromCalculations,
+              date: transaction.dateTime,
+              accountingMonth: transaction.accountingMonth,
+            ),
+          ],
           const SizedBox(height: AppSizes.lg),
           const Divider(height: 1),
           const SizedBox(height: AppSizes.lg),
-          _DetailGridRow(icon: Icons.event_outlined, label: 'Date', value: transaction.dateTime.fullDate),
+          _DetailGridRow(icon: Icons.event_outlined, label: 'Transaction Date', value: transaction.dateTime.fullDate),
+          if (transaction.accountingMonth != null)
+            _DetailGridRow(
+              icon: Icons.calendar_month_outlined,
+              label: 'Accounting Month',
+              value: transaction.accountingMonth!.monthYear,
+            ),
           _DetailGridRow(
             icon: Icons.account_balance_wallet_outlined,
             label: 'Account',

@@ -158,6 +158,141 @@ void main() {
     });
   });
 
+  group('TransactionRepository — excludeFromCalculations', () {
+    test('createTransaction with excludeFromCalculations=true does not change the balance', () async {
+      final account = await seedAccount();
+
+      await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: account.id,
+        categoryId: 'cat-1',
+        excludeFromCalculations: true,
+      );
+
+      final updated = await accountRepository.getByKey(account.id);
+      expect(updated!.currentBalance, 1000, reason: 'excluded expense must not affect balance');
+    });
+
+    test('createTransaction with excludeFromCalculations=true does not change balance for income either', () async {
+      final account = await seedAccount();
+
+      await transactionRepository.createTransaction(
+        type: TransactionType.income,
+        amount: 500,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: account.id,
+        categoryId: 'cat-1',
+        excludeFromCalculations: true,
+      );
+
+      final updated = await accountRepository.getByKey(account.id);
+      expect(updated!.currentBalance, 1000, reason: 'excluded income must not affect balance');
+    });
+
+    test('editTransaction toggling excludeFromCalculations to true reverses the balance effect', () async {
+      final account = await seedAccount();
+      final transaction = await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: account.id,
+        categoryId: 'cat-1',
+      );
+      // Balance is now 700.
+      await transactionRepository.editTransaction(transaction, excludeFromCalculations: true);
+
+      final updated = await accountRepository.getByKey(account.id);
+      expect(updated!.currentBalance, 1000, reason: 'toggling exclude on must reverse the prior balance effect');
+    });
+
+    test('editTransaction toggling excludeFromCalculations back to false re-applies the balance effect', () async {
+      final account = await seedAccount();
+      final transaction = await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: account.id,
+        categoryId: 'cat-1',
+        excludeFromCalculations: true,
+      );
+      // Balance is still 1000 (excluded on create).
+      await transactionRepository.editTransaction(transaction, excludeFromCalculations: false);
+
+      final updated = await accountRepository.getByKey(account.id);
+      expect(updated!.currentBalance, 700, reason: 'toggling exclude off must apply the balance effect');
+    });
+
+    test('editTransaction amount change while excluded does not affect balance', () async {
+      final account = await seedAccount();
+      final transaction = await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: account.id,
+        categoryId: 'cat-1',
+        excludeFromCalculations: true,
+      );
+
+      await transactionRepository.editTransaction(transaction, amount: 900);
+
+      final updated = await accountRepository.getByKey(account.id);
+      expect(updated!.currentBalance, 1000, reason: 'amount changes on an excluded transaction stay balance-neutral');
+    });
+  });
+
+  group('TransactionRepository — accountingMonth', () {
+    test('editTransaction sets accountingMonth', () async {
+      final account = await seedAccount();
+      final transaction = await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 7, 25),
+        accountId: account.id,
+        categoryId: 'cat-1',
+      );
+
+      await transactionRepository.editTransaction(transaction, accountingMonth: DateTime(2026, 8));
+
+      expect(transaction.accountingMonth, DateTime(2026, 8));
+      expect(transaction.effectiveMonth, DateTime(2026, 8));
+    });
+
+    test('editTransaction clears accountingMonth back to "same as transaction date"', () async {
+      final account = await seedAccount();
+      final transaction = await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 7, 25),
+        accountId: account.id,
+        categoryId: 'cat-1',
+        accountingMonth: DateTime(2026, 8),
+      );
+
+      await transactionRepository.editTransaction(transaction, clearAccountingMonth: true);
+
+      expect(transaction.accountingMonth, isNull);
+      expect(transaction.effectiveMonth, DateTime(2026, 7));
+    });
+
+    test('accountingMonth never affects balance — it is a reporting-only concern', () async {
+      final account = await seedAccount();
+
+      await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 400,
+        dateTime: DateTime(2026, 7, 25),
+        accountId: account.id,
+        categoryId: 'cat-1',
+        accountingMonth: DateTime(2026, 8),
+      );
+
+      final updated = await accountRepository.getByKey(account.id);
+      expect(updated!.currentBalance, 600, reason: 'balance reflects the real transaction, regardless of its accounting month');
+    });
+  });
+
   group('TransactionRepository.createTransferPair', () {
     test('moves the balance from source to destination, not net-zero on either', () async {
       final source = await seedAccount(name: 'Source', openingBalance: 1000);

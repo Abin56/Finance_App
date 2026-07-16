@@ -114,7 +114,7 @@ final myExpensePortionsProvider = Provider<Map<String, double>>((ref) {
 /// Expense transactions paired with "how much of it was mine" — the shared
 /// list every date-filtered My Spending/Reports figure below reduces over.
 final _myExpenseTransactionsProvider = Provider<List<(Transaction, double)>>((ref) {
-  final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+  final transactions = ref.watch(calculableTransactionsProvider);
   final portions = ref.watch(myExpensePortionsProvider);
   return [
     for (final t in transactions)
@@ -149,7 +149,7 @@ final myThisWeekExpenseProvider = Provider<double>((ref) {
 final myThisMonthExpenseProvider = Provider<double>((ref) {
   final entries = ref.watch(_myExpenseTransactionsProvider);
   final now = DateTime.now();
-  return _sumMyShareWhere(entries, (t) => t.dateTime.isSameMonth(now));
+  return _sumMyShareWhere(entries, (t) => t.effectiveMonth.isSameMonth(now));
 });
 
 /// Sum of "My Share" for expense transactions in the current calendar year.

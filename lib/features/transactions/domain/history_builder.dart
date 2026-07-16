@@ -115,6 +115,8 @@ abstract class HistoryBuilder {
       routePath: '${AppRoutes.transactions}/${transaction.id}',
       splitExpenseDetail:
           splitExpense == null ? null : splitExpenseDetailFor(splitExpense, installmentsByScheduleId),
+      excludeFromCalculations: transaction.excludeFromCalculations,
+      accountingMonth: transaction.accountingMonth,
     );
   }
 

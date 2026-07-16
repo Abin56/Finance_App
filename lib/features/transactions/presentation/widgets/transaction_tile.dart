@@ -4,6 +4,7 @@ import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/states/transaction_flag_badge.dart';
 import '../../../accounts/domain/account.dart';
 import '../../../categories/domain/category.dart';
 import '../../domain/transaction.dart' as domain;
@@ -74,6 +75,15 @@ class TransactionTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    if (transaction.excludeFromCalculations || transaction.accountingMonth != null) ...[
+                      const SizedBox(height: 2),
+                      TransactionFlagBadge(
+                        excludeFromCalculations: transaction.excludeFromCalculations,
+                        date: transaction.dateTime,
+                        accountingMonth: transaction.accountingMonth,
+                        compact: true,
+                      ),
+                    ],
                   ],
                 ),
               ),

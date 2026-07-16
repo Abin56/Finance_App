@@ -227,5 +227,66 @@ void main() {
       expect(cashFlow.moneyIn, 5000);
       expect(cashFlow.moneyOut, 0);
     });
+
+    test('excludes a transaction marked excludeFromCalculations from both moneyIn and moneyOut', () async {
+      final now = DateTime.now();
+      final accounts = container.read(accountRepositoryProvider);
+      final account = await accounts.createAccount(
+        name: 'Wallet',
+        type: AccountType.cash,
+        openingBalance: 10000,
+        colorValue: 0xFF000000,
+      );
+
+      final transactions = container.read(transactionRepositoryProvider);
+      await transactions.createTransaction(
+        type: TransactionType.income,
+        amount: 5000,
+        dateTime: now,
+        accountId: account.id,
+        categoryId: 'salary',
+      );
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 800,
+        dateTime: now,
+        accountId: account.id,
+        categoryId: 'reimbursable',
+        excludeFromCalculations: true,
+      );
+
+      await container.read(transactionsStreamProvider.future);
+
+      final cashFlow = container.read(cashFlowThisMonthProvider);
+      expect(cashFlow.moneyIn, 5000);
+      expect(cashFlow.moneyOut, 0, reason: 'excluded expense must not count toward Money Out');
+    });
+
+    test('a transaction assigned to next month via accountingMonth is excluded from this month\'s cash flow', () async {
+      final now = DateTime.now();
+      final nextMonth = DateTime(now.year, now.month + 1);
+      final accounts = container.read(accountRepositoryProvider);
+      final account = await accounts.createAccount(
+        name: 'Wallet',
+        type: AccountType.cash,
+        openingBalance: 10000,
+        colorValue: 0xFF000000,
+      );
+
+      final transactions = container.read(transactionRepositoryProvider);
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 700,
+        dateTime: now,
+        accountId: account.id,
+        categoryId: 'advance-payment',
+        accountingMonth: nextMonth,
+      );
+
+      await container.read(transactionsStreamProvider.future);
+
+      final cashFlow = container.read(cashFlowThisMonthProvider);
+      expect(cashFlow.moneyOut, 0, reason: 'reassigned to next month — must not count toward this month');
+    });
   });
 }

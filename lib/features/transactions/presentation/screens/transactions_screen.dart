@@ -381,11 +381,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final query = _query.trim().toLowerCase();
 
     return transactions.where((t) {
+      if (!_filter.includeExcluded && t.excludeFromCalculations) return false;
       if (_filter.type != null && t.type != _filter.type) return false;
       if (_filter.accountId != null && t.accountId != _filter.accountId) return false;
       if (_filter.categoryId != null && t.categoryId != _filter.categoryId) return false;
-      if (_filter.startDate != null && t.dateTime.isBefore(_filter.startDate!)) return false;
-      if (_filter.endDate != null && t.dateTime.isAfter(_filter.endDate!)) return false;
+      final filterDate = _filter.filterByAccountingMonth ? t.effectiveMonth : t.dateTime;
+      if (_filter.startDate != null && filterDate.isBefore(_filter.startDate!)) return false;
+      if (_filter.endDate != null && filterDate.isAfter(_filter.endDate!)) return false;
 
       if (query.isEmpty) return true;
       final categoryName = categoriesById[t.categoryId]?.name ?? '';

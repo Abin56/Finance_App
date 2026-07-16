@@ -9,6 +9,7 @@ import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/section_header.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 import '../../../transactions/presentation/widgets/transaction_tile.dart';
@@ -39,7 +40,7 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
     final category = categories.where((c) => c.id == widget.categoryId).firstOrNull;
-    final allTransactions = ref.watch(transactionsStreamProvider).value ?? const [];
+    final allTransactions = ref.watch(calculableTransactionsProvider);
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final accountsById = {for (final a in accounts) a.id: a};
 
@@ -57,10 +58,13 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
     final now = DateTime.now();
     final range = _period.rangeFor(now);
 
+    // Only month-granular periods honor Accounting Month (see
+    // `ReportsPeriodX.isMonthGranular`) — everything else uses the real date.
+    DateTime dateFor(Transaction t) => _period.isMonthGranular ? t.effectiveMonth : t.dateTime;
     // Transfers between the user's own accounts aren't real spending —
     // excluded so a transfer's source leg doesn't inflate category totals.
     final periodExpenses = allTransactions
-        .where((t) => t.type == TransactionType.expense && range.contains(t.dateTime) && !t.isTransfer)
+        .where((t) => t.type == TransactionType.expense && range.contains(dateFor(t)) && !t.isTransfer)
         .toList();
     final categoryTransactions = periodExpenses.where((t) => t.categoryId == category.id).toList()
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));

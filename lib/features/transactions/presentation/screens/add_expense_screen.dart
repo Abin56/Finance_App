@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/inputs/month_year_stepper.dart';
 import '../../../accounts/domain/account.dart';
 import '../../../accounts/domain/account_type.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
@@ -80,6 +82,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   late DateTime _dateTime = widget.transaction?.dateTime ?? widget.smsPrefill?.dateTime ?? DateTime.now();
   late String? _accountId = widget.transaction?.accountId ?? widget.smsPrefill?.suggestedAccountId;
   late String? _categoryId = widget.transaction?.categoryId ?? widget.smsPrefill?.suggestedCategoryId;
+  late bool _excludeFromCalculations = widget.transaction?.excludeFromCalculations ?? false;
+
+  /// Whether the "Move to another month" branch is active — starts true
+  /// only when editing a transaction that already has one set.
+  late bool _customAccountingMonth = widget.transaction?.accountingMonth != null;
+  late DateTime _accountingMonth = widget.transaction?.accountingMonth ?? DateTime(_dateTime.year, _dateTime.month);
   bool _isSaving = false;
   String? _accountError;
   String? _categoryError;
@@ -98,6 +106,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   bool get _isEditing => widget.transaction != null;
 
+  DateTime get _accountingMonthBounds => DateTime.now();
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -115,6 +125,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     if (picked == null) return;
     setState(() {
       _dateTime = DateTime(picked.year, picked.month, picked.day, _dateTime.hour, _dateTime.minute);
+      // Keep the default ("Same as Transaction Date") in sync with the new
+      // date — only meaningful while the user hasn't opted into a custom
+      // Accounting Month.
+      if (!_customAccountingMonth) _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
     });
   }
 
@@ -165,6 +179,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final amount = double.parse(_amountController.text.trim());
       final description = _descriptionController.text.trim();
 
+      final accountingMonth = _customAccountingMonth ? _accountingMonth : null;
+
       if (_isEditing) {
         await repository.editTransaction(
           widget.transaction!,
@@ -175,6 +191,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           categoryId: _categoryId,
           description: description,
           notes: widget.transaction!.notes,
+          excludeFromCalculations: _excludeFromCalculations,
+          accountingMonth: accountingMonth,
+          clearAccountingMonth: accountingMonth == null,
         );
       } else {
         final created = await repository.createTransaction(
@@ -185,6 +204,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           categoryId: _categoryId!,
           description: description,
           notes: widget.smsPrefill?.note ?? '',
+          excludeFromCalculations: _excludeFromCalculations,
+          accountingMonth: accountingMonth,
         );
 
         // Learn from the category the user actually settled on — which may
@@ -440,6 +461,65 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     ),
                   ),
                 ),
+              ],
+              const SizedBox(height: AppSizes.md),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Exclude from Financial Calculations'),
+                subtitle: const Text(
+                  "This transaction will be saved in your history but won't affect balances, reports, budgets, or analytics.",
+                ),
+                value: _excludeFromCalculations,
+                onChanged: (value) => setState(() => _excludeFromCalculations = value),
+              ),
+              const SizedBox(height: AppSizes.sm),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Accounting Month'),
+                subtitle: Text(
+                  _customAccountingMonth
+                      ? 'Move to another month'
+                      : 'Same as Transaction Date (${_dateTime.monthYear})',
+                ),
+                value: _customAccountingMonth,
+                onChanged: (value) => setState(() {
+                  _customAccountingMonth = value;
+                  if (!value) _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
+                }),
+              ),
+              if (_customAccountingMonth) ...[
+                const SizedBox(height: AppSizes.sm),
+                MonthYearStepper(
+                  value: _accountingMonth,
+                  min: DateTime(_accountingMonthBounds.year - 5, _accountingMonthBounds.month),
+                  max: DateTime(_accountingMonthBounds.year + 2, _accountingMonthBounds.month),
+                  onChanged: (month) => setState(() => _accountingMonth = month),
+                ),
+                if (!_accountingMonth.isSameMonth(_dateTime)) ...[
+                  const SizedBox(height: AppSizes.sm),
+                  Container(
+                    padding: const EdgeInsets.all(AppSizes.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: AppSizes.iconSm),
+                        const SizedBox(width: AppSizes.sm),
+                        Expanded(
+                          child: Text(
+                            'This transaction was made on ${_dateTime.fullDate}.\n'
+                            'It will NOT be included in ${_dateTime.monthYear} calculations.\n'
+                            'It will appear in ${_accountingMonth.monthYear} Budget, Cash Flow, Dashboard, and Reports.',
+                            style: context.textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: AppSizes.lg),
               PrimaryButton(

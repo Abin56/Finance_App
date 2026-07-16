@@ -71,6 +71,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     const listPadding = EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance);
 
     final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+    final calculableTransactions = ref.watch(calculableTransactionsProvider);
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
@@ -83,11 +84,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final lastMonth = DateTime(now.year, now.month - 1);
     // Transfers between the user's own accounts aren't real income/expense —
     // excluded so a transfer's two legs don't inflate both totals.
-    final monthTransactions = transactions.where((t) => t.dateTime.isSameMonth(now) && !t.isTransfer).toList();
+    final monthTransactions =
+        calculableTransactions.where((t) => t.effectiveMonth.isSameMonth(now) && !t.isTransfer).toList();
     final lastMonthTransactions =
-        transactions.where((t) => t.dateTime.isSameMonth(lastMonth) && !t.isTransfer).toList();
+        calculableTransactions.where((t) => t.effectiveMonth.isSameMonth(lastMonth) && !t.isTransfer).toList();
     final todayTransactions =
-        transactions.where((t) => t.dateTime.isToday && !t.isDeleted && !t.isTransfer).toList();
+        calculableTransactions.where((t) => t.dateTime.isToday && !t.isDeleted && !t.isTransfer).toList();
 
     double totalFor(List<Transaction> list, TransactionType type) =>
         list.where((t) => t.type == type).fold(0.0, (total, t) => total + t.amount);

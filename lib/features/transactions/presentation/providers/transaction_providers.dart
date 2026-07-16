@@ -29,6 +29,16 @@ final transactionsStreamProvider = StreamProvider<List<Transaction>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchAll();
 });
 
+/// [transactionsStreamProvider] with every `excludeFromCalculations`
+/// transaction removed — the one list every balance/total/report aggregation
+/// must watch instead of the raw stream above. History/Search/Transaction
+/// Detail/Calendar/SMS linking must keep watching the raw stream, since an
+/// excluded transaction still needs to appear there.
+final calculableTransactionsProvider = Provider<List<Transaction>>((ref) {
+  final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+  return transactions.where((t) => !t.excludeFromCalculations).toList();
+});
+
 final transactionsTrashStreamProvider = StreamProvider<List<Transaction>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchTrash();
 });

@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
+import '../../../../shared/widgets/states/transaction_flag_badge.dart';
 import '../../domain/history_entry.dart';
 
 /// One row in the unified History feed — same visual language as
@@ -59,6 +60,15 @@ class HistoryTile extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                        if (entry.excludeFromCalculations || entry.accountingMonth != null) ...[
+                          const SizedBox(height: 2),
+                          TransactionFlagBadge(
+                            excludeFromCalculations: entry.excludeFromCalculations,
+                            date: entry.date,
+                            accountingMonth: entry.accountingMonth,
+                            compact: true,
+                          ),
+                        ],
                       ],
                     ),
                   ),

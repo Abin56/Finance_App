@@ -5,6 +5,13 @@ import '../../../core/extensions/date_extensions.dart';
 enum ReportsPeriod { today, thisWeek, thisMonth, lastMonth, thisYear, financialYear, custom }
 
 extension ReportsPeriodX on ReportsPeriod {
+  /// Whether this period is bucketed by whole calendar month — the only
+  /// granularity `Transaction.effectiveMonth` (Accounting Month) applies to.
+  /// Every other period (today/week/year/financial-year/custom) stays on
+  /// the transaction's real date, since accountingMonth only encodes a
+  /// month, not a day/week/year.
+  bool get isMonthGranular => this == ReportsPeriod.thisMonth || this == ReportsPeriod.lastMonth;
+
   String get label {
     switch (this) {
       case ReportsPeriod.today:

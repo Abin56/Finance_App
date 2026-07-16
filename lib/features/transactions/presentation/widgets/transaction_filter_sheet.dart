@@ -35,6 +35,8 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
   late String? _categoryId = widget.initialFilter.categoryId;
   late DateTime? _startDate = widget.initialFilter.startDate;
   late DateTime? _endDate = widget.initialFilter.endDate;
+  late bool _includeExcluded = widget.initialFilter.includeExcluded;
+  late bool _filterByAccountingMonth = widget.initialFilter.filterByAccountingMonth;
 
   Future<void> _pickDateRange() async {
     final picked = await showDateRangePicker(
@@ -82,6 +84,8 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
                     _categoryId = null;
                     _startDate = null;
                     _endDate = null;
+                    _includeExcluded = true;
+                    _filterByAccountingMonth = false;
                   }),
                   child: const Text('Clear all'),
                 ),
@@ -130,6 +134,25 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
               onChanged: (value) => setState(() => _categoryId = value),
             ),
             const SizedBox(height: AppSizes.md),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Include Excluded Transactions'),
+              subtitle: const Text('Turn off to hide transactions marked "Exclude from Financial Calculations".'),
+              value: _includeExcluded,
+              onChanged: (value) => setState(() => _includeExcluded = value),
+            ),
+            const SizedBox(height: AppSizes.sm),
+            Text('Filter dates by', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: AppSizes.xs),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Transaction Date')),
+                ButtonSegment(value: true, label: Text('Accounting Month')),
+              ],
+              selected: {_filterByAccountingMonth},
+              onSelectionChanged: (selection) => setState(() => _filterByAccountingMonth = selection.first),
+            ),
+            const SizedBox(height: AppSizes.md),
             OutlinedButton.icon(
               onPressed: _pickDateRange,
               icon: const Icon(Icons.date_range_outlined, size: AppSizes.iconSm),
@@ -149,6 +172,8 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
                   categoryId: _categoryId,
                   startDate: _startDate,
                   endDate: _endDate,
+                  includeExcluded: _includeExcluded,
+                  filterByAccountingMonth: _filterByAccountingMonth,
                 ),
               ),
             ),

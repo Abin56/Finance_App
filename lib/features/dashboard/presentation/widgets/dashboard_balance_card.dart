@@ -112,7 +112,7 @@ class _BalanceCardContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final netWorth = ref.watch(netWorthProvider);
-    final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+    final transactions = ref.watch(calculableTransactionsProvider);
     final positive = changeVsLastMonth >= 0;
     final trend = _weeklyTrend(transactions);
 

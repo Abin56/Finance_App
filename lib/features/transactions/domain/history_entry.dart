@@ -107,6 +107,8 @@ class HistoryEntry {
     required this.icon,
     this.routePath,
     this.splitExpenseDetail,
+    this.excludeFromCalculations = false,
+    this.accountingMonth,
   });
 
   final String id;
@@ -130,4 +132,10 @@ class HistoryEntry {
 
   /// Only populated when [category] is [HistoryCategory.splitExpense].
   final SplitExpenseHistoryDetail? splitExpenseDetail;
+
+  /// Only ever true/set for an entry built from a plain [Transaction] (see
+  /// `HistoryBuilder._fromTransaction`) — every other source (loan/bill/EMI/
+  /// statement) has no such flag, so these default false/null for them.
+  final bool excludeFromCalculations;
+  final DateTime? accountingMonth;
 }

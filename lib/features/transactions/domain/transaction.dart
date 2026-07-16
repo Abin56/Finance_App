@@ -19,6 +19,8 @@ class Transaction extends SoftDeletableEntity {
     this.notes = '',
     this.receiptPurpose,
     this.transferId,
+    this.excludeFromCalculations = false,
+    this.accountingMonth,
   });
 
   @override
@@ -51,12 +53,34 @@ class Transaction extends SoftDeletableEntity {
 
   bool get isTransfer => transferId != null;
 
+  /// When true, this transaction still appears in History/Search/Details
+  /// but must be excluded from every balance/total/report — a reference-only
+  /// entry (e.g. a reimbursement, a duplicate already tracked elsewhere).
+  bool excludeFromCalculations;
+
+  /// Which month this transaction counts toward for monthly aggregations —
+  /// null means "use [dateTime]'s own month" (the common case). Always
+  /// truncated to the first of a month; never affects [dateTime] itself,
+  /// History ordering, or Search. See [effectiveMonth].
+  DateTime? accountingMonth;
+
   final DateTime createdAt;
 
   /// The signed delta this transaction applies to its account's balance —
   /// the single source of truth for balance math, so the repository never
   /// has to duplicate "income adds, expense subtracts" logic.
   double get signedAmount => type == TransactionType.income ? amount : -amount;
+
+  /// The month every monthly aggregation (Dashboard, Reports, Budgets, Cash
+  /// Flow) must bucket this transaction under, instead of [dateTime]'s own
+  /// month — [accountingMonth] if set, else [dateTime]'s month.
+  DateTime get effectiveMonth => accountingMonth ?? DateTime(dateTime.year, dateTime.month);
+
+  /// The signed delta this transaction actually applies to its account's
+  /// balance — [signedAmount], or zero when [excludeFromCalculations] is
+  /// true. The single source of truth for every balance adjustment, so an
+  /// excluded transaction can never partially affect a balance.
+  double get balanceEffect => excludeFromCalculations ? 0 : signedAmount;
 
   factory Transaction.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -74,6 +98,8 @@ class Transaction extends SoftDeletableEntity {
       notes: data['notes'] as String? ?? '',
       receiptPurpose: data['receiptPurpose'] as String?,
       transferId: data['transferId'] as String?,
+      excludeFromCalculations: data['excludeFromCalculations'] as bool? ?? false,
+      accountingMonth: (data['accountingMonth'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
@@ -94,6 +120,8 @@ class Transaction extends SoftDeletableEntity {
       'notes': notes,
       'receiptPurpose': receiptPurpose,
       'transferId': transferId,
+      'excludeFromCalculations': excludeFromCalculations,
+      'accountingMonth': accountingMonth == null ? null : Timestamp.fromDate(accountingMonth!),
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),

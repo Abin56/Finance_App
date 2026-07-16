@@ -25,6 +25,8 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     String notes = '',
     String? receiptPurpose,
     String? transferId,
+    bool excludeFromCalculations = false,
+    DateTime? accountingMonth,
   }) async {
     final transaction = Transaction(
       id: IdGenerator.generate(),
@@ -37,13 +39,15 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
       notes: notes,
       receiptPurpose: receiptPurpose,
       transferId: transferId,
+      excludeFromCalculations: excludeFromCalculations,
+      accountingMonth: accountingMonth,
       createdAt: DateTime.now(),
     );
     await add(transaction.id, transaction);
 
     final account = await accountRepository.getByKey(accountId);
     if (account == null) throw NotFoundException('Account not found');
-    await accountRepository.adjustBalance(account, transaction.signedAmount);
+    await accountRepository.adjustBalance(account, transaction.balanceEffect);
 
     return transaction;
   }
@@ -114,9 +118,12 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     String? categoryId,
     String? description,
     String? notes,
+    bool? excludeFromCalculations,
+    DateTime? accountingMonth,
+    bool clearAccountingMonth = false,
   }) async {
     final oldAccountId = transaction.accountId;
-    final oldSignedAmount = transaction.signedAmount;
+    final oldBalanceEffect = transaction.balanceEffect;
 
     transaction.updateField(
       field: 'type',
@@ -160,22 +167,47 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
       newValue: notes,
       apply: (v) => transaction.notes = v,
     );
+    transaction.updateField(
+      field: 'excludeFromCalculations',
+      oldValue: transaction.excludeFromCalculations,
+      newValue: excludeFromCalculations,
+      apply: (v) => transaction.excludeFromCalculations = v,
+    );
+    if (clearAccountingMonth) {
+      transaction.recordEdit(
+        field: 'accountingMonth',
+        oldValue: transaction.accountingMonth?.toString() ?? 'none',
+        newValue: 'none',
+      );
+      transaction.accountingMonth = null;
+    } else {
+      transaction.updateField(
+        field: 'accountingMonth',
+        oldValue: transaction.accountingMonth,
+        newValue: accountingMonth,
+        apply: (v) => transaction.accountingMonth = v,
+      );
+    }
 
-    final newSignedAmount = transaction.signedAmount;
+    // Computed after every field update above so a same-transaction toggle of
+    // excludeFromCalculations (in either direction) is captured by the delta
+    // below exactly like an amount/account change would be — no separate
+    // branch needed, since balanceEffect is already 0 whenever excluded.
+    final newBalanceEffect = transaction.balanceEffect;
     final newAccountId = transaction.accountId;
 
     if (oldAccountId == newAccountId) {
       final account = await accountRepository.getByKey(newAccountId);
       if (account == null) throw NotFoundException('Account not found');
-      await accountRepository.adjustBalance(account, newSignedAmount - oldSignedAmount);
+      await accountRepository.adjustBalance(account, newBalanceEffect - oldBalanceEffect);
     } else {
       final oldAccount = await accountRepository.getByKey(oldAccountId);
       if (oldAccount == null) throw NotFoundException('Account not found');
-      await accountRepository.adjustBalance(oldAccount, -oldSignedAmount);
+      await accountRepository.adjustBalance(oldAccount, -oldBalanceEffect);
 
       final newAccount = await accountRepository.getByKey(newAccountId);
       if (newAccount == null) throw NotFoundException('Account not found');
-      await accountRepository.adjustBalance(newAccount, newSignedAmount);
+      await accountRepository.adjustBalance(newAccount, newBalanceEffect);
     }
 
     await update(transaction);
@@ -186,7 +218,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
   Future<void> softDeleteTransaction(Transaction transaction) async {
     final account = await accountRepository.getByKey(transaction.accountId);
     if (account == null) throw NotFoundException('Account not found');
-    await accountRepository.adjustBalance(account, -transaction.signedAmount);
+    await accountRepository.adjustBalance(account, -transaction.balanceEffect);
     await softDelete(transaction);
   }
 
@@ -194,7 +226,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
   Future<void> restoreTransaction(Transaction transaction) async {
     final account = await accountRepository.getByKey(transaction.accountId);
     if (account == null) throw NotFoundException('Account not found');
-    await accountRepository.adjustBalance(account, transaction.signedAmount);
+    await accountRepository.adjustBalance(account, transaction.balanceEffect);
     await restore(transaction);
   }
 
