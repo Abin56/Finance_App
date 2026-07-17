@@ -465,9 +465,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               const SizedBox(height: AppSizes.md),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Exclude from Financial Calculations'),
+                title: const Text("Don't count this in my totals"),
                 subtitle: const Text(
-                  "This transaction will be saved in your history but won't affect balances, reports, budgets, or analytics.",
+                  "Still shows in your history — just won't affect your balance, budgets, or reports.",
                 ),
                 value: _excludeFromCalculations,
                 onChanged: (value) => setState(() => _excludeFromCalculations = value),
@@ -475,11 +475,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               const SizedBox(height: AppSizes.sm),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Accounting Month'),
+                title: const Text('Count this in a different month?'),
                 subtitle: Text(
                   _customAccountingMonth
-                      ? 'Move to another month'
-                      : 'Same as Transaction Date (${_dateTime.monthYear})',
+                      ? 'Choose which month it should count toward below.'
+                      : 'Right now: counted in ${_dateTime.monthYear} (same as the date above)',
                 ),
                 value: _customAccountingMonth,
                 onChanged: (value) => setState(() {
@@ -489,6 +489,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               if (_customAccountingMonth) ...[
                 const SizedBox(height: AppSizes.sm),
+                Text(
+                  'Which month should this count toward?',
+                  style: context.textTheme.labelLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSizes.xs),
                 MonthYearStepper(
                   value: _accountingMonth,
                   min: DateTime(_accountingMonthBounds.year - 5, _accountingMonthBounds.month),
@@ -510,9 +516,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         const SizedBox(width: AppSizes.sm),
                         Expanded(
                           child: Text(
-                            'This transaction was made on ${_dateTime.fullDate}.\n'
-                            'It will NOT be included in ${_dateTime.monthYear} calculations.\n'
-                            'It will appear in ${_accountingMonth.monthYear} Budget, Cash Flow, Dashboard, and Reports.',
+                            'This was made on ${_dateTime.fullDate}, but won\'t count in ${_dateTime.monthYear}\'s '
+                            'totals — instead it\'ll count in ${_accountingMonth.monthYear}\'s Budget, Cash Flow, '
+                            'Dashboard, and Reports.',
                             style: context.textTheme.bodySmall,
                           ),
                         ),

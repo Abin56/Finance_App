@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +9,7 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
+import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/widgets/add_expense_chooser.dart';
 import '../../domain/ledger_entry.dart';
 import '../../domain/ledger_entry_type.dart';
@@ -255,7 +257,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     );
 
     // Loan-derived entries have no editable ledger document, so they can't be
-    // swipe-deleted; everything else keeps the swipe-to-trash + Undo gesture.
+    // swipe-deleted; everything else keeps the swipe-to-trash gesture.
     final ledgerEntry = ledgerEntryById[entry.id];
     if (ledgerEntry == null) return tile;
 
@@ -263,7 +265,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     return Dismissible(
       key: ValueKey(entry.id),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => confirmDelete(context, entityName: 'Entry'),
+      confirmDismiss: (_) => confirmDelete(context, entityName: transactionRef == null ? 'Entry' : 'Expense'),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
@@ -275,6 +277,23 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
       ),
       onDismissed: (_) async {
         setState(() => _dismissedEntryIds.add(entry.id));
+        if (transactionRef != null) {
+          // Expense-linked entry: cascade-delete the whole expense (transaction,
+          // schedule/installments, every linked ledger entry across all
+          // participants) via ExpenseRepository.deleteExpense, otherwise the
+          // Transaction/Expense docs stay live and keep counting toward
+          // Dashboard/report totals and the person's cached balance.
+          final expenses = await ref.read(expenseRepositoryProvider).getAll();
+          final expense = expenses.firstWhereOrNull((e) => e.transactionId == transactionRef);
+          if (expense != null) {
+            await ref.read(expenseRepositoryProvider).deleteExpense(expense);
+          } else {
+            await ledgerRepository.softDeleteEntry(person, ledgerEntry);
+          }
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense deleted')));
+          return;
+        }
         await ledgerRepository.softDeleteEntry(person, ledgerEntry);
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

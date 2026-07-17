@@ -29,10 +29,10 @@ class TransactionFlagBadge extends StatelessWidget {
   final bool compact;
 
   String? get _label {
-    if (excludeFromCalculations) return 'Excluded';
+    if (excludeFromCalculations) return 'Not counted';
     final accountingMonth = this.accountingMonth;
     if (accountingMonth != null && !accountingMonth.isSameMonth(date)) {
-      return 'Included in ${accountingMonth.monthYear}';
+      return 'Counted in ${accountingMonth.monthYear}';
     }
     return null;
   }
