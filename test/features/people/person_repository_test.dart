@@ -1,20 +1,36 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:finance_app/core/errors/app_exception.dart';
+import 'package:finance_app/features/people/data/ledger_repository.dart';
 import 'package:finance_app/features/people/data/person_repository.dart';
+import 'package:finance_app/features/people/domain/ledger_entry.dart';
+import 'package:finance_app/features/people/domain/ledger_entry_type.dart';
 import 'package:finance_app/features/people/domain/person.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  late FakeFirebaseFirestore firestore;
   late PersonRepository repository;
 
   setUp(() {
-    final firestore = FakeFirebaseFirestore();
+    firestore = FakeFirebaseFirestore();
     final collection = firestore.collection('people').withConverter<Person>(
           fromFirestore: Person.fromFirestore,
           toFirestore: (p, _) => p.toFirestore(),
         );
     repository = PersonRepository(collection);
   });
+
+  LedgerRepository ledgerRepositoryFor(String personId) {
+    final collection = firestore
+        .collection('people')
+        .doc(personId)
+        .collection('ledger')
+        .withConverter<LedgerEntry>(
+          fromFirestore: LedgerEntry.fromFirestore,
+          toFirestore: (e, _) => e.toFirestore(),
+        );
+    return LedgerRepository(collection, repository);
+  }
 
   group('PersonRepository.createPerson', () {
     test('initializes currentBalance to openingBalance', () async {
@@ -150,6 +166,48 @@ void main() {
       await repository.adjustBalance(person, 0);
 
       expect(person.editHistory, isEmpty);
+    });
+  });
+
+  group('PersonRepository.deletePersonAndLedger', () {
+    test('deletes the person document', () async {
+      final person = await repository.createPerson(name: 'Alex', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final ledger = ledgerRepositoryFor(person.id);
+
+      await repository.deletePersonAndLedger(person, ledger);
+
+      expect(await repository.getByKey(person.id), isNull);
+    });
+
+    test('permanently deletes every active ledger entry, not just the person', () async {
+      final person = await repository.createPerson(name: 'Alex', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final ledger = ledgerRepositoryFor(person.id);
+      await ledger.addEntry(person, type: LedgerEntryType.gave, amount: 500, date: DateTime(2026, 1, 1));
+      await ledger.addEntry(person, type: LedgerEntryType.borrowed, amount: 200, date: DateTime(2026, 1, 2));
+
+      await repository.deletePersonAndLedger(person, ledger);
+
+      expect(await ledger.getAll(), isEmpty, reason: 'active ledger entries must not be orphaned');
+    });
+
+    test('permanently deletes trashed ledger entries too, not only active ones', () async {
+      final person = await repository.createPerson(name: 'Alex', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final ledger = ledgerRepositoryFor(person.id);
+      final entry = await ledger.addEntry(person, type: LedgerEntryType.gave, amount: 500, date: DateTime(2026, 1, 1));
+      await ledger.softDeleteEntry(person, entry);
+
+      await repository.deletePersonAndLedger(person, ledger);
+
+      expect(await ledger.getTrash(), isEmpty, reason: 'trashed ledger entries must not be orphaned either');
+    });
+
+    test('is safe to call for a person with no ledger entries at all', () async {
+      final person = await repository.createPerson(name: 'Alex', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final ledger = ledgerRepositoryFor(person.id);
+
+      await repository.deletePersonAndLedger(person, ledger);
+
+      expect(await repository.getByKey(person.id), isNull);
     });
   });
 }

@@ -34,6 +34,22 @@ final creditCardsStreamProvider = StreamProvider<List<CreditCardProfile>>((ref) 
   return ref.watch(creditCardRepositoryProvider).watchAll();
 });
 
+/// [creditCardsStreamProvider] filtered to cards whose linked [Account]
+/// hasn't been deleted. [CreditCardProfile] has no delete action of its own
+/// anywhere in this module — the only way a user removes a card today is
+/// deleting its linked Account from the Accounts screen, which soft-deletes
+/// only the Account (accounts has no knowledge of credit_cards, so it can't
+/// cascade the delete to the card). Every screen/aggregation that shows or
+/// sums cards should watch this instead of the raw stream above, so a
+/// card's outstanding balance stops counting — and the card itself stops
+/// appearing — the moment its account is trashed, and both reappear
+/// correctly if the account is restored.
+final activeCreditCardsProvider = Provider<List<CreditCardProfile>>((ref) {
+  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final accountIds = (ref.watch(accountsStreamProvider).value ?? const []).map((a) => a.id).toSet();
+  return cards.where((c) => accountIds.contains(c.accountId)).toList();
+});
+
 /// Statement repository for a single card's subcollection, scoped by
 /// [cardId] — mirrors `paymentRepositoryProvider` (Bills).
 final statementRepositoryProvider = Provider.family<StatementRepository, String>((ref, cardId) {
@@ -183,7 +199,19 @@ final creditCardStandingProvider = Provider.family<CreditCardStanding, String>((
   final statements = ref.watch(statementsStreamProvider(cardId)).value ?? const [];
   final unpaidStatements = statements.fold(0.0, (sum, s) => sum + s.remainingAmount);
   final current = ref.watch(currentStatementCycleProvider(cardId));
-  final currentCycleSpend = current?.totalAmount ?? 0;
+  // On the exact day a cycle closes, `currentCycleFor` (which backs
+  // [current]) hasn't rolled forward to the next cycle yet — it still
+  // reports the just-closed cycle's live total, the same cycle a
+  // `Statement` may already have been materialized for (see
+  // `StatementPeriodCalculator.mostRecentClosedCycleFor`, which treats
+  // that same day as closed). Excluding `current` once a matching
+  // Statement exists avoids double-counting that one cycle's spend in
+  // both `unpaidStatements` and `currentCycleSpend` for that single day.
+  final alreadyMaterialized = current != null &&
+      statements.any(
+        (s) => s.periodStart.isAtSameMomentAs(current.periodStart) && s.periodEnd.isAtSameMomentAs(current.periodEnd),
+      );
+  final currentCycleSpend = alreadyMaterialized ? 0.0 : (current?.totalAmount ?? 0);
   final outstanding = unpaidStatements + currentCycleSpend;
   final principalRestored = ref.watch(principalRestoredForCardProvider(cardId));
 
@@ -197,7 +225,7 @@ final creditCardStandingProvider = Provider.family<CreditCardStanding, String>((
 /// The soonest not-fully-paid statement across every card, for the
 /// Dashboard's "Next Due Date"/"Upcoming Due" stats.
 final nextStatementDueProvider = Provider<Statement?>((ref) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final cards = ref.watch(activeCreditCardsProvider);
   Statement? soonest;
   for (final card in cards) {
     final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
@@ -212,7 +240,7 @@ final nextStatementDueProvider = Provider<Statement?>((ref) {
 /// The soonest upcoming statement date (current cycle's `periodEnd`)
 /// across every card, for the Dashboard's "Next Statement Date" stat.
 final nextStatementDateProvider = Provider<DateTime?>((ref) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final cards = ref.watch(activeCreditCardsProvider);
   DateTime? soonest;
   for (final card in cards) {
     final period = StatementPeriodCalculator.currentCycleFor(card);
@@ -224,21 +252,21 @@ final nextStatementDateProvider = Provider<DateTime?>((ref) {
 /// Sum of [CreditCardStanding.outstanding] across every card — the
 /// Dashboard's "Current Credit Card Outstanding" stat.
 final totalCreditCardOutstandingProvider = Provider<double>((ref) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final cards = ref.watch(activeCreditCardsProvider);
   return cards.fold(0.0, (sum, c) => sum + ref.watch(creditCardStandingProvider(c.id)).outstanding);
 });
 
 /// Sum of [CreditCardStanding.available] across every card — the
 /// Dashboard's "Credit Available" stat.
 final totalCreditAvailableProvider = Provider<double>((ref) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final cards = ref.watch(activeCreditCardsProvider);
   return cards.fold(0.0, (sum, c) => sum + ref.watch(creditCardStandingProvider(c.id)).available);
 });
 
 /// Sum of [CreditCardStanding.currentCycleSpend] across every card — the
 /// Dashboard's "Current Cycle Spending" stat.
 final totalCurrentCycleSpendProvider = Provider<double>((ref) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final cards = ref.watch(activeCreditCardsProvider);
   return cards.fold(0.0, (sum, c) => sum + ref.watch(creditCardStandingProvider(c.id)).currentCycleSpend);
 });
 

@@ -51,6 +51,8 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
   bool _someoneElsePaid = false;
   String? _selectedPersonId;
 
+  bool get _isAmountValid => Validators.amountUpTo(widget.installment.remainingAmount)(_amountController.text) == null;
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -155,7 +157,9 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
                 controller: _amountController,
                 decoration: const InputDecoration(labelText: 'Amount'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
+                validator: Validators.amountUpTo(widget.installment.remainingAmount),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSizes.md),
               ListTile(
@@ -183,7 +187,11 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
                 onPersonChanged: (value) => setState(() => _selectedPersonId = value),
               ),
               const SizedBox(height: AppSizes.xl),
-              PrimaryButton(label: 'Record payment', isLoading: _isSaving, onPressed: _save),
+              PrimaryButton(
+                label: 'Record payment',
+                isLoading: _isSaving,
+                onPressed: _isAmountValid ? _save : null,
+              ),
               const SizedBox(height: AppSizes.sm),
             ],
           ),

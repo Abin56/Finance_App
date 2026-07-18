@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/firestore_constants.dart';
 import '../../../../core/providers/firebase_providers.dart';
+import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../transactions/domain/transaction.dart';
+import '../../../transactions/presentation/providers/transaction_providers.dart';
 import '../../data/ledger_repository.dart';
 import '../../data/person_repository.dart';
 import '../../domain/ledger_entry.dart';
@@ -90,4 +93,19 @@ final ledgerStreamProvider = StreamProvider.family<List<LedgerEntry>, String>((r
 
 final ledgerTrashStreamProvider = StreamProvider.family<List<LedgerEntry>, String>((ref, personId) {
   return ref.watch(ledgerRepositoryProvider(personId)).watchTrash();
+});
+
+/// Plain `Transaction`s linked to [personId] (`Transaction.linkedPersonId`)
+/// with no backing `Expense` — i.e., a pure reference (the "owed" toggle was
+/// never turned on, or was turned back off). An owed transaction already has
+/// a real `Expense`/`LedgerEntry` and surfaces through
+/// [ledgerStreamProvider] instead, so it's excluded here to avoid appearing
+/// twice in [PersonTimelineBuilder.build]'s merged output.
+final personReferencedTransactionsProvider = Provider.family<List<Transaction>, String>((ref, personId) {
+  final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+  final transactionIdsWithExpense = {for (final e in expenses) e.transactionId};
+  return transactions
+      .where((t) => t.linkedPersonId == personId && !transactionIdsWithExpense.contains(t.id))
+      .toList();
 });

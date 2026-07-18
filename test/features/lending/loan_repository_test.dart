@@ -206,6 +206,58 @@ void main() {
       expect(installments, hasLength(1));
       expect(installments.single.principalPortion, closeTo(1000, 0.01));
     });
+
+    test(
+      'weekly-frequency loan charges a properly weekly-normalized rate, not the monthly rate applied per week',
+      () async {
+        // Regression: LoanRepository used to force every schedule type
+        // through InterestPeriod.monthly for rate normalization, so a
+        // weekly loan got the monthly-normalized rate applied once per
+        // week — roughly a 4.3x overstatement (52 weeks/year vs. the
+        // wrongly-assumed 12 "months"/year).
+        final weeklyLoan = await repository.createLoan(
+          personId: 'p1',
+          loanAmount: 10000,
+          loanDate: DateTime(2026, 1, 1),
+          repaymentType: LoanRepaymentType.installment,
+          installmentFrequency: ScheduleType.weekly,
+          installmentCount: 10,
+          interest: const LoanInterest(type: InterestType.flat, ratePercent: 2, period: InterestPeriod.monthly),
+        );
+        final monthlyLoan = await repository.createLoan(
+          personId: 'p1',
+          loanAmount: 10000,
+          loanDate: DateTime(2026, 1, 1),
+          repaymentType: LoanRepaymentType.installment,
+          installmentFrequency: ScheduleType.monthly,
+          installmentCount: 10,
+          interest: const LoanInterest(type: InterestType.flat, ratePercent: 2, period: InterestPeriod.monthly),
+        );
+
+        final weeklySchedule = await scheduleRepository.getByKey(weeklyLoan.scheduleId);
+        final monthlySchedule = await scheduleRepository.getByKey(monthlyLoan.scheduleId);
+        final weeklyInterest = weeklySchedule!.totalAmount - 10000;
+        final monthlyInterest = monthlySchedule!.totalAmount - 10000;
+
+        expect(weeklyInterest, lessThan(monthlyInterest));
+        expect(monthlyInterest / weeklyInterest, closeTo(52 / 12, 0.01));
+      },
+    );
+
+    test('monthly-frequency interest loan is unaffected by the weekly-normalization fix (no regression)', () async {
+      final loan = await repository.createLoan(
+        personId: 'p1',
+        loanAmount: 100000,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.installment,
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 12,
+        interest: const LoanInterest(type: InterestType.reducingBalance, ratePercent: 12, period: InterestPeriod.yearly),
+      );
+
+      final installments = await installmentsFor(loan.scheduleId);
+      expect(installments.first.amountDue, closeTo(8884.88, 0.5));
+    });
   });
 
   group('LoanRepository.editLoan', () {

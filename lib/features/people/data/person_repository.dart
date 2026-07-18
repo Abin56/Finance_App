@@ -1,7 +1,9 @@
 import '../../../core/data/firestore_crud_repository.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/id_generator.dart';
+import '../domain/ledger_entry.dart';
 import '../domain/person.dart';
+import 'ledger_repository.dart';
 
 /// Person-specific persistence on top of the generic CRUD/soft-delete
 /// repository, plus duplicate-person prevention and the balance-sync hook
@@ -80,5 +82,22 @@ class PersonRepository extends FirestoreCrudRepository<Person> {
     );
     person.currentBalance = newBalance;
     await update(person);
+  }
+
+  /// Permanently deletes [person] and every [LedgerEntry] ever recorded
+  /// against them (active and trashed) — Firestore doesn't cascade-delete
+  /// subcollections on its own, and the Trash screen's confirmation dialog
+  /// explicitly promises "their history will be permanently removed", so
+  /// this is the one place that promise must actually be kept. [ledgerRepo]
+  /// is passed in rather than held as a field, since it's a per-person
+  /// (family-scoped) repository the caller already has from the provider
+  /// layer — [PersonRepository] itself stays free of any structural
+  /// dependency on `LedgerRepository`.
+  Future<void> deletePersonAndLedger(Person person, LedgerRepository ledgerRepo) async {
+    final entries = [...await ledgerRepo.getAll(), ...await ledgerRepo.getTrash()];
+    for (final entry in entries) {
+      await ledgerRepo.permanentlyDelete(entry);
+    }
+    await permanentlyDelete(person);
   }
 }

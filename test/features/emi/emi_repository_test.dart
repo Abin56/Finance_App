@@ -187,6 +187,56 @@ void main() {
       final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
       expect(sorted.last.interestPortion, lessThan(sorted.first.interestPortion!));
     });
+
+    test(
+      'weekly-frequency EMI charges a properly weekly-normalized rate, not the monthly rate applied per week',
+      () async {
+        // Regression: EmiRepository used to force every schedule type
+        // through InterestPeriod.monthly for rate normalization, so a
+        // weekly EMI got the monthly-normalized rate applied once per
+        // week — roughly a 4.3x overstatement (52 weeks/year vs. the
+        // wrongly-assumed 12 "months"/year).
+        final weeklyEmi = await repository.createEmi(
+          name: 'Weekly EMI',
+          principalAmount: 10000,
+          startDate: DateTime(2026, 1, 1),
+          installmentFrequency: ScheduleType.weekly,
+          installmentCount: 10,
+          interest: const EmiInterest(type: InterestType.flat, ratePercent: 2, period: InterestPeriod.monthly),
+        );
+        final monthlyEmi = await repository.createEmi(
+          name: 'Monthly EMI',
+          principalAmount: 10000,
+          startDate: DateTime(2026, 1, 1),
+          installmentFrequency: ScheduleType.monthly,
+          installmentCount: 10,
+          interest: const EmiInterest(type: InterestType.flat, ratePercent: 2, period: InterestPeriod.monthly),
+        );
+
+        final weeklySchedule = await scheduleRepository.getByKey(weeklyEmi.scheduleId);
+        final monthlySchedule = await scheduleRepository.getByKey(monthlyEmi.scheduleId);
+        final weeklyInterest = weeklySchedule!.totalAmount - 10000;
+        final monthlyInterest = monthlySchedule!.totalAmount - 10000;
+
+        expect(weeklyInterest, lessThan(monthlyInterest));
+        expect(monthlyInterest / weeklyInterest, closeTo(52 / 12, 0.01));
+      },
+    );
+
+    test('monthly-frequency interest EMI is unaffected by the weekly-normalization fix (no regression)', () async {
+      final emi = await repository.createEmi(
+        name: 'Home loan',
+        principalAmount: 100000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 12,
+        interest: const EmiInterest(type: InterestType.reducingBalance, ratePercent: 12, period: InterestPeriod.yearly),
+      );
+
+      final installments = await installmentsFor(emi.scheduleId);
+      final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      expect(sorted.first.amountDue, closeTo(8884.88, 0.5));
+    });
   });
 
   group('EmiRepository.editEmi', () {

@@ -3,9 +3,11 @@ import 'package:finance_app/core/providers/firebase_providers.dart';
 import 'package:finance_app/features/accounts/domain/account_type.dart';
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
 import 'package:finance_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:finance_app/core/payment_schedule/domain/schedule_type.dart';
 import 'package:finance_app/features/bills/domain/bill_recurrence.dart';
 import 'package:finance_app/features/bills/presentation/providers/bill_providers.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
+import 'package:finance_app/features/emi/presentation/providers/emi_providers.dart';
 import 'package:finance_app/features/lending/domain/loan_repayment_type.dart';
 import 'package:finance_app/features/lending/presentation/providers/loan_providers.dart';
 import 'package:finance_app/features/people/domain/ledger_entry_type.dart';
@@ -40,11 +42,10 @@ void main() {
   });
 
   group('totalDueThisMonthProvider', () {
-    test('sums due/paid/remaining across this-month bills only', () async {
+    test('sums due/paid/remaining across this-month bills only (current month only)', () async {
       final now = DateTime.now();
       final bills = container.read(billRepositoryProvider);
 
-      // Due this month, partially paid.
       final billA = await bills.createBill(
         name: 'Electricity',
         amount: 1000,
@@ -53,15 +54,6 @@ void main() {
       );
       final paymentRepo = container.read(paymentRepositoryProvider(billA.id));
       await paymentRepo.recordPayment(billA, amount: 400, date: now);
-
-      // Due last month — must not be counted.
-      final lastMonth = DateTime(now.year, now.month - 1, 10);
-      await bills.createBill(
-        name: 'Old bill',
-        amount: 500,
-        dueDate: lastMonth,
-        recurrence: BillRecurrence.monthly,
-      );
 
       await container.read(billsStreamProvider.future);
 
@@ -74,6 +66,129 @@ void main() {
       expect(total.due, 1000);
       expect(total.paid, 400);
       expect(total.remaining, 600);
+    });
+
+    test('still counts an unpaid bill carried over from a prior month (overdue only)', () async {
+      final now = DateTime.now();
+      final bills = container.read(billRepositoryProvider);
+
+      // Due last month, never paid — dueDate never rolled forward since
+      // BillRepository only advances it on full payment/skip.
+      final lastMonth = DateTime(now.year, now.month - 1, 10);
+      await bills.createBill(
+        name: 'Old bill',
+        amount: 500,
+        dueDate: lastMonth,
+        recurrence: BillRecurrence.monthly,
+      );
+
+      await container.read(billsStreamProvider.future);
+
+      final breakdown = container.read(billsDueThisMonthBreakdownProvider);
+      expect(breakdown.due, 500);
+      expect(breakdown.paid, 0);
+      expect(breakdown.remaining, 500);
+
+      final total = container.read(totalDueThisMonthProvider);
+      expect(total.due, 500, reason: 'an overdue carry-over must still show up as due, not be dropped');
+    });
+
+    test('sums current-month due plus prior-month overdue (current month + overdue)', () async {
+      final now = DateTime.now();
+      final bills = container.read(billRepositoryProvider);
+
+      final current = await bills.createBill(
+        name: 'Electricity',
+        amount: 1000,
+        dueDate: DateTime(now.year, now.month, 10),
+        recurrence: BillRecurrence.monthly,
+      );
+      final paymentRepo = container.read(paymentRepositoryProvider(current.id));
+      await paymentRepo.recordPayment(current, amount: 400, date: now);
+
+      final lastMonth = DateTime(now.year, now.month - 1, 10);
+      await bills.createBill(
+        name: 'Old bill',
+        amount: 500,
+        dueDate: lastMonth,
+        recurrence: BillRecurrence.monthly,
+      );
+
+      await container.read(billsStreamProvider.future);
+
+      final breakdown = container.read(billsDueThisMonthBreakdownProvider);
+      expect(breakdown.due, 1500, reason: '1000 this month + 500 overdue');
+      expect(breakdown.paid, 400);
+      expect(breakdown.remaining, 1100);
+    });
+
+    test('excludes a prior-month bill that has since been fully paid off (paid overdue)', () async {
+      final now = DateTime.now();
+      final bills = container.read(billRepositoryProvider);
+
+      // One-time (non-recurring) so a full payment settles it in place
+      // instead of rolling it forward to a new this-month occurrence —
+      // isolates "already paid" from "rolled over to a new due date".
+      final lastMonth = DateTime(now.year, now.month - 1, 10);
+      final oldBill = await bills.createBill(
+        name: 'Old bill',
+        amount: 500,
+        dueDate: lastMonth,
+        recurrence: BillRecurrence.oneTime,
+      );
+      final paymentRepo = container.read(paymentRepositoryProvider(oldBill.id));
+      await paymentRepo.recordPayment(oldBill, amount: 500, date: now);
+
+      await container.read(billsStreamProvider.future);
+
+      final breakdown = container.read(billsDueThisMonthBreakdownProvider);
+      expect(breakdown.due, 0, reason: 'a fully-paid overdue bill must not be counted as still due');
+      expect(breakdown.paid, 0);
+    });
+
+    test('never double-counts a bill that already belongs to this month (duplicate prevention)', () async {
+      final now = DateTime.now();
+      final bills = container.read(billRepositoryProvider);
+
+      await bills.createBill(
+        name: 'Electricity',
+        amount: 1000,
+        dueDate: DateTime(now.year, now.month, 10),
+        recurrence: BillRecurrence.monthly,
+      );
+
+      await container.read(billsStreamProvider.future);
+
+      // This-month items and carry-over overdue items are drawn from the
+      // same single pass over `billsStreamProvider` — assert the row count
+      // implied by the total matches exactly one bill's amount, not two.
+      final breakdown = container.read(billsDueThisMonthBreakdownProvider);
+      expect(breakdown.due, 1000, reason: 'billA must be counted exactly once, not once per branch');
+    });
+
+    test('EMI installment breakdown also merges an unpaid prior-month installment', () async {
+      final now = DateTime.now();
+      final emis = container.read(emiRepositoryProvider);
+
+      // Single-installment EMI whose only (unpaid) installment falls on
+      // startDate, in a prior month — installment #1's dueDate always
+      // equals firstDueDate/startDate exactly.
+      final lastMonth = DateTime(now.year, now.month - 1, 10);
+      await emis.createEmi(
+        name: 'Old EMI',
+        principalAmount: 1200,
+        startDate: lastMonth,
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 1,
+      );
+
+      await container.read(emisStreamProvider.future);
+      final createdEmi = container.read(emisStreamProvider).value!.single;
+      await container.read(installmentsStreamProvider(createdEmi.scheduleId).future);
+
+      final breakdown = container.read(emiDueThisMonthBreakdownProvider);
+      expect(breakdown.due, 1200, reason: 'an overdue EMI installment from a prior month must still be counted');
+      expect(breakdown.remaining, 1200);
     });
   });
 

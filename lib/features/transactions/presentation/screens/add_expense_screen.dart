@@ -5,6 +5,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/payment_schedule/domain/installment.dart';
+import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -14,7 +16,15 @@ import '../../../accounts/domain/account_type.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/domain/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../expense/data/expense_repository.dart';
+import '../../../expense/domain/expense.dart';
+import '../../../expense/domain/split_type.dart';
+import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../expense/presentation/widgets/add_expense_chooser.dart';
 import '../../../expense/presentation/widgets/split_expense_form_sheet.dart';
+import '../../../people/presentation/providers/people_providers.dart';
+import '../../../people/presentation/widgets/person_avatar.dart';
+import '../../../people/presentation/widgets/person_picker_sheet.dart';
 import '../../../sms_inbox/domain/merchant/merchant_category_suggester.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
 import '../../../sms_inbox/presentation/sms_import_completion.dart';
@@ -83,6 +93,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   late String? _accountId = widget.transaction?.accountId ?? widget.smsPrefill?.suggestedAccountId;
   late String? _categoryId = widget.transaction?.categoryId ?? widget.smsPrefill?.suggestedCategoryId;
   late bool _excludeFromCalculations = widget.transaction?.excludeFromCalculations ?? false;
+  late String? _linkedPersonId = widget.transaction?.linkedPersonId;
+
+  /// Whether [_linkedPersonId] represents money owed back — starts matching
+  /// the transaction's own flag when editing (see [Transaction.owesPersonToggle]),
+  /// always false for a brand-new transaction until the user opts in.
+  late bool _owesPersonToggle = widget.transaction?.owesPersonToggle ?? false;
+
+  /// The original toggle state at load time, so `_save` can tell whether the
+  /// owed relationship needs to be created/reversed/reassigned rather than
+  /// just re-saved in place.
+  late final bool _initialOwesPersonToggle = _owesPersonToggle;
+  late final String? _initialLinkedPersonId = _linkedPersonId;
 
   /// Whether the "Move to another month" branch is active — starts true
   /// only when editing a transaction that already has one set.
@@ -143,6 +165,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     });
   }
 
+  Future<void> _pickPerson() async {
+    final picked = await showPersonPickerSheet(context);
+    if (picked == null) return;
+    setState(() => _linkedPersonId = picked.id);
+  }
+
+  void _clearPerson() {
+    setState(() {
+      _linkedPersonId = null;
+      _owesPersonToggle = false;
+    });
+  }
+
   Future<void> _pickCategory(List<Category> categories) async {
     final picked = await showModalBottomSheet<String>(
       context: context,
@@ -156,12 +191,113 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     });
   }
 
-  /// Closes this screen and opens [SplitExpenseFormSheet] in its place —
-  /// same "Add Expense" entry point, just routed to the existing split
-  /// engine instead of a plain transaction, with no logic duplicated here.
+  /// Opens [AddExpenseChooser] on top of this still-live screen, carrying
+  /// over everything already typed here — same "Add Expense" entry point,
+  /// just routed to the existing split/assign engine instead of a plain
+  /// transaction, with no logic duplicated here. Deliberately does NOT pop
+  /// this screen first: if the user backs out of the chooser/sheet without
+  /// saving, they land right back on this form with every field intact. Only
+  /// a genuine save closes this screen too, so they don't end up stuck on a
+  /// stale empty form after the shared expense already went through.
   Future<void> _switchToSplitExpense(BuildContext context) async {
-    Navigator.of(context).pop();
-    await SplitExpenseFormSheet.show(context);
+    final draft = AddExpenseDraftPrefill(
+      amount: double.tryParse(_amountController.text.trim()),
+      description: _descriptionController.text.trim(),
+      categoryId: _categoryId,
+      accountId: _accountId,
+      date: _dateTime,
+      excludeFromCalculations: _excludeFromCalculations,
+      accountingMonth: _customAccountingMonth ? _accountingMonth : null,
+    );
+    final saved = await AddExpenseChooser.show(context, draft: draft);
+    if (saved == true && mounted) Navigator.of(context).pop();
+  }
+
+  /// Whether this save should end up "owed" — the toggle only ever applies
+  /// to an expense with a linked person; switching type away from Expense or
+  /// clearing the person always forces it back off, so an edit can never
+  /// leave a stray owed [Expense] behind a non-expense/unlinked transaction.
+  bool get _effectiveOwesToggle => _owesPersonToggle && _linkedPersonId != null && _type == TransactionType.expense;
+
+  /// Reverses [transaction]'s backing [Expense] (the person originally
+  /// linked before this edit) via [ExpenseRepository.unassignFromPerson] —
+  /// the ledger/schedule reversal, leaving [transaction] itself alone. A
+  /// no-op if no [Expense] exists (defensive: `wasOwed` should already
+  /// guarantee one does).
+  Future<void> _unassignExisting(Transaction transaction) async {
+    final expense = ref.read(expenseForTransactionProvider(transaction.id));
+    if (expense == null) return;
+    await ref.read(expenseRepositoryProvider).unassignFromPerson(expense);
+  }
+
+  /// Hands [transaction] over to [ExpenseRepository.convertToAssigned] so a
+  /// real single-participant [Expense]/ledger entry backs it — same engine
+  /// [AssignExpenseSheet] already uses, just triggered from this screen's
+  /// toggle instead of a separate sheet. Reuses whatever [Expense] document
+  /// may already exist for [transaction] (there shouldn't be one on a fresh
+  /// reference-only transaction, but `convertToAssigned` handles either way,
+  /// same as [TransactionDetailScreen]'s own "Assign to person" action).
+  Future<void> _convertExistingToOwed(Transaction transaction, String description) async {
+    final people = ref.read(peopleStreamProvider).value ?? const [];
+    final person = people.where((p) => p.id == _linkedPersonId).firstOrNull;
+    final existingExpense = ref.read(expenseForTransactionProvider(transaction.id));
+    final expenseRepository = ref.read(expenseRepositoryProvider);
+    await expenseRepository.convertToAssigned(
+      existingExpense: existingExpense,
+      transactionId: transaction.id,
+      description: description.isNotEmpty ? description : 'Expense',
+      totalAmount: double.parse(_amountController.text.trim()),
+      date: _dateTime,
+      categoryId: _categoryId!,
+      accountId: _accountId!,
+      notes: transaction.notes,
+      personId: _linkedPersonId!,
+      personName: person?.name ?? '',
+    );
+    final repository = ref.read(transactionRepositoryProvider);
+    await repository.editTransaction(
+      transaction,
+      linkedPersonId: _linkedPersonId,
+      owesPersonToggle: true,
+    );
+  }
+
+  /// Still owed, same person — edits the existing backing [Expense] in place
+  /// via [ExpenseRepository.editExpense] (which itself keeps the linked
+  /// [Transaction] in sync), so the person's ledger history line updates
+  /// instead of being reversed and recreated.
+  Future<void> _editExistingOwed(Transaction transaction, String description) async {
+    final expense = ref.read(expenseForTransactionProvider(transaction.id));
+    if (expense == null) {
+      // Defensive fallback: `wasOwed` implied an Expense should exist; if it
+      // was deleted out from under this edit, treat it like a fresh assign.
+      await _convertExistingToOwed(transaction, description);
+      return;
+    }
+    final totalAmount = double.parse(_amountController.text.trim());
+    final currentInstallments = expense.scheduleId == null
+        ? const <Installment>[]
+        : ref.read(installmentsStreamProvider(expense.scheduleId!)).value ?? const <Installment>[];
+    await ref.read(expenseRepositoryProvider).editExpense(
+          expense: expense,
+          currentInstallments: currentInstallments,
+          description: description.isNotEmpty ? description : 'Expense',
+          totalAmount: totalAmount,
+          date: _dateTime,
+          categoryId: _categoryId,
+          accountId: _accountId,
+          notes: transaction.notes,
+          splitType: SplitType.custom,
+          participantInputs: [
+            for (final p in expense.participants)
+              ExpenseParticipantInput(
+                personId: p.personId,
+                name: p.name,
+                isMe: p.isMe,
+                value: p.isMe ? 0 : totalAmount,
+              ),
+          ],
+        );
   }
 
   Future<void> _save() async {
@@ -180,20 +316,103 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final description = _descriptionController.text.trim();
 
       final accountingMonth = _customAccountingMonth ? _accountingMonth : null;
+      final wasOwed = _initialOwesPersonToggle && _initialLinkedPersonId != null;
+      final nowOwed = _effectiveOwesToggle;
 
       if (_isEditing) {
-        await repository.editTransaction(
-          widget.transaction!,
-          type: _type,
-          amount: amount,
-          dateTime: _dateTime,
-          accountId: _accountId,
-          categoryId: _categoryId,
+        final transaction = widget.transaction!;
+
+        if (wasOwed && !nowOwed) {
+          // Owed -> reference-only (or person cleared entirely): reverse the
+          // ledger/schedule via the same repository that created it, then
+          // save this as a plain transaction with whatever linkedPersonId is
+          // left (null if the person was cleared, unchanged if only the
+          // toggle was switched off).
+          await _unassignExisting(transaction);
+          await repository.editTransaction(
+            transaction,
+            type: _type,
+            amount: amount,
+            dateTime: _dateTime,
+            accountId: _accountId,
+            categoryId: _categoryId,
+            description: description,
+            notes: transaction.notes,
+            excludeFromCalculations: _excludeFromCalculations,
+            accountingMonth: accountingMonth,
+            clearAccountingMonth: accountingMonth == null,
+            linkedPersonId: _linkedPersonId,
+            clearLinkedPersonId: _linkedPersonId == null,
+            owesPersonToggle: false,
+          );
+        } else if (!wasOwed && nowOwed) {
+          // Reference-only (or brand plain) -> owed: hand this transaction
+          // over to ExpenseRepository so a real Expense/ledger entry backs
+          // it, same mechanism AssignExpenseSheet already uses.
+          await _convertExistingToOwed(transaction, description);
+        } else if (wasOwed && nowOwed) {
+          if (_initialLinkedPersonId != _linkedPersonId) {
+            // Person changed while staying owed: reverse the old person's
+            // ledger entry, then re-assign to the new person — two existing
+            // calls, no new ledger math.
+            await _unassignExisting(transaction);
+            await _convertExistingToOwed(transaction, description);
+          } else {
+            // Still owed, same person — edit the backing Expense in place so
+            // the same ledger/installment history line updates instead of
+            // being reversed and recreated.
+            await _editExistingOwed(transaction, description);
+          }
+        } else {
+          // Was never owed, still isn't — the plain path, unchanged.
+          await repository.editTransaction(
+            transaction,
+            type: _type,
+            amount: amount,
+            dateTime: _dateTime,
+            accountId: _accountId,
+            categoryId: _categoryId,
+            description: description,
+            notes: transaction.notes,
+            excludeFromCalculations: _excludeFromCalculations,
+            accountingMonth: accountingMonth,
+            clearAccountingMonth: accountingMonth == null,
+            linkedPersonId: _linkedPersonId,
+            clearLinkedPersonId: _linkedPersonId == null,
+            owesPersonToggle: false,
+          );
+        }
+      } else if (nowOwed) {
+        final people = ref.read(peopleStreamProvider).value ?? const [];
+        final person = people.where((p) => p.id == _linkedPersonId).firstOrNull;
+        final expenseRepository = ref.read(expenseRepositoryProvider);
+        final expense = await expenseRepository.assignToPerson(
           description: description,
-          notes: widget.transaction!.notes,
+          totalAmount: amount,
+          date: _dateTime,
+          categoryId: _categoryId!,
+          accountId: _accountId!,
+          personId: _linkedPersonId!,
+          personName: person?.name ?? '',
+          notes: widget.smsPrefill?.note ?? '',
           excludeFromCalculations: _excludeFromCalculations,
           accountingMonth: accountingMonth,
-          clearAccountingMonth: accountingMonth == null,
+        );
+        final createdTransaction = await repository.getByKey(expense.transactionId);
+        if (createdTransaction != null) {
+          await repository.editTransaction(
+            createdTransaction,
+            linkedPersonId: _linkedPersonId,
+            owesPersonToggle: true,
+          );
+        }
+
+        await completeSmsImport(
+          ref,
+          smsPrefill: widget.smsPrefill,
+          linkedEntityId: expense.transactionId,
+          learnCategoryType: _type,
+          learnCategoryId: _categoryId,
         );
       } else {
         final created = await repository.createTransaction(
@@ -206,6 +425,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           notes: widget.smsPrefill?.note ?? '',
           excludeFromCalculations: _excludeFromCalculations,
           accountingMonth: accountingMonth,
+          linkedPersonId: _linkedPersonId,
         );
 
         // Learn from the category the user actually settled on — which may
@@ -325,6 +545,28 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 textInputAction: TextInputAction.next,
                 onChanged: (_) => setState(() {}),
               ),
+              if (_type == TransactionType.expense) ...[
+                const SizedBox(height: AppSizes.sm),
+                Text('Person (optional)', style: context.textTheme.titleSmall),
+                const SizedBox(height: AppSizes.xs),
+                _PersonField(
+                  personId: _linkedPersonId,
+                  onTap: _pickPerson,
+                  onClear: _clearPerson,
+                ),
+                if (_linkedPersonId != null) ...[
+                  const SizedBox(height: AppSizes.xs),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('This person owes me this expense'),
+                    subtitle: const Text(
+                      'Creates a real ledger entry — their outstanding balance and statement update too.',
+                    ),
+                    value: _owesPersonToggle,
+                    onChanged: (value) => setState(() => _owesPersonToggle = value),
+                  ),
+                ],
+              ],
               const SizedBox(height: AppSizes.sm),
               Text.rich(
                 TextSpan(
@@ -636,6 +878,57 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Optional "associate this expense with a person" row — sets
+/// [Transaction.linkedPersonId] as a plain reference by default (no
+/// [Expense], ledger entry, loan, or EMI). The sibling "This person owes me
+/// this expense" switch shown just below (only once a person is picked) is
+/// the only thing that routes this expense through
+/// [ExpenseRepository.assignToPerson]/`convertToAssigned` for a real ledger
+/// effect — this field itself never does.
+class _PersonField extends ConsumerWidget {
+  const _PersonField({required this.personId, required this.onTap, required this.onClear});
+
+  final String? personId;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final people = ref.watch(peopleStreamProvider).value ?? const [];
+    final person = personId == null ? null : people.where((p) => p.id == personId).firstOrNull;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      child: InputDecorator(
+        decoration: const InputDecoration(isDense: true),
+        child: Row(
+          children: [
+            if (person != null) ...[
+              PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 13),
+              const SizedBox(width: AppSizes.sm),
+            ],
+            Expanded(
+              child: Text(
+                person?.name ?? 'Add a person (optional)',
+                style: context.textTheme.bodyMedium,
+              ),
+            ),
+            if (person != null)
+              IconButton(
+                icon: const Icon(Icons.cancel, size: AppSizes.iconSm),
+                onPressed: onClear,
+                tooltip: 'Remove person',
+              )
+            else
+              const Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd),
+          ],
         ),
       ),
     );

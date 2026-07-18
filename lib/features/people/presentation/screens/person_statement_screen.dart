@@ -1,11 +1,13 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
@@ -86,7 +88,14 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
       if (query.isNotEmpty && !e.note.toLowerCase().contains(query) && !e.title.toLowerCase().contains(query)) {
         return false;
       }
-      if (_dateRange != null && (e.date.isBefore(_dateRange!.start) || e.date.isAfter(_dateRange!.end))) return false;
+      if (_dateRange != null) {
+        // `_dateRange!.end` is midnight on the selected end date (from
+        // `showDateRangePicker`), but loan-payment/referenced-transaction
+        // entries carry a real time-of-day — comparing against end-of-day
+        // instead of midnight keeps "today" actually including today.
+        final endOfRangeDay = DateTime(_dateRange!.end.year, _dateRange!.end.month, _dateRange!.end.day, 23, 59, 59);
+        if (e.date.isBefore(_dateRange!.start) || e.date.isAfter(endOfRangeDay)) return false;
+      }
       if (_dismissedEntryIds.contains(e.id)) return false;
       return true;
     }).toList();
@@ -251,9 +260,11 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     final transactionRef = _transactionRefFor(entry, ledgerEntryById);
     final tile = _ContactLedgerTile(
       entry: entry,
-      onTap: transactionRef == null
-          ? null
-          : () => PersonExpenseDetailScreen.open(context, transactionId: transactionRef),
+      onTap: entry.category == PersonTimelineCategory.reference
+          ? () => context.push('${AppRoutes.transactions}/${entry.id}')
+          : transactionRef == null
+              ? null
+              : () => PersonExpenseDetailScreen.open(context, transactionId: transactionRef),
     );
 
     // Loan-derived entries have no editable ledger document, so they can't be

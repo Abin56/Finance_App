@@ -7,15 +7,29 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/domain/transaction_type.dart';
+import '../../domain/reports_period.dart';
 
 /// Income vs. expenses grouped bar chart, one pair of bars per week of the
 /// selected period — mirrors the Figma "Cash Flow" section.
 class CashFlowChart extends StatelessWidget {
-  const CashFlowChart({super.key, required this.periodStart, required this.periodEnd, required this.transactions});
+  const CashFlowChart({
+    super.key,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.transactions,
+    required this.period,
+  });
 
   final DateTime periodStart;
   final DateTime periodEnd;
   final List<Transaction> transactions;
+
+  /// Which date [ReportsPeriodX.reportDateFor] should read for each
+  /// transaction — must be the same [ReportsPeriod] the caller used to
+  /// build [transactions] in the first place, so a transaction reassigned
+  /// to a different Accounting Month lands in the correct week bar instead
+  /// of falling outside every bucket and silently vanishing from the chart.
+  final ReportsPeriod period;
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +46,10 @@ class CashFlowChart extends StatelessWidget {
     double totalFor(DateTime weekStart, TransactionType type) {
       final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
       return transactions
-          .where(
-            (t) => t.type == type && !t.isTransfer && !t.dateTime.isBefore(weekStart) && !t.dateTime.isAfter(weekEnd),
-          )
+          .where((t) {
+            final d = period.reportDateFor(t);
+            return t.type == type && !t.isTransfer && !d.isBefore(weekStart) && !d.isAfter(weekEnd);
+          })
           .fold(0.0, (total, t) => total + t.amount);
     }
 

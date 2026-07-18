@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/extensions/num_extensions.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../../core/payment_schedule/domain/installment_status.dart';
@@ -27,6 +29,7 @@ import '../../../expense/presentation/widgets/record_split_payment_sheet.dart';
 import '../../../expense/presentation/widgets/settle_amount_sheet.dart';
 import '../../../expense/presentation/widgets/share_expense.dart';
 import '../../../expense/presentation/widgets/split_expense_form_sheet.dart';
+import '../../../people/presentation/providers/people_providers.dart';
 import '../../../people/presentation/widgets/person_avatar.dart';
 import '../../domain/history_builder.dart';
 import '../../domain/transaction.dart';
@@ -567,7 +570,7 @@ class _ReassignRow extends StatelessWidget {
 /// that matters most, per the app's visual-hierarchy rule), then a clean
 /// icon-led grid of its supporting facts (date/account/category/note)
 /// instead of a plain label:value list.
-class _TransactionHeroCard extends StatelessWidget {
+class _TransactionHeroCard extends ConsumerWidget {
   const _TransactionHeroCard({required this.transaction, required this.accountName, required this.categoryName});
 
   final Transaction transaction;
@@ -575,10 +578,17 @@ class _TransactionHeroCard extends StatelessWidget {
   final String? categoryName;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isIncome = transaction.type == TransactionType.income;
     final sign = isIncome ? '+' : '-';
     final color = transaction.type.color;
+    final linkedPersonId = transaction.linkedPersonId;
+    final linkedPersonName = linkedPersonId == null
+        ? null
+        : (ref.watch(peopleStreamProvider).value ?? const [])
+            .where((p) => p.id == linkedPersonId)
+            .firstOrNull
+            ?.name;
 
     return AppCard(
       child: Column(
@@ -639,8 +649,16 @@ class _TransactionHeroCard extends StatelessWidget {
             icon: Icons.sell_outlined,
             label: 'Category',
             value: categoryName ?? 'Uncategorized',
-            isLast: transaction.notes.isEmpty,
+            isLast: transaction.notes.isEmpty && linkedPersonName == null,
           ),
+          if (linkedPersonName != null)
+            _DetailGridRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Person',
+              value: linkedPersonName,
+              isLast: transaction.notes.isEmpty,
+              onTap: () => context.push('${AppRoutes.people}/${transaction.linkedPersonId}'),
+            ),
           if (transaction.notes.isNotEmpty)
             _DetailGridRow(icon: Icons.notes_rounded, label: 'Note', value: transaction.notes, isLast: true),
         ],
@@ -650,16 +668,26 @@ class _TransactionHeroCard extends StatelessWidget {
 }
 
 class _DetailGridRow extends StatelessWidget {
-  const _DetailGridRow({required this.icon, required this.label, required this.value, this.isLast = false});
+  const _DetailGridRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.isLast = false,
+    this.onTap,
+  });
 
   final IconData icon;
   final String label;
   final String value;
   final bool isLast;
 
+  /// Set only for rows that link elsewhere (currently just "Person" — see
+  /// [_TransactionHeroCard]) — every other row stays plain text.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final row = Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : AppSizes.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -674,13 +702,23 @@ class _DetailGridRow extends StatelessWidget {
           Flexible(
             child: Text(
               value,
-              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: onTap == null ? null : context.colors.primary,
+              ),
               textAlign: TextAlign.end,
             ),
           ),
+          if (onTap != null) ...[
+            const SizedBox(width: 2),
+            Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+          ],
         ],
       ),
     );
+
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(AppSizes.radiusMd), child: row);
   }
 }
 

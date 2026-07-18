@@ -83,7 +83,9 @@ class PeopleTrashScreen extends ConsumerWidget {
     );
 
     if (confirmed == true) {
-      await ref.read(personRepositoryProvider).permanentlyDelete(person);
+      await ref
+          .read(personRepositoryProvider)
+          .deletePersonAndLedger(person, ref.read(ledgerRepositoryProvider(person.id)));
     }
   }
 }

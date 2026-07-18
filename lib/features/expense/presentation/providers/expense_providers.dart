@@ -181,13 +181,15 @@ final myAverageMonthlyExpenseProvider = Provider<double>((ref) {
 /// number [myTotalExpenseProvider] would give for an all-time range.
 typedef MyExpenseBreakdown = ({double personal, double split, double total});
 
-/// My Share breakdown for expense transactions whose date falls within
-/// [start]..[end] (inclusive) — reused by both the Dashboard "My Spending"
-/// card (via the narrower single-figure providers above) and the Reports
-/// screen, which needs the personal/split split specifically.
-final myExpenseBreakdownForRangeProvider = Provider.family<MyExpenseBreakdown, ({DateTime start, DateTime end})>(
-  (ref, range) {
-    final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
+/// My Share breakdown for [transactions] — the caller (Reports) is
+/// responsible for having already filtered that list to the transactions
+/// that belong in the period (via `calculableTransactionsProvider` +
+/// `ReportsPeriod.reportDateFor`, the same filter every other Reports
+/// figure uses), so this provider only ever does the Expense-join/My-Share
+/// math, never its own independent date/exclusion filtering — avoids the
+/// two ever silently disagreeing about which transactions are "in period".
+final myExpenseBreakdownForTransactionsProvider = Provider.family<MyExpenseBreakdown, List<Transaction>>(
+  (ref, transactions) {
     final expenseByTransactionId = {
       for (final e in ref.watch(expensesStreamProvider).value ?? const []) e.transactionId: e,
     };
@@ -195,8 +197,7 @@ final myExpenseBreakdownForRangeProvider = Provider.family<MyExpenseBreakdown, (
     var personal = 0.0;
     var split = 0.0;
     for (final t in transactions) {
-      if (t.type != TransactionType.expense || t.isDeleted) continue;
-      if (t.dateTime.isBefore(range.start) || t.dateTime.isAfter(range.end)) continue;
+      if (t.type != TransactionType.expense) continue;
       final expense = expenseByTransactionId[t.id];
       if (expense != null && expense.isSplit) {
         split += expense.myShare;

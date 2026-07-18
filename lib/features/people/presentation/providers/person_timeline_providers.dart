@@ -57,9 +57,12 @@ final personTimelineProvider = Provider.family<List<PersonTimelineEntry>, String
     installmentStatusByTransactionRef[expense.transactionId] = installment.status;
   }
 
+  final referencedTransactions = ref.watch(personReferencedTransactionsProvider(personId));
+
   return PersonTimelineBuilder.build(
     ledgerEntries: ledgerEntries,
     loans: loanData,
+    referencedTransactions: referencedTransactions,
     participantCountByTransactionRef: participantCountByTransactionRef,
     installmentStatusByTransactionRef: installmentStatusByTransactionRef,
   );

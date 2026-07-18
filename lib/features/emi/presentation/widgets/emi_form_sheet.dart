@@ -188,10 +188,26 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
         period: _interestPeriod,
         installmentCount: count,
         installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: _installmentsPerYearFor(_installmentFrequency),
       );
       return (totalPayable: breakdown.totalPayable, totalInterest: breakdown.totalInterest);
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Mirrors `EmiRepository._installmentsPerYearFor` exactly, so this
+  /// preview always matches what `createEmi`/`editEmiTerms` will actually
+  /// persist — weekly gets its true per-year count (52) instead of being
+  /// forced through the monthly bucket.
+  int _installmentsPerYearFor(ScheduleType scheduleType) {
+    switch (scheduleType) {
+      case ScheduleType.weekly:
+        return 52;
+      case ScheduleType.monthly:
+      case ScheduleType.oneTime:
+      case ScheduleType.custom:
+        return 12;
     }
   }
 

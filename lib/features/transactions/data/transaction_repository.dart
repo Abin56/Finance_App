@@ -27,6 +27,8 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     String? transferId,
     bool excludeFromCalculations = false,
     DateTime? accountingMonth,
+    String? linkedPersonId,
+    bool owesPersonToggle = false,
   }) async {
     final transaction = Transaction(
       id: IdGenerator.generate(),
@@ -41,6 +43,8 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
       transferId: transferId,
       excludeFromCalculations: excludeFromCalculations,
       accountingMonth: accountingMonth,
+      linkedPersonId: linkedPersonId,
+      owesPersonToggle: owesPersonToggle,
       createdAt: DateTime.now(),
     );
     await add(transaction.id, transaction);
@@ -121,6 +125,9 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     bool? excludeFromCalculations,
     DateTime? accountingMonth,
     bool clearAccountingMonth = false,
+    String? linkedPersonId,
+    bool clearLinkedPersonId = false,
+    bool? owesPersonToggle,
   }) async {
     final oldAccountId = transaction.accountId;
     final oldBalanceEffect = transaction.balanceEffect;
@@ -188,6 +195,27 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
         apply: (v) => transaction.accountingMonth = v,
       );
     }
+    if (clearLinkedPersonId) {
+      transaction.recordEdit(
+        field: 'linkedPersonId',
+        oldValue: transaction.linkedPersonId ?? 'none',
+        newValue: 'none',
+      );
+      transaction.linkedPersonId = null;
+    } else {
+      transaction.updateField(
+        field: 'linkedPersonId',
+        oldValue: transaction.linkedPersonId,
+        newValue: linkedPersonId,
+        apply: (v) => transaction.linkedPersonId = v,
+      );
+    }
+    transaction.updateField(
+      field: 'owesPersonToggle',
+      oldValue: transaction.owesPersonToggle,
+      newValue: owesPersonToggle,
+      apply: (v) => transaction.owesPersonToggle = v,
+    );
 
     // Computed after every field update above so a same-transaction toggle of
     // excludeFromCalculations (in either direction) is captured by the delta

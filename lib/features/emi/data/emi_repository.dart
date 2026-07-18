@@ -93,6 +93,7 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
         period: interest.period,
         installmentCount: installmentCount,
         installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: _installmentsPerYearFor(installmentFrequency),
       );
       precomputed = breakdown.periods
           .map((p) => PrecomputedInstallmentAmount(
@@ -370,6 +371,7 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
           period: interest.period,
           installmentCount: remainingCount,
           installmentFrequency: InterestPeriod.monthly,
+          installmentsPerYear: _installmentsPerYearFor(effectiveFrequency),
         );
         precomputed = breakdown.periods
             .map((p) => PrecomputedInstallmentAmount(
@@ -540,5 +542,23 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
 
   void _cancelEndingReminder(String emiId) {
     ReminderNotificationService.cancel('${emiId}_ending').catchError((_) {});
+  }
+
+  /// True per-installment count for [InterestCalculator]'s
+  /// [installmentsPerYear] rate normalization — weekly gets its own exact
+  /// value (52) instead of being forced through the monthly bucket, which
+  /// previously overstated weekly interest by ~4.3x. `custom` isn't
+  /// offered by the EMI form, so 12 (monthly) is a safe placeholder if
+  /// that ever changes; `oneTime` isn't a valid EMI installment frequency
+  /// but is included for exhaustiveness.
+  int _installmentsPerYearFor(ScheduleType scheduleType) {
+    switch (scheduleType) {
+      case ScheduleType.weekly:
+        return 52;
+      case ScheduleType.monthly:
+      case ScheduleType.oneTime:
+      case ScheduleType.custom:
+        return 12;
+    }
   }
 }

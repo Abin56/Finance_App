@@ -1,4 +1,5 @@
 import '../../../core/extensions/date_extensions.dart';
+import '../../transactions/domain/transaction.dart';
 
 /// Time window a report can be scoped to — drives both the Reports
 /// dashboard's overview cards and the category detail screen's trend chart.
@@ -11,6 +12,15 @@ extension ReportsPeriodX on ReportsPeriod {
   /// the transaction's real date, since accountingMonth only encodes a
   /// month, not a day/week/year.
   bool get isMonthGranular => this == ReportsPeriod.thisMonth || this == ReportsPeriod.lastMonth;
+
+  /// The single date every Reports calculation must bucket [transaction]
+  /// under for this period — [Transaction.effectiveMonth] (Accounting
+  /// Month) when [isMonthGranular], else [Transaction.dateTime]. The one
+  /// place this decision is made, so every Reports provider/widget that
+  /// filters or buckets by date reaches the same answer for the same
+  /// transaction instead of each re-deriving it (and risking drift between
+  /// a stat card and the chart sitting next to it).
+  DateTime reportDateFor(Transaction transaction) => isMonthGranular ? transaction.effectiveMonth : transaction.dateTime;
 
   String get label {
     switch (this) {

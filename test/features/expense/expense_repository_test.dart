@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart' hide Transaction;
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:finance_app/core/errors/app_exception.dart';
 import 'package:finance_app/core/payment_schedule/data/installment_payment_repository.dart';
@@ -318,6 +319,27 @@ void main() {
       final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
       expect(txSnapshot.exists, true);
       expect((txSnapshot.data()!['amount'] as num).toDouble(), 100);
+    });
+
+    test('carries excludeFromCalculations and accountingMonth through to the created Transaction', () async {
+      final expense = await repository.createExpense(
+        description: 'Dinner',
+        totalAmount: 100,
+        date: DateTime(2026, 1, 15),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.none,
+        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+        excludeFromCalculations: true,
+        accountingMonth: DateTime(2026, 2),
+      );
+
+      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
+      expect(txSnapshot.data()!['excludeFromCalculations'], true);
+      expect(
+        (txSnapshot.data()!['accountingMonth'] as Timestamp).toDate(),
+        DateTime(2026, 2),
+      );
     });
 
     test('unsplit expense (SplitType.none) has no participants and no schedule', () async {
@@ -724,6 +746,249 @@ void main() {
       for (final doc in ledgerDocs.docs) {
         expect(doc.data()['deletedAt'], isNotNull);
       }
+    });
+  });
+
+  group('ExpenseRepository.restoreExpense', () {
+    test('is the exact inverse of deleteExpense: every cascaded record and balance comes back', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final accountBefore = await accountRepository.getByKey(accountId);
+
+      final expense = await repository.assignToPerson(
+        description: 'Concert tickets',
+        totalAmount: 150,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        personId: alice.id,
+        personName: 'Alice',
+      );
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 150);
+
+      await repository.deleteExpense(expense);
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+      final accountAfterDelete = await accountRepository.getByKey(accountId);
+      expect(accountAfterDelete!.currentBalance, accountBefore!.currentBalance);
+
+      await repository.restoreExpense(expense);
+
+      // Account balance effect re-applied.
+      final accountAfterRestore = await accountRepository.getByKey(accountId);
+      expect(accountAfterRestore!.currentBalance, accountBefore.currentBalance - 150);
+
+      // Person's ledger balance re-applied — restored as an owed expense,
+      // not silently dropped back to a plain transaction.
+      final refreshedAlice = await personRepository.getByKey(alice.id);
+      expect(refreshedAlice!.currentBalance, 150);
+
+      final transaction = await firestore.collection('transactions').doc(expense.transactionId).get();
+      expect(transaction.data()!['deletedAt'], isNull);
+
+      final expenseDoc = await firestore.collection('expenses').doc(expense.id).get();
+      expect(expenseDoc.data()!['deletedAt'], isNull);
+
+      final installmentDocs = await firestore
+          .collection('paymentSchedules')
+          .doc(expense.scheduleId)
+          .collection('installments')
+          .get();
+      expect(installmentDocs.docs, isNotEmpty);
+      for (final doc in installmentDocs.docs) {
+        expect(doc.data()['deletedAt'], isNull);
+      }
+
+      final scheduleDoc = await firestore.collection('paymentSchedules').doc(expense.scheduleId).get();
+      expect(scheduleDoc.data()!['deletedAt'], isNull);
+
+      final ledgerDocs = await firestore.collection('people').doc(alice.id).collection('ledger').get();
+      expect(ledgerDocs.docs, isNotEmpty);
+      for (final doc in ledgerDocs.docs) {
+        expect(doc.data()['deletedAt'], isNull);
+      }
+    });
+
+    test('delete -> restore -> delete again leaves everything cleanly trashed, with no double-applied balance',
+        () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final accountBefore = await accountRepository.getByKey(accountId);
+
+      final expense = await repository.assignToPerson(
+        description: 'Concert tickets',
+        totalAmount: 150,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        personId: alice.id,
+        personName: 'Alice',
+      );
+
+      await repository.deleteExpense(expense);
+      await repository.restoreExpense(expense);
+      await repository.deleteExpense(expense);
+
+      final accountAfter = await accountRepository.getByKey(accountId);
+      expect(accountAfter!.currentBalance, accountBefore!.currentBalance);
+
+      final refreshedAlice = await personRepository.getByKey(alice.id);
+      expect(refreshedAlice!.currentBalance, 0);
+
+      final transaction = await firestore.collection('transactions').doc(expense.transactionId).get();
+      expect(transaction.data()!['deletedAt'], isNotNull);
+
+      final expenseDoc = await firestore.collection('expenses').doc(expense.id).get();
+      expect(expenseDoc.data()!['deletedAt'], isNotNull);
+    });
+
+    test('restoring a transaction that was never trashed does not double-apply its balance effect', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final accountBefore = await accountRepository.getByKey(accountId);
+
+      final expense = await repository.assignToPerson(
+        description: 'Concert tickets',
+        totalAmount: 150,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        personId: alice.id,
+        personName: 'Alice',
+      );
+
+      // Never deleted — calling restoreExpense on a still-active expense
+      // must be a safe no-op, not a double credit/debit.
+      await repository.restoreExpense(expense);
+
+      final accountAfter = await accountRepository.getByKey(accountId);
+      expect(accountAfter!.currentBalance, accountBefore!.currentBalance - 150);
+
+      final refreshedAlice = await personRepository.getByKey(alice.id);
+      expect(refreshedAlice!.currentBalance, 150);
+    });
+  });
+
+  group('ExpenseRepository.unassignFromPerson', () {
+    test('reverses the ledger entry, restores the balance, removes the schedule, but keeps the Transaction alive',
+        () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final accountBefore = await accountRepository.getByKey(accountId);
+
+      final expense = await repository.assignToPerson(
+        description: 'Concert tickets',
+        totalAmount: 150,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        personId: alice.id,
+        personName: 'Alice',
+      );
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 150);
+
+      await repository.unassignFromPerson(expense);
+
+      // Balance fully reversed.
+      final refreshedAlice = await personRepository.getByKey(alice.id);
+      expect(refreshedAlice!.currentBalance, 0);
+
+      // Ledger entry reversed (soft-deleted), not left dangling.
+      final ledgerDocs = await firestore.collection('people').doc(alice.id).collection('ledger').get();
+      expect(ledgerDocs.docs, isNotEmpty);
+      for (final doc in ledgerDocs.docs) {
+        expect(doc.data()['deletedAt'], isNotNull);
+      }
+
+      // Schedule/installments reversed.
+      final scheduleDoc = await firestore.collection('paymentSchedules').doc(expense.scheduleId).get();
+      expect(scheduleDoc.data()!['deletedAt'], isNotNull);
+      final installmentDocs = await firestore
+          .collection('paymentSchedules')
+          .doc(expense.scheduleId)
+          .collection('installments')
+          .get();
+      for (final doc in installmentDocs.docs) {
+        expect(doc.data()['deletedAt'], isNotNull);
+      }
+
+      // The Expense itself is soft-deleted (no dangling assigned state)...
+      final expenseDoc = await firestore.collection('expenses').doc(expense.id).get();
+      expect(expenseDoc.data()!['deletedAt'], isNotNull);
+
+      // ...but the underlying Transaction is untouched — still live, and its
+      // account-balance effect (the money genuinely left the account,
+      // regardless of who ends up owing it back) is unaffected by
+      // unassignFromPerson, which only ever reverses the *person's* ledger.
+      final transactionDoc = await firestore.collection('transactions').doc(expense.transactionId).get();
+      expect(transactionDoc.data()!['deletedAt'], isNull);
+      final accountAfter = await accountRepository.getByKey(accountId);
+      expect(accountAfter!.currentBalance, accountBefore!.currentBalance - 150);
+    });
+
+    test('assign -> unassign -> assign to a different person moves the balance across without touching the account',
+        () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final bob = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0xFF00C2A8, openingBalance: 0);
+      final accountBefore = await accountRepository.getByKey(accountId);
+
+      final expense = await repository.assignToPerson(
+        description: 'Taxi',
+        totalAmount: 80,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        personId: alice.id,
+        personName: 'Alice',
+      );
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 80);
+
+      await repository.unassignFromPerson(expense);
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+
+      await repository.convertToAssigned(
+        transactionId: expense.transactionId,
+        description: 'Taxi',
+        totalAmount: 80,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        notes: '',
+        personId: bob.id,
+        personName: 'Bob',
+      );
+
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+      expect((await personRepository.getByKey(bob.id))!.currentBalance, 80);
+
+      final accountAfter = await accountRepository.getByKey(accountId);
+      expect(accountAfter!.currentBalance, accountBefore!.currentBalance - 80);
+    });
+
+    test('toggling off then back on (assign -> unassign -> re-assign to the same person) restores the same balance',
+        () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+
+      final expense = await repository.assignToPerson(
+        description: 'Groceries',
+        totalAmount: 60,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        personId: alice.id,
+        personName: 'Alice',
+      );
+      await repository.unassignFromPerson(expense);
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+
+      await repository.convertToAssigned(
+        transactionId: expense.transactionId,
+        description: 'Groceries',
+        totalAmount: 60,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        notes: '',
+        personId: alice.id,
+        personName: 'Alice',
+      );
+
+      expect((await personRepository.getByKey(alice.id))!.currentBalance, 60);
     });
   });
 

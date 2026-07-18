@@ -5,10 +5,13 @@ import '../../../core/constants/app_colors.dart';
 /// Which money-interaction area a [PersonTimelineEntry] belongs to, for the
 /// pending breakdown and filter chips. Bills/EMI have no [Person] linkage
 /// anywhere in this codebase (no `personId` field on either), so they have
-/// no category here — only [lending] (via `Loan`), [assignedExpense]/
-/// [splitExpense] (via `Expense`/`ExpenseParticipant`), and [other] (plain
-/// ledger movements/adjustments) exist.
-enum PersonTimelineCategory { lending, assignedExpense, splitExpense, other }
+/// no category here — [lending] (via `Loan`), [assignedExpense]/
+/// [splitExpense] (via `Expense`/`ExpenseParticipant`), [other] (plain
+/// ledger movements/adjustments), and [reference] (a plain `Transaction`
+/// with `linkedPersonId` set but no owed toggle — no `Expense`/`LedgerEntry`
+/// backs it at all, see `PersonTimelineBuilder`'s `referencedTransactions`
+/// input) all exist.
+enum PersonTimelineCategory { lending, assignedExpense, splitExpense, other, reference }
 
 extension PersonTimelineCategoryX on PersonTimelineCategory {
   String get label {
@@ -21,6 +24,8 @@ extension PersonTimelineCategoryX on PersonTimelineCategory {
         return 'Shared expenses';
       case PersonTimelineCategory.other:
         return 'Other';
+      case PersonTimelineCategory.reference:
+        return 'Related transactions';
     }
   }
 }

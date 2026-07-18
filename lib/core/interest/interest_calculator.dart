@@ -14,6 +14,15 @@ abstract class InterestCalculator {
   /// [installmentCount] must be >= 1 (1 means a one-time repayment — both
   /// formulas below degrade correctly to a single period, so one-time and
   /// installment repayment share identical math with no special-casing).
+  ///
+  /// [installmentFrequency] normalizes the rate for a monthly- or yearly-
+  /// cadence schedule. For any other cadence (e.g. a weekly repayment
+  /// schedule), pass [installmentsPerYear] instead — e.g. 52 for weekly —
+  /// so the rate is converted to a true per-installment rate rather than
+  /// being forced through the nearest of monthly/yearly (which overstates
+  /// or understates interest for any cadence that isn't actually monthly
+  /// or yearly). When [installmentsPerYear] is provided, it takes
+  /// precedence over [installmentFrequency].
   static InterestBreakdown calculate({
     required double principal,
     required InterestType type,
@@ -21,6 +30,7 @@ abstract class InterestCalculator {
     required InterestPeriod period,
     required int installmentCount,
     required InterestPeriod installmentFrequency,
+    int? installmentsPerYear,
   }) {
     if (installmentCount < 1) {
       throw ArgumentError.value(installmentCount, 'installmentCount', 'must be at least 1');
@@ -34,19 +44,26 @@ abstract class InterestCalculator {
 
     final periodicRate = installmentCount == 1
         ? ratePercent
-        : _periodicRate(ratePercent, period, installmentFrequency);
+        : _periodicRate(ratePercent, period, installmentFrequency, installmentsPerYear: installmentsPerYear);
     return type == InterestType.flat
         ? _flat(principal, periodicRate, installmentCount)
         : _reducingBalance(principal, periodicRate, installmentCount);
   }
 
   /// Converts an annual/monthly nominal [ratePercent] into the rate that
-  /// applies once per [installmentFrequency]. E.g. a 12%/yearly rate on
-  /// monthly installments becomes 1%/month; a 2%/monthly rate on yearly
-  /// installments becomes 24%/year. Same-unit case is a no-op. Not used for
-  /// a single-period (one-time) repayment — see [calculate].
-  static double _periodicRate(double ratePercent, InterestPeriod quotedPeriod, InterestPeriod installmentFrequency) {
+  /// applies once per installment. E.g. a 12%/yearly rate on monthly
+  /// installments becomes 1%/month; a 2%/monthly rate on yearly
+  /// installments becomes 24%/year; a 12%/yearly rate on weekly
+  /// installments ([installmentsPerYear] = 52) becomes ~0.23%/week. Not
+  /// used for a single-period (one-time) repayment — see [calculate].
+  static double _periodicRate(
+    double ratePercent,
+    InterestPeriod quotedPeriod,
+    InterestPeriod installmentFrequency, {
+    int? installmentsPerYear,
+  }) {
     final annualRate = quotedPeriod == InterestPeriod.yearly ? ratePercent : ratePercent * 12;
+    if (installmentsPerYear != null) return annualRate / installmentsPerYear;
     return installmentFrequency == InterestPeriod.yearly ? annualRate : annualRate / 12;
   }
 

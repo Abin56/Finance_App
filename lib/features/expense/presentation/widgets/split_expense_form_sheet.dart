@@ -14,6 +14,7 @@ import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
+import '../../../../shared/widgets/inputs/month_year_stepper.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../people/domain/person.dart';
@@ -51,6 +52,36 @@ class ConvertToSplitPrefill {
   final String categoryId;
   final String accountId;
   final String notes;
+}
+
+/// Carries an in-progress, never-saved [AddExpenseScreen] form over into this
+/// sheet when the user switches from a plain expense to a shared one — every
+/// field here is a normal, fully editable initial value (same contract as
+/// [SmsPrefill]), unlike [ConvertToSplitPrefill] which locks fields because a
+/// real [Transaction] already exists behind them.
+class AddExpenseDraftPrefill {
+  const AddExpenseDraftPrefill({
+    this.amount,
+    this.description,
+    this.categoryId,
+    this.accountId,
+    this.date,
+    this.notes,
+    this.excludeFromCalculations = false,
+    this.accountingMonth,
+  });
+
+  final double? amount;
+  final String? description;
+  final String? categoryId;
+  final String? accountId;
+  final DateTime? date;
+  final String? notes;
+  final bool excludeFromCalculations;
+
+  /// Non-null only when the source form had "Count this in a different
+  /// month?" switched on — same meaning as [Transaction.accountingMonth].
+  final DateTime? accountingMonth;
 }
 
 /// One participant row's editable state — either an existing [Person]
@@ -96,6 +127,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
     this.editing,
     this.smsPrefill,
     this.initialParticipant,
+    this.draft,
   });
 
   final ConvertToSplitPrefill? convertFrom;
@@ -132,6 +164,12 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
   /// more people than just this one).
   final Person? initialParticipant;
 
+  /// Set when opened from [AddExpenseScreen]'s "Share Expense" row — carries
+  /// over everything the user already typed there so switching to a shared
+  /// expense never re-asks for the same information. Mutually exclusive with
+  /// [convertFrom]/[editing]/[smsPrefill] (a brand-new-creation-only prefill).
+  final AddExpenseDraftPrefill? draft;
+
   /// Resolves to `true` only when the expense was saved, so callers show a
   /// success confirmation only on an actual save (not on cancel/back).
   static Future<bool?> show(
@@ -142,6 +180,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
     Expense? editing,
     SmsPrefill? smsPrefill,
     Person? initialParticipant,
+    AddExpenseDraftPrefill? draft,
   }) {
     return showModalBottomSheet<bool>(
       context: context,
@@ -153,6 +192,7 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
         editing: editing,
         smsPrefill: smsPrefill,
         initialParticipant: initialParticipant,
+        draft: draft,
       ),
     );
   }
@@ -164,19 +204,26 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
 class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _descriptionController = TextEditingController(
-    text: widget.editing?.description ?? widget.convertFrom?.description ?? widget.smsPrefill?.merchantOrSender ?? '',
+    text: widget.editing?.description ??
+        widget.convertFrom?.description ??
+        widget.smsPrefill?.merchantOrSender ??
+        widget.draft?.description ??
+        '',
   );
   late final _amountController = TextEditingController(
     text: widget.editing != null
         ? widget.editing!.totalAmount.toStringAsFixed(2)
         : widget.convertFrom != null
             ? widget.convertFrom!.totalAmount.toStringAsFixed(2)
-            : (widget.smsPrefill == null ? '' : widget.smsPrefill!.amount.toStringAsFixed(2)),
+            : widget.smsPrefill != null
+                ? widget.smsPrefill!.amount.toStringAsFixed(2)
+                : (widget.draft?.amount == null ? '' : widget.draft!.amount!.toStringAsFixed(2)),
   );
   late final _notesController = TextEditingController(
-    text: widget.editing?.notes ?? widget.convertFrom?.notes ?? widget.smsPrefill?.note ?? '',
+    text: widget.editing?.notes ?? widget.convertFrom?.notes ?? widget.smsPrefill?.note ?? widget.draft?.notes ?? '',
   );
-  late DateTime _date = widget.editing?.date ?? widget.convertFrom?.date ?? widget.smsPrefill?.dateTime ?? DateTime.now();
+  late DateTime _date =
+      widget.editing?.date ?? widget.convertFrom?.date ?? widget.smsPrefill?.dateTime ?? widget.draft?.date ?? DateTime.now();
 
   /// Null while editing means "leave every current installment's due date
   /// alone" (see `ExpenseRepository.editExpense`'s `dueDate` param) — only
@@ -184,11 +231,23 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   /// brand-new schedule (create/convert), always non-null so a real due
   /// date — not the expense's own date — is threaded through from the start.
   late DateTime? _dueDate = widget.editing == null ? _date.add(const Duration(days: 7)) : null;
-  late String? _accountId = widget.editing?.accountId ?? widget.convertFrom?.accountId ?? widget.smsPrefill?.suggestedAccountId;
-  late String? _categoryId =
-      widget.editing?.categoryId ?? widget.convertFrom?.categoryId ?? widget.smsPrefill?.suggestedCategoryId;
+  late String? _accountId = widget.editing?.accountId ??
+      widget.convertFrom?.accountId ??
+      widget.smsPrefill?.suggestedAccountId ??
+      widget.draft?.accountId;
+  late String? _categoryId = widget.editing?.categoryId ??
+      widget.convertFrom?.categoryId ??
+      widget.smsPrefill?.suggestedCategoryId ??
+      widget.draft?.categoryId;
   String? _accountError;
   String? _categoryError;
+
+  /// Mirrors the same-named switch on [AddExpenseScreen] — only meaningful
+  /// on the plain-create path (editing/converting already have a real
+  /// [Transaction] with its own values, which this sheet never touches).
+  late bool _excludeFromCalculations = widget.draft?.excludeFromCalculations ?? false;
+  late bool _customAccountingMonth = widget.draft?.accountingMonth != null;
+  late DateTime _accountingMonth = widget.draft?.accountingMonth ?? DateTime(_date.year, _date.month);
 
   /// Assigning is always a 2-way custom split (Me + one person) — never
   /// Equal/Percentage, since there's no "how to share" choice to make.
@@ -433,6 +492,8 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
           participantInputs: _buildInputs(),
           notes: _notesController.text.trim(),
           dueDate: _dueDate,
+          excludeFromCalculations: _excludeFromCalculations,
+          accountingMonth: _customAccountingMonth ? _accountingMonth : null,
         );
 
         await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);
@@ -692,6 +753,42 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                   maxLines: 3,
                   textInputAction: TextInputAction.done,
                 ),
+              ],
+              if (!_isConverting && !_isEditing) ...[
+                const SizedBox(height: AppSizes.md),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text("Don't count this in my totals"),
+                  subtitle: const Text(
+                    "Still shows in your history — just won't affect your balance, budgets, or reports.",
+                  ),
+                  value: _excludeFromCalculations,
+                  onChanged: (value) => setState(() => _excludeFromCalculations = value),
+                ),
+                const SizedBox(height: AppSizes.sm),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Count this in a different month?'),
+                  subtitle: Text(
+                    _customAccountingMonth
+                        ? 'Choose which month it should count toward below.'
+                        : 'Right now: counted in ${_date.monthYear} (same as the date above)',
+                  ),
+                  value: _customAccountingMonth,
+                  onChanged: (value) => setState(() {
+                    _customAccountingMonth = value;
+                    if (!value) _accountingMonth = DateTime(_date.year, _date.month);
+                  }),
+                ),
+                if (_customAccountingMonth) ...[
+                  const SizedBox(height: AppSizes.sm),
+                  MonthYearStepper(
+                    value: _accountingMonth,
+                    min: DateTime(DateTime.now().year - 5, DateTime.now().month),
+                    max: DateTime(DateTime.now().year + 2, DateTime.now().month),
+                    onChanged: (month) => setState(() => _accountingMonth = month),
+                  ),
+                ],
               ],
               const SizedBox(height: AppSizes.xl),
               PrimaryButton(

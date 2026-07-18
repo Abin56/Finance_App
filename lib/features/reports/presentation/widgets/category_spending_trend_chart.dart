@@ -7,6 +7,7 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../transactions/domain/transaction.dart';
+import '../../domain/reports_period.dart';
 
 /// Daily total for one category across the selected period, as a filled
 /// line chart with the peak day called out — mirrors the Figma "Spending
@@ -18,12 +19,20 @@ class CategorySpendingTrendChart extends StatelessWidget {
     required this.periodEnd,
     required this.transactions,
     required this.color,
+    required this.period,
   });
 
   final DateTime periodStart;
   final DateTime periodEnd;
   final List<Transaction> transactions;
   final Color color;
+
+  /// Which date [ReportsPeriodX.reportDateFor] should read for each
+  /// transaction — must match the [ReportsPeriod] the caller used to build
+  /// [transactions], so a transaction reassigned to a different Accounting
+  /// Month lands on the correct day instead of silently vanishing from the
+  /// chart while still counting in the screen's header total.
+  final ReportsPeriod period;
 
   @override
   Widget build(BuildContext context) {
@@ -36,7 +45,8 @@ class CategorySpendingTrendChart extends StatelessWidget {
     }
 
     final totalsByDay = {
-      for (final d in days) d: transactions.where((t) => t.dateTime.dateOnly == d).fold(0.0, (sum, t) => sum + t.amount),
+      for (final d in days)
+        d: transactions.where((t) => period.reportDateFor(t).dateOnly == d).fold(0.0, (sum, t) => sum + t.amount),
     };
 
     final maxValue = totalsByDay.values.fold(0.0, (max, v) => v > max ? v : max);

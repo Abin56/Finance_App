@@ -13,6 +13,10 @@ import '../../../accounts/domain/account.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/domain/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../expense/domain/expense.dart';
+import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../people/domain/person.dart';
+import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../../sms_inbox/presentation/screens/sms_inbox_screen.dart';
 import '../../../sms_inbox/presentation/widgets/sms_inbox_entry_chip.dart';
@@ -79,6 +83,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
     final accountsById = {for (final a in accounts) a.id: a};
     final categoriesById = {for (final c in categories) c.id: c};
+    final people = ref.watch(peopleStreamProvider).value ?? const [];
+    final peopleById = {for (final p in people) p.id: p};
 
     return Scaffold(
       appBar: AppBar(
@@ -179,7 +185,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           ),
           Expanded(
             child: _historyFilter == HistoryFilter.all || _historyFilter == HistoryFilter.transactions
-                ? _buildTransactionsBody(context, transactionsAsync, accountsById, categoriesById, repository)
+                ? _buildTransactionsBody(context, transactionsAsync, accountsById, categoriesById, peopleById, repository)
                 : _buildUnifiedHistoryBody(context),
           ),
         ],
@@ -217,6 +223,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     AsyncValue<List<domain.Transaction>> transactionsAsync,
     Map<String, Account> accountsById,
     Map<String, Category> categoriesById,
+    Map<String, Person> peopleById,
     TransactionRepository repository,
   ) {
     return transactionsAsync.when(
@@ -281,6 +288,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       transaction: transaction,
                       category: categoriesById[transaction.categoryId],
                       account: accountsById[transaction.accountId],
+                      linkedPersonName: peopleById[transaction.linkedPersonId]?.name,
                       onTap: () => context.push('${AppRoutes.transactions}/${transaction.id}'),
                     ),
                   ),
@@ -338,18 +346,41 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   /// cancelled/permanent choice can each report the right dismiss result.
   Future<bool> _confirmAndDelete(TransactionRepository repository, domain.Transaction transaction) async {
     final choice = await confirmDeleteWithPermanentOption(context, entityName: 'Transaction');
+    // A transaction that's "owed" to a linked Person is really the
+    // account-balance effect of an Expense (see `AddExpenseScreen`'s owed
+    // toggle / `ExpenseRepository.assignToPerson`) — deleting it here must
+    // cascade through the same repository that created it, so the ledger
+    // entry and any tracking schedule/installments go with it, exactly like
+    // `PersonStatementScreen`'s own delete already does. A plain (or
+    // reference-only) transaction has no Expense at all and falls through to
+    // the ordinary transaction-only delete unchanged.
+    final expense = ref.read(expenseForTransactionProvider(transaction.id));
     switch (choice) {
       case DeleteChoice.cancel:
         return false;
       case DeleteChoice.trash:
-        await _softDeleteWithUndo(repository, transaction);
+        if (expense != null) {
+          await _deleteExpenseWithUndo(expense, transaction);
+        } else {
+          await _softDeleteWithUndo(repository, transaction);
+        }
         return true;
       case DeleteChoice.permanent:
-        // permanentlyDeleteTransaction only removes the document — it assumes
-        // the balance was already reversed by an earlier soft-delete. Since
-        // this transaction is still active, reverse its balance effect first.
-        await repository.softDeleteTransaction(transaction);
-        await repository.permanentlyDeleteTransaction(transaction);
+        if (expense != null) {
+          // deleteExpense already reverses the account balance (via
+          // TransactionRepository.softDeleteTransaction internally) before
+          // soft-deleting everything — permanent delete just needs the final
+          // hard-delete step afterward, same two-step shape as the plain
+          // transaction branch below.
+          await ref.read(expenseRepositoryProvider).deleteExpense(expense);
+          await repository.permanentlyDeleteTransaction(transaction);
+        } else {
+          // permanentlyDeleteTransaction only removes the document — it assumes
+          // the balance was already reversed by an earlier soft-delete. Since
+          // this transaction is still active, reverse its balance effect first.
+          await repository.softDeleteTransaction(transaction);
+          await repository.permanentlyDeleteTransaction(transaction);
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Transaction permanently deleted')),
@@ -368,6 +399,28 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () => repository.restoreTransaction(transaction),
+        ),
+      ),
+    );
+  }
+
+  /// Cascading soft-delete for a transaction that's the account-balance
+  /// effect of an [Expense] — reuses [ExpenseRepository.deleteExpense]
+  /// wholesale rather than re-implementing its reversal logic. Undo reuses
+  /// the matching [ExpenseRepository.restoreExpense] cascade, so a
+  /// snackbar-undone "owed" expense comes back owed — ledger entry,
+  /// schedule/installments and all — instead of reverting to a plain
+  /// transaction.
+  Future<void> _deleteExpenseWithUndo(Expense expense, domain.Transaction transaction) async {
+    final expenseRepository = ref.read(expenseRepositoryProvider);
+    await expenseRepository.deleteExpense(expense);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Expense moved to trash'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => expenseRepository.restoreExpense(expense),
         ),
       ),
     );

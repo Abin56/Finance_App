@@ -20,16 +20,20 @@ class PersonStatementHeader extends StatelessWidget {
   final Person person;
   final List<PersonTimelineEntry> entries;
 
-  /// Money that moved from the user to this person — a plain-language
-  /// "given" total covering lending money out ("Money given"/"Money lent")
-  /// and paying back what the user had borrowed ("Money repaid").
-  static const _givenTitles = {'Money given', 'Money repaid', 'Money lent'};
+  /// Money that moved from the user to this person, across every category
+  /// (lending, split/assigned expenses, adjustments) — every entry whose
+  /// [PersonTimelineEntry.signedAmount] is positive, per
+  /// [LedgerEntryType]'s documented sign convention (positive = they owe
+  /// you more, i.e. you gave/paid them). The overall counterpart to the
+  /// category-scoped rows below ("Total lending", etc.) and to the
+  /// lending-only [_youLent]/[_youBorrowed] above.
+  double get _totalGiven =>
+      entries.where((e) => e.signedAmount > 0).fold(0.0, (total, e) => total + e.signedAmount);
 
-  /// Money that moved from this person to the user.
-  static const _receivedTitles = {'Money borrowed', 'Money received back', 'Loan payment received'};
-
-  double _totalFor(Set<String> titles) =>
-      entries.where((e) => titles.contains(e.title)).fold(0.0, (total, e) => total + e.signedAmount.abs());
+  /// Money that moved from this person to the user, across every category —
+  /// every entry with a negative [PersonTimelineEntry.signedAmount].
+  double get _totalReceived =>
+      entries.where((e) => e.signedAmount < 0).fold(0.0, (total, e) => total + e.signedAmount.abs());
 
   double _totalForCategory(PersonTimelineCategory category) =>
       entries.where((e) => e.category == category).fold(0.0, (total, e) => total + e.signedAmount.abs());
@@ -119,8 +123,8 @@ class PersonStatementHeader extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.lg),
           _StatRow(label: 'Starting Amount Left', value: person.openingBalance),
-          _StatRow(label: 'Total money given', value: _totalFor(_givenTitles)),
-          _StatRow(label: 'Total money received', value: _totalFor(_receivedTitles)),
+          _StatRow(label: 'Total money given', value: _totalGiven),
+          _StatRow(label: 'Total money received', value: _totalReceived),
           _StatRow(label: 'Total lending', value: _totalForCategory(PersonTimelineCategory.lending)),
           _StatRow(label: 'Total expenses this person will pay', value: _totalForCategory(PersonTimelineCategory.assignedExpense)),
           _StatRow(label: 'Total shared expenses', value: _totalForCategory(PersonTimelineCategory.splitExpense)),

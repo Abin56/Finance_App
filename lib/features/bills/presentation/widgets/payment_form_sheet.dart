@@ -50,6 +50,8 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
   bool _someoneElsePaid = false;
   String? _selectedPersonId;
 
+  bool get _isAmountValid => Validators.amountUpTo(widget.bill.remainingAmount)(_amountController.text) == null;
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -146,7 +148,9 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
                 controller: _amountController,
                 decoration: const InputDecoration(labelText: 'Amount'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
+                validator: Validators.amountUpTo(widget.bill.remainingAmount),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSizes.md),
               OutlinedButton.icon(
@@ -172,7 +176,11 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
                 onPersonChanged: (value) => setState(() => _selectedPersonId = value),
               ),
               const SizedBox(height: AppSizes.xl),
-              PrimaryButton(label: 'Record payment', isLoading: _isSaving, onPressed: _save),
+              PrimaryButton(
+                label: 'Record payment',
+                isLoading: _isSaving,
+                onPressed: _isAmountValid ? _save : null,
+              ),
               const SizedBox(height: AppSizes.sm),
             ],
           ),

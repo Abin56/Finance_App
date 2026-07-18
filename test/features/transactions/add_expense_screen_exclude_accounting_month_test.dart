@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
 import 'package:finance_app/features/categories/presentation/providers/category_providers.dart';
+import 'package:finance_app/features/people/presentation/providers/people_providers.dart';
 import 'package:finance_app/features/transactions/presentation/screens/add_expense_screen.dart';
 
 /// Widget-level regression test for the "Don't count this in my totals"
@@ -20,6 +21,7 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           categoriesStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: const MaterialApp(home: AddExpenseScreen()),
       ),
@@ -34,6 +36,7 @@ void main() {
     expect(toggle, findsOneWidget);
     expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
 
+    await tester.ensureVisible(toggle);
     await tester.tap(toggle);
     await tester.pumpAndSettle();
 

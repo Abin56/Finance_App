@@ -249,6 +249,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     List<ExpenseParticipantInput> participantInputs = const [],
     String notes = '',
     DateTime? dueDate,
+    bool excludeFromCalculations = false,
+    DateTime? accountingMonth,
   }) async {
     if (description.trim().isEmpty) {
       throw const AppException('Expense description is required');
@@ -266,6 +268,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       accountId: accountId,
       categoryId: categoryId,
       notes: notes,
+      excludeFromCalculations: excludeFromCalculations,
+      accountingMonth: accountingMonth,
     );
 
     final expenseId = IdGenerator.generate();
@@ -316,6 +320,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     required String personName,
     String notes = '',
     DateTime? dueDate,
+    bool excludeFromCalculations = false,
+    DateTime? accountingMonth,
   }) {
     return createExpense(
       description: description,
@@ -329,6 +335,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       ],
       notes: notes,
       dueDate: dueDate,
+      excludeFromCalculations: excludeFromCalculations,
+      accountingMonth: accountingMonth,
     );
   }
 
@@ -758,6 +766,49 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     );
   }
 
+  /// Reverses this expense's ledger/schedule effect without touching the
+  /// underlying [Transaction] — the symmetric counterpart to
+  /// [assignToPerson]/[convertToAssigned] for "this person no longer owes me
+  /// this expense" (toggling the Add Expense screen's owed switch off, or
+  /// removing/changing the linked person). Shares [deleteExpense]'s
+  /// schedule/installment/ledger cleanup exactly (same
+  /// `transactionRef == expense.transactionId` lookup, same
+  /// [LedgerRepository.softDeleteEntry] reversal), but deliberately does NOT
+  /// soft-delete the [Transaction] or the [Expense] document itself — the
+  /// caller (`AddExpenseScreen`) still owns a live transaction it wants to
+  /// keep (as a plain expense, or to reassign to someone else immediately
+  /// after). Leaves [expense] soft-deleted so no dangling `SplitType.custom`/
+  /// participant state is left behind for a transaction that is no longer
+  /// "owed" — callers that want to keep tracking it as a plain reference
+  /// should not call this a second time for the same expense.
+  Future<void> unassignFromPerson(Expense expense) async {
+    final scheduleId = expense.scheduleId;
+    if (scheduleId != null) {
+      final installmentRepository = _installmentRepositoryFor(scheduleId);
+      for (final installment in await installmentRepository.getAll()) {
+        await installmentRepository.softDelete(installment);
+      }
+      final schedule = await paymentScheduleRepository.getByKey(scheduleId);
+      if (schedule != null) {
+        await paymentScheduleRepository.softDelete(schedule);
+      }
+    }
+
+    for (final participant in expense.participants) {
+      if (participant.personId == null) continue;
+      final person = await personRepository.getByKey(participant.personId!);
+      if (person == null) continue;
+      final ledgerRepository = _ledgerRepositoryFor(person.id);
+      final linkedEntries =
+          (await ledgerRepository.getAll()).where((e) => e.transactionRef == expense.transactionId);
+      for (final entry in linkedEntries) {
+        await ledgerRepository.softDeleteEntry(person, entry);
+      }
+    }
+
+    await softDelete(expense);
+  }
+
   /// Cascading soft-delete for a split/assigned expense — the Figma "Delete
   /// Expense" action. Mirrors [TransactionRepository.softDeleteTransaction]
   /// for the account balance, then soft-deletes the [Expense] itself, its
@@ -767,9 +818,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
   /// [LedgerRepository.softDeleteEntry], so nothing keeps counting toward
   /// an account's or a person's balance once this expense is gone.
   ///
-  /// Restoring the whole set back together isn't supported yet — only the
-  /// individual Transaction/Ledger trash screens can restore their own
-  /// piece, same granularity every other soft-delete in the app already has.
+  /// See [restoreExpense] for the matching cascade back out of trash.
   Future<void> deleteExpense(Expense expense) async {
     final transaction = await transactionRepository.getByKey(expense.transactionId);
     if (transaction != null) {
@@ -801,5 +850,48 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     }
 
     await softDelete(expense);
+  }
+
+  /// Restores everything [deleteExpense] cascaded — the exact inverse, so a
+  /// trashed "owed" expense comes back as an owed expense again instead of
+  /// reverting to a plain transaction. Re-applies the [Transaction]'s
+  /// account-balance effect, restores its `PaymentSchedule` and every
+  /// `Installment`, restores every person [LedgerEntry] this expense posted
+  /// (re-applying each one's balance effect), then restores the [Expense]
+  /// itself. Only restores a piece that is still actually in trash — each
+  /// `isDeleted`/[getTrash] check guards against double-applying a balance
+  /// effect if that piece was already independently restored first (e.g. via
+  /// a granular trash screen, or a second call for the same expense).
+  Future<void> restoreExpense(Expense expense) async {
+    final transaction = await transactionRepository.getByKey(expense.transactionId);
+    if (transaction != null && transaction.isDeleted) {
+      await transactionRepository.restoreTransaction(transaction);
+    }
+
+    final scheduleId = expense.scheduleId;
+    if (scheduleId != null) {
+      final installmentRepository = _installmentRepositoryFor(scheduleId);
+      for (final installment in await installmentRepository.getTrash()) {
+        await installmentRepository.restore(installment);
+      }
+      final schedule = await paymentScheduleRepository.getByKey(scheduleId);
+      if (schedule != null && schedule.isDeleted) {
+        await paymentScheduleRepository.restore(schedule);
+      }
+    }
+
+    for (final participant in expense.participants) {
+      if (participant.personId == null) continue;
+      final person = await personRepository.getByKey(participant.personId!);
+      if (person == null) continue;
+      final ledgerRepository = _ledgerRepositoryFor(person.id);
+      final linkedEntries =
+          (await ledgerRepository.getTrash()).where((e) => e.transactionRef == expense.transactionId);
+      for (final entry in linkedEntries) {
+        await ledgerRepository.restoreEntry(person, entry);
+      }
+    }
+
+    await restore(expense);
   }
 }

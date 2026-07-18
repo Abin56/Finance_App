@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/inputs/month_year_stepper.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../people/domain/person.dart';
@@ -13,6 +14,7 @@ import '../../../sms_inbox/domain/sms_prefill.dart';
 import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../providers/expense_providers.dart';
+import 'split_expense_form_sheet.dart' show AddExpenseDraftPrefill;
 
 /// Simpler bottom sheet (Task 2) for assigning an entire expense to a
 /// single existing person — the degenerate single-participant case of
@@ -20,7 +22,7 @@ import '../providers/expense_providers.dart';
 /// fields plus one required person picker and calls
 /// `ExpenseRepository.assignToPerson`.
 class AssignExpenseSheet extends ConsumerStatefulWidget {
-  const AssignExpenseSheet({super.key, this.smsPrefill, this.initialPerson});
+  const AssignExpenseSheet({super.key, this.smsPrefill, this.initialPerson, this.draft});
 
   /// Set when opened from the SMS Inbox's "Paid for Someone Else" option —
   /// seeds description/amount/date/account/category as normal editable
@@ -33,11 +35,21 @@ class AssignExpenseSheet extends ConsumerStatefulWidget {
   /// by navigating there.
   final Person? initialPerson;
 
-  static Future<void> show(BuildContext context, {SmsPrefill? smsPrefill, Person? initialPerson}) {
-    return showModalBottomSheet(
+  /// Set when opened from [AddExpenseScreen]'s "Share Expense" row — carries
+  /// over everything the user already typed there so switching to "this
+  /// person will pay" never re-asks for the same information.
+  final AddExpenseDraftPrefill? draft;
+
+  static Future<bool?> show(
+    BuildContext context, {
+    SmsPrefill? smsPrefill,
+    Person? initialPerson,
+    AddExpenseDraftPrefill? draft,
+  }) {
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => AssignExpenseSheet(smsPrefill: smsPrefill, initialPerson: initialPerson),
+      builder: (_) => AssignExpenseSheet(smsPrefill: smsPrefill, initialPerson: initialPerson, draft: draft),
     );
   }
 
@@ -47,20 +59,27 @@ class AssignExpenseSheet extends ConsumerStatefulWidget {
 
 class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final _descriptionController = TextEditingController(text: widget.smsPrefill?.merchantOrSender ?? '');
-  late final _amountController = TextEditingController(
-    text: widget.smsPrefill == null ? '' : widget.smsPrefill!.amount.toStringAsFixed(2),
+  late final _descriptionController = TextEditingController(
+    text: widget.smsPrefill?.merchantOrSender ?? widget.draft?.description ?? '',
   );
-  late final _notesController = TextEditingController(text: widget.smsPrefill?.note ?? '');
-  late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
+  late final _amountController = TextEditingController(
+    text: widget.smsPrefill != null
+        ? widget.smsPrefill!.amount.toStringAsFixed(2)
+        : (widget.draft?.amount == null ? '' : widget.draft!.amount!.toStringAsFixed(2)),
+  );
+  late final _notesController = TextEditingController(text: widget.smsPrefill?.note ?? widget.draft?.notes ?? '');
+  late DateTime _date = widget.smsPrefill?.dateTime ?? widget.draft?.date ?? DateTime.now();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
-  late String? _accountId = widget.smsPrefill?.suggestedAccountId;
-  late String? _categoryId = widget.smsPrefill?.suggestedCategoryId;
+  late String? _accountId = widget.smsPrefill?.suggestedAccountId ?? widget.draft?.accountId;
+  late String? _categoryId = widget.smsPrefill?.suggestedCategoryId ?? widget.draft?.categoryId;
   late String? _personId = widget.initialPerson?.id;
   String? _accountError;
   String? _categoryError;
   String? _personError;
   bool _isSaving = false;
+  late bool _excludeFromCalculations = widget.draft?.excludeFromCalculations ?? false;
+  late bool _customAccountingMonth = widget.draft?.accountingMonth != null;
+  late DateTime _accountingMonth = widget.draft?.accountingMonth ?? DateTime(_date.year, _date.month);
 
   bool get _personLocked => widget.initialPerson != null;
 
@@ -117,10 +136,12 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
         personName: person.name,
         notes: _notesController.text.trim(),
         dueDate: _dueDate,
+        excludeFromCalculations: _excludeFromCalculations,
+        accountingMonth: _customAccountingMonth ? _accountingMonth : null,
       );
 
       await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -243,6 +264,40 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 maxLines: 3,
                 textInputAction: TextInputAction.done,
               ),
+              const SizedBox(height: AppSizes.md),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Don't count this in my totals"),
+                subtitle: const Text(
+                  "Still shows in your history — just won't affect your balance, budgets, or reports.",
+                ),
+                value: _excludeFromCalculations,
+                onChanged: (value) => setState(() => _excludeFromCalculations = value),
+              ),
+              const SizedBox(height: AppSizes.sm),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Count this in a different month?'),
+                subtitle: Text(
+                  _customAccountingMonth
+                      ? 'Choose which month it should count toward below.'
+                      : 'Right now: counted in ${_date.monthYear} (same as the date above)',
+                ),
+                value: _customAccountingMonth,
+                onChanged: (value) => setState(() {
+                  _customAccountingMonth = value;
+                  if (!value) _accountingMonth = DateTime(_date.year, _date.month);
+                }),
+              ),
+              if (_customAccountingMonth) ...[
+                const SizedBox(height: AppSizes.sm),
+                MonthYearStepper(
+                  value: _accountingMonth,
+                  min: DateTime(DateTime.now().year - 5, DateTime.now().month),
+                  max: DateTime(DateTime.now().year + 2, DateTime.now().month),
+                  onChanged: (month) => setState(() => _accountingMonth = month),
+                ),
+              ],
               const SizedBox(height: AppSizes.xl),
               PrimaryButton(
                 label: 'Save',

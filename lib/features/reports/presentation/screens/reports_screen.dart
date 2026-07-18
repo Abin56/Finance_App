@@ -52,18 +52,17 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final fiscalYearStartMonth = ref.watch(fiscalYearStartMonthProvider);
     final now = DateTime.now();
     final range = _period.rangeFor(now, fiscalYearStartMonth: fiscalYearStartMonth);
-    // Only month-granular periods (This Month/Last Month) honor Accounting
-    // Month — everything else (today/week/year/financial-year/custom) uses
-    // the transaction's real date, since accountingMonth only encodes a
-    // month, not any other granularity.
-    DateTime dateFor(Transaction t) => _period.isMonthGranular ? t.effectiveMonth : t.dateTime;
     // Transfers between the user's own accounts aren't real income/expense —
-    // excluded so a transfer's two legs don't inflate both totals.
-    final periodTransactions = transactions.where((t) => range.contains(dateFor(t)) && !t.isTransfer).toList();
+    // excluded so a transfer's two legs don't inflate both totals. Every
+    // Reports figure/chart on this screen must filter from this same list
+    // (via `_period.reportDateFor`, not a re-derived date) so nothing can
+    // silently disagree about which transactions are "in period".
+    final periodTransactions =
+        transactions.where((t) => range.contains(_period.reportDateFor(t)) && !t.isTransfer).toList();
 
     final previousRange = _previousRangeFor(_period, now, fiscalYearStartMonth);
     final previousTransactions =
-        transactions.where((t) => previousRange.contains(dateFor(t)) && !t.isTransfer).toList();
+        transactions.where((t) => previousRange.contains(_period.reportDateFor(t)) && !t.isTransfer).toList();
 
     double totalFor(List<Transaction> list, TransactionType type) =>
         list.where((t) => t.type == type).fold(0.0, (total, t) => total + t.amount);
@@ -80,7 +79,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     for (final t in expenseEntries) {
       totalsByCategory.update(t.categoryId, (v) => v + t.amount, ifAbsent: () => t.amount);
     }
-    final myExpenseBreakdown = ref.watch(myExpenseBreakdownForRangeProvider((start: range.start, end: range.end)));
+    final myExpenseBreakdown = ref.watch(myExpenseBreakdownForTransactionsProvider(periodTransactions));
     final moneyToReceive = ref.watch(totalPendingSplitAmountProvider);
     final moneyReceived = ref.watch(moneyReceivedForRangeProvider((start: range.start, end: range.end)));
 
@@ -144,7 +143,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 ),
                 const SizedBox(height: AppSizes.lg),
                 const SectionHeader(title: 'Cash Flow'),
-                CashFlowChart(periodStart: range.start, periodEnd: range.end, transactions: periodTransactions),
+                CashFlowChart(
+                  periodStart: range.start,
+                  periodEnd: range.end,
+                  transactions: periodTransactions,
+                  period: _period,
+                ),
                 const SizedBox(height: AppSizes.lg),
                 SectionHeader(
                   title: 'Spending by Category',

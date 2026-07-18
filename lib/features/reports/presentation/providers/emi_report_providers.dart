@@ -111,12 +111,12 @@ final overdueEmiReportCountProvider = Provider<int>((ref) => ref.watch(overdueEm
 final overdueEmiAmountProvider = Provider<double>((ref) => ref.watch(emiOverdueAmountProvider));
 
 /// Count of every non-deleted EMI, regardless of status.
-final totalLoansCountProvider = Provider<int>((ref) {
+final totalEmisCountProvider = Provider<int>((ref) {
   return (ref.watch(emisStreamProvider).value ?? const []).length;
 });
 
 /// Count of EMIs whose derived status is closed.
-final closedLoansCountProvider = Provider<int>((ref) {
+final closedEmisCountProvider = Provider<int>((ref) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   return emis.where((e) => ref.watch(emiStatusProvider(e)) == EmiStatus.closed).length;
 });

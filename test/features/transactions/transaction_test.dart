@@ -258,6 +258,56 @@ void main() {
       expect(restored.accountingMonth, isNull);
     });
 
+    test('preserves linkedPersonId and owesPersonToggle', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 7, 25),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 7, 25),
+        linkedPersonId: 'p1',
+        owesPersonToggle: true,
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.linkedPersonId, 'p1');
+      expect(restored.owesPersonToggle, isTrue);
+    });
+
+    test('defaults linkedPersonId to null and owesPersonToggle to false', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.linkedPersonId, isNull);
+      expect(restored.owesPersonToggle, isFalse);
+    });
+
     test('preserves audit trail and soft-delete state', () async {
       final firestore = FakeFirebaseFirestore();
       final collection = firestore.collection('transactions').withConverter<Transaction>(

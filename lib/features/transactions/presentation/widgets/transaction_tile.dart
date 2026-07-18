@@ -20,12 +20,19 @@ class TransactionTile extends StatelessWidget {
     required this.category,
     required this.account,
     required this.onTap,
+    this.linkedPersonName,
   });
 
   final domain.Transaction transaction;
   final Category? category;
   final Account? account;
   final VoidCallback onTap;
+
+  /// The name of the person [domain.Transaction.linkedPersonId] resolves to,
+  /// pre-looked-up by the caller — same "pass in already-resolved display
+  /// data" pattern as [category]/[account]. Null whenever there's no linked
+  /// person, so most callers don't need to pass anything.
+  final String? linkedPersonName;
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +81,21 @@ class TransactionTile extends StatelessWidget {
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                    if (linkedPersonName != null)
+                      Row(
+                        children: [
+                          Icon(Icons.person_outline_rounded, size: 12, color: context.colors.onSurface.withValues(alpha: 0.5)),
+                          const SizedBox(width: 2),
+                          Text(
+                            linkedPersonName!,
+                            style: context.textTheme.bodySmall?.copyWith(
+                              color: context.colors.onSurface.withValues(alpha: 0.5),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     if (transaction.excludeFromCalculations || transaction.accountingMonth != null) ...[
                       const SizedBox(height: 2),

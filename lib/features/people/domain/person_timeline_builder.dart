@@ -6,6 +6,8 @@ import '../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../core/payment_schedule/domain/installment_status.dart';
 import '../../lending/domain/loan.dart';
 import '../../lending/domain/loan_status.dart';
+import '../../transactions/domain/transaction.dart';
+import '../../transactions/domain/transaction_type.dart';
 import 'ledger_entry.dart';
 import 'ledger_entry_type.dart';
 import 'person_timeline_entry.dart';
@@ -56,9 +58,18 @@ abstract class PersonTimelineBuilder {
   /// Completed the same way a loan entry does — a "Split settlement: ..."
   /// entry (money already collected) always reads Completed regardless,
   /// since it's a historical record of a specific past payment.
+  /// [referencedTransactions] are plain `Transaction`s linked to this person
+  /// (`Transaction.linkedPersonId`) with no owed toggle and therefore no
+  /// backing `Expense`/`LedgerEntry` at all — the caller is responsible for
+  /// excluding any transaction that *does* have an `Expense` (an owed one
+  /// already surfaces via its `gave` ledger entry above, and must not be
+  /// double-counted here). Each becomes a zero-amount, no-status
+  /// [PersonTimelineCategory.reference] entry — nothing to settle, just a
+  /// "this happened, involving them" marker.
   static List<PersonTimelineEntry> build({
     required List<LedgerEntry> ledgerEntries,
     required List<LoanTimelineData> loans,
+    List<Transaction> referencedTransactions = const [],
     Map<String, int> participantCountByTransactionRef = const {},
     Map<String, InstallmentStatus> installmentStatusByTransactionRef = const {},
     bool includeDeleted = false,
@@ -68,8 +79,24 @@ abstract class PersonTimelineBuilder {
         if (includeDeleted || !entry.isDeleted)
           _fromLedgerEntry(entry, participantCountByTransactionRef, installmentStatusByTransactionRef),
       for (final loanData in loans) ..._fromLoan(loanData, includeDeleted: includeDeleted),
+      for (final transaction in referencedTransactions)
+        if (includeDeleted || !transaction.isDeleted) _fromReferencedTransaction(transaction),
     ]..sort((a, b) => a.date.compareTo(b.date));
     return entries;
+  }
+
+  static PersonTimelineEntry _fromReferencedTransaction(Transaction transaction) {
+    return PersonTimelineEntry(
+      id: transaction.id,
+      date: transaction.dateTime,
+      icon: transaction.type.icon,
+      title: transaction.description.isNotEmpty ? transaction.description : transaction.type.label,
+      signedAmount: 0,
+      category: PersonTimelineCategory.reference,
+      isDeleted: transaction.isDeleted,
+      color: AppColors.pending,
+      note: transaction.description,
+    );
   }
 
   /// Annotates a (already chronologically sorted, oldest-first) timeline

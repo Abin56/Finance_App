@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:finance_app/core/services/local_settings_service.dart';
+import 'package:finance_app/features/accounts/domain/account.dart';
+import 'package:finance_app/features/accounts/domain/account_type.dart';
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
 import 'package:finance_app/features/credit_cards/domain/credit_card_profile.dart';
 import 'package:finance_app/features/credit_cards/presentation/providers/credit_card_providers.dart';
@@ -34,10 +36,20 @@ void main() {
       createdAt: DateTime(2026, 1, 1),
     );
 
+    final account = Account(
+      id: 'acc1',
+      name: 'Test Card',
+      type: AccountType.card,
+      openingBalance: 0,
+      currentBalance: 0,
+      colorValue: 0xFF000000,
+      createdAt: DateTime(2026, 1, 1),
+    );
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
           creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
           statementsStreamProvider('card1').overrideWith((ref) => Stream.value(const [])),
           // Worst case: a long formatted amount under the longest label.

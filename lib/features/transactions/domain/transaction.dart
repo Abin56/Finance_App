@@ -21,6 +21,8 @@ class Transaction extends SoftDeletableEntity {
     this.transferId,
     this.excludeFromCalculations = false,
     this.accountingMonth,
+    this.linkedPersonId,
+    this.owesPersonToggle = false,
   });
 
   @override
@@ -64,6 +66,24 @@ class Transaction extends SoftDeletableEntity {
   /// History ordering, or Search. See [effectiveMonth].
   DateTime? accountingMonth;
 
+  /// Optional reference to a [Person] this transaction is associated with —
+  /// e.g. "lunch for Rahul" — purely descriptive: unlike an [Expense]'s
+  /// `participants`, setting this never creates a ledger entry, split, loan,
+  /// or EMI, and never affects any balance. Null for the overwhelming
+  /// majority of transactions.
+  String? linkedPersonId;
+
+  /// Whether [linkedPersonId] represents money they owe back, rather than a
+  /// plain reference — only meaningful when [linkedPersonId] is non-null,
+  /// always `false` otherwise. When `true`, a single-participant `Expense`
+  /// (created/maintained via `ExpenseRepository.assignToPerson`/
+  /// `convertToAssigned`/`editExpense`) owns the actual ledger/balance
+  /// effect for [linkedPersonId] — this flag exists purely so
+  /// `AddExpenseScreen` knows which repository path a save/edit should take;
+  /// it never drives balance math directly (see `ExpenseRepository`, the
+  /// single place `LedgerEntry`s for expenses are ever created).
+  bool owesPersonToggle;
+
   final DateTime createdAt;
 
   /// The signed delta this transaction applies to its account's balance —
@@ -100,6 +120,8 @@ class Transaction extends SoftDeletableEntity {
       transferId: data['transferId'] as String?,
       excludeFromCalculations: data['excludeFromCalculations'] as bool? ?? false,
       accountingMonth: (data['accountingMonth'] as Timestamp?)?.toDate(),
+      linkedPersonId: data['linkedPersonId'] as String?,
+      owesPersonToggle: data['owesPersonToggle'] as bool? ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
@@ -122,6 +144,8 @@ class Transaction extends SoftDeletableEntity {
       'transferId': transferId,
       'excludeFromCalculations': excludeFromCalculations,
       'accountingMonth': accountingMonth == null ? null : Timestamp.fromDate(accountingMonth!),
+      'linkedPersonId': linkedPersonId,
+      'owesPersonToggle': owesPersonToggle,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),

@@ -16,6 +16,22 @@ abstract class Validators {
     return null;
   }
 
+  /// Same as [amount], plus rejects an amount greater than [max] (e.g. a
+  /// payment exceeding an obligation's remaining balance) — the one
+  /// validator every "record a payment" sheet (EMI, Loan, Bill, Credit
+  /// Card statement) should use instead of the plain [amount] check, so
+  /// overpayment is rejected in the UI rather than silently clamped only
+  /// in the repository's cached total.
+  static String? Function(String?) amountUpTo(double max) {
+    return (value) {
+      final baseError = amount(value);
+      if (baseError != null) return baseError;
+      final parsed = double.parse(value!.trim());
+      if (parsed > max) return 'Payment amount cannot exceed the remaining balance.';
+      return null;
+    };
+  }
+
   static String? phone(String? value) {
     if (value == null || value.trim().isEmpty) return null; // optional field
     final digitsOnly = value.replaceAll(RegExp(r'[^0-9]'), '');

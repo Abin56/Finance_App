@@ -38,7 +38,13 @@ class CreditCardsScreen extends ConsumerWidget {
       body: cardsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (cards) {
+        // Loading/error state comes from the raw stream above; the actual
+        // list to render is `activeCreditCardsProvider` — excludes cards
+        // whose linked Account has been deleted (there's no delete action
+        // for a card itself, so this is how a removed card actually
+        // disappears from the list; see that provider's doc comment).
+        data: (_) {
+          final cards = ref.watch(activeCreditCardsProvider);
           if (cards.isEmpty) {
             return EmptyState(
               icon: Icons.credit_card_outlined,

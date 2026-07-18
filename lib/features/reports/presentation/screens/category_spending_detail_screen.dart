@@ -9,7 +9,6 @@ import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/section_header.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
-import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 import '../../../transactions/presentation/widgets/transaction_tile.dart';
@@ -58,13 +57,14 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
     final now = DateTime.now();
     final range = _period.rangeFor(now);
 
-    // Only month-granular periods honor Accounting Month (see
-    // `ReportsPeriodX.isMonthGranular`) — everything else uses the real date.
-    DateTime dateFor(Transaction t) => _period.isMonthGranular ? t.effectiveMonth : t.dateTime;
     // Transfers between the user's own accounts aren't real spending —
     // excluded so a transfer's source leg doesn't inflate category totals.
+    // Every figure/chart on this screen must filter/bucket via the same
+    // `_period.reportDateFor`, not a re-derived date, so the header total,
+    // the trend chart, and the highest-spending-day stat can never
+    // silently disagree about which transactions are "in period".
     final periodExpenses = allTransactions
-        .where((t) => t.type == TransactionType.expense && range.contains(dateFor(t)) && !t.isTransfer)
+        .where((t) => t.type == TransactionType.expense && range.contains(_period.reportDateFor(t)) && !t.isTransfer)
         .toList();
     final categoryTransactions = periodExpenses.where((t) => t.categoryId == category.id).toList()
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
@@ -80,7 +80,7 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
     var highestAmount = 0.0;
     final totalsByDay = <DateTime, double>{};
     for (final t in categoryTransactions) {
-      final day = t.dateTime.dateOnly;
+      final day = _period.reportDateFor(t).dateOnly;
       totalsByDay.update(day, (v) => v + t.amount, ifAbsent: () => t.amount);
     }
     totalsByDay.forEach((day, amount) {
@@ -106,6 +106,7 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
             periodEnd: range.end,
             transactions: categoryTransactions,
             color: color,
+            period: _period,
           ),
           const SizedBox(height: AppSizes.lg),
           SectionHeader(title: 'Transactions (${categoryTransactions.length})'),

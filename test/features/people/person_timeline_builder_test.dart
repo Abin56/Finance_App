@@ -8,6 +8,8 @@ import 'package:finance_app/features/people/domain/ledger_entry.dart';
 import 'package:finance_app/features/people/domain/ledger_entry_type.dart';
 import 'package:finance_app/features/people/domain/person_timeline_builder.dart';
 import 'package:finance_app/features/people/domain/person_timeline_entry.dart';
+import 'package:finance_app/features/transactions/domain/transaction.dart';
+import 'package:finance_app/features/transactions/domain/transaction_type.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Loan _loan({
@@ -348,6 +350,82 @@ void main() {
 
       final result = PersonTimelineBuilder.build(ledgerEntries: [entry], loans: const []);
       expect(result.single.status, isNull);
+    });
+  });
+
+  group('PersonTimelineBuilder — referencedTransactions', () {
+    Transaction referenceTransaction({String id = 't1', bool deleted = false}) {
+      final transaction = Transaction(
+        id: id,
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        description: 'Lunch for Rahul',
+        linkedPersonId: 'p1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      if (deleted) transaction.markDeleted();
+      return transaction;
+    }
+
+    test('a reference-only transaction produces a zero-amount, no-status, "reference" entry', () {
+      final result = PersonTimelineBuilder.build(
+        ledgerEntries: const [],
+        loans: const [],
+        referencedTransactions: [referenceTransaction()],
+      );
+
+      expect(result, hasLength(1));
+      final entry = result.single;
+      expect(entry.id, 't1');
+      expect(entry.signedAmount, 0);
+      expect(entry.category, PersonTimelineCategory.reference);
+      expect(entry.status, isNull);
+      expect(entry.title, 'Lunch for Rahul');
+    });
+
+    test('a soft-deleted referenced transaction is excluded by default, included with includeDeleted', () {
+      final deleted = referenceTransaction(deleted: true);
+
+      final visible = PersonTimelineBuilder.build(
+        ledgerEntries: const [],
+        loans: const [],
+        referencedTransactions: [deleted],
+      );
+      expect(visible, isEmpty);
+
+      final withDeleted = PersonTimelineBuilder.build(
+        ledgerEntries: const [],
+        loans: const [],
+        referencedTransactions: [deleted],
+        includeDeleted: true,
+      );
+      expect(withDeleted, hasLength(1));
+      expect(withDeleted.single.isDeleted, isTrue);
+    });
+
+    test('a reference entry never contributes to the pending balance total, unlike a real gave entry', () {
+      final gaveEntry = LedgerEntry(
+        id: 'l1',
+        personId: 'p1',
+        type: LedgerEntryType.gave,
+        amount: 100,
+        date: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      final result = PersonTimelineBuilder.build(
+        ledgerEntries: [gaveEntry],
+        loans: const [],
+        referencedTransactions: [referenceTransaction(id: 't2')],
+      );
+
+      final totalSignedAmount = result.fold(0.0, (total, e) => total + e.signedAmount);
+      // Only the real "gave" entry (+100) affects the balance; the
+      // reference-only transaction contributes exactly 0.
+      expect(totalSignedAmount, 100);
     });
   });
 }

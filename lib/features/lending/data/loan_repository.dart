@@ -70,7 +70,8 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         ratePercent: interest.ratePercent,
         period: interest.period,
         installmentCount: effectiveInstallmentCount,
-        installmentFrequency: _interestPeriodFor(effectiveScheduleType),
+        installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: _installmentsPerYearFor(effectiveScheduleType),
       );
       precomputed = breakdown.periods
           .map((p) => PrecomputedInstallmentAmount(
@@ -166,9 +167,22 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     await update(loan);
   }
 
-  /// Maps an installment cadence to the nearest `InterestPeriod` for rate
-  /// normalization. `InterestCalculator` only knows monthly/yearly;
-  /// `ScheduleType` has no yearly cadence, so oneTime/weekly/monthly/custom
-  /// all normalize to monthly, the closest equivalent for each.
-  InterestPeriod _interestPeriodFor(ScheduleType scheduleType) => InterestPeriod.monthly;
+  /// True per-installment count for [InterestCalculator]'s
+  /// [installmentsPerYear] rate normalization — weekly gets its own exact
+  /// value (52) instead of being forced through the monthly bucket, which
+  /// previously overstated weekly interest by ~4.3x. `oneTime` never
+  /// reaches [InterestCalculator]'s periodic-rate path (a single
+  /// installment uses the quoted rate directly), so its value here is
+  /// unused; `custom` isn't offered by the Loans form, so 12 (monthly) is
+  /// a safe placeholder if that ever changes.
+  int _installmentsPerYearFor(ScheduleType scheduleType) {
+    switch (scheduleType) {
+      case ScheduleType.weekly:
+        return 52;
+      case ScheduleType.monthly:
+      case ScheduleType.oneTime:
+      case ScheduleType.custom:
+        return 12;
+    }
+  }
 }

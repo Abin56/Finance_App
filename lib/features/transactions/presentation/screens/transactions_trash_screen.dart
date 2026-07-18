@@ -5,12 +5,18 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../domain/transaction.dart' as domain;
 import '../providers/transaction_providers.dart';
 
 /// Soft-deleted transactions awaiting restore or permanent deletion.
 /// Restore/permanent-delete go through [TransactionRepository]'s
-/// transaction-specific methods so account balances stay correct.
+/// transaction-specific methods so account balances stay correct. A
+/// transaction that's the account-balance effect of an "owed" [Expense] (see
+/// `AddExpenseScreen`'s owed toggle) instead *restores* through
+/// [ExpenseRepository.restoreExpense]'s matching cascade, so its ledger entry
+/// and any tracking schedule/installments come back with it — exactly like
+/// `TransactionsScreen`'s own swipe-to-delete undo already does.
 class TransactionsTrashScreen extends ConsumerWidget {
   const TransactionsTrashScreen({super.key});
 
@@ -19,6 +25,7 @@ class TransactionsTrashScreen extends ConsumerWidget {
     final trashAsync = ref.watch(transactionsTrashStreamProvider);
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
+    final trashedExpenses = ref.watch(expensesTrashStreamProvider).value ?? const [];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
@@ -41,6 +48,7 @@ class TransactionsTrashScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final transaction = trashed[index];
               final category = categoriesById[transaction.categoryId];
+              final expense = trashedExpenses.where((e) => e.transactionId == transaction.id).firstOrNull;
               return ListTile(
                 tileColor: Theme.of(context).colorScheme.surface,
                 shape: RoundedRectangleBorder(
@@ -57,7 +65,9 @@ class TransactionsTrashScreen extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.restore_rounded),
                       tooltip: 'Restore',
-                      onPressed: () => ref.read(transactionRepositoryProvider).restoreTransaction(transaction),
+                      onPressed: () => expense != null
+                          ? ref.read(expenseRepositoryProvider).restoreExpense(expense)
+                          : ref.read(transactionRepositoryProvider).restoreTransaction(transaction),
                     ),
                     IconButton(
                       icon: Icon(Icons.delete_forever_rounded, color: Theme.of(context).colorScheme.error),

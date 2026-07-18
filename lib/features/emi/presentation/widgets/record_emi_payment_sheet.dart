@@ -151,6 +151,33 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
       _parsed(_penaltyController) +
       _parsed(_otherChargesController);
 
+  /// Only principal + interest actually pay down the installment (see
+  /// `_save`'s `installmentAmount`) — charges/fees are tracked separately
+  /// and legitimately can push [_totalAmountPaid] above [remainingAmount],
+  /// so the overpayment check applies to this sum, not the grand total.
+  double get _installmentAmount => _parsed(_principalController) + _parsed(_interestController);
+
+  bool get _isAmountValid => _installmentAmount > 0 && _installmentAmount <= widget.installment.remainingAmount;
+
+  String? get _overpaymentError =>
+      _installmentAmount > widget.installment.remainingAmount ? 'Payment amount cannot exceed the remaining balance.' : null;
+
+  /// Principal is required (> 0), same as every other amount field.
+  String? _validatePrincipal(String? value) {
+    final baseError = Validators.amount(value);
+    if (baseError != null) return baseError;
+    return _overpaymentError;
+  }
+
+  /// Interest can legitimately be 0 (a non-interest EMI) — only rejects
+  /// non-numeric input and the combined overpayment.
+  String? _validateInterest(String? value) {
+    if (value != null && value.trim().isNotEmpty && double.tryParse(value.trim()) == null) {
+      return 'Enter a valid number';
+    }
+    return _overpaymentError;
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
@@ -259,7 +286,8 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
                 controller: _principalController,
                 decoration: const InputDecoration(labelText: 'Principal paid'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
+                validator: _validatePrincipal,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSizes.md),
@@ -267,6 +295,8 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
                 controller: _interestController,
                 decoration: const InputDecoration(labelText: 'Interest paid'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: _validateInterest,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSizes.md),
@@ -368,7 +398,11 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
                 onPersonChanged: (value) => setState(() => _selectedPersonId = value),
               ),
               const SizedBox(height: AppSizes.xl),
-              PrimaryButton(label: 'Record payment', isLoading: _isSaving, onPressed: _save),
+              PrimaryButton(
+                label: 'Record payment',
+                isLoading: _isSaving,
+                onPressed: _isAmountValid ? _save : null,
+              ),
               const SizedBox(height: AppSizes.sm),
             ],
           ),

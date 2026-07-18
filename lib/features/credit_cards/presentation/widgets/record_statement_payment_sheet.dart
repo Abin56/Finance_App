@@ -45,6 +45,8 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
   String? _categoryError;
   bool _isSaving = false;
 
+  bool get _isAmountValid => Validators.amountUpTo(widget.statement.remainingAmount)(_amountController.text) == null;
+
   @override
   void dispose() {
     _amountController.dispose();
@@ -126,7 +128,9 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
                 controller: _amountController,
                 decoration: const InputDecoration(labelText: 'Amount'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
+                validator: Validators.amountUpTo(widget.statement.remainingAmount),
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+                onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSizes.md),
               accountsAsync.when(
@@ -177,7 +181,11 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
                 textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: AppSizes.xl),
-              PrimaryButton(label: 'Record payment', isLoading: _isSaving, onPressed: _save),
+              PrimaryButton(
+                label: 'Record payment',
+                isLoading: _isSaving,
+                onPressed: _isAmountValid ? _save : null,
+              ),
               const SizedBox(height: AppSizes.sm),
             ],
           ),

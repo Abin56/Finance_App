@@ -265,4 +265,78 @@ void main() {
       expect(totalPrincipal, closeTo(300000, 0.01));
     });
   });
+
+  group('InterestCalculator.calculate — installmentsPerYear (weekly cadence)', () {
+    test('a weekly schedule (installmentsPerYear: 52) charges far less interest than forcing it through monthly', () {
+      // Regression for the bug where Loan/EMI repositories passed
+      // installmentFrequency: InterestPeriod.monthly for a weekly-cadence
+      // schedule, applying a monthly-normalized rate once per week —
+      // roughly a 4.3x overstatement (52 weeks/year vs. 12 "months"/year).
+      final weekly = InterestCalculator.calculate(
+        principal: 10000,
+        type: InterestType.flat,
+        ratePercent: 2,
+        period: InterestPeriod.monthly,
+        installmentCount: 10,
+        installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: 52,
+      );
+      final forcedMonthly = InterestCalculator.calculate(
+        principal: 10000,
+        type: InterestType.flat,
+        ratePercent: 2,
+        period: InterestPeriod.monthly,
+        installmentCount: 10,
+        installmentFrequency: InterestPeriod.monthly,
+      );
+
+      expect(weekly.totalInterest, lessThan(forcedMonthly.totalInterest));
+      // 52 installments/year vs. 12 "installments/year" (the pre-fix
+      // behavior) is a 52/12 ≈ 4.33x ratio in periodic rate, and since flat
+      // interest is periodicRate * installmentCount, the same ratio holds
+      // for totalInterest at a fixed installmentCount.
+      expect(forcedMonthly.totalInterest / weekly.totalInterest, closeTo(52 / 12, 0.01));
+    });
+
+    test('installmentsPerYear: 12 matches the plain monthly installmentFrequency path exactly', () {
+      final viaInstallmentsPerYear = InterestCalculator.calculate(
+        principal: 5000,
+        type: InterestType.reducingBalance,
+        ratePercent: 12,
+        period: InterestPeriod.yearly,
+        installmentCount: 6,
+        installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: 12,
+      );
+      final viaFrequency = InterestCalculator.calculate(
+        principal: 5000,
+        type: InterestType.reducingBalance,
+        ratePercent: 12,
+        period: InterestPeriod.yearly,
+        installmentCount: 6,
+        installmentFrequency: InterestPeriod.monthly,
+      );
+
+      expect(viaInstallmentsPerYear.totalInterest, viaFrequency.totalInterest);
+      for (var i = 0; i < viaInstallmentsPerYear.periods.length; i++) {
+        expect(viaInstallmentsPerYear.periods[i].paymentAmount, viaFrequency.periods[i].paymentAmount);
+      }
+    });
+
+    test('weekly reducing-balance schedule still reconciles to exactly 0 remaining principal', () {
+      final breakdown = InterestCalculator.calculate(
+        principal: 20000,
+        type: InterestType.reducingBalance,
+        ratePercent: 10,
+        period: InterestPeriod.yearly,
+        installmentCount: 26,
+        installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: 52,
+      );
+
+      expect(breakdown.periods.last.remainingPrincipal, 0);
+      final totalPrincipal = breakdown.periods.fold(0.0, (sum, p) => sum + p.principalPortion);
+      expect(totalPrincipal, closeTo(20000, 0.01));
+    });
+  });
 }

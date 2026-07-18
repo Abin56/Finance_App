@@ -22,8 +22,8 @@ class EmiReportSection extends ConsumerWidget {
     final upcoming = ref.watch(upcomingEmiCountProvider);
     final overdue = ref.watch(overdueEmiReportCountProvider);
     final overdueAmount = ref.watch(overdueEmiAmountProvider);
-    final totalLoans = ref.watch(totalLoansCountProvider);
-    final closedLoans = ref.watch(closedLoansCountProvider);
+    final totalEmis = ref.watch(totalEmisCountProvider);
+    final closedEmis = ref.watch(closedEmisCountProvider);
     final gstPaid = ref.watch(totalGstPaidProvider);
     final igstPaid = ref.watch(totalIgstPaidProvider);
     final insurancePaid = ref.watch(totalInsuranceChargePaidProvider);
@@ -42,9 +42,9 @@ class EmiReportSection extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: _ReportStat(label: 'Total Loans', value: '$totalLoans')),
+                  Expanded(child: _ReportStat(label: 'Total EMIs', value: '$totalEmis')),
                   const SizedBox(width: AppSizes.sm),
-                  Expanded(child: _ReportStat(label: 'Closed Loans', value: '$closedLoans')),
+                  Expanded(child: _ReportStat(label: 'Closed EMIs', value: '$closedEmis')),
                 ],
               ),
               const SizedBox(height: AppSizes.sm),

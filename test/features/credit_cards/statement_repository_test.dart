@@ -168,6 +168,49 @@ void main() {
     });
   });
 
+  group('Statement-day boundary — creditCardStandingProvider double-counting regression', () {
+    test(
+      'on the exact statement day, the materialized statement and currentCycleFor report the same period '
+      '(the precondition creditCardStandingProvider must guard against to avoid double-counting)',
+      () async {
+        final card = _card(statementDay: 17);
+        final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
+
+        // "now" = exactly the statement day (17 Jul) — the cycle 18 Jun-17
+        // Jul is treated as closed by materializeIfDue/mostRecentClosedCycleFor...
+        final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 17));
+        expect(statement, isNotNull, reason: 'the cycle ending exactly today must materialize as closed');
+        expect(statement!.totalAmount, 1000);
+
+        // ...yet currentCycleFor (backing the live "current cycle spend"
+        // figure) still reports that SAME period as the in-progress one,
+        // since it only rolls forward once periodEnd is strictly before
+        // today — this is the exact condition creditCardStandingProvider's
+        // `alreadyMaterialized` check exists to detect and correct for.
+        final current = repository.currentCycleFor(card, transactions, now: DateTime(2026, 7, 17));
+        expect(current.periodStart, statement.periodStart);
+        expect(current.periodEnd, statement.periodEnd);
+        expect(
+          current.totalAmount,
+          statement.totalAmount,
+          reason: 'both report the same cycle\'s spend on the statement day — '
+              'naively summing unpaidStatements + currentCycleSpend would double it',
+        );
+      },
+    );
+
+    test('the day after the statement day, currentCycleFor has rolled forward and no longer matches', () async {
+      final card = _card(statementDay: 17);
+      final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
+
+      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 18));
+      final current = repository.currentCycleFor(card, transactions, now: DateTime(2026, 7, 18));
+
+      expect(current.periodStart, isNot(statement!.periodStart));
+      expect(current.totalAmount, 0, reason: 'the new cycle (18 Jul onward) has no transactions yet');
+    });
+  });
+
   group('Milestone 14 Task 5 — StatementRepository.editStatement', () {
     test('sets interestCharged and lateFee', () async {
       final card = _card();

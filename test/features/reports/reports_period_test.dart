@@ -1,5 +1,24 @@
 import 'package:finance_app/features/reports/domain/reports_period.dart';
+import 'package:finance_app/features/transactions/domain/transaction.dart';
+import 'package:finance_app/features/transactions/domain/transaction_type.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+Transaction _transaction({
+  required DateTime dateTime,
+  DateTime? accountingMonth,
+  double amount = 100,
+}) {
+  return Transaction(
+    id: 't1',
+    type: TransactionType.expense,
+    amount: amount,
+    dateTime: dateTime,
+    accountId: 'acc1',
+    categoryId: 'cat1',
+    createdAt: dateTime,
+    accountingMonth: accountingMonth,
+  );
+}
 
 void main() {
   group('ReportsPeriod.financialYear.rangeFor', () {
@@ -58,6 +77,64 @@ void main() {
 
       expect(range.start.weekday, DateTime.monday);
       expect(range.contains(tuesday), isTrue);
+    });
+  });
+
+  group('ReportsPeriodX.reportDateFor', () {
+    test('thisMonth reads effectiveMonth (accounting month) when set, not the real date', () {
+      final t = _transaction(dateTime: DateTime(2026, 6, 15), accountingMonth: DateTime(2026, 7));
+
+      expect(ReportsPeriod.thisMonth.reportDateFor(t), DateTime(2026, 7));
+    });
+
+    test('lastMonth also reads effectiveMonth — both month-granular periods behave the same', () {
+      final t = _transaction(dateTime: DateTime(2026, 6, 15), accountingMonth: DateTime(2026, 7));
+
+      expect(ReportsPeriod.lastMonth.reportDateFor(t), DateTime(2026, 7));
+    });
+
+    test('falls back to dateTime when no accounting month is set, for a month-granular period', () {
+      final t = _transaction(dateTime: DateTime(2026, 6, 15));
+
+      expect(ReportsPeriod.thisMonth.reportDateFor(t), DateTime(2026, 6));
+    });
+
+    test('non-month-granular periods (today/week/year/financialYear) always use the real dateTime', () {
+      final t = _transaction(dateTime: DateTime(2026, 6, 15, 9, 30), accountingMonth: DateTime(2026, 7));
+
+      expect(ReportsPeriod.today.reportDateFor(t), DateTime(2026, 6, 15, 9, 30));
+      expect(ReportsPeriod.thisWeek.reportDateFor(t), DateTime(2026, 6, 15, 9, 30));
+      expect(ReportsPeriod.thisYear.reportDateFor(t), DateTime(2026, 6, 15, 9, 30));
+      expect(ReportsPeriod.financialYear.reportDateFor(t), DateTime(2026, 6, 15, 9, 30));
+    });
+  });
+
+  group('Month-boundary regression — rangeFor + reportDateFor composed together', () {
+    test('a transaction dated the last second of last month but reassigned to this month is included', () {
+      final now = DateTime(2026, 7, 15);
+      final range = ReportsPeriod.thisMonth.rangeFor(now);
+      final t = _transaction(dateTime: DateTime(2026, 6, 30, 23, 59, 59), accountingMonth: DateTime(2026, 7));
+
+      expect(range.contains(ReportsPeriod.thisMonth.reportDateFor(t)), isTrue);
+    });
+
+    test('a transaction dated the first second of this month but reassigned to last month is excluded', () {
+      final now = DateTime(2026, 7, 15);
+      final range = ReportsPeriod.thisMonth.rangeFor(now);
+      final t = _transaction(dateTime: DateTime(2026, 7, 1, 0, 0, 1), accountingMonth: DateTime(2026, 6));
+
+      expect(range.contains(ReportsPeriod.thisMonth.reportDateFor(t)), isFalse);
+    });
+
+    test('with no accounting month, a transaction exactly on the month boundary follows its real date', () {
+      final now = DateTime(2026, 7, 15);
+      final range = ReportsPeriod.thisMonth.rangeFor(now);
+
+      final lastSecondOfJune = _transaction(dateTime: DateTime(2026, 6, 30, 23, 59, 59));
+      final firstSecondOfJuly = _transaction(dateTime: DateTime(2026, 7, 1, 0, 0, 0));
+
+      expect(range.contains(ReportsPeriod.thisMonth.reportDateFor(lastSecondOfJune)), isFalse);
+      expect(range.contains(ReportsPeriod.thisMonth.reportDateFor(firstSecondOfJuly)), isTrue);
     });
   });
 }

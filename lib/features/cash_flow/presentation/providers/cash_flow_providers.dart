@@ -23,6 +23,16 @@ import '../../../transactions/presentation/providers/transaction_providers.dart'
 /// — no new Firestore reads, no reimplemented remaining-amount or status
 /// math. See `lib/features/*/domain/*.dart` for the underlying `.status`/
 /// `.remainingAmount` computations this file only ever reads, never repeats.
+///
+/// Section 1's "due this month" breakdowns intentionally deviate from the
+/// underlying repositories' `thisMonth()`/calendar-month semantics: they
+/// merge this month's items with anything still unpaid from a prior month
+/// (see `_isOverdueCarryOver` below), so "Payments Due This Month" reflects
+/// what the user actually owes right now rather than contradicting Section
+/// 4's timeline, which already surfaces overdue items regardless of month.
+/// `InstallmentRepository.thisMonth`/`Bill`/`Statement` themselves are left
+/// untouched — every other screen that reads them keeps strict calendar-
+/// month behavior.
 
 /// A single row's due/paid/remaining figures for Section 1 ("Payments Due
 /// This Month").
@@ -36,37 +46,64 @@ DueCategoryBreakdown _combine(Iterable<DueCategoryBreakdown> rows) {
   return (due: due, paid: paid, remaining: due - paid);
 }
 
-/// Sum of this-month installment due/paid across every active EMI.
+/// Whether [dueDate] belongs to a prior, still-unpaid occurrence that
+/// `thisMonth()`-style calendar filtering would otherwise drop — due before
+/// the current month's start and carrying a positive [remaining], not
+/// skipped. Checked *in addition to* (never instead of) each category's
+/// this-month set, so Section 1 merges "this month" with "still owed from
+/// before", matching what Section 4's timeline already shows. A due date
+/// can't be in both the this-month set and before the current month's
+/// start, so the two sets never overlap — no dedup needed beyond that.
+bool _isOverdueCarryOver(DateTime dueDate, double remaining, bool isSkipped, DateTime now) {
+  return !isSkipped && remaining > 0 && dueDate.isBefore(now.startOfMonth);
+}
+
+/// Sum of this-month installment due/paid across every active EMI, plus any
+/// still-unpaid installment carried over from a prior month.
 final emiDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
-  final emis = ref.watch(dueThisMonthEmisProvider);
+  final now = DateTime.now();
+  final emis = ref.watch(activeEmisProvider);
   var due = 0.0, paid = 0.0;
   for (final emi in emis) {
-    final thisMonth = ref.watch(thisMonthInstallmentsProvider(emi.scheduleId));
-    due += thisMonth.fold(0.0, (s, i) => s + i.amountDue);
-    paid += thisMonth.fold(0.0, (s, i) => s + i.amountPaid);
+    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+    for (final i in installments) {
+      final isThisMonth = i.dueDate.isSameMonth(now);
+      if (!isThisMonth && !_isOverdueCarryOver(i.dueDate, i.remainingAmount, i.isSkipped, now)) continue;
+      due += i.amountDue;
+      paid += i.amountPaid;
+    }
   }
   return (due: due, paid: paid, remaining: due - paid);
 });
 
-/// Sum of this-month installment due/paid across every active Loan.
+/// Sum of this-month installment due/paid across every active Loan, plus any
+/// still-unpaid installment carried over from a prior month.
 final loanDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
+  final now = DateTime.now();
   final loans = ref.watch(activeLoansProvider);
   var due = 0.0, paid = 0.0;
   for (final loan in loans) {
-    final thisMonth = ref.watch(thisMonthInstallmentsProvider(loan.scheduleId));
-    due += thisMonth.fold(0.0, (s, i) => s + i.amountDue);
-    paid += thisMonth.fold(0.0, (s, i) => s + i.amountPaid);
+    final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+    for (final i in installments) {
+      final isThisMonth = i.dueDate.isSameMonth(now);
+      if (!isThisMonth && !_isOverdueCarryOver(i.dueDate, i.remainingAmount, i.isSkipped, now)) continue;
+      due += i.amountDue;
+      paid += i.amountPaid;
+    }
   }
   return (due: due, paid: paid, remaining: due - paid);
 });
 
-/// Sum of this-month bill amount/paid, excluding skipped occurrences.
+/// Sum of this-month bill amount/paid, excluding skipped occurrences, plus
+/// any still-unpaid bill carried over from a prior month.
 final billsDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   final now = DateTime.now();
   var due = 0.0, paid = 0.0;
   for (final b in bills) {
-    if (!b.dueDate.isSameMonth(now) || b.status == BillStatus.skipped) continue;
+    if (b.status == BillStatus.skipped) continue;
+    final isThisMonth = b.dueDate.isSameMonth(now);
+    if (!isThisMonth && !_isOverdueCarryOver(b.dueDate, b.remainingAmount, b.isSkipped, now)) continue;
     due += b.amount;
     paid += b.amountPaid;
   }
@@ -74,7 +111,8 @@ final billsDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) 
 });
 
 /// Sum of this-month statement total/paid across every card, excluding
-/// already-paid statements.
+/// already-paid statements, plus any still-unpaid statement carried over
+/// from a prior month.
 final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   final now = DateTime.now();
@@ -82,7 +120,9 @@ final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((
   for (final card in cards) {
     final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
     for (final s in statements) {
-      if (!s.dueDate.isSameMonth(now) || s.status == StatementStatus.paid) continue;
+      if (s.status == StatementStatus.paid) continue;
+      final isThisMonth = s.dueDate.isSameMonth(now);
+      if (!isThisMonth && !_isOverdueCarryOver(s.dueDate, s.remainingAmount, false, now)) continue;
       due += s.totalAmount;
       paid += s.amountPaid;
     }
@@ -276,6 +316,36 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
 /// Section 5's Money In/Out/Net figures.
 typedef CashFlowSummary = ({double moneyIn, double moneyOut, double net});
 
+/// Sum of this-month (calendar-month, not carry-over-merged) installment
+/// `amountPaid` across every active Loan — kept separate from
+/// [loanDueThisMonthBreakdownProvider] so [cashFlowThisMonthProvider] isn't
+/// affected by Section 1's overdue-carry-over merge; paying off an old
+/// installment this month is real Money Out, but it belongs to the month it
+/// was paid in, not counted again via a due-date-based lookup.
+final _loanPaidThisMonthProvider = Provider<double>((ref) {
+  final loans = ref.watch(activeLoansProvider);
+  var paid = 0.0;
+  for (final loan in loans) {
+    final thisMonth = ref.watch(thisMonthInstallmentsProvider(loan.scheduleId));
+    paid += thisMonth.fold(0.0, (s, i) => s + i.amountPaid);
+  }
+  return paid;
+});
+
+/// Sum of this-month (calendar-month) bill `amountPaid` — see
+/// [_loanPaidThisMonthProvider] for why this stays independent of
+/// [billsDueThisMonthBreakdownProvider].
+final _billsPaidThisMonthProvider = Provider<double>((ref) {
+  final bills = ref.watch(billsStreamProvider).value ?? const [];
+  final now = DateTime.now();
+  var paid = 0.0;
+  for (final b in bills) {
+    if (!b.dueDate.isSameMonth(now) || b.status == BillStatus.skipped) continue;
+    paid += b.amountPaid;
+  }
+  return paid;
+});
+
 /// This month's cash flow. EMI/Bill/Loan payments never post a `Transaction`
 /// (confirmed by reading `EmiRepository`/`BillRepository`'s payment-recording
 /// methods), so [moneyOut] must add their paid amounts explicitly on top of
@@ -298,8 +368,8 @@ final cashFlowThisMonthProvider = Provider<CashFlowSummary>((ref) {
 
   final moneyReceived = ref.watch(moneyReceivedForRangeProvider((start: now.startOfMonth, end: now.endOfMonth)));
   final emiPaid = ref.watch(emiPaidThisMonthProvider);
-  final loanPaid = ref.watch(loanDueThisMonthBreakdownProvider).paid;
-  final billsPaid = ref.watch(billsDueThisMonthBreakdownProvider).paid;
+  final loanPaid = ref.watch(_loanPaidThisMonthProvider);
+  final billsPaid = ref.watch(_billsPaidThisMonthProvider);
 
   final moneyIn = income + moneyReceived;
   final moneyOut = expenses + emiPaid + loanPaid + billsPaid;
