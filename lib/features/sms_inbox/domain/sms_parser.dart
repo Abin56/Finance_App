@@ -70,7 +70,7 @@ abstract class SmsFinancialFilter {
 
   static final List<RegExp> _financialSignals = [
     ..._transactionVerbSignals,
-    RegExp(r'(rs\.?|inr|₹)\s?[\d,]+(\.\d+)?', caseSensitive: false),
+    RegExp(r'(rs|inr|₹)\s?\.?\s?[\d,]+(\.\d+)?', caseSensitive: false),
     RegExp(r'\b(a/c|acct|account|card)\b.{0,10}(x{2,}|\*{2,})?\d{3,4}', caseSensitive: false),
   ];
 

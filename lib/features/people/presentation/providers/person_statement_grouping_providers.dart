@@ -22,7 +22,8 @@ typedef StatementExpenseGroup = ({
 /// newest statement first. Expenses on a card with no linked
 /// [CreditCardProfile], or on a plain (non-card) account, are simply
 /// excluded — "grouped by statement" only applies to card spending.
-final personStatementGroupsProvider = Provider.family<List<StatementExpenseGroup>, String>((ref, personId) {
+final personStatementGroupsProvider =
+    Provider.autoDispose.family<List<StatementExpenseGroup>, String>((ref, personId) {
   final pending = ref.watch(pendingSplitParticipantsProvider).where((p) => p.participant.personId == personId);
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
   final transactionById = {for (final t in transactions) t.id: t};

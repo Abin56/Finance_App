@@ -8,9 +8,9 @@ import '../../domain/emi_payment_breakdown.dart';
 import '../../domain/emi_payment_history_entry.dart';
 
 /// One entry in an EMI's full payment timeline — same visual language as
-/// `LedgerTimelineTile`/`PaymentTile` (40x40 tinted icon, title/subtitle,
-/// trailing amount + secondary stat) so the app has one consistent timeline
-/// UI across People Ledger, Bills, and EMI. When [EmiPaymentHistoryEntry.breakdown]
+/// `PaymentTile` (40x40 tinted icon, title/subtitle, trailing amount +
+/// secondary stat) so the app has one consistent timeline UI across Bills
+/// and EMI. When [EmiPaymentHistoryEntry.breakdown]
 /// is present (payments recorded through `RecordEmiPaymentSheet`), tapping
 /// the row expands a detailed charge breakdown; payments with no breakdown
 /// (recorded before this feature, or via the multi-payment sheet) render

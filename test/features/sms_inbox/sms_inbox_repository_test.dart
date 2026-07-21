@@ -260,5 +260,20 @@ void main() {
       await repository.deleteMany([item.id]);
       expect(await repository.getAll(), isEmpty);
     });
+
+    test('a deleted item does not reappear on a later re-scan of the same device inbox', () async {
+      final repository = SmsInboxRepository(dao, _FakeSmsReaderAdapter([financialSms]));
+      await repository.scanInbox();
+      final item = (await repository.getAll()).single;
+
+      await repository.deleteMany([item.id]);
+      expect(await repository.getAll(), isEmpty);
+
+      // Same physical message still sits in the device inbox and gets
+      // re-read on the next scan/app restart — it must stay gone.
+      final newCount = await repository.scanInbox();
+      expect(newCount, 0);
+      expect(await repository.getAll(), isEmpty);
+    });
   });
 }

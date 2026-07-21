@@ -68,6 +68,7 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
         : (widget.draft?.amount == null ? '' : widget.draft!.amount!.toStringAsFixed(2)),
   );
   late final _notesController = TextEditingController(text: widget.smsPrefill?.note ?? widget.draft?.notes ?? '');
+  final _amountFocusNode = FocusNode();
   late DateTime _date = widget.smsPrefill?.dateTime ?? widget.draft?.date ?? DateTime.now();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   late String? _accountId = widget.smsPrefill?.suggestedAccountId ?? widget.draft?.accountId;
@@ -88,6 +89,7 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
     _descriptionController.dispose();
     _amountController.dispose();
     _notesController.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
@@ -183,13 +185,16 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 decoration: const InputDecoration(labelText: 'Description'),
                 validator: Validators.required,
                 textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _amountController,
+                focusNode: _amountFocusNode,
                 decoration: const InputDecoration(labelText: 'Total amount'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: Validators.amount,
+                textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: AppSizes.md),
               accountsAsync.when(

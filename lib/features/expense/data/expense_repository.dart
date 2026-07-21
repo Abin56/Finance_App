@@ -511,8 +511,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linked = (await ledgerRepository.getAll())
-          .where((e) => e.transactionRef == expense.transactionId && e.type == LedgerEntryType.gave);
+      final linked = (await ledgerRepository.getByTransactionRef(expense.transactionId))
+          .where((e) => e.type == LedgerEntryType.gave);
       for (final entry in linked) {
         await ledgerRepository.softDeleteEntry(person, entry);
       }
@@ -660,10 +660,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
           final person = await personRepository.getByKey(participant.personId!);
           if (person != null) {
             final ledgerRepository = _ledgerRepositoryFor(person.id);
-            final entries = await ledgerRepository.getAll();
-            final LedgerEntry? originalEntry = entries
-                .where((e) => e.transactionRef == expense.transactionId && e.type == LedgerEntryType.gave)
-                .firstOrNull;
+            final entries = await ledgerRepository.getByTransactionRef(expense.transactionId);
+            final LedgerEntry? originalEntry = entries.where((e) => e.type == LedgerEntryType.gave).firstOrNull;
             if (originalEntry != null) {
               // Corrects the same "Split: ..."/"gave" entry the person's
               // statement already shows, so its displayed amount moves in
@@ -799,8 +797,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linkedEntries =
-          (await ledgerRepository.getAll()).where((e) => e.transactionRef == expense.transactionId);
+      final linkedEntries = await ledgerRepository.getByTransactionRef(expense.transactionId);
       for (final entry in linkedEntries) {
         await ledgerRepository.softDeleteEntry(person, entry);
       }
@@ -842,8 +839,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linkedEntries =
-          (await ledgerRepository.getAll()).where((e) => e.transactionRef == expense.transactionId);
+      final linkedEntries = await ledgerRepository.getByTransactionRef(expense.transactionId);
       for (final entry in linkedEntries) {
         await ledgerRepository.softDeleteEntry(person, entry);
       }
@@ -885,8 +881,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linkedEntries =
-          (await ledgerRepository.getTrash()).where((e) => e.transactionRef == expense.transactionId);
+      final linkedEntries = await ledgerRepository.getTrashByTransactionRef(expense.transactionId);
       for (final entry in linkedEntries) {
         await ledgerRepository.restoreEntry(person, entry);
       }

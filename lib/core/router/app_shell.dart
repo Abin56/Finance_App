@@ -45,9 +45,14 @@ class AppShell extends ConsumerWidget {
     NavigationDestination(icon: Icon(Icons.more_horiz_rounded), selectedIcon: Icon(Icons.more_horiz_rounded), label: 'More'),
   ];
 
+  /// Branch index of the People tab, which has its own "add person" FAB —
+  /// showing the shell's FAB on top of it would stack two FABs in the same
+  /// corner.
+  static const _peopleBranchIndex = 3;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fabVisible = ref.watch(fabVisibleProvider);
+    final fabVisible = ref.watch(fabVisibleProvider) && navigationShell.currentIndex != _peopleBranchIndex;
 
     return Scaffold(
       body: navigationShell,

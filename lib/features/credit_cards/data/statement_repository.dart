@@ -14,12 +14,21 @@ import '../domain/statement_period.dart';
 /// [materializeIfDue] is called by the provider layer whenever a card's
 /// screen is opened — it writes exactly one `Statement` document the first
 /// time a closed cycle is actually viewed, then never touches that
-/// document's `totalAmount` again.
+/// document's `totalAmount` again. Because of that, [totalFor] must also be
+/// used to recompute a *closed* statement's true current total on every
+/// read (see `statementsWithLiveTotalsProvider`) — a transaction dated
+/// inside an already-materialized period can still be deleted/edited/
+/// restored afterward, and only recomputing from live transactions (the
+/// same way [currentCycleFor] already does for the open cycle) keeps that
+/// reflected everywhere, since the stored document is never rewritten.
 class StatementRepository extends FirestoreCrudRepository<Statement> {
   StatementRepository(super.collection);
 
-  /// Sums [cardTransactions] whose `dateTime` falls within [period].
-  double _totalFor(List<Transaction> cardTransactions, StatementPeriod period) {
+  /// Sums [cardTransactions] whose `dateTime` falls within [period] —
+  /// the one true definition of a statement period's total, used both to
+  /// materialize a new statement and to correct an existing one's total at
+  /// read time when transactions inside it have since changed.
+  double totalFor(List<Transaction> cardTransactions, StatementPeriod period) {
     return cardTransactions
         .where((t) => !t.isDeleted && period.contains(t.dateTime))
         .fold(0.0, (sum, t) => sum + t.amount);
@@ -37,10 +46,10 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
       periodEnd: period.periodEnd,
       generatedDate: period.periodEnd,
       dueDate: period.dueDate,
-      totalAmount: _totalFor(cardTransactions, period),
+      totalAmount: totalFor(cardTransactions, period),
       minimumDue: card.minimumDuePercent == null
           ? null
-          : _totalFor(cardTransactions, period) * card.minimumDuePercent! / 100,
+          : totalFor(cardTransactions, period) * card.minimumDuePercent! / 100,
       createdAt: now ?? DateTime.now(),
     );
   }
@@ -71,7 +80,7 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
     );
     if (alreadyExists) return null;
 
-    final total = _totalFor(cardTransactions, period);
+    final total = totalFor(cardTransactions, period);
     // Nothing to materialize — a cycle with zero purchases (e.g. a card
     // that was just added and has no history yet) shouldn't spam an empty
     // statement document every time the screen opens.

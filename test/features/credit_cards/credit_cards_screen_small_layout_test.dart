@@ -11,9 +11,9 @@ import 'package:finance_app/features/credit_cards/domain/credit_card_profile.dar
 import 'package:finance_app/features/credit_cards/presentation/providers/credit_card_providers.dart';
 import 'package:finance_app/features/credit_cards/presentation/screens/credit_cards_screen.dart';
 
-/// 360x640 is the standard small Android phone. The card tile packs three
-/// stats into one Row, so each column is only a third of that width and
-/// "Remaining to Pay" wraps to two lines — the case this guards.
+/// 360x640 is the standard small Android phone. The "All Cards" list tile
+/// packs a card-face thumbnail, name/due-date column, and an Available
+/// figure into one Row — the case this guards against overflow/wrapping.
 const _smallPhone = Size(360, 640);
 
 void main() {
@@ -22,7 +22,7 @@ void main() {
     await LocalSettingsService.init();
   });
 
-  testWidgets('card tile fits a small phone and keeps its stat values aligned', (tester) async {
+  testWidgets('all-cards list tile fits a small phone without overflow', (tester) async {
     tester.view.physicalSize = _smallPhone;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -38,7 +38,7 @@ void main() {
 
     final account = Account(
       id: 'acc1',
-      name: 'Test Card',
+      name: 'A Very Long Test Card Nickname',
       type: AccountType.card,
       openingBalance: 0,
       currentBalance: 0,
@@ -51,6 +51,7 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
           creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
+          sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           statementsStreamProvider('card1').overrideWith((ref) => Stream.value(const [])),
           // Worst case: a long formatted amount under the longest label.
           creditCardStandingProvider('card1').overrideWithValue(
@@ -62,19 +63,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Remaining to Pay'), findsOneWidget);
-    expect(find.text('Available'), findsOneWidget);
-    expect(find.text('Next due'), findsOneWidget);
+    // No RenderFlex overflow assertions from pumpAndSettle above means the
+    // header and hero carousel fit. The summary card and list tile are
+    // further down this 640px-tall viewport, so scroll to bring them into
+    // the sliver's built extent before asserting on their content.
+    expect(find.text('My Cards'), findsOneWidget);
 
-    // Each stat renders its value above its label. Without the Row's
-    // CrossAxisAlignment.start, the wrapped two-line label re-centres its
-    // column and drops the value ~8px below the other two.
-    final valueTops = <double>[];
-    for (final label in ['Remaining to Pay', 'Available', 'Next due']) {
-      final column = find.ancestor(of: find.text(label), matching: find.byType(Column)).first;
-      final valueText = find.descendant(of: column, matching: find.byType(Text)).first;
-      valueTops.add(tester.getTopLeft(valueText).dy);
-    }
-    expect(valueTops.toSet().length, 1, reason: 'stat values must share one top edge: $valueTops');
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Total Credit Limit'), findsOneWidget);
+    expect(find.text('All Cards (1)'), findsOneWidget);
+    expect(find.text('Available'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

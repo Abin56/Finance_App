@@ -159,10 +159,50 @@ class SmsInboxDao {
   // chain into two. Proper fix needs a decision on reassignment behavior
   // (point orphans at the next-earliest remaining row, or warn/block the
   // delete), which belongs with the broader duplicate-management UX work.
+  /// Deletes [ids] and tombstones their `message_key`s in the same batch, so
+  /// a later [scanInbox] re-reading these same physical device messages
+  /// recognizes them as previously-deleted and skips re-inserting them
+  /// (see [messageKeyIsDeleted]) instead of silently resurrecting a message
+  /// the user removed.
   Future<void> deleteByIds(List<String> ids) async {
     if (ids.isEmpty) return;
+
     final placeholders = List.filled(ids.length, '?').join(',');
-    await _database.delete(SmsInboxDatabase.tableName, where: 'id IN ($placeholders)', whereArgs: ids);
+    final rows = await _database.query(
+      SmsInboxDatabase.tableName,
+      columns: ['message_key'],
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
+
+    final batch = _database.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final row in rows) {
+      batch.insert(
+        SmsInboxDatabase.deletedMessageKeysTableName,
+        {'message_key': row['message_key'], 'deleted_at': now},
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+    batch.delete(SmsInboxDatabase.tableName, where: 'id IN ($placeholders)', whereArgs: ids);
+    await batch.commit(noResult: true);
+  }
+
+  /// The `message_key`s in [messageKeys] that were previously deleted — a
+  /// re-scan skips inserting any device message matching one of these,
+  /// rather than treating the user's delete as if it never happened.
+  Future<Set<String>> deletedMessageKeysAmong(Iterable<String> messageKeys) async {
+    final keys = messageKeys.toList();
+    if (keys.isEmpty) return const {};
+
+    final placeholders = List.filled(keys.length, '?').join(',');
+    final rows = await _database.query(
+      SmsInboxDatabase.deletedMessageKeysTableName,
+      columns: ['message_key'],
+      where: 'message_key IN ($placeholders)',
+      whereArgs: keys,
+    );
+    return rows.map((row) => row['message_key']! as String).toSet();
   }
 
   Map<String, Object?> _toRow(SmsInboxItem item) {

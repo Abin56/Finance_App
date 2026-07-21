@@ -11,7 +11,8 @@ import '../../../expense/presentation/providers/expense_providers.dart';
 /// provider's remaining-amount filter. Skips `participant.isMe` (no
 /// installment tracks the payer's own share, mirrors
 /// `_ParticipantCard`'s null-safety on `TransactionDetailScreen`).
-final personSplitParticipantsProvider = Provider.family<List<PendingSplitParticipant>, String>((ref, personId) {
+final personSplitParticipantsProvider =
+    Provider.autoDispose.family<List<PendingSplitParticipant>, String>((ref, personId) {
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];
   final result = <PendingSplitParticipant>[];
   for (final expense in expenses) {
@@ -26,16 +27,4 @@ final personSplitParticipantsProvider = Provider.family<List<PendingSplitPartici
     }
   }
   return result;
-});
-
-/// [personSplitParticipantsProvider], keyed by `Expense.transactionId` for
-/// the O(1) per-tile lookup `PersonStatementScreen` needs — each
-/// `PersonTimelineEntry` resolves to a `LedgerEntry.transactionRef` that
-/// matches this key.
-final personParticipantsByTransactionIdProvider = Provider.family<Map<String, PendingSplitParticipant>, String>((
-  ref,
-  personId,
-) {
-  final participants = ref.watch(personSplitParticipantsProvider(personId));
-  return {for (final p in participants) p.expense.transactionId: p};
 });

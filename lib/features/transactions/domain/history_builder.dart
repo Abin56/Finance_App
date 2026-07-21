@@ -8,6 +8,7 @@ import '../../bills/domain/bill.dart';
 import '../../bills/domain/payment_record.dart';
 import '../../credit_cards/domain/statement.dart';
 import '../../credit_cards/domain/statement_payment.dart';
+import '../../../shared/domain/transaction_kind.dart';
 import '../../emi/domain/emi.dart';
 import '../../expense/domain/expense.dart';
 import '../../lending/domain/loan.dart';
@@ -102,6 +103,20 @@ abstract class HistoryBuilder {
         : isMoneyReceived
             ? HistoryCategory.moneyReceived
             : HistoryCategory.transaction;
+    final isCredit = transaction.type == TransactionType.income;
+
+    // A transfer leg overrides every other classification — moving money
+    // between the user's own accounts is never "my expense"/"my income"
+    // even though it carries a TransactionType direction, and can't itself
+    // be a split expense (see `Expense.isSplit`'s own transaction, which is
+    // never a transfer leg).
+    final kind = transaction.isTransfer
+        ? TransactionKind.transfer
+        : splitExpense != null
+            ? TransactionKind.splitExpense
+            : isCredit
+                ? TransactionKind.myIncome
+                : TransactionKind.myExpense;
 
     return HistoryEntry(
       id: 'txn-${transaction.id}',
@@ -109,9 +124,10 @@ abstract class HistoryBuilder {
       title: transaction.type.label,
       subtitle: transaction.notes,
       amount: transaction.amount,
-      isCredit: transaction.type == TransactionType.income,
+      isCredit: isCredit,
       category: category,
       icon: transaction.type.icon,
+      kind: kind,
       routePath: '${AppRoutes.transactions}/${transaction.id}',
       splitExpenseDetail:
           splitExpense == null ? null : splitExpenseDetailFor(splitExpense, installmentsByScheduleId),
@@ -149,6 +165,10 @@ abstract class HistoryBuilder {
       status: status,
       myShare: expense.myShare,
       collected: collected,
+      shares: [
+        for (final p in expense.participants)
+          SplitShare(name: p.isMe ? 'You' : p.name, share: p.share, isMe: p.isMe),
+      ]..sort((a, b) => a.isMe ? -1 : (b.isMe ? 1 : 0)),
     );
   }
 
@@ -168,6 +188,7 @@ abstract class HistoryBuilder {
             isCredit: true,
             category: HistoryCategory.loan,
             icon: Icons.undo_rounded,
+            kind: TransactionKind.loan,
             routePath: '${AppRoutes.loans}/${loan.id}',
           ),
     ];
@@ -189,6 +210,7 @@ abstract class HistoryBuilder {
             isCredit: false,
             category: HistoryCategory.bill,
             icon: Icons.receipt_long_outlined,
+            kind: TransactionKind.bill,
             routePath: '${AppRoutes.bills}/${bill.id}',
           ),
     ];
@@ -215,6 +237,7 @@ abstract class HistoryBuilder {
           isCredit: false,
           category: HistoryCategory.statementGenerated,
           icon: Icons.receipt_long_outlined,
+          kind: TransactionKind.creditCard,
           routePath: '${AppRoutes.creditCards}/${statement.cardId}/statements/${statement.id}',
         ),
       );
@@ -231,6 +254,7 @@ abstract class HistoryBuilder {
             isCredit: false,
             category: HistoryCategory.statementPaid,
             icon: Icons.check_circle_outline_rounded,
+            kind: TransactionKind.creditCard,
             routePath: '${AppRoutes.creditCards}/${statement.cardId}/statements/${statement.id}',
           ),
         );
@@ -255,6 +279,7 @@ abstract class HistoryBuilder {
             isCredit: false,
             category: HistoryCategory.emi,
             icon: Icons.account_balance_wallet_outlined,
+            kind: TransactionKind.emi,
             routePath: '${AppRoutes.emis}/${emi.id}',
           ),
     ];

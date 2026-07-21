@@ -17,6 +17,7 @@ import 'package:finance_app/features/transactions/domain/history_builder.dart';
 import 'package:finance_app/features/transactions/domain/history_entry.dart';
 import 'package:finance_app/features/transactions/domain/transaction.dart';
 import 'package:finance_app/features/transactions/domain/transaction_type.dart';
+import 'package:finance_app/shared/domain/transaction_kind.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Installment _installment({
@@ -50,6 +51,7 @@ Transaction _transaction({
   double amount = 100,
   DateTime? dateTime,
   String? receiptPurpose,
+  String? transferId,
 }) {
   return Transaction(
     id: id,
@@ -60,6 +62,7 @@ Transaction _transaction({
     categoryId: 'cat1',
     createdAt: dateTime ?? DateTime(2026, 1, 1),
     receiptPurpose: receiptPurpose,
+    transferId: transferId,
   );
 }
 
@@ -601,6 +604,227 @@ void main() {
       final paidEntry = result.firstWhere((e) => e.category == HistoryCategory.statementPaid);
       expect(paidEntry.amount, 2400);
       expect(paidEntry.date, DateTime(2026, 7, 25));
+    });
+  });
+
+  group('HistoryBuilder.build — TransactionKind classification', () {
+    test('a plain expense transaction classifies as myExpense', () {
+      final txn = _transaction(id: 't1', type: TransactionType.expense);
+
+      final result = HistoryBuilder.build(
+        transactions: [txn],
+        expenses: const [],
+        loans: const [],
+        bills: const [],
+        emis: const [],
+      );
+
+      expect(result.single.kind, TransactionKind.myExpense);
+    });
+
+    test('a plain income transaction classifies as myIncome', () {
+      final txn = _transaction(id: 't1', type: TransactionType.income);
+
+      final result = HistoryBuilder.build(
+        transactions: [txn],
+        expenses: const [],
+        loans: const [],
+        bills: const [],
+        emis: const [],
+      );
+
+      expect(result.single.kind, TransactionKind.myIncome);
+    });
+
+    test('a money-received transaction (receiptPurpose set) classifies as myIncome', () {
+      final txn = _transaction(id: 't1', type: TransactionType.income, receiptPurpose: 'loanRepayment');
+
+      final result = HistoryBuilder.build(
+        transactions: [txn],
+        expenses: const [],
+        loans: const [],
+        bills: const [],
+        emis: const [],
+      );
+
+      expect(result.single.kind, TransactionKind.myIncome);
+    });
+
+    test('a transfer leg classifies as transfer, never myExpense/myIncome, even though it carries a type', () {
+      final expenseLeg = _transaction(id: 't1', type: TransactionType.expense, transferId: 'xfer1');
+      final incomeLeg = _transaction(id: 't2', type: TransactionType.income, transferId: 'xfer1');
+
+      final result = HistoryBuilder.build(
+        transactions: [expenseLeg, incomeLeg],
+        expenses: const [],
+        loans: const [],
+        bills: const [],
+        emis: const [],
+      );
+
+      expect(result.every((e) => e.kind == TransactionKind.transfer), isTrue);
+    });
+
+    test('a transaction linked to a split Expense classifies as splitExpense, not myExpense', () {
+      final txn = _transaction(id: 't1', amount: 800);
+      final expense = Expense(
+        id: 'exp1',
+        description: 'Dinner',
+        totalAmount: 800,
+        date: DateTime(2026, 1, 1),
+        categoryId: 'cat1',
+        accountId: 'acc1',
+        transactionId: 't1',
+        splitType: SplitType.equal,
+        participants: [
+          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
+          ExpenseParticipant(name: 'You', share: 400),
+        ],
+        scheduleId: 'sched1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      final result = HistoryBuilder.build(
+        transactions: [txn],
+        expenses: [expense],
+        loans: const [],
+        bills: const [],
+        emis: const [],
+      );
+
+      expect(result.single.kind, TransactionKind.splitExpense);
+    });
+
+    test('a loan payment classifies as loan', () {
+      final loan = Loan(
+        id: 'l1',
+        personId: 'p1',
+        loanAmount: 500,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 2, 1),
+        scheduleId: 'sched-l1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final payment = InstallmentPayment(
+        id: 'ip1',
+        installmentId: 'inst1',
+        scheduleId: 'sched-l1',
+        ownerType: OwnerType.loan,
+        ownerId: 'l1',
+        amount: 100,
+        date: DateTime(2026, 1, 15),
+        createdAt: DateTime(2026, 1, 15),
+      );
+
+      final result = HistoryBuilder.build(
+        transactions: const [],
+        expenses: const [],
+        loans: [LoanHistoryData(loan: loan, payments: [payment])],
+        bills: const [],
+        emis: const [],
+      );
+
+      expect(result.single.kind, TransactionKind.loan);
+    });
+
+    test('a bill payment classifies as bill', () {
+      final bill = Bill(
+        id: 'b1',
+        name: 'Electricity',
+        amount: 200,
+        dueDate: DateTime(2026, 1, 5),
+        recurrence: BillRecurrence.monthly,
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final payment = PaymentRecord(
+        id: 'pr1',
+        billId: 'b1',
+        amount: 200,
+        date: DateTime(2026, 1, 4),
+        createdAt: DateTime(2026, 1, 4),
+      );
+
+      final result = HistoryBuilder.build(
+        transactions: const [],
+        expenses: const [],
+        loans: const [],
+        bills: [BillHistoryData(bill: bill, payments: [payment])],
+        emis: const [],
+      );
+
+      expect(result.single.kind, TransactionKind.bill);
+    });
+
+    test('an EMI payment classifies as emi', () {
+      final emi = Emi(
+        id: 'e1',
+        name: 'Phone EMI',
+        principalAmount: 1000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 4,
+        endDate: DateTime(2026, 4, 1),
+        scheduleId: 'sched-e1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final payment = InstallmentPayment(
+        id: 'ip2',
+        installmentId: 'inst2',
+        scheduleId: 'sched-e1',
+        ownerType: OwnerType.emi,
+        ownerId: 'e1',
+        amount: 250,
+        date: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      final result = HistoryBuilder.build(
+        transactions: const [],
+        expenses: const [],
+        loans: const [],
+        bills: const [],
+        emis: [EmiHistoryData(emi: emi, payments: [payment])],
+      );
+
+      expect(result.single.kind, TransactionKind.emi);
+    });
+
+    test('a statement-generated and a statement-paid entry both classify as creditCard', () {
+      final statement = Statement(
+        id: 's1',
+        cardId: 'card1',
+        periodStart: DateTime(2026, 6, 18),
+        periodEnd: DateTime(2026, 7, 17),
+        generatedDate: DateTime(2026, 7, 17),
+        dueDate: DateTime(2026, 8, 5),
+        totalAmount: 5000,
+        amountPaid: 2400,
+        createdAt: DateTime(2026, 7, 17),
+      );
+      final payment = StatementPayment(
+        id: 'sp1',
+        statementId: 's1',
+        amount: 2400,
+        date: DateTime(2026, 7, 25),
+        sourceAccountId: 'acc-bank',
+        transactionId: 'txn-payment',
+        createdAt: DateTime(2026, 7, 25),
+      );
+
+      final result = HistoryBuilder.build(
+        transactions: const [],
+        expenses: const [],
+        loans: const [],
+        bills: const [],
+        emis: const [],
+        creditCards: [
+          CreditCardHistoryData(cardName: 'HDFC Card', statements: [statement], paymentsByStatementId: {'s1': [payment]}),
+        ],
+      );
+
+      expect(result.every((e) => e.kind == TransactionKind.creditCard), isTrue);
+      expect(result, hasLength(2));
     });
   });
 

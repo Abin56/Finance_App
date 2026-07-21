@@ -5,7 +5,7 @@ import '../../domain/reports_period.dart';
 
 /// Single-select period chips ("This Month" / "Last Month" / "This Year"
 /// [/ "Custom"]) shared by the Reports dashboard and category detail
-/// screens — same visual pattern as [PersonTimelineFilterChips].
+/// screens.
 class ReportsPeriodChips extends StatelessWidget {
   const ReportsPeriodChips({
     super.key,

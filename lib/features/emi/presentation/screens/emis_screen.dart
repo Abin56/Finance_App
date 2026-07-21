@@ -134,79 +134,93 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
           final searched = _applySearch(emis);
           final visible = _applyFilters(searched, ref);
 
-          return ListView(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            children: [
-              EmiStatusFilterChips(
-                selected: _statusFilter,
-                onChanged: (filter) => setState(() => _statusFilter = filter),
-              ),
-              const SizedBox(height: AppSizes.sm),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+          return CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, 0),
+                sliver: SliverList.list(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: AppSizes.xs),
-                      child: ChoiceChip(
-                        label: const Text('All loan types'),
-                        selected: _loanTypeFilter == null,
-                        onSelected: (_) => setState(() => _loanTypeFilter = null),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                    EmiStatusFilterChips(
+                      selected: _statusFilter,
+                      onChanged: (filter) => setState(() => _statusFilter = filter),
+                    ),
+                    const SizedBox(height: AppSizes.sm),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: AppSizes.xs),
+                            child: ChoiceChip(
+                              label: const Text('All loan types'),
+                              selected: _loanTypeFilter == null,
+                              onSelected: (_) => setState(() => _loanTypeFilter = null),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                            ),
+                          ),
+                          for (final type in EmiLoanType.values)
+                            Padding(
+                              padding: const EdgeInsets.only(right: AppSizes.xs),
+                              child: ChoiceChip(
+                                label: Text(type.label),
+                                selected: _loanTypeFilter == type,
+                                onSelected: (_) => setState(() => _loanTypeFilter = type),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    for (final type in EmiLoanType.values)
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSizes.xs),
-                        child: ChoiceChip(
-                          label: Text(type.label),
-                          selected: _loanTypeFilter == type,
-                          onSelected: (_) => setState(() => _loanTypeFilter = type),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
-                        ),
+                    const SizedBox(height: AppSizes.lg),
+                    if (visible.isEmpty)
+                      const EmptyState(
+                        icon: Icons.search_off_rounded,
+                        title: 'No matching EMIs',
+                        subtitle: 'Try a different search or filter.',
                       ),
                   ],
                 ),
               ),
-              const SizedBox(height: AppSizes.lg),
-              if (visible.isEmpty)
-                const EmptyState(
-                  icon: Icons.search_off_rounded,
-                  title: 'No matching EMIs',
-                  subtitle: 'Try a different search or filter.',
-                ),
-              for (final emi in visible)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                  child: Dismissible(
-                    key: ValueKey(emi.id),
-                    direction: DismissDirection.endToStart,
-                    confirmDismiss: (_) => confirmDelete(context, entityName: 'EMI'),
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                      ),
-                      child: Icon(Icons.archive_outlined, color: Theme.of(context).colorScheme.error),
-                    ),
-                    onDismissed: (_) async {
-                      await repository.softDelete(emi);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('EMI archived'),
-                          action: SnackBarAction(label: 'Undo', onPressed: () => repository.restore(emi)),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.md),
+                sliver: SliverList.builder(
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) {
+                    final emi = visible[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                      child: Dismissible(
+                        key: ValueKey(emi.id),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (_) => confirmDelete(context, entityName: 'EMI'),
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                          ),
+                          child: Icon(Icons.archive_outlined, color: Theme.of(context).colorScheme.error),
                         ),
-                      );
-                    },
-                    child: EmiTile(
-                      emi: emi,
-                      onTap: () => context.push('${AppRoutes.emis}/${emi.id}'),
-                    ),
-                  ),
+                        onDismissed: (_) async {
+                          await repository.softDelete(emi);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('EMI archived'),
+                              action: SnackBarAction(label: 'Undo', onPressed: () => repository.restore(emi)),
+                            ),
+                          );
+                        },
+                        child: EmiTile(
+                          emi: emi,
+                          onTap: () => context.push('${AppRoutes.emis}/${emi.id}'),
+                        ),
+                      ),
+                    );
+                  },
                 ),
+              ),
             ],
           );
         },

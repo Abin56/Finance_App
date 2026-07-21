@@ -16,7 +16,8 @@ import 'transaction_providers.dart';
 /// fans out over the schedule's installments (payments are stored per
 /// installment, not per schedule), mirrors `person_timeline_providers.dart`'s
 /// `_loanPaymentsProvider`.
-final _installmentPaymentsForScheduleProvider = Provider.family<List<InstallmentPayment>, String>((ref, scheduleId) {
+final _installmentPaymentsForScheduleProvider =
+    Provider.autoDispose.family<List<InstallmentPayment>, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return [
     for (final installment in installments)
@@ -61,7 +62,7 @@ final historyEntriesProvider = Provider<List<HistoryEntry>>((ref) {
   final accountNameById = {for (final a in accounts) a.id: a.name};
   final creditCardData = <CreditCardHistoryData>[];
   for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+    final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
     creditCardData.add(
       CreditCardHistoryData(
         cardName: accountNameById[card.accountId] ?? 'Card',

@@ -222,6 +222,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   late final _notesController = TextEditingController(
     text: widget.editing?.notes ?? widget.convertFrom?.notes ?? widget.smsPrefill?.note ?? widget.draft?.notes ?? '',
   );
+  final _amountFocusNode = FocusNode();
   late DateTime _date =
       widget.editing?.date ?? widget.convertFrom?.date ?? widget.smsPrefill?.dateTime ?? widget.draft?.date ?? DateTime.now();
 
@@ -300,6 +301,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
     _descriptionController.dispose();
     _amountController.dispose();
     _notesController.dispose();
+    _amountFocusNode.dispose();
     _meRow.dispose();
     for (final row in _participants) {
       row.dispose();
@@ -580,13 +582,16 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                   decoration: const InputDecoration(labelText: 'Description'),
                   validator: Validators.required,
                   textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
                 ),
                 const SizedBox(height: AppSizes.md),
                 TextFormField(
                   controller: _amountController,
+                  focusNode: _amountFocusNode,
                   decoration: const InputDecoration(labelText: 'Total amount'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   validator: Validators.amount,
+                  textInputAction: TextInputAction.done,
                   onChanged: (_) => _revalidateSplit(),
                 ),
                 const SizedBox(height: AppSizes.md),

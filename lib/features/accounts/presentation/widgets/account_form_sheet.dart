@@ -43,6 +43,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
   late final _notesController = TextEditingController(text: widget.account?.notes);
   late final _accountNumberLast4Controller = TextEditingController(text: widget.account?.accountNumberLast4)
     ..addListener(() => setState(() {}));
+  final _openingBalanceFocusNode = FocusNode();
   late AccountType _type = widget.account?.type ?? AccountType.cash;
   late int _colorValue = widget.account?.colorValue ?? AppColors.categoryPalette.first.toARGB32();
 
@@ -80,6 +81,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     _accountHolderNameController.dispose();
     _notesController.dispose();
     _accountNumberLast4Controller.dispose();
+    _openingBalanceFocusNode.dispose();
     super.dispose();
   }
 
@@ -213,11 +215,13 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                   decoration: const InputDecoration(labelText: 'Account name'),
                   validator: Validators.required,
                   textInputAction: TextInputAction.next,
+                  onFieldSubmitted: (_) => _openingBalanceFocusNode.requestFocus(),
                 ),
               ],
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _openingBalanceController,
+                focusNode: _openingBalanceFocusNode,
                 enabled: !_isEditing,
                 decoration: InputDecoration(
                   labelText: 'Starting amount',
@@ -225,6 +229,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: Validators.amount,
+                textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: AppSizes.md),
               Row(

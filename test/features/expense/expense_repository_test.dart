@@ -123,7 +123,7 @@ void main() {
       );
 
       expect(shares.map((s) => s.share), [3.33, 3.33, 3.34]);
-      expect(shares.fold(0.0, (sum, s) => sum + s.share), closeTo(10, 0.001));
+      expect(shares.fold(0.0, (total, s) => total + s.share), closeTo(10, 0.001));
     });
 
     test('splits evenly with no remainder', () {
@@ -147,7 +147,7 @@ void main() {
       );
 
       expect(shares, hasLength(5));
-      expect(shares.fold(0.0, (sum, s) => sum + s.share), closeTo(100, 0.001));
+      expect(shares.fold(0.0, (total, s) => total + s.share), closeTo(100, 0.001));
     });
   });
 

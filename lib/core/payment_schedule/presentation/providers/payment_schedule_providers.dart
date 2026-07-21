@@ -23,14 +23,14 @@ final paymentScheduleRepositoryProvider = Provider<PaymentScheduleRepository>((r
   return PaymentScheduleRepository(collection);
 });
 
-final scheduleStreamProvider = StreamProvider.family<PaymentSchedule?, String>((ref, scheduleId) {
+final scheduleStreamProvider = StreamProvider.autoDispose.family<PaymentSchedule?, String>((ref, scheduleId) {
   return ref.watch(paymentScheduleRepositoryProvider).watchOne(scheduleId);
 });
 
 /// Installment repository for a single schedule's subcollection, scoped by
 /// [scheduleId] — a fresh repository per schedule, mirrors
 /// `ledgerRepositoryProvider`.
-final installmentRepositoryProvider = Provider.family<InstallmentRepository, String>((ref, scheduleId) {
+final installmentRepositoryProvider = Provider.autoDispose.family<InstallmentRepository, String>((ref, scheduleId) {
   final firestore = ref.watch(firestoreProvider);
   final uid = ref.watch(currentUserIdProvider);
   final collection = firestore
@@ -46,18 +46,19 @@ final installmentRepositoryProvider = Provider.family<InstallmentRepository, Str
   return InstallmentRepository(collection);
 });
 
-final installmentsStreamProvider = StreamProvider.family<List<Installment>, String>((ref, scheduleId) {
+final installmentsStreamProvider = StreamProvider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
   return ref.watch(installmentRepositoryProvider(scheduleId)).watchAll();
 });
 
-final installmentsTrashStreamProvider = StreamProvider.family<List<Installment>, String>((ref, scheduleId) {
+final installmentsTrashStreamProvider =
+    StreamProvider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
   return ref.watch(installmentRepositoryProvider(scheduleId)).watchTrash();
 });
 
 /// Payment repository for a single installment's subcollection, scoped by
 /// (scheduleId, installmentId).
-final installmentPaymentRepositoryProvider =
-    Provider.family<InstallmentPaymentRepository, ({String scheduleId, String installmentId})>((ref, key) {
+final installmentPaymentRepositoryProvider = Provider.autoDispose
+    .family<InstallmentPaymentRepository, ({String scheduleId, String installmentId})>((ref, key) {
   final firestore = ref.watch(firestoreProvider);
   final uid = ref.watch(currentUserIdProvider);
   final collection = firestore
@@ -75,48 +76,48 @@ final installmentPaymentRepositoryProvider =
   return InstallmentPaymentRepository(collection, ref.watch(installmentRepositoryProvider(key.scheduleId)));
 });
 
-final installmentPaymentsStreamProvider =
-    StreamProvider.family<List<InstallmentPayment>, ({String scheduleId, String installmentId})>((ref, key) {
+final installmentPaymentsStreamProvider = StreamProvider.autoDispose
+    .family<List<InstallmentPayment>, ({String scheduleId, String installmentId})>((ref, key) {
   return ref.watch(installmentPaymentRepositoryProvider(key)).watchAll();
 });
 
-final installmentPaymentsTrashStreamProvider =
-    StreamProvider.family<List<InstallmentPayment>, ({String scheduleId, String installmentId})>((ref, key) {
+final installmentPaymentsTrashStreamProvider = StreamProvider.autoDispose
+    .family<List<InstallmentPayment>, ({String scheduleId, String installmentId})>((ref, key) {
   return ref.watch(installmentPaymentRepositoryProvider(key)).watchTrash();
 });
 
 /// This calendar week's installments for [scheduleId].
-final thisWeekInstallmentsProvider = Provider.family<List<Installment>, String>((ref, scheduleId) {
+final thisWeekInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return ref.watch(installmentRepositoryProvider(scheduleId)).thisWeek(installments);
 });
 
 /// This calendar month's installments for [scheduleId].
-final thisMonthInstallmentsProvider = Provider.family<List<Installment>, String>((ref, scheduleId) {
+final thisMonthInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return ref.watch(installmentRepositoryProvider(scheduleId)).thisMonth(installments);
 });
 
 /// Next calendar month's installments for [scheduleId].
-final nextMonthInstallmentsProvider = Provider.family<List<Installment>, String>((ref, scheduleId) {
+final nextMonthInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return ref.watch(installmentRepositoryProvider(scheduleId)).nextMonth(installments);
 });
 
 /// Installments due after next calendar month for [scheduleId].
-final futureInstallmentsProvider = Provider.family<List<Installment>, String>((ref, scheduleId) {
+final futureInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return ref.watch(installmentRepositoryProvider(scheduleId)).future(installments);
 });
 
 /// Overdue installments for [scheduleId].
-final overdueInstallmentsProvider = Provider.family<List<Installment>, String>((ref, scheduleId) {
+final overdueInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return ref.watch(installmentRepositoryProvider(scheduleId)).overdue(installments);
 });
 
 /// Sum of remaining amounts across [scheduleId]'s non-skipped installments.
-final remainingAmountProvider = Provider.family<double, String>((ref, scheduleId) {
+final remainingAmountProvider = Provider.autoDispose.family<double, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return ref.watch(installmentRepositoryProvider(scheduleId)).remainingAmount(installments);
 });

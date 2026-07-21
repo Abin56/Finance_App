@@ -146,31 +146,51 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
             ),
       body: person == null
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(AppSizes.lg),
-              children: [
-                PersonExpenseStatsCard(stats: ref.watch(personExpenseStatsProvider(widget.personId))),
-                const SizedBox(height: AppSizes.lg),
-                SegmentedButton<_LedgerTab>(
-                  segments: const [
-                    ButtonSegment(value: _LedgerTab.history, label: Text('History')),
-                    ButtonSegment(value: _LedgerTab.summary, label: Text('Summary')),
-                    ButtonSegment(value: _LedgerTab.payments, label: Text('Payments')),
-                  ],
-                  selected: {_tab},
-                  onSelectionChanged: (selection) => setState(() => _tab = selection.first),
+          : CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSizes.lg,
+                    AppSizes.lg,
+                    AppSizes.lg,
+                    _tab == _LedgerTab.summary ? AppSizes.lg : 0,
+                  ),
+                  sliver: SliverList.list(
+                    children: [
+                      PersonExpenseStatsCard(stats: ref.watch(personExpenseStatsProvider(widget.personId))),
+                      const SizedBox(height: AppSizes.lg),
+                      SegmentedButton<_LedgerTab>(
+                        segments: const [
+                          ButtonSegment(value: _LedgerTab.history, label: Text('History')),
+                          ButtonSegment(value: _LedgerTab.summary, label: Text('Summary')),
+                          ButtonSegment(value: _LedgerTab.payments, label: Text('Payments')),
+                        ],
+                        selected: {_tab},
+                        onSelectionChanged: (selection) => setState(() => _tab = selection.first),
+                      ),
+                      const SizedBox(height: AppSizes.lg),
+                      if (_tab == _LedgerTab.summary)
+                        _SummaryTab(person: person, entries: sortedAll, personId: widget.personId)
+                      else if (_tab == _LedgerTab.history) ...[
+                        FilledButton.icon(
+                          onPressed: () => AddExpenseChooser.show(context, forPerson: person),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Expense'),
+                          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                        ),
+                        const SizedBox(height: AppSizes.lg),
+                      ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: AppSizes.lg),
-                if (_tab == _LedgerTab.summary)
-                  _SummaryTab(person: person, entries: sortedAll, personId: widget.personId)
-                else
-                  ..._historyOrPayments(context, person, sortedAll, ledgerEntryById),
+                if (_tab != _LedgerTab.summary)
+                  ..._historyOrPaymentsSlivers(context, person, sortedAll, ledgerEntryById),
               ],
             ),
     );
   }
 
-  List<Widget> _historyOrPayments(
+  List<Widget> _historyOrPaymentsSlivers(
     BuildContext context,
     Person person,
     List<PersonTimelineEntry> sortedAll,
@@ -179,76 +199,87 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     final visible = _visibleFor(_tab, sortedAll);
     final isPayments = _tab == _LedgerTab.payments;
 
-    return [
-      if (_tab == _LedgerTab.history) ...[
-        FilledButton.icon(
-          onPressed: () => AddExpenseChooser.show(context, forPerson: person),
-          icon: const Icon(Icons.add),
-          label: const Text('Add Expense'),
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-        ),
-        const SizedBox(height: AppSizes.lg),
-      ],
-      if (visible.isEmpty)
-        EmptyState(
-          icon: Icons.receipt_long_outlined,
-          title: isPayments ? 'No payments yet' : 'No history yet',
-          subtitle: isPayments
-              ? 'Payments that clear this balance will show up here.'
-              : 'Add an expense, or record money given or borrowed, to build the history.',
-        )
-      else
-        ..._monthGrouped(context, person, visible, ledgerEntryById),
-      if (_tab == _LedgerTab.history && visible.isNotEmpty) ...[
-        const SizedBox(height: AppSizes.md),
-        Container(
-          padding: const EdgeInsets.all(AppSizes.md),
-          decoration: BoxDecoration(
-            color: context.colors.primary.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: context.colors.primary),
-              const SizedBox(width: AppSizes.sm),
-              Expanded(
-                child: Text(
-                  'Tap on any expense to view details, edit, add payment or split.',
-                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
-                ),
-              ),
-            ],
+    if (visible.isEmpty) {
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+          sliver: SliverToBoxAdapter(
+            child: EmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: isPayments ? 'No payments yet' : 'No history yet',
+              subtitle: isPayments
+                  ? 'Payments that clear this balance will show up here.'
+                  : 'Add an expense, or record money given or borrowed, to build the history.',
+            ),
           ),
         ),
-      ],
-    ];
-  }
+      ];
+    }
 
-  /// Groups [visible] (already oldest-first) by month, with a month header
-  /// per group followed by the frame-1 cards.
-  List<Widget> _monthGrouped(
-    BuildContext context,
-    Person person,
-    List<PersonTimelineEntry> visible,
-    Map<String, LedgerEntry> ledgerEntryById,
-  ) {
-    final widgets = <Widget>[];
+    // Flatten to month-header/row slots once per build so itemBuilder stays
+    // O(1) and only visible rows get built, rather than materializing every
+    // month's tiles up front regardless of scroll position.
+    final slots = <Object>[];
     String? currentMonth;
     for (final entry in visible) {
       final month = entry.date.monthYear;
       if (month != currentMonth) {
         currentMonth = month;
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: AppSizes.sm, bottom: AppSizes.sm),
-          child: Text(month, style: context.textTheme.titleSmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7))),
-        ));
+        slots.add(month);
       }
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(bottom: AppSizes.sm),
-        child: _buildTile(context, person, entry, ledgerEntryById),
-      ));
+      slots.add(entry);
     }
-    return widgets;
+
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+        sliver: SliverList.builder(
+          itemCount: slots.length,
+          itemBuilder: (context, index) {
+            final slot = slots[index];
+            if (slot is String) {
+              return Padding(
+                padding: const EdgeInsets.only(top: AppSizes.sm, bottom: AppSizes.sm),
+                child: Text(
+                  slot,
+                  style: context.textTheme.titleSmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSizes.sm),
+              child: _buildTile(context, person, slot as PersonTimelineEntry, ledgerEntryById),
+            );
+          },
+        ),
+      ),
+      if (_tab == _LedgerTab.history)
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, AppSizes.lg),
+          sliver: SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.all(AppSizes.md),
+              decoration: BoxDecoration(
+                color: context.colors.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+                  const SizedBox(width: AppSizes.sm),
+                  Expanded(
+                    child: Text(
+                      'Tap on any expense to view details, edit, add payment or split.',
+                      style:
+                          context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+    ];
   }
 
   Widget _buildTile(

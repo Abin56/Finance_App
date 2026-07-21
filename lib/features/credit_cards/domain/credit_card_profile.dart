@@ -31,6 +31,7 @@ class CreditCardProfile extends SoftDeletableEntity {
     this.rewardNotes,
     this.autoDebitAccount,
     this.cardHolderName,
+    this.sharedLimitId,
   });
 
   @override
@@ -38,6 +39,13 @@ class CreditCardProfile extends SoftDeletableEntity {
 
   /// The [Account] this profile extends — one credit card IS one account.
   final String accountId;
+
+  /// The [SharedCreditLimit] this card draws from, if any. Null means
+  /// standalone — this card's own [creditLimit] and statements are the sole
+  /// source of truth. Existing documents have no `sharedLimitId` field and
+  /// deserialize to null, so standalone behavior for pre-existing cards is
+  /// unchanged.
+  String? sharedLimitId;
 
   /// Day of month (1-31) a statement closes on. Clamped to the shorter
   /// month when it doesn't exist (e.g. 31 in February) — see
@@ -115,6 +123,7 @@ class CreditCardProfile extends SoftDeletableEntity {
       rewardNotes: data['rewardNotes'] as String?,
       autoDebitAccount: data['autoDebitAccount'] as String?,
       cardHolderName: data['cardHolderName'] as String?,
+      sharedLimitId: data['sharedLimitId'] as String?,
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -141,6 +150,7 @@ class CreditCardProfile extends SoftDeletableEntity {
       'rewardNotes': rewardNotes,
       'autoDebitAccount': autoDebitAccount,
       'cardHolderName': cardHolderName,
+      'sharedLimitId': sharedLimitId,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),

@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../expense/domain/expense.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../domain/transaction.dart' as domain;
 import '../providers/transaction_providers.dart';
@@ -65,9 +66,7 @@ class TransactionsTrashScreen extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.restore_rounded),
                       tooltip: 'Restore',
-                      onPressed: () => expense != null
-                          ? ref.read(expenseRepositoryProvider).restoreExpense(expense)
-                          : ref.read(transactionRepositoryProvider).restoreTransaction(transaction),
+                      onPressed: () => _restore(context, ref, transaction, expense),
                     ),
                     IconButton(
                       icon: Icon(Icons.delete_forever_rounded, color: Theme.of(context).colorScheme.error),
@@ -82,6 +81,27 @@ class TransactionsTrashScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _restore(
+    BuildContext context,
+    WidgetRef ref,
+    domain.Transaction transaction,
+    Expense? expense,
+  ) async {
+    try {
+      if (expense != null) {
+        await ref.read(expenseRepositoryProvider).restoreExpense(expense);
+      } else {
+        await ref.read(transactionRepositoryProvider).restoreTransaction(transaction);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not restore transaction: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirmPermanentDelete(BuildContext context, WidgetRef ref, domain.Transaction transaction) async {
@@ -100,8 +120,16 @@ class TransactionsTrashScreen extends ConsumerWidget {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed != true) return;
+
+    try {
       await ref.read(transactionRepositoryProvider).permanentlyDeleteTransaction(transaction);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete transaction: $e')),
+        );
+      }
     }
   }
 }

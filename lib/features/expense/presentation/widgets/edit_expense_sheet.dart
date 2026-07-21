@@ -47,6 +47,7 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
   late final _noteController = TextEditingController(text: widget.expense.notes);
   late DateTime _date = widget.expense.date;
   late String _categoryId = widget.expense.categoryId;
+  final _amountFocusNode = FocusNode();
   bool _isSaving = false;
 
   @override
@@ -54,6 +55,7 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
     _titleController.dispose();
     _amountController.dispose();
     _noteController.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
@@ -200,15 +202,18 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
               ),
               validator: Validators.required,
               textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
             ),
             const SizedBox(height: AppSizes.md),
             Text('Amount', style: context.textTheme.titleSmall),
             const SizedBox(height: AppSizes.xs),
             TextFormField(
               controller: _amountController,
+              focusNode: _amountFocusNode,
               decoration: const InputDecoration(prefixIcon: Icon(Icons.currency_rupee_rounded)),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: Validators.amount,
+              textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: AppSizes.md),
             Text('Date', style: context.textTheme.titleSmall),

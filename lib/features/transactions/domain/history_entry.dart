@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/domain/transaction_kind.dart';
+
 /// Which History filter chip a [HistoryEntry] belongs to. Distinct from any
 /// single feature's own status/category enum — this is purely "what kind of
 /// money-movement is this row" for the unified History list.
@@ -63,6 +65,18 @@ extension SplitExpenseHistoryStatusX on SplitExpenseHistoryStatus {
   }
 }
 
+/// One participant's name and share, for the "You ₹400 · John ₹600" style
+/// breakdown on a [HistoryCategory.splitExpense] tile — a display-only
+/// projection of `ExpenseParticipant`, decoupled from the expense domain
+/// layer the same way the rest of [HistoryEntry] is.
+class SplitShare {
+  const SplitShare({required this.name, required this.share, required this.isMe});
+
+  final String name;
+  final double share;
+  final bool isMe;
+}
+
 /// Extra detail only a [HistoryCategory.splitExpense] entry carries — how
 /// many people are splitting it, how much is still owed back to the user,
 /// and the expense's aggregate settlement status.
@@ -73,6 +87,7 @@ class SplitExpenseHistoryDetail {
     required this.status,
     required this.myShare,
     required this.collected,
+    required this.shares,
   });
 
   final int participantCount;
@@ -86,6 +101,10 @@ class SplitExpenseHistoryDetail {
 
   /// Sum already paid back by other participants.
   final double collected;
+
+  /// Every participant's name/share, "Me" first — the full breakdown behind
+  /// [myShare]/[amountToCollect]'s totals, for the per-person chip.
+  final List<SplitShare> shares;
 }
 
 /// One line in the unified History feed — built by [HistoryBuilder] from
@@ -105,6 +124,7 @@ class HistoryEntry {
     required this.isCredit,
     required this.category,
     required this.icon,
+    required this.kind,
     this.routePath,
     this.splitExpenseDetail,
     this.excludeFromCalculations = false,
@@ -126,6 +146,14 @@ class HistoryEntry {
 
   final HistoryCategory category;
   final IconData icon;
+
+  /// Which real-world kind of money movement this row represents — see
+  /// `TransactionKind`'s doc comment. Computed once in `HistoryBuilder`
+  /// (where the source `Transaction`/`Expense`/etc. is available) rather
+  /// than re-derived from [category] alone, since [category] can't tell a
+  /// transfer leg apart from a plain expense/income the way the source
+  /// `Transaction.isTransfer` field can.
+  final TransactionKind kind;
 
   /// Where tapping this entry navigates, if anywhere.
   final String? routePath;

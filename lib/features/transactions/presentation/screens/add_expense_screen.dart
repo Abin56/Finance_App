@@ -88,6 +88,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   late final _descriptionController = TextEditingController(
     text: widget.transaction?.description ?? widget.smsPrefill?.merchantOrSender ?? '',
   );
+  final _descriptionFocusNode = FocusNode();
   late TransactionType _type = widget.transaction?.type ?? widget.initialType ?? TransactionType.expense;
   late DateTime _dateTime = widget.transaction?.dateTime ?? widget.smsPrefill?.dateTime ?? DateTime.now();
   late String? _accountId = widget.transaction?.accountId ?? widget.smsPrefill?.suggestedAccountId;
@@ -134,6 +135,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
+    _descriptionFocusNode.dispose();
     super.dispose();
   }
 
@@ -210,7 +212,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       accountingMonth: _customAccountingMonth ? _accountingMonth : null,
     );
     final saved = await AddExpenseChooser.show(context, draft: draft);
-    if (saved == true && mounted) Navigator.of(context).pop();
+    if (saved == true && context.mounted) Navigator.of(context).pop();
   }
 
   /// Whether this save should end up "owed" — the toggle only ever applies
@@ -511,6 +513,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 style: context.textTheme.titleLarge,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: Validators.amount,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _descriptionFocusNode.requestFocus(),
               ),
               const SizedBox(height: AppSizes.md),
               Text.rich(
@@ -523,6 +527,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               const SizedBox(height: AppSizes.xs),
               TextFormField(
                 controller: _descriptionController,
+                focusNode: _descriptionFocusNode,
                 decoration: InputDecoration(
                   prefixIcon: selectedCategory == null
                       ? null
@@ -560,7 +565,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('This person owes me this expense'),
                     subtitle: const Text(
-                      'Creates a real ledger entry — their outstanding balance and statement update too.',
+                      "Adds this amount to what they owe you, so it shows up when you check their balance later.",
                     ),
                     value: _owesPersonToggle,
                     onChanged: (value) => setState(() => _owesPersonToggle = value),

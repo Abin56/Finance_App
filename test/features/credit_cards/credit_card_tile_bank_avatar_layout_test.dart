@@ -56,6 +56,7 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
           creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
+          sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           statementsStreamProvider('card1').overrideWith((ref) => Stream.value(const [])),
           creditCardStandingProvider('card1').overrideWithValue(
             (outstanding: 1234567.89, available: 765432.11, currentCycleSpend: 0),
@@ -67,6 +68,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('HDFC Millennia Rewards Platinum •••• 4321'), findsOneWidget);
+    expect(find.text('HDFC Millennia Rewards Platinum'), findsOneWidget);
+    expect(find.text('••••   ••••   ••••   4321'), findsOneWidget);
   });
 }

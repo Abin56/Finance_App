@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../people/presentation/widgets/share_format.dart';
 import '../../domain/expense.dart';
+import '../screens/share_expense_preview_screen.dart';
 
 /// Builds a FLOWFI-branded plain-text summary of one split/assigned
 /// [Expense] and hands it to the platform's native share sheet — the
@@ -72,8 +72,10 @@ abstract class ShareExpense {
     return buffer.toString();
   }
 
+  /// Opens the receipt-style [ShareExpensePreviewScreen] instead of handing
+  /// text straight to the platform share sheet — the preview owns the
+  /// image/PDF/text export actions (text still comes from [buildText]).
   static Future<void> share(BuildContext context, Expense expense, List<Installment> installments) {
-    final text = buildText(expense, installments);
-    return SharePlus.instance.share(ShareParams(text: text, subject: 'Expense: ${expense.description}'));
+    return ShareExpensePreviewScreen.open(context, expense, installments);
   }
 }

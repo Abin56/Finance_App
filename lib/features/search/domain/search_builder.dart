@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/router/app_routes.dart';
+import '../../../shared/domain/transaction_kind.dart';
 import '../../accounts/domain/account.dart';
 import '../../accounts/domain/account_type.dart';
 import '../../bills/domain/bill.dart';
@@ -150,6 +151,9 @@ abstract class SearchBuilder {
         title: t.description.isNotEmpty ? t.description : t.type.label,
         subtitle: [category?.name, accountName].whereType<String>().join(' · '),
         icon: category != null ? CategoryIcons.iconFor(category.iconKey) : t.type.icon,
+        kind: t.isTransfer
+            ? TransactionKind.transfer
+            : (t.type == TransactionType.income ? TransactionKind.myIncome : TransactionKind.myExpense),
         amount: t.amount,
         date: t.dateTime,
         routePath: '${AppRoutes.transactions}/${t.id}',
@@ -186,6 +190,7 @@ abstract class SearchBuilder {
           if (category != null) category.name,
         ].join(' · '),
         icon: category != null ? CategoryIcons.iconFor(category.iconKey) : Icons.call_split_rounded,
+        kind: TransactionKind.splitExpense,
         amount: e.totalAmount,
         date: e.date,
         routePath: '${AppRoutes.transactions}/${e.transactionId}',
@@ -228,6 +233,7 @@ abstract class SearchBuilder {
         title: b.name,
         subtitle: [if (category != null) category.name, b.recurrence.label].join(' · '),
         icon: Icons.receipt_long_outlined,
+        kind: TransactionKind.bill,
         amount: b.amount,
         date: b.dueDate,
         routePath: '${AppRoutes.bills}/${b.id}',
@@ -246,6 +252,7 @@ abstract class SearchBuilder {
         title: e.name,
         subtitle: e.lenderName ?? 'Monthly payment plan',
         icon: Icons.account_balance_outlined,
+        kind: TransactionKind.emi,
         amount: e.principalAmount,
         date: e.startDate,
         routePath: '${AppRoutes.emis}/${e.id}',
@@ -270,6 +277,7 @@ abstract class SearchBuilder {
         title: l.name ?? personName ?? 'Loan',
         subtitle: personName ?? 'Loan',
         icon: Icons.handshake_outlined,
+        kind: TransactionKind.loan,
         amount: l.loanAmount,
         date: l.loanDate,
         routePath: '${AppRoutes.loans}/${l.id}',
@@ -299,6 +307,7 @@ abstract class SearchBuilder {
           if (c.lastFourDigits != null) '•••• ${c.lastFourDigits}',
         ].join(' · '),
         icon: Icons.credit_card_outlined,
+        kind: TransactionKind.creditCard,
         routePath: '${AppRoutes.creditCards}/${c.id}',
       );
     }

@@ -39,6 +39,8 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
     text: widget.person == null ? '0' : widget.person!.openingBalance.toStringAsFixed(2),
   );
   late int _avatarColorValue = widget.person?.avatarColorValue ?? AppColors.categoryPalette.first.toARGB32();
+  final _phoneFocusNode = FocusNode();
+  final _emailFocusNode = FocusNode();
   bool _isSaving = false;
 
   bool get _isEditing => widget.person != null;
@@ -50,6 +52,8 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
     _emailController.dispose();
     _notesController.dispose();
     _openingBalanceController.dispose();
+    _phoneFocusNode.dispose();
+    _emailFocusNode.dispose();
     super.dispose();
   }
 
@@ -118,20 +122,26 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
                 decoration: const InputDecoration(labelText: 'Name'),
                 validator: Validators.required,
                 textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _phoneFocusNode.requestFocus(),
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _phoneController,
+                focusNode: _phoneFocusNode,
                 decoration: const InputDecoration(labelText: 'Phone (optional)'),
                 keyboardType: TextInputType.phone,
                 validator: Validators.phone,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _emailController,
+                focusNode: _emailFocusNode,
                 decoration: const InputDecoration(labelText: 'Email (optional)'),
                 keyboardType: TextInputType.emailAddress,
                 validator: Validators.email,
+                textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(

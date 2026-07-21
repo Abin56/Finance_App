@@ -45,7 +45,8 @@ final emisTrashStreamProvider = StreamProvider<List<Emi>>((ref) {
 /// Breakdown repository for one EMI's `paymentBreakdowns` subcollection —
 /// scoped by EMI id, mirrors `installmentPaymentRepositoryProvider`'s
 /// per-schedule scoping shape.
-final emiPaymentBreakdownRepositoryProvider = Provider.family<EmiPaymentBreakdownRepository, String>((ref, emiId) {
+final emiPaymentBreakdownRepositoryProvider =
+    Provider.autoDispose.family<EmiPaymentBreakdownRepository, String>((ref, emiId) {
   final firestore = ref.watch(firestoreProvider);
   final uid = ref.watch(currentUserIdProvider);
   final collection = firestore
@@ -61,24 +62,25 @@ final emiPaymentBreakdownRepositoryProvider = Provider.family<EmiPaymentBreakdow
   return EmiPaymentBreakdownRepository(collection);
 });
 
-final emiPaymentBreakdownsStreamProvider = StreamProvider.family<List<EmiPaymentBreakdown>, String>((ref, emiId) {
+final emiPaymentBreakdownsStreamProvider =
+    StreamProvider.autoDispose.family<List<EmiPaymentBreakdown>, String>((ref, emiId) {
   return ref.watch(emiPaymentBreakdownRepositoryProvider(emiId)).watchAll();
 });
 
 /// An EMI's current status, derived from its linked schedule's installments.
-final emiStatusProvider = Provider.family<EmiStatus, Emi>((ref, emi) {
+final emiStatusProvider = Provider.autoDispose.family<EmiStatus, Emi>((ref, emi) {
   final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
   return emi.statusGiven(installments);
 });
 
 /// Sum of remaining amounts across an EMI's installments.
-final emiRemainingAmountProvider = Provider.family<double, Emi>((ref, emi) {
+final emiRemainingAmountProvider = Provider.autoDispose.family<double, Emi>((ref, emi) {
   return ref.watch(remainingAmountProvider(emi.scheduleId));
 });
 
 /// Sum of amounts paid so far across an EMI's installments — "paid", not
 /// "received", since an EMI is a liability rather than a receivable.
-final emiTotalPaidProvider = Provider.family<double, Emi>((ref, emi) {
+final emiTotalPaidProvider = Provider.autoDispose.family<double, Emi>((ref, emi) {
   final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
   return installments.fold(0.0, (sum, i) => sum + i.amountPaid);
 });
@@ -135,7 +137,7 @@ final activeCategoriesProvider = Provider<List<Category>>((ref) {
 /// installment it landed on. A skipped installment with no payment still
 /// gets an entry (dated at its due date) so the timeline reads as a
 /// complete story of the EMI, matching the "skip an installment" feature.
-final emiPaymentHistoryProvider = Provider.family<List<EmiPaymentHistoryEntry>, Emi>((ref, emi) {
+final emiPaymentHistoryProvider = Provider.autoDispose.family<List<EmiPaymentHistoryEntry>, Emi>((ref, emi) {
   final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
   final sortedInstallments = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
 

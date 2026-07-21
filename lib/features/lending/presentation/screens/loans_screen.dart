@@ -111,43 +111,44 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
             );
           }
 
-          return ListView(
+          return ListView.builder(
             padding: const EdgeInsets.all(AppSizes.lg),
-            children: [
-              for (final loan in visible)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                  child: Dismissible(
-                    key: ValueKey(loan.id),
-                    direction: DismissDirection.endToStart,
-                    confirmDismiss: (_) => confirmDelete(context, entityName: 'Loan'),
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+            itemCount: visible.length,
+            itemBuilder: (context, index) {
+              final loan = visible[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                child: Dismissible(
+                  key: ValueKey(loan.id),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) => confirmDelete(context, entityName: 'Loan'),
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                    ),
+                    child: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.error),
+                  ),
+                  onDismissed: (_) async {
+                    await repository.softDelete(loan);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Loan moved to trash'),
+                        action: SnackBarAction(label: 'Undo', onPressed: () => repository.restore(loan)),
                       ),
-                      child: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.error),
-                    ),
-                    onDismissed: (_) async {
-                      await repository.softDelete(loan);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('Loan moved to trash'),
-                          action: SnackBarAction(label: 'Undo', onPressed: () => repository.restore(loan)),
-                        ),
-                      );
-                    },
-                    child: LoanTile(
-                      loan: loan,
-                      person: personById[loan.personId],
-                      onTap: () => context.push('${AppRoutes.loans}/${loan.id}'),
-                    ),
+                    );
+                  },
+                  child: LoanTile(
+                    loan: loan,
+                    person: personById[loan.personId],
+                    onTap: () => context.push('${AppRoutes.loans}/${loan.id}'),
                   ),
                 ),
-            ],
+              );
+            },
           );
         },
       ),

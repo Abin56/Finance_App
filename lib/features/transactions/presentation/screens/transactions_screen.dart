@@ -21,6 +21,7 @@ import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../../sms_inbox/presentation/screens/sms_inbox_screen.dart';
 import '../../../sms_inbox/presentation/widgets/sms_inbox_entry_chip.dart';
 import '../../data/transaction_repository.dart';
+import '../../domain/history_entry.dart';
 import '../../domain/transaction.dart' as domain;
 import '../providers/history_providers.dart';
 import '../providers/transaction_providers.dart';
@@ -41,13 +42,19 @@ import 'transactions_trash_screen.dart';
 /// instead, since those entries don't live in the Transactions collection
 /// and so can't be edited/trashed the same way.
 class TransactionsScreen extends ConsumerStatefulWidget {
-  const TransactionsScreen({super.key, this.initialFilterName});
+  const TransactionsScreen({super.key, this.initialFilterName, this.initialAccountId});
 
   /// A [HistoryFilter] enum name (e.g. `'splitExpenses'`) supplied via the
   /// `?filter=` query param — lets other screens (the dashboard's "Money to
   /// collect" card) deep-link straight into a pre-filtered History instead
   /// of duplicating History's own filtering logic.
   final String? initialFilterName;
+
+  /// Pre-seeds [TransactionFilter.accountId] — lets Account Details push
+  /// straight into History scoped to one account, exactly as if the user
+  /// had opened Filters and picked that account themselves. Clearing
+  /// filters from here behaves like any other manually-applied filter.
+  final String? initialAccountId;
 
   @override
   ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
@@ -57,7 +64,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   final _searchController = TextEditingController();
   bool _searching = false;
   String _query = '';
-  TransactionFilter _filter = const TransactionFilter();
+  late TransactionFilter _filter = TransactionFilter(accountId: widget.initialAccountId);
   TransactionSort _sort = TransactionSort.dateDesc;
   late HistoryFilter _historyFilter = HistoryFilter.values.firstWhere(
     (f) => f.name == widget.initialFilterName,
@@ -257,44 +264,53 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         final sortedDates = grouped.keys.toList()
           ..sort((a, b) => _sort == TransactionSort.dateAsc ? a.compareTo(b) : b.compareTo(a));
 
-        return ListView(
+        // Flatten to header/row slots once per build so itemBuilder stays
+        // O(1) and only visible rows get built (mirrors SearchScreen's
+        // `_GroupedResults`), and precompute each header's net total here
+        // instead of re-folding it inside the header widget every rebuild.
+        final slots = <Object>[];
+        for (final date in sortedDates) {
+          slots.add((date: date, netTotal: grouped[date]!.fold(0.0, (sum, t) => sum + t.signedAmount)));
+          slots.addAll(grouped[date]!);
+        }
+
+        return ListView.builder(
           padding: const EdgeInsets.all(AppSizes.lg),
-          children: [
-            for (final date in sortedDates) ...[
-              TransactionDateGroupHeader(
-                date: date,
-                netTotal: grouped[date]!.fold(0.0, (sum, t) => sum + t.signedAmount),
-              ),
-              for (final transaction in grouped[date]!)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                  child: Dismissible(
-                    key: ValueKey(transaction.id),
-                    direction: DismissDirection.endToStart,
-                    confirmDismiss: (_) => _confirmAndDelete(repository, transaction),
-                    background: Container(
-                      alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                      ),
-                      child: Icon(
-                        Icons.delete_outline_rounded,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                    child: TransactionTile(
-                      transaction: transaction,
-                      category: categoriesById[transaction.categoryId],
-                      account: accountsById[transaction.accountId],
-                      linkedPersonName: peopleById[transaction.linkedPersonId]?.name,
-                      onTap: () => context.push('${AppRoutes.transactions}/${transaction.id}'),
-                    ),
+          itemCount: slots.length,
+          itemBuilder: (context, index) {
+            final slot = slots[index];
+            if (slot is ({DateTime date, double netTotal})) {
+              return TransactionDateGroupHeader(date: slot.date, netTotal: slot.netTotal);
+            }
+            final transaction = slot as domain.Transaction;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSizes.sm),
+              child: Dismissible(
+                key: ValueKey(transaction.id),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (_) => _confirmAndDelete(repository, transaction),
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                  ),
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    color: Theme.of(context).colorScheme.error,
                   ),
                 ),
-            ],
-          ],
+                child: TransactionTile(
+                  transaction: transaction,
+                  category: categoriesById[transaction.categoryId],
+                  account: accountsById[transaction.accountId],
+                  linkedPersonName: peopleById[transaction.linkedPersonId]?.name,
+                  onTap: () => context.push('${AppRoutes.transactions}/${transaction.id}'),
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -320,24 +336,35 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final grouped = groupBy(visible, (entry) => entry.date.dateOnly);
     final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
-    return ListView(
+    // Flatten to header/row slots once per build so itemBuilder stays O(1)
+    // and only visible rows get built, and precompute each header's net
+    // total here instead of re-folding it inside the header widget.
+    final slots = <Object>[];
+    for (final date in sortedDates) {
+      slots.add((
+        date: date,
+        netTotal: grouped[date]!.fold(0.0, (sum, e) => sum + (e.isCredit ? e.amount : -e.amount)),
+      ));
+      slots.addAll(grouped[date]!);
+    }
+
+    return ListView.builder(
       padding: const EdgeInsets.all(AppSizes.lg),
-      children: [
-        for (final date in sortedDates) ...[
-          TransactionDateGroupHeader(
-            date: date,
-            netTotal: grouped[date]!.fold(0.0, (sum, e) => sum + (e.isCredit ? e.amount : -e.amount)),
+      itemCount: slots.length,
+      itemBuilder: (context, index) {
+        final slot = slots[index];
+        if (slot is ({DateTime date, double netTotal})) {
+          return TransactionDateGroupHeader(date: slot.date, netTotal: slot.netTotal);
+        }
+        final entry = slot as HistoryEntry;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSizes.sm),
+          child: HistoryTile(
+            entry: entry,
+            onTap: entry.routePath == null ? null : () => context.push(entry.routePath!),
           ),
-          for (final entry in grouped[date]!)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSizes.sm),
-              child: HistoryTile(
-                entry: entry,
-                onTap: entry.routePath == null ? null : () => context.push(entry.routePath!),
-              ),
-            ),
-        ],
-      ],
+        );
+      },
     );
   }
 
@@ -359,27 +386,33 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       case DeleteChoice.cancel:
         return false;
       case DeleteChoice.trash:
-        if (expense != null) {
-          await _deleteExpenseWithUndo(expense, transaction);
-        } else {
-          await _softDeleteWithUndo(repository, transaction);
-        }
-        return true;
+        return expense != null
+            ? await _deleteExpenseWithUndo(expense, transaction)
+            : await _softDeleteWithUndo(repository, transaction);
       case DeleteChoice.permanent:
-        if (expense != null) {
-          // deleteExpense already reverses the account balance (via
-          // TransactionRepository.softDeleteTransaction internally) before
-          // soft-deleting everything — permanent delete just needs the final
-          // hard-delete step afterward, same two-step shape as the plain
-          // transaction branch below.
-          await ref.read(expenseRepositoryProvider).deleteExpense(expense);
-          await repository.permanentlyDeleteTransaction(transaction);
-        } else {
-          // permanentlyDeleteTransaction only removes the document — it assumes
-          // the balance was already reversed by an earlier soft-delete. Since
-          // this transaction is still active, reverse its balance effect first.
-          await repository.softDeleteTransaction(transaction);
-          await repository.permanentlyDeleteTransaction(transaction);
+        try {
+          if (expense != null) {
+            // deleteExpense already reverses the account balance (via
+            // TransactionRepository.softDeleteTransaction internally) before
+            // soft-deleting everything — permanent delete just needs the final
+            // hard-delete step afterward, same two-step shape as the plain
+            // transaction branch below.
+            await ref.read(expenseRepositoryProvider).deleteExpense(expense);
+            await repository.permanentlyDeleteTransaction(transaction);
+          } else {
+            // permanentlyDeleteTransaction only removes the document — it assumes
+            // the balance was already reversed by an earlier soft-delete. Since
+            // this transaction is still active, reverse its balance effect first.
+            await repository.softDeleteTransaction(transaction);
+            await repository.permanentlyDeleteTransaction(transaction);
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not delete transaction: $e')),
+            );
+          }
+          return false;
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -390,9 +423,18 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     }
   }
 
-  Future<void> _softDeleteWithUndo(TransactionRepository repository, domain.Transaction transaction) async {
-    await repository.softDeleteTransaction(transaction);
-    if (!mounted) return;
+  Future<bool> _softDeleteWithUndo(TransactionRepository repository, domain.Transaction transaction) async {
+    try {
+      await repository.softDeleteTransaction(transaction);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete transaction: $e')),
+        );
+      }
+      return false;
+    }
+    if (!mounted) return true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Transaction moved to trash'),
@@ -402,6 +444,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         ),
       ),
     );
+    return true;
   }
 
   /// Cascading soft-delete for a transaction that's the account-balance
@@ -411,10 +454,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   /// snackbar-undone "owed" expense comes back owed — ledger entry,
   /// schedule/installments and all — instead of reverting to a plain
   /// transaction.
-  Future<void> _deleteExpenseWithUndo(Expense expense, domain.Transaction transaction) async {
+  Future<bool> _deleteExpenseWithUndo(Expense expense, domain.Transaction transaction) async {
     final expenseRepository = ref.read(expenseRepositoryProvider);
-    await expenseRepository.deleteExpense(expense);
-    if (!mounted) return;
+    try {
+      await expenseRepository.deleteExpense(expense);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete expense: $e')),
+        );
+      }
+      return false;
+    }
+    if (!mounted) return true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Expense moved to trash'),
@@ -424,6 +476,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         ),
       ),
     );
+    return true;
   }
 
   List<domain.Transaction> _applyFilters(

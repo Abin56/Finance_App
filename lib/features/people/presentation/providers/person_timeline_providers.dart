@@ -13,7 +13,7 @@ import 'people_providers.dart';
 /// fans out over the schedule's installments (payments are stored per
 /// installment, not per schedule) since no schedule-wide payment stream
 /// exists on `InstallmentPaymentRepository`.
-final _loanPaymentsProvider = Provider.family<List<InstallmentPayment>, String>((ref, scheduleId) {
+final _loanPaymentsProvider = Provider.autoDispose.family<List<InstallmentPayment>, String>((ref, scheduleId) {
   final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
   return [
     for (final installment in installments)
@@ -28,7 +28,7 @@ final _loanPaymentsProvider = Provider.family<List<InstallmentPayment>, String>(
 /// expense participants — assigned/split expenses too) together with their
 /// [Loan]s and loan payments, via [PersonTimelineBuilder]. This is the one
 /// place all of a person's money-interaction sources are pulled together.
-final personTimelineProvider = Provider.family<List<PersonTimelineEntry>, String>((ref, personId) {
+final personTimelineProvider = Provider.autoDispose.family<List<PersonTimelineEntry>, String>((ref, personId) {
   final ledgerEntries = ref.watch(ledgerStreamProvider(personId)).value ?? const [];
   final loans = ref.watch(loansForPersonProvider(personId));
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];

@@ -60,6 +60,26 @@ final totalPendingSplitAmountProvider = Provider<double>((ref) {
   return expenses.fold(0.0, (sum, e) => sum + ref.watch(remainingAmountProvider(e.scheduleId!)));
 });
 
+/// Sum of remaining amounts owed by *untracked* split-expense participants
+/// only (no linked [Person]) — the Cash Flow Center's "Split Expenses" row.
+/// A participant with a [Person] link already posts a ledger entry that
+/// feeds that person's `currentBalance`, which the Cash Flow Center counts
+/// separately under "People Pending Payments"; including it here too would
+/// double-count the same receivable under both rows.
+final untrackedPendingSplitAmountProvider = Provider<double>((ref) {
+  final expenses = ref.watch(pendingSplitExpensesProvider);
+  var total = 0.0;
+  for (final expense in expenses) {
+    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
+    for (final participant in expense.participants) {
+      if (participant.isMe || participant.personId != null) continue;
+      final installment = installments.where((i) => i.id == participant.installmentId).firstOrNull;
+      if (installment != null) total += installment.remainingAmount;
+    }
+  }
+  return total;
+});
+
 /// The split [Expense] linked to a given [Transaction.id], if any — the
 /// reverse of [Expense.transactionId], for a Transaction Details screen that
 /// needs to show participants/shares/status when a plain transaction turns
@@ -177,8 +197,7 @@ final myAverageMonthlyExpenseProvider = Provider<double>((ref) {
 
 /// Reports' period-scoped breakdown of "My Share": [personal] is my share of
 /// expenses with no other participants at all, [split] is my share of
-/// expenses I shared with others, [total] is the two combined — the same
-/// number [myTotalExpenseProvider] would give for an all-time range.
+/// expenses I shared with others, [total] is the two combined.
 typedef MyExpenseBreakdown = ({double personal, double split, double total});
 
 /// My Share breakdown for [transactions] — the caller (Reports) is

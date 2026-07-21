@@ -18,6 +18,7 @@ abstract class FirestoreCollections {
   static const String paymentSchedules = 'paymentSchedules';
   static const String installments = 'installments'; // subcollection under paymentSchedules/{scheduleId}
   static const String creditCards = 'creditCards';
+  static const String sharedCreditLimits = 'sharedCreditLimits'; // bank-issued facility shared by multiple creditCards
   static const String statements = 'statements'; // subcollection under creditCards/{cardId}
   static const String statementPayments = 'statementPayments'; // subcollection under statements/{statementId}
   static const String paymentBreakdowns = 'paymentBreakdowns'; // subcollection under emis/{emiId}, doc id == paymentId

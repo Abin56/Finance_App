@@ -36,24 +36,24 @@ final loansTrashStreamProvider = StreamProvider<List<Loan>>((ref) {
 /// Every loan for one person, for the person statement timeline — filtered
 /// client-side over [loansStreamProvider], same approach `creditorsProvider`/
 /// `debtorsProvider` use over `peopleStreamProvider`.
-final loansForPersonProvider = Provider.family<List<Loan>, String>((ref, personId) {
+final loansForPersonProvider = Provider.autoDispose.family<List<Loan>, String>((ref, personId) {
   final loans = ref.watch(loansStreamProvider).value ?? const [];
   return loans.where((l) => l.personId == personId).toList();
 });
 
 /// A loan's current status, derived from its linked schedule's installments.
-final loanStatusProvider = Provider.family<LoanStatus, Loan>((ref, loan) {
+final loanStatusProvider = Provider.autoDispose.family<LoanStatus, Loan>((ref, loan) {
   final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
   return loan.statusGiven(installments);
 });
 
 /// Sum of remaining amounts across a loan's installments.
-final loanRemainingAmountProvider = Provider.family<double, Loan>((ref, loan) {
+final loanRemainingAmountProvider = Provider.autoDispose.family<double, Loan>((ref, loan) {
   return ref.watch(remainingAmountProvider(loan.scheduleId));
 });
 
 /// Sum of amounts actually paid so far across a loan's installments.
-final loanTotalReceivedProvider = Provider.family<double, Loan>((ref, loan) {
+final loanTotalReceivedProvider = Provider.autoDispose.family<double, Loan>((ref, loan) {
   final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
   return installments.fold(0.0, (sum, i) => sum + i.amountPaid);
 });
@@ -62,19 +62,6 @@ final loanTotalReceivedProvider = Provider.family<double, Loan>((ref, loan) {
 final activeLoansProvider = Provider<List<Loan>>((ref) {
   final loans = ref.watch(loansStreamProvider).value ?? const [];
   return loans.where((l) => ref.watch(loanStatusProvider(l)) != LoanStatus.closed).toList();
-});
-
-/// Every loan with at least one overdue installment, not closed.
-final lendingOverdueLoansProvider = Provider<List<Loan>>((ref) {
-  final loans = ref.watch(loansStreamProvider).value ?? const [];
-  return loans.where((l) => ref.watch(loanStatusProvider(l)) == LoanStatus.overdue).toList();
-});
-
-/// Lifetime total lent across every non-deleted loan (distinct from "amount
-/// to receive", which nets out repayments already made).
-final totalMoneyLentProvider = Provider<double>((ref) {
-  final loans = ref.watch(loansStreamProvider).value ?? const [];
-  return loans.fold(0.0, (sum, l) => sum + l.loanAmount);
 });
 
 /// Sum of remaining amounts across every loan — the dashboard's "Amount to

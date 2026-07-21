@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/accounts/presentation/screens/account_detail_screen.dart';
 import '../../features/accounts/presentation/screens/accounts_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
@@ -15,7 +16,7 @@ import '../../features/categories/presentation/screens/categories_screen.dart';
 import '../../features/credit_cards/presentation/screens/credit_card_detail_screen.dart';
 import '../../features/credit_cards/presentation/screens/credit_cards_screen.dart';
 import '../../features/credit_cards/presentation/screens/statement_detail_screen.dart';
-import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/emi/presentation/screens/emi_detail_screen.dart';
 import '../../features/emi/presentation/screens/emis_screen.dart';
 import '../../features/lending/presentation/screens/loan_detail_screen.dart';
@@ -152,6 +153,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.accounts,
         builder: (context, state) => const AccountsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.accountDetail,
+        builder: (context, state) => AccountDetailScreen(accountId: state.pathParameters['accountId']!),
       ),
       GoRoute(
         path: AppRoutes.categories,

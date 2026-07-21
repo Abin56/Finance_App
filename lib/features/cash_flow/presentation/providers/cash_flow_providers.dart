@@ -118,7 +118,7 @@ final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((
   final now = DateTime.now();
   var due = 0.0, paid = 0.0;
   for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+    final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
     for (final s in statements) {
       if (s.status == StatementStatus.paid) continue;
       final isThisMonth = s.dueDate.isSameMonth(now);
@@ -152,10 +152,15 @@ typedef ReceivableCategoryBreakdown = ({double amount, int count});
 
 const _zeroReceivable = (amount: 0.0, count: 0);
 
-/// Split expenses still owed to me.
+/// Split expenses still owed to me by *untracked* participants only —
+/// participants linked to a [Person] already post a ledger entry counted
+/// under [peoplePendingReceivableProvider], so they're excluded here to
+/// avoid double-counting the same receivable in both rows.
 final splitExpensesReceivableProvider = Provider<ReceivableCategoryBreakdown>((ref) {
-  final pending = ref.watch(pendingSplitExpensesProvider);
-  final amount = ref.watch(totalPendingSplitAmountProvider);
+  final pending = ref.watch(pendingSplitExpensesProvider).where(
+        (e) => e.participants.any((p) => !p.isMe && p.personId == null),
+      );
+  final amount = ref.watch(untrackedPendingSplitAmountProvider);
   return (amount: amount, count: pending.length);
 });
 
@@ -206,7 +211,7 @@ final activeCardStatementSummariesProvider = Provider<List<CardStatementSummary>
   for (final card in cards.where((c) => c.status.isActive)) {
     var latest = ref.watch(currentStatementCycleProvider(card.id));
     if (latest == null) {
-      final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+      final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
       if (statements.isNotEmpty) {
         final sorted = [...statements]..sort((a, b) => b.dueDate.compareTo(a.dueDate));
         latest = sorted.first;
@@ -289,7 +294,7 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
 
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+    final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
     for (final s in statements) {
       if (s.status == StatementStatus.paid) continue;
       items.add((

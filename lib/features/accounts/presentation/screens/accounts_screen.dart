@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../providers/account_providers.dart';
@@ -107,7 +109,7 @@ class AccountsScreen extends ConsumerWidget {
                     },
                     child: AccountTile(
                       account: account,
-                      onTap: () => AccountFormSheet.show(context, account: account),
+                      onTap: () => context.push('${AppRoutes.accounts}/${account.id}'),
                     ),
                   ),
                 ),

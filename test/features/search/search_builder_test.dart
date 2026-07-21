@@ -17,6 +17,7 @@ import 'package:finance_app/features/search/domain/search_builder.dart';
 import 'package:finance_app/features/search/domain/search_result.dart';
 import 'package:finance_app/features/transactions/domain/transaction.dart';
 import 'package:finance_app/features/transactions/domain/transaction_type.dart';
+import 'package:finance_app/shared/domain/transaction_kind.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final _now = DateTime(2026, 3, 10);
@@ -316,6 +317,115 @@ void main() {
     test('finds an account and a category by name', () {
       expect(_build('hdfc', accounts: [_account()]).single.group, SearchResultGroup.accounts);
       expect(_build('food', categories: [_category()]).single.group, SearchResultGroup.categories);
+    });
+  });
+
+  group('TransactionKind classification', () {
+    test('a plain expense transaction classifies as myExpense', () {
+      final results = _build('coffee', transactions: [_txn()]);
+      expect(results.single.kind, TransactionKind.myExpense);
+    });
+
+    test('a plain income transaction classifies as myIncome', () {
+      final income = Transaction(
+        id: 't-income',
+        type: TransactionType.income,
+        amount: 5000,
+        dateTime: _now,
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: _now,
+        description: 'Salary',
+      );
+      final results = _build('salary', transactions: [income]);
+      expect(results.single.kind, TransactionKind.myIncome);
+    });
+
+    test('a transfer leg classifies as transfer, not myExpense/myIncome', () {
+      final transferLeg = Transaction(
+        id: 't-transfer',
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: _now,
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: _now,
+        description: 'Move to savings',
+        transferId: 'xfer1',
+      );
+      final results = _build('savings', transactions: [transferLeg]);
+      expect(results.single.kind, TransactionKind.transfer);
+    });
+
+    test('a split expense classifies as splitExpense', () {
+      final results = _build('dinner', expenses: [_splitExpense()]);
+      expect(results.single.kind, TransactionKind.splitExpense);
+    });
+
+    test('a bill classifies as bill', () {
+      final bill = Bill(
+        id: 'b1',
+        name: 'Electricity',
+        amount: 1800,
+        dueDate: _now,
+        recurrence: BillRecurrence.monthly,
+        createdAt: _now,
+      );
+      final results = _build('electric', bills: [bill]);
+      expect(results.single.kind, TransactionKind.bill);
+    });
+
+    test('an EMI classifies as emi', () {
+      final emi = Emi(
+        id: 'm1',
+        name: 'Bike loan',
+        principalAmount: 80000,
+        startDate: _now,
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 12,
+        endDate: DateTime(2027, 3, 10),
+        scheduleId: 's2',
+        createdAt: _now,
+        lenderName: 'Bajaj',
+      );
+      final results = _build('bajaj', emis: [emi]);
+      expect(results.single.kind, TransactionKind.emi);
+    });
+
+    test('a loan classifies as loan', () {
+      final loan = Loan(
+        id: 'l1',
+        personId: 'p1',
+        loanAmount: 5000,
+        loanDate: _now,
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 6, 1),
+        scheduleId: 's3',
+        createdAt: _now,
+        name: 'Ravi loan',
+      );
+      final results = _build('ravi loan', loans: [loan]);
+      expect(results.single.kind, TransactionKind.loan);
+    });
+
+    test('a credit card classifies as creditCard', () {
+      final card = CreditCardProfile(
+        id: 'cc1',
+        accountId: 'a1',
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 100000,
+        createdAt: _now,
+        lastFourDigits: '4321',
+      );
+      final results = _build('4321', creditCards: [card], accounts: [_account()]);
+      expect(results.where((r) => r.group == SearchResultGroup.creditCards).single.kind, TransactionKind.creditCard);
+    });
+
+    test('people/accounts/categories have no TransactionKind — they are not money movements', () {
+      expect(_build('ravi', people: [_person()]).single.kind, isNull);
+      expect(_build('hdfc', accounts: [_account()]).single.kind, isNull);
+      expect(_build('food', categories: [_category()]).single.kind, isNull);
     });
   });
 }

@@ -47,7 +47,8 @@ class GreetingHeader extends ConsumerWidget {
               Text(
                 'Here\'s your financial overview',
                 style: context.textTheme.bodyMedium?.copyWith(
-                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                  color: context.colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

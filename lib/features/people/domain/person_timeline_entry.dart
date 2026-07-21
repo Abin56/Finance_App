@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/domain/transaction_kind.dart';
 
 /// Which money-interaction area a [PersonTimelineEntry] belongs to, for the
 /// pending breakdown and filter chips. Bills/EMI have no [Person] linkage
@@ -114,4 +115,11 @@ class PersonTimelineEntry {
   static const _settlementTitles = {'Mark as Paid', 'Received Payment', 'Loan payment received'};
 
   bool get isSettlement => _settlementTitles.contains(title);
+
+  /// Every [PersonTimelineCategory] is inherently a people-ledger movement
+  /// (lending, an expense assigned to/shared with this person, or a plain
+  /// reference) — they all map to [TransactionKind.people] rather than
+  /// fragmenting into split-expense/loan on a screen whose entire point is
+  /// "this person's activity".
+  TransactionKind get kind => TransactionKind.people;
 }

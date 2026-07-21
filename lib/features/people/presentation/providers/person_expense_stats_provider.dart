@@ -19,7 +19,7 @@ class PersonExpenseStats {
   double get pending => totalSpent - totalSettled;
 }
 
-final personExpenseStatsProvider = Provider.family<PersonExpenseStats, String>((ref, personId) {
+final personExpenseStatsProvider = Provider.autoDispose.family<PersonExpenseStats, String>((ref, personId) {
   final participants = ref.watch(personSplitParticipantsProvider(personId));
   final totalSpent = participants.fold(0.0, (sum, p) => sum + p.participant.share);
   final totalSettled = participants.fold(0.0, (sum, p) => sum + p.installment.amountPaid);

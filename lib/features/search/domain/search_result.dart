@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/domain/transaction_kind.dart';
+
 /// Which section of the global Search screen a [SearchResult] is listed
 /// under. Ordered as declared — [SearchBuilder] emits groups in this order
 /// so the most-searched-for things (money movements, then people) surface
@@ -54,6 +56,7 @@ class SearchResult {
     required this.title,
     required this.subtitle,
     required this.icon,
+    this.kind,
     this.amount,
     this.date,
     this.routePath,
@@ -68,6 +71,12 @@ class SearchResult {
   final String subtitle;
 
   final IconData icon;
+
+  /// Which real-world kind of money movement this result represents, for
+  /// [TransactionKindBadge] — null for groups that aren't a money movement
+  /// at all ([SearchResultGroup.people]/`.accounts`/`.categories` are
+  /// reference entities, not transactions).
+  final TransactionKind? kind;
 
   /// Always positive when set; Search shows magnitude only, since it isn't
   /// a ledger view — direction/status belong on the detail screen.

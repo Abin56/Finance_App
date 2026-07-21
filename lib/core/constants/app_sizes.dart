@@ -36,13 +36,10 @@ abstract class AppSizes {
   // Responsive breakpoints
   static const double breakpointMobile = 600;
   static const double breakpointTablet = 1024;
-  static const double breakpointDesktop = 1440;
 
   // Component heights
   static const double buttonHeight = 52;
-  static const double inputHeight = 56;
   static const double bottomNavHeight = 64;
-  static const double appBarHeight = 64;
 
   /// Bottom padding a scrollable needs so its last item can scroll clear of
   /// the floating "+" button: the 64pt FAB plus its 16pt margin, and [lg]

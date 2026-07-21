@@ -15,6 +15,7 @@ import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/card_network.dart';
 import '../../domain/credit_card_profile.dart';
 import '../../domain/credit_card_status.dart';
+import '../../domain/shared_credit_limit.dart';
 import '../../domain/statement.dart';
 import '../../domain/statement_status.dart';
 import '../providers/credit_card_providers.dart';
@@ -125,8 +126,10 @@ class CreditCardDetailScreen extends ConsumerWidget {
 
     final account = ref.watch(accountForCardProvider(cardId));
     final standing = ref.watch(creditCardStandingProvider(cardId));
+    final sharedLimit = ref.watch(sharedCreditLimitForCardProvider(cardId));
+    final effectiveLimit = sharedLimit?.creditLimit ?? card.creditLimit;
     final current = ref.watch(currentStatementCycleProvider(cardId));
-    final statements = [...(ref.watch(statementsStreamProvider(cardId)).value ?? const [])]
+    final statements = [...ref.watch(statementsWithLiveTotalsProvider(cardId))]
       ..sort((a, b) => b.periodEnd.compareTo(a.periodEnd));
 
     return Scaffold(
@@ -157,10 +160,14 @@ class CreditCardDetailScreen extends ConsumerWidget {
             _ClosedCardNotice(status: card.status),
             const SizedBox(height: AppSizes.lg),
           ],
+          if (sharedLimit != null) ...[
+            _SharedLimitBanner(sharedLimit: sharedLimit, cardId: cardId),
+            const SizedBox(height: AppSizes.lg),
+          ],
           _CardUsageCard(
             used: standing.outstanding,
             available: standing.available,
-            creditLimit: card.creditLimit,
+            creditLimit: effectiveLimit,
             currentCycleSpend: standing.currentCycleSpend,
           ),
           if (_hasCardInfo(card)) ...[
@@ -253,6 +260,49 @@ class _ClosedCardNotice extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shown above [_CardUsageCard] when this card draws from a bank-issued
+/// shared credit limit (e.g. a Visa/RuPay pair of the same physical card) —
+/// names the facility and how many cards draw from it, tappable to open
+/// Card Settings where the facility can be changed.
+class _SharedLimitBanner extends ConsumerWidget {
+  const _SharedLimitBanner({required this.sharedLimit, required this.cardId});
+
+  final SharedCreditLimit sharedLimit;
+  final String cardId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+    final card = cards.where((c) => c.id == cardId).firstOrNull;
+    final memberCount = ref.watch(cardsUnderSharedLimitProvider(sharedLimit.id)).length;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+      onTap: card == null ? null : () => CreditCardFormSheet.show(context, card: card),
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.md),
+        decoration: BoxDecoration(
+          color: context.colors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.account_balance_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+            const SizedBox(width: AppSizes.sm),
+            Expanded(
+              child: Text(
+                'Shared credit limit — ${sharedLimit.name} ($memberCount card${memberCount == 1 ? '' : 's'})',
+                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded),
+          ],
+        ),
       ),
     );
   }

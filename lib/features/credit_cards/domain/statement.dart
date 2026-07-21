@@ -7,10 +7,16 @@ import 'statement_status.dart';
 
 /// One closed billing cycle for a [CreditCardProfile] — materialized once
 /// (see `StatementRepository.materializeIfDue`) from the transactions that
-/// fell inside its window; [totalAmount] never changes retroactively after
-/// that (a real card statement is a closed snapshot), only [amountPaid]
-/// (via [StatementPayment]s) and manually-logged [interestCharged]/
-/// [lateFee] change afterward.
+/// fell inside its window. [totalAmount]/[minimumDue] are the values at
+/// materialization time; every screen/provider that displays a statement's
+/// total must read it via `statementsWithLiveTotalsProvider` instead of
+/// these fields directly, since a transaction inside an already-closed
+/// period can still be soft-deleted, edited, or restored afterward and this
+/// stored snapshot is never itself rewritten (see `StatementRepository.
+/// totalFor`, which recomputes it live the same way it's computed for a new
+/// statement). [amountPaid] (via [StatementPayment]s) and manually-logged
+/// [interestCharged]/[lateFee] are the only fields safe to read directly, as
+/// they're independent of the underlying transactions.
 class Statement extends SoftDeletableEntity {
   Statement({
     required this.id,
@@ -45,11 +51,14 @@ class Statement extends SoftDeletableEntity {
   /// `[periodStart, periodEnd]` at generation time — always the full
   /// transaction amount, unaffected by a later split/assignment (see
   /// `Expense.myShare`, which only reallocates who owes what, never the
-  /// underlying transaction).
+  /// underlying transaction). Stale the moment one of those transactions is
+  /// later deleted/edited/restored — see the class doc, use
+  /// `StatementRepository.liveTotalFor` instead of reading this directly.
   final double totalAmount;
 
-  /// Computed from `CreditCardProfile.minimumDuePercent` at generation
-  /// time, if that card tracks a minimum due; null otherwise.
+  /// Computed from `CreditCardProfile.minimumDuePercent` and [totalAmount]
+  /// at generation time; null if that card tracks no minimum due. Subject
+  /// to the same staleness as [totalAmount].
   final double? minimumDue;
 
   /// Cumulative [StatementPayment]s — same "cached, subcollection is
@@ -74,6 +83,31 @@ class Statement extends SoftDeletableEntity {
     final start = DateTime(periodStart.year, periodStart.month, periodStart.day);
     final end = DateTime(periodEnd.year, periodEnd.month, periodEnd.day);
     return !day.isBefore(start) && !day.isAfter(end);
+  }
+
+  /// A copy with [totalAmount]/[minimumDue] replaced — used by
+  /// `statementsWithLiveTotalsProvider` to correct this materialized
+  /// statement's stored (possibly stale) total against what its period's
+  /// transactions currently sum to, without touching Firestore or any other
+  /// field (including [amountPaid], [editHistory], etc.).
+  Statement withLiveTotal(double liveTotalAmount, double? liveMinimumDue) {
+    return Statement(
+      id: id,
+      cardId: cardId,
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+      generatedDate: generatedDate,
+      dueDate: dueDate,
+      totalAmount: liveTotalAmount,
+      minimumDue: liveMinimumDue,
+      createdAt: createdAt,
+      amountPaid: amountPaid,
+      interestCharged: interestCharged,
+      lateFee: lateFee,
+    )
+      ..deletedAt = deletedAt
+      ..lastEditedAt = lastEditedAt
+      ..editHistory = editHistory;
   }
 
   StatementStatus get status {

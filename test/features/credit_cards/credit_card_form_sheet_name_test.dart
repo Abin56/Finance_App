@@ -16,6 +16,7 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: const MaterialApp(home: Scaffold(body: CreditCardFormSheet())),
       ),
@@ -33,6 +34,8 @@ void main() {
   testWidgets('picking a bank and network updates the computed name preview', (tester) async {
     await pump(tester);
 
+    await tester.ensureVisible(find.text('Select bank (optional)'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Select bank (optional)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('HDFC Bank'));
@@ -40,9 +43,9 @@ void main() {
 
     expect(find.text('Shown as "HDFC"'), findsOneWidget);
 
-    await tester.tap(find.text('Not set'));
+    await tester.ensureVisible(find.text('Visa'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Visa').last);
+    await tester.tap(find.text('Visa'));
     await tester.pumpAndSettle();
 
     expect(find.text('Shown as "HDFC Visa"'), findsOneWidget);

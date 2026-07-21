@@ -33,7 +33,7 @@ final billsTrashStreamProvider = StreamProvider<List<Bill>>((ref) {
 
 /// Payment repository for a single bill's subcollection, scoped by
 /// [billId] — a fresh repository per bill, mirrors `ledgerRepositoryProvider`.
-final paymentRepositoryProvider = Provider.family<PaymentRepository, String>((ref, billId) {
+final paymentRepositoryProvider = Provider.autoDispose.family<PaymentRepository, String>((ref, billId) {
   final firestore = ref.watch(firestoreProvider);
   final uid = ref.watch(currentUserIdProvider);
   final collection = firestore
@@ -49,11 +49,11 @@ final paymentRepositoryProvider = Provider.family<PaymentRepository, String>((re
   return PaymentRepository(collection, ref.watch(billRepositoryProvider));
 });
 
-final paymentsStreamProvider = StreamProvider.family<List<PaymentRecord>, String>((ref, billId) {
+final paymentsStreamProvider = StreamProvider.autoDispose.family<List<PaymentRecord>, String>((ref, billId) {
   return ref.watch(paymentRepositoryProvider(billId)).watchAll();
 });
 
-final paymentsTrashStreamProvider = StreamProvider.family<List<PaymentRecord>, String>((ref, billId) {
+final paymentsTrashStreamProvider = StreamProvider.autoDispose.family<List<PaymentRecord>, String>((ref, billId) {
   return ref.watch(paymentRepositoryProvider(billId)).watchTrash();
 });
 
@@ -106,11 +106,4 @@ final totalOverdueAmountProvider = Provider<double>((ref) {
 
 final overdueCountProvider = Provider<int>((ref) {
   return ref.watch(overdueBillsProvider).length;
-});
-
-/// Every non-paid, non-skipped bill due on [date] — powers the calendar's
-/// tap-a-date day list.
-final billsForDateProvider = Provider.family<List<Bill>, DateTime>((ref, date) {
-  final bills = ref.watch(billsStreamProvider).value ?? const [];
-  return bills.where((b) => b.dueDate.isSameDay(date)).toList();
 });

@@ -15,7 +15,7 @@ typedef DateRangeKey = ({DateTime start, DateTime end});
 /// Sum of `amountPaid` across every active EMI's installments whose due
 /// date falls within [range] — a period-scoped variant of
 /// [emiPaidThisMonthProvider], which is this-month-only.
-final emiPaidForRangeProvider = Provider.family<double, DateRangeKey>((ref, range) {
+final emiPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final emis = ref.watch(activeEmisProvider);
   var total = 0.0;
   for (final emi in emis) {
@@ -30,7 +30,7 @@ final emiPaidForRangeProvider = Provider.family<double, DateRangeKey>((ref, rang
 
 /// Sum of `amountPaid` across every active Loan's installments whose due
 /// date falls within [range].
-final loanPaidForRangeProvider = Provider.family<double, DateRangeKey>((ref, range) {
+final loanPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final loans = ref.watch(activeLoansProvider);
   var total = 0.0;
   for (final loan in loans) {
@@ -46,7 +46,7 @@ final loanPaidForRangeProvider = Provider.family<double, DateRangeKey>((ref, ran
 /// Sum of `Bill.amountPaid` across every bill whose due date falls within
 /// [range] — "Total Bills Paid" for an arbitrary report period (as opposed
 /// to [paidBillsProvider], which has no date filter).
-final billsPaidForRangeProvider = Provider.family<double, DateRangeKey>((ref, range) {
+final billsPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   var total = 0.0;
   for (final b in bills) {
@@ -58,7 +58,7 @@ final billsPaidForRangeProvider = Provider.family<double, DateRangeKey>((ref, ra
 
 /// Sum of `Statement.amountPaid` across every card's statements whose due
 /// date falls within [range] — "Credit Card Bills Paid".
-final creditCardBillsPaidForRangeProvider = Provider.family<double, DateRangeKey>((ref, range) {
+final creditCardBillsPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   var total = 0.0;
   for (final card in cards) {
@@ -71,12 +71,17 @@ final creditCardBillsPaidForRangeProvider = Provider.family<double, DateRangeKey
   return total;
 });
 
-/// Credit Utilization % — total outstanding across every card divided by
-/// total credit limit, guarded against a zero denominator.
+/// Credit Utilization % — total outstanding across every card/group divided
+/// by total credit limit, guarded against a zero denominator. Both sides use
+/// [totalCreditLimitProvider]/[totalCreditCardOutstandingProvider], which
+/// count a shared credit limit's [SharedCreditLimit.creditLimit] exactly
+/// once — summing raw [CreditCardProfile.creditLimit] here would
+/// double-count a shared Visa/RuPay pair's limit and understate the
+/// percentage.
 final creditUtilizationPercentProvider = Provider<double>((ref) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final cards = ref.watch(activeCreditCardsProvider);
   if (cards.isEmpty) return 0;
-  final totalLimit = cards.fold(0.0, (sum, c) => sum + c.creditLimit);
+  final totalLimit = ref.watch(totalCreditLimitProvider);
   if (totalLimit == 0) return 0;
   final outstanding = ref.watch(totalCreditCardOutstandingProvider);
   return (outstanding / totalLimit) * 100;
@@ -85,7 +90,7 @@ final creditUtilizationPercentProvider = Provider<double>((ref) {
 /// Sum of `Emi.insuranceAmount` across EMIs created within [range] — a
 /// one-time, informational charge (not amortized), so it's attributed to
 /// the EMI's creation date.
-final insuranceChargesForRangeProvider = Provider.family<double, DateRangeKey>((ref, range) {
+final insuranceChargesForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   return emis
       .where((e) => !e.createdAt.isBefore(range.start) && !e.createdAt.isAfter(range.end))
@@ -93,7 +98,7 @@ final insuranceChargesForRangeProvider = Provider.family<double, DateRangeKey>((
 });
 
 /// Sum of `Emi.processingFee` across EMIs created within [range].
-final processingFeesForRangeProvider = Provider.family<double, DateRangeKey>((ref, range) {
+final processingFeesForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   return emis
       .where((e) => !e.createdAt.isBefore(range.start) && !e.createdAt.isAfter(range.end))
@@ -101,7 +106,7 @@ final processingFeesForRangeProvider = Provider.family<double, DateRangeKey>((re
 });
 
 /// Sum of `Emi.extraCharges` across EMIs created within [range].
-final otherChargesForRangeProvider = Provider.family<double, DateRangeKey>((ref, range) {
+final otherChargesForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   return emis
       .where((e) => !e.createdAt.isBefore(range.start) && !e.createdAt.isAfter(range.end))

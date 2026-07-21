@@ -156,53 +156,65 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
             BillStatus.paid,
           ];
 
-          return ListView(
+          // Flatten to header/row slots once per build so itemBuilder stays
+          // O(1) and only visible rows get built, rather than materializing
+          // every status group's tiles up front regardless of scroll position.
+          final slots = <Object>[];
+          for (final status in statusOrder) {
+            final group = grouped[status];
+            if (group == null) continue;
+            slots.add(status);
+            slots.addAll(group);
+          }
+
+          return ListView.builder(
             padding: const EdgeInsets.all(AppSizes.lg),
-            children: [
-              for (final status in statusOrder)
-                if (grouped[status] != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSizes.sm, top: AppSizes.sm),
-                    child: Row(
-                      children: [
-                        Icon(status.icon, size: AppSizes.iconSm, color: status.color),
-                        const SizedBox(width: AppSizes.xs),
-                        Text(
-                          '${status.label} (${grouped[status]!.length})',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: status.color),
-                        ),
-                      ],
+            itemCount: slots.length,
+            itemBuilder: (context, index) {
+              final slot = slots[index];
+              if (slot is BillStatus) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSizes.sm, top: AppSizes.sm),
+                  child: Row(
+                    children: [
+                      Icon(slot.icon, size: AppSizes.iconSm, color: slot.color),
+                      const SizedBox(width: AppSizes.xs),
+                      Text(
+                        '${slot.label} (${grouped[slot]!.length})',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(color: slot.color),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final bill = slot as Bill;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                child: Dismissible(
+                  key: ValueKey(bill.id),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) => confirmDelete(context, entityName: 'Bill'),
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                    ),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      color: Theme.of(context).colorScheme.error,
                     ),
                   ),
-                  for (final bill in grouped[status]!)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                      child: Dismissible(
-                        key: ValueKey(bill.id),
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (_) => confirmDelete(context, entityName: 'Bill'),
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                          ),
-                          child: Icon(
-                            Icons.delete_outline_rounded,
-                            color: Theme.of(context).colorScheme.error,
-                          ),
-                        ),
-                        onDismissed: (_) => _softDeleteWithUndo(bill),
-                        child: BillTile(
-                          bill: bill,
-                          category: categoriesById[bill.categoryId],
-                          onTap: () => context.push('${AppRoutes.bills}/${bill.id}'),
-                        ),
-                      ),
-                    ),
-                ],
-            ],
+                  onDismissed: (_) => _softDeleteWithUndo(bill),
+                  child: BillTile(
+                    bill: bill,
+                    category: categoriesById[bill.categoryId],
+                    onTap: () => context.push('${AppRoutes.bills}/${bill.id}'),
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

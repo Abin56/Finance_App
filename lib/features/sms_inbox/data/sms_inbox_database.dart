@@ -17,11 +17,17 @@ class SmsInboxDatabase {
 
   static const String tableName = 'sms_inbox';
   static const String merchantMemoryTableName = 'sms_merchant_memory';
+  static const String deletedMessageKeysTableName = 'sms_deleted_message_keys';
 
-  /// v2 — added `message_key`, dropped `UNIQUE(dedup_key)` so genuine
-  /// duplicates are stored for review rather than silently discarded, and
-  /// added the merchant-memory table.
-  static const int schemaVersion = 2;
+  /// v3 — added `sms_deleted_message_keys`, a tombstone table recording the
+  /// `message_key` of every row the user has ever deleted. Without it,
+  /// deleting a row only removed it from `sms_inbox`; the next `scanInbox()`
+  /// re-read the same physical device message, found no row with that
+  /// `message_key`, and re-inserted it as "new" — silently undoing the
+  /// user's delete (and, for an already-converted SMS, resurrecting a
+  /// pending row for a message that already has a real transaction behind
+  /// it). `scanInbox()` now checks this table before inserting.
+  static const int schemaVersion = 3;
 
   static SmsInboxDatabase? _instance;
 
@@ -76,6 +82,20 @@ class SmsInboxDatabase {
     ''');
     await _createInboxIndexes(db);
     await _createMerchantMemoryTable(db);
+    await _createDeletedMessageKeysTable(db);
+  }
+
+  /// One row per deleted [SmsInboxItem.messageKey] — a tombstone so a
+  /// re-scan of the device inbox never resurrects a message the user
+  /// explicitly deleted. `deleted_at` exists for potential future pruning
+  /// (e.g. a "keep tombstones for 1 year" policy) but nothing reads it today.
+  static Future<void> _createDeletedMessageKeysTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $deletedMessageKeysTableName (
+        message_key TEXT PRIMARY KEY,
+        deleted_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   static Future<void> _createInboxIndexes(Database db) async {
@@ -140,6 +160,12 @@ class SmsInboxDatabase {
 
       await _backfillMessageKeys(db);
       await db.execute('DROP TABLE ${tableName}_v1');
+    }
+    // The v1→v2 branch above already creates this table via its own
+    // _onCreate call, so guard against a double-create when a v1 database
+    // jumps straight to v3.
+    if (oldVersion == 2) {
+      await _createDeletedMessageKeysTable(db);
     }
   }
 

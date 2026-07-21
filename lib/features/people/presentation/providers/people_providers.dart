@@ -58,20 +58,10 @@ final totalPayableProvider = Provider<double>((ref) {
   return ref.watch(debtorsProvider).fold(0.0, (total, p) => total + p.currentBalance.abs());
 });
 
-/// The single person with the largest outstanding balance (either
-/// direction), or null if no one has an outstanding balance.
-final largestOutstandingProvider = Provider<Person?>((ref) {
-  final people = ref.watch(peopleStreamProvider).value ?? const [];
-  final withBalance = people.where((p) => p.currentBalance != 0).toList();
-  if (withBalance.isEmpty) return null;
-  withBalance.sort((a, b) => b.currentBalance.abs().compareTo(a.currentBalance.abs()));
-  return withBalance.first;
-});
-
 /// Ledger repository for a single person's subcollection, scoped by
 /// [personId] — a fresh repository per person, since each addresses a
 /// different Firestore subcollection path.
-final ledgerRepositoryProvider = Provider.family<LedgerRepository, String>((ref, personId) {
+final ledgerRepositoryProvider = Provider.autoDispose.family<LedgerRepository, String>((ref, personId) {
   final firestore = ref.watch(firestoreProvider);
   final uid = ref.watch(currentUserIdProvider);
   final collection = firestore
@@ -87,11 +77,11 @@ final ledgerRepositoryProvider = Provider.family<LedgerRepository, String>((ref,
   return LedgerRepository(collection, ref.watch(personRepositoryProvider));
 });
 
-final ledgerStreamProvider = StreamProvider.family<List<LedgerEntry>, String>((ref, personId) {
+final ledgerStreamProvider = StreamProvider.autoDispose.family<List<LedgerEntry>, String>((ref, personId) {
   return ref.watch(ledgerRepositoryProvider(personId)).watchAll();
 });
 
-final ledgerTrashStreamProvider = StreamProvider.family<List<LedgerEntry>, String>((ref, personId) {
+final ledgerTrashStreamProvider = StreamProvider.autoDispose.family<List<LedgerEntry>, String>((ref, personId) {
   return ref.watch(ledgerRepositoryProvider(personId)).watchTrash();
 });
 
@@ -101,7 +91,7 @@ final ledgerTrashStreamProvider = StreamProvider.family<List<LedgerEntry>, Strin
 /// a real `Expense`/`LedgerEntry` and surfaces through
 /// [ledgerStreamProvider] instead, so it's excluded here to avoid appearing
 /// twice in [PersonTimelineBuilder.build]'s merged output.
-final personReferencedTransactionsProvider = Provider.family<List<Transaction>, String>((ref, personId) {
+final personReferencedTransactionsProvider = Provider.autoDispose.family<List<Transaction>, String>((ref, personId) {
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];
   final transactionIdsWithExpense = {for (final e in expenses) e.transactionId};

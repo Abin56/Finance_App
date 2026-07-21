@@ -12,7 +12,16 @@ abstract class SmsRegexUtils {
   SmsRegexUtils._();
 
   static final RegExp _amountPattern = RegExp(
-    r'(?:rs\.?|inr|₹)\s?([\d,]+(?:\.\d{1,2})?)',
+    r'(?:rs|inr|₹)\s?\.?\s?([\d,]+(?:\.\d{1,2})?)',
+    caseSensitive: false,
+  );
+
+  /// Some SBI UPI messages state the amount as `debited/credited by 20.00`
+  /// with no currency marker at all (`rs`/`inr`/`₹`), so the primary
+  /// [_amountPattern] never matches them. This is the fallback for exactly
+  /// that phrasing.
+  static final RegExp _amountByPattern = RegExp(
+    r'\b(?:debited|credited)\s+by\s+([\d,]+(?:\.\d{1,2})?)',
     caseSensitive: false,
   );
 
@@ -22,7 +31,7 @@ abstract class SmsRegexUtils {
   );
 
   static final RegExp _debitPattern = RegExp(
-    r'\b(debited|spent|paid|withdrawn|deducted)\b',
+    r'\b(debited|spent|paid|withdrawn|deducted|txn|transaction)\b',
     caseSensitive: false,
   );
 
@@ -46,7 +55,7 @@ abstract class SmsRegexUtils {
   );
 
   static double? extractAmount(String body) {
-    final match = _amountPattern.firstMatch(body);
+    final match = _amountPattern.firstMatch(body) ?? _amountByPattern.firstMatch(body);
     if (match == null) return null;
     final raw = match.group(1)?.replaceAll(',', '');
     return raw == null ? null : double.tryParse(raw);

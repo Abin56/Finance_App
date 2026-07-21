@@ -6,14 +6,17 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
 import '../../../../shared/widgets/states/transaction_flag_badge.dart';
+import '../../../../shared/widgets/states/transaction_kind_badge.dart';
 import '../../domain/history_entry.dart';
 
 /// One row in the unified History feed — same visual language as
-/// `LedgerTimelineTile`/`PaymentTile`/`EmiPaymentHistoryTile` (tinted icon,
-/// title/subtitle, signed trailing amount), so History reads consistently
-/// with every other timeline in the app. A [HistoryCategory.splitExpense]
-/// entry additionally shows a "Split expense" badge, participant count, and
-/// the live amount still to collect from participants.
+/// `PaymentTile`/`EmiPaymentHistoryTile` (tinted icon, title/subtitle,
+/// signed trailing amount), so History reads consistently
+/// with every other timeline in the app. Every row shows a
+/// [TransactionKindBadge] so its money-movement type is identifiable at a
+/// glance. A [HistoryCategory.splitExpense] entry additionally shows
+/// participant count and the live amount still to collect from
+/// participants.
 class HistoryTile extends StatelessWidget {
   const HistoryTile({super.key, required this.entry, this.onTap});
 
@@ -51,6 +54,8 @@ class HistoryTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(entry.title, style: context.textTheme.titleMedium),
+                        const SizedBox(height: 2),
+                        TransactionKindBadge(kind: entry.kind, compact: true),
                         if (splitDetail == null)
                           Text(
                             entry.subtitle.isNotEmpty ? '${entry.category.label} · ${entry.subtitle}' : entry.category.label,
@@ -92,12 +97,9 @@ class HistoryTile extends StatelessWidget {
                     ),
                     _Chip(
                       icon: Icons.person_rounded,
-                      label: 'My share ${CurrencyFormatter.instance.format(splitDetail.myShare)}',
-                      color: context.colors.onSurface.withValues(alpha: 0.7),
-                    ),
-                    _Chip(
-                      icon: Icons.group_outlined,
-                      label: '${splitDetail.participantCount} people',
+                      label: splitDetail.shares
+                          .map((s) => '${s.name} ${CurrencyFormatter.instance.format(s.share)}')
+                          .join(' · '),
                       color: context.colors.onSurface.withValues(alpha: 0.7),
                     ),
                     if (splitDetail.collected > 0)

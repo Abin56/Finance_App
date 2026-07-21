@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../accounts/presentation/providers/account_providers.dart';
 import '../../bills/presentation/widgets/payment_form_sheet.dart';
 import '../../categories/presentation/providers/category_providers.dart';
 import '../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -55,7 +56,7 @@ class SmsConversionRouter {
       case SmsConversionTarget.creditCardPurchase:
         await AddExpenseScreen.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense, matchCreditCard: true),
+          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
           initialType: TransactionType.expense,
         );
         return;
@@ -108,13 +109,12 @@ class SmsConversionRouter {
         );
         return;
       case SmsConversionTarget.transferBetweenAccounts:
-        // Source account guessed from a card match where possible (the only
-        // reliable masked-number signal today — plain bank Accounts have no
-        // equivalent field); destination is always left for the user, since
-        // an SMS never states which of the user's own accounts it moved into.
+        // Source account guessed from the masked number where possible;
+        // destination is always left for the user, since an SMS never states
+        // which of the user's own accounts it moved into.
         await TransferScreen.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense, matchCreditCard: true),
+          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
         );
     }
   }
@@ -127,7 +127,6 @@ class SmsConversionRouter {
     WidgetRef ref,
     SmsInboxItem item, {
     required TransactionType transactionType,
-    bool matchCreditCard = false,
   }) {
     final parsed = item.parsed;
 
@@ -146,27 +145,34 @@ class SmsConversionRouter {
       merchantOrSender: parsed?.merchantOrSender,
       suggestedCategoryId: suggestion?.categoryId,
       categorySuggestionSource: suggestion?.source,
-      suggestedAccountId: matchCreditCard ? _matchCardAccountId(ref, parsed?.maskedAccountOrCard) : null,
+      suggestedAccountId: _matchAccountId(ref, parsed?.maskedAccountOrCard),
       referenceNumber: parsed?.referenceNumber,
       note: _buildNote(item),
     );
   }
 
-  /// Resolves the account behind a card whose last-4 the SMS exposed, but
-  /// **only when exactly one** of the user's cards matches. Two cards sharing
-  /// a last-4 is uncommon but entirely real, and there is nothing else in the
-  /// SMS to break the tie — so per the feature spec ("Never guess. If
-  /// multiple cards could match, leave unselected") an ambiguous match yields
-  /// null and the user picks. Silently taking the first match would put the
-  /// spend on the wrong card's statement, which is a wrong number rather than
-  /// a missing one.
-  String? _matchCardAccountId(WidgetRef ref, String? maskedAccountOrCard) {
+  /// Resolves the account behind a masked last-4 the SMS exposed, checking
+  /// both credit cards and plain bank Accounts, but **only when exactly one**
+  /// match turns up across the two combined. Two cards, two accounts, or a
+  /// card and an account sharing a last-4 is uncommon but entirely real, and
+  /// there is nothing else in the SMS to break the tie — so per the feature
+  /// spec ("Never guess. If multiple could match, leave unselected") an
+  /// ambiguous match yields null and the user picks. Silently taking the
+  /// first match would put the spend on the wrong account's statement, which
+  /// is a wrong number rather than a missing one.
+  String? _matchAccountId(WidgetRef ref, String? maskedAccountOrCard) {
     if (maskedAccountOrCard == null) return null;
 
     final cards = ref.read(creditCardsStreamProvider).value ?? const [];
-    final matches = cards.where((card) => card.lastFourDigits == maskedAccountOrCard).toList();
+    final cardMatches = cards.where((card) => card.lastFourDigits == maskedAccountOrCard).map((c) => c.accountId);
 
-    return matches.length == 1 ? matches.single.accountId : null;
+    final accounts = ref.read(accountsStreamProvider).value ?? const [];
+    final accountMatches = accounts
+        .where((account) => account.accountNumberLast4 == maskedAccountOrCard)
+        .map((a) => a.id);
+
+    final matches = {...cardMatches, ...accountMatches};
+    return matches.length == 1 ? matches.single : null;
   }
 
   String? _buildNote(SmsInboxItem item) {

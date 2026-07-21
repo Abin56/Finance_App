@@ -9,6 +9,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
+import '../../../../shared/widgets/states/transaction_kind_badge.dart';
 import '../../domain/search_result.dart';
 import '../providers/search_providers.dart';
 
@@ -190,9 +191,19 @@ class _ResultTile extends StatelessWidget {
         child: Icon(result.icon, size: AppSizes.iconSm, color: context.colors.primary),
       ),
       title: Text(result.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: result.subtitle.isEmpty
+      subtitle: result.kind == null && result.subtitle.isEmpty
           ? null
-          : Text(result.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (result.kind != null) ...[
+                  TransactionKindBadge(kind: result.kind!, compact: true),
+                  if (result.subtitle.isNotEmpty) const SizedBox(height: 2),
+                ],
+                if (result.subtitle.isNotEmpty)
+                  Text(result.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
       trailing: result.amount == null
           ? null
           : Column(

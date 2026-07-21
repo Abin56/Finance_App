@@ -35,6 +35,7 @@ class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
     text: widget.goal == null ? '' : widget.goal!.targetAmount.toStringAsFixed(2),
   );
   late final _notesController = TextEditingController(text: widget.goal?.notes ?? '');
+  final _targetFocusNode = FocusNode();
   DateTime? _dueDate;
   bool _isSaving = false;
 
@@ -51,6 +52,7 @@ class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
     _nameController.dispose();
     _targetController.dispose();
     _notesController.dispose();
+    _targetFocusNode.dispose();
     super.dispose();
   }
 
@@ -123,13 +125,16 @@ class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
                 decoration: const InputDecoration(labelText: 'Goal name'),
                 validator: Validators.required,
                 textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _targetFocusNode.requestFocus(),
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _targetController,
+                focusNode: _targetFocusNode,
                 decoration: const InputDecoration(labelText: 'Target amount'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: Validators.amount,
+                textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: AppSizes.md),
               Row(

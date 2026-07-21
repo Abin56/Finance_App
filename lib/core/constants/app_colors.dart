@@ -59,6 +59,5 @@ abstract class AppColors {
   // Gradients
   static const List<Color> primaryGradient = [Color(0xFF5B5FEF), Color(0xFF8B5FEF)];
   static const List<Color> incomeGradient = [Color(0xFF1FB873), Color(0xFF0F9D6B)];
-  static const List<Color> expenseGradient = [Color(0xFFFF5B5B), Color(0xFFFF8B5B)];
   static const List<Color> savingsGradient = [Color(0xFF3E8EFF), Color(0xFF5B5FEF)];
 }

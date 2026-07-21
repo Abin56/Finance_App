@@ -31,7 +31,7 @@ class StatementDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statements = ref.watch(statementsStreamProvider(cardId)).value ?? const [];
+    final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
     final statement = statements.where((s) => s.id == statementId).firstOrNull;
     if (statement == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));

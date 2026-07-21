@@ -51,6 +51,7 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
   late String? _accountId = widget.bill?.accountId;
   late String? _categoryId = widget.bill?.categoryId;
   final Set<int> _reminderOffsets = {};
+  final _amountFocusNode = FocusNode();
   bool _isSaving = false;
 
   bool get _isEditing => widget.bill != null;
@@ -67,6 +68,7 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
     _amountController.dispose();
     _customDaysController.dispose();
     _notesController.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
@@ -157,13 +159,16 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
                 decoration: const InputDecoration(labelText: 'Bill name'),
                 validator: Validators.required,
                 textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _amountController,
+                focusNode: _amountFocusNode,
                 decoration: const InputDecoration(labelText: 'Amount'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: Validators.amount,
+                textInputAction: TextInputAction.done,
               ),
               const SizedBox(height: AppSizes.md),
               OutlinedButton.icon(

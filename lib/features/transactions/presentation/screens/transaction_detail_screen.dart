@@ -965,8 +965,8 @@ class _ParticipantCard extends ConsumerWidget {
 
 /// Every [InstallmentPayment] across every participant's tracking
 /// installment, newest first — the split expense's settlement history,
-/// styled like `EmiPaymentHistoryTile`/`LedgerTimelineTile` so every
-/// payment timeline in the app reads consistently.
+/// styled like `EmiPaymentHistoryTile` so every payment timeline in the
+/// app reads consistently.
 class _SettlementHistorySection extends ConsumerWidget {
   const _SettlementHistorySection({required this.expense});
 

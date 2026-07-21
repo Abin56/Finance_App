@@ -32,7 +32,11 @@ class SmsInboxRepository {
   ///
   /// Safe to call repeatedly: a physical message already stored is recognized
   /// by its `UNIQUE(message_key)` and skipped, so re-scanning never
-  /// re-imports or re-inserts anything.
+  /// re-imports or re-inserts anything. A physical message the user has
+  /// since *deleted* is recognized the same way, via the tombstone
+  /// [SmsInboxDao.deletedMessageKeysAmong] checks — so deleting an item
+  /// (imported or not) stays deleted across future scans/app restarts
+  /// instead of reappearing as a fresh pending row.
   ///
   /// A *different* physical message describing a payment already stored (a
   /// bank re-sending it from another DLT sender, or with different promo
@@ -55,8 +59,18 @@ class SmsInboxRepository {
     // before batching replaced it (see [SmsInboxDao.insertManyIfNew]).
     final originalIdByDedupKeyThisScan = <String, String>{};
 
+    final candidateKeys = rawMessages.map(
+      (m) => SmsMessageKey.compute(sender: m.address, dateTime: m.date, body: m.body),
+    );
+    final deletedKeys = await _dao.deletedMessageKeysAmong(candidateKeys);
+
     for (final message in rawMessages) {
       if (!SmsFinancialFilter.isFinancial(message)) continue;
+
+      final messageKey = SmsMessageKey.compute(sender: message.address, dateTime: message.date, body: message.body);
+      // Previously deleted by the user — re-reading the same physical device
+      // message must never resurrect it (see [SmsInboxDao.deleteByIds]).
+      if (deletedKeys.contains(messageKey)) continue;
 
       final parsed = parserRegistry.tryParse(message);
       final dedupKey = SmsDedupKey.compute(
@@ -72,11 +86,7 @@ class SmsInboxRepository {
 
       final item = SmsInboxItem(
         id: IdGenerator.generate(),
-        messageKey: SmsMessageKey.compute(
-          sender: message.address,
-          dateTime: message.date,
-          body: message.body,
-        ),
+        messageKey: messageKey,
         rawMessage: message,
         parsed: parsed,
         dedupKey: dedupKey,
