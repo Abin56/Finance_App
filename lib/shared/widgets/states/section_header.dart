@@ -17,9 +17,10 @@ class SectionHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: context.textTheme.titleMedium),
+          Expanded(
+            child: Text(title, style: context.textTheme.titleMedium, overflow: TextOverflow.ellipsis),
+          ),
           if (actionLabel != null)
             TextButton(
               onPressed: onActionTap,

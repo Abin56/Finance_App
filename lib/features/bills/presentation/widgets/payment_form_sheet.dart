@@ -13,25 +13,27 @@ import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
 import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../domain/bill.dart';
+import '../../domain/bill_occurrence.dart';
 import '../providers/bill_providers.dart';
 
 /// Bottom sheet for recording a (possibly partial) payment against a
 /// bill's current occurrence. Payments are append-only — this sheet only
 /// ever creates, never edits, matching [PaymentRepository]'s API.
 class PaymentFormSheet extends ConsumerStatefulWidget {
-  const PaymentFormSheet({super.key, required this.bill, this.smsPrefill});
+  const PaymentFormSheet({super.key, required this.bill, required this.occurrence, this.smsPrefill});
 
   final Bill bill;
+  final BillOccurrence occurrence;
 
   /// Set when opened from the SMS Inbox's "Bill Payment" option (after the
   /// user picked which bill via the bill picker) — seeds amount/date/note.
   final SmsPrefill? smsPrefill;
 
-  static Future<void> show(BuildContext context, Bill bill, {SmsPrefill? smsPrefill}) {
+  static Future<void> show(BuildContext context, Bill bill, BillOccurrence occurrence, {SmsPrefill? smsPrefill}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => PaymentFormSheet(bill: bill, smsPrefill: smsPrefill),
+      builder: (_) => PaymentFormSheet(bill: bill, occurrence: occurrence, smsPrefill: smsPrefill),
     );
   }
 
@@ -42,7 +44,7 @@ class PaymentFormSheet extends ConsumerStatefulWidget {
 class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(
-    text: (widget.smsPrefill?.amount ?? widget.bill.remainingAmount).toStringAsFixed(2),
+    text: (widget.smsPrefill?.amount ?? widget.occurrence.remainingAmount).toStringAsFixed(2),
   );
   late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
   late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
@@ -50,7 +52,7 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
   bool _someoneElsePaid = false;
   String? _selectedPersonId;
 
-  bool get _isAmountValid => Validators.amountUpTo(widget.bill.remainingAmount)(_amountController.text) == null;
+  bool get _isAmountValid => Validators.amountUpTo(widget.occurrence.remainingAmount)(_amountController.text) == null;
 
   @override
   void dispose() {
@@ -103,6 +105,7 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
             amount: amount,
             record: ({required amount, required date, required note}) => repository.recordPayment(
               widget.bill,
+              widget.occurrence,
               amount: amount,
               date: date,
               note: note,
@@ -148,7 +151,7 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
                 controller: _amountController,
                 decoration: const InputDecoration(labelText: 'Amount'),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amountUpTo(widget.bill.remainingAmount),
+                validator: Validators.amountUpTo(widget.occurrence.remainingAmount),
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 onChanged: (_) => setState(() {}),
               ),

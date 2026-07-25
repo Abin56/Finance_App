@@ -47,7 +47,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   late DateTime _dateTime = widget.smsPrefill?.dateTime ?? DateTime.now();
   late String? _sourceAccountId = widget.smsPrefill?.suggestedAccountId;
   String? _destinationAccountId;
-  String? _categoryId;
+  late String? _categoryId = widget.smsPrefill?.suggestedCategoryId;
   bool _isSaving = false;
   String? _sourceError;
   String? _destinationError;

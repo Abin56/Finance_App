@@ -14,7 +14,7 @@ import '../../features/credit_cards/domain/statement_status.dart';
 /// [completed]/gray only reflects a *skipped* payment under each domain's
 /// existing status semantics — it is not "instrument fully closed"
 /// (that's `EmiStatus.closed`/`LoanStatus.closed`, a different axis).
-enum PaymentUrgency { paid, upcoming, dueSoon, overdue, completed }
+enum PaymentUrgency { paid, upcoming, dueSoon, overdue, completed, carriedForward }
 
 extension PaymentUrgencyX on PaymentUrgency {
   String get label {
@@ -29,6 +29,8 @@ extension PaymentUrgencyX on PaymentUrgency {
         return 'Overdue';
       case PaymentUrgency.completed:
         return 'Completed';
+      case PaymentUrgency.carriedForward:
+        return 'Carried Forward';
     }
   }
 
@@ -44,6 +46,8 @@ extension PaymentUrgencyX on PaymentUrgency {
         return AppColors.error;
       case PaymentUrgency.completed:
         return AppColors.pending;
+      case PaymentUrgency.carriedForward:
+        return AppColors.warning;
     }
   }
 
@@ -59,6 +63,8 @@ extension PaymentUrgencyX on PaymentUrgency {
         return Icons.error_outline_rounded;
       case PaymentUrgency.completed:
         return Icons.skip_next_rounded;
+      case PaymentUrgency.carriedForward:
+        return Icons.history_toggle_off_rounded;
     }
   }
 
@@ -107,5 +113,15 @@ extension PaymentUrgencyX on PaymentUrgency {
       case StatementStatus.pending:
         return PaymentUrgency.upcoming;
     }
+  }
+
+  /// [carriedForward] overrides whatever [statementStatus] would otherwise
+  /// map to — a statement carried forward from a previous, closed cycle
+  /// (see `statementCycleViewProvider`) is flagged distinctly regardless of
+  /// its own paid/overdue/etc. standing, so the UI can show "still pending
+  /// from last cycle" rather than its ordinary status.
+  static PaymentUrgency fromCarryForward({required bool isCarriedForward, required StatementStatus statementStatus}) {
+    if (isCarriedForward) return PaymentUrgency.carriedForward;
+    return fromStatementStatus(statementStatus);
   }
 }

@@ -235,7 +235,11 @@ abstract class SearchBuilder {
         icon: Icons.receipt_long_outlined,
         kind: TransactionKind.bill,
         amount: b.amount,
-        date: b.dueDate,
+        // Search only needs a representative date to sort/display by, not
+        // this bill's exact current-occurrence due date — the template's
+        // nextDueDate is close enough here without pulling in the
+        // occurrence stream for every search keystroke.
+        date: b.nextDueDate,
         routePath: '${AppRoutes.bills}/${b.id}',
       );
     }

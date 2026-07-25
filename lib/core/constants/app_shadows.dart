@@ -19,4 +19,18 @@ abstract class AppShadows {
       ),
     ];
   }
+
+  /// Stronger blur/offset than [soft] for the dashboard's single most
+  /// prominent hero card, so it reads as sitting above every other card
+  /// rather than at the same elevation.
+  static List<BoxShadow> elevated(BuildContext context) {
+    final isDark = context.isDarkMode;
+    return [
+      BoxShadow(
+        color: (isDark ? Colors.black : context.colors.onSurface).withValues(alpha: isDark ? 0.36 : 0.10),
+        blurRadius: 32,
+        offset: const Offset(0, 12),
+      ),
+    ];
+  }
 }

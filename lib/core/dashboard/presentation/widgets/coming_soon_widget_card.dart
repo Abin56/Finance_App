@@ -46,6 +46,12 @@ IconData _iconFor(DashboardWidgetType type) {
       return Icons.calendar_today_outlined;
     case DashboardWidgetType.quickActions:
       return Icons.flash_on_outlined;
+    case DashboardWidgetType.creditUtilization:
+      return Icons.pie_chart_outline_outlined;
+    case DashboardWidgetType.previousCycleCarryForward:
+      return Icons.history_toggle_off_outlined;
+    case DashboardWidgetType.expenseComparison:
+      return Icons.balance_outlined;
   }
 }
 

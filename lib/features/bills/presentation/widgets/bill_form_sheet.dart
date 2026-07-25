@@ -46,7 +46,7 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
     text: widget.bill?.customIntervalDays?.toString() ?? '',
   );
   late final _notesController = TextEditingController(text: widget.bill?.notes ?? '');
-  late DateTime _dueDate = widget.bill?.dueDate ?? DateTime.now();
+  late DateTime _dueDate = widget.bill?.nextDueDate ?? DateTime.now();
   late BillRecurrence _recurrence = widget.bill?.recurrence ?? BillRecurrence.monthly;
   late String? _accountId = widget.bill?.accountId;
   late String? _categoryId = widget.bill?.categoryId;
@@ -98,7 +98,7 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
           widget.bill!,
           name: _nameController.text.trim(),
           amount: double.parse(_amountController.text.trim()),
-          dueDate: _dueDate,
+          nextDueDate: _dueDate,
           recurrence: _recurrence,
           accountId: _accountId,
           categoryId: _categoryId,

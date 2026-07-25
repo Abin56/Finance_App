@@ -15,9 +15,13 @@ import 'package:finance_app/core/dashboard/presentation/widgets/quick_actions_wi
 import 'package:finance_app/features/accounts/domain/account.dart';
 import 'package:finance_app/features/accounts/domain/account_type.dart';
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
+import 'package:finance_app/features/bills/presentation/providers/bill_providers.dart';
 import 'package:finance_app/features/credit_cards/domain/credit_card_profile.dart';
 import 'package:finance_app/features/credit_cards/domain/statement.dart';
 import 'package:finance_app/features/credit_cards/presentation/providers/credit_card_providers.dart';
+import 'package:finance_app/features/emi/presentation/providers/emi_providers.dart';
+import 'package:finance_app/features/expense/presentation/providers/expense_providers.dart';
+import 'package:finance_app/features/lending/presentation/providers/loan_providers.dart';
 import 'package:finance_app/features/people/domain/person.dart';
 import 'package:finance_app/features/people/presentation/providers/people_providers.dart';
 import 'package:finance_app/features/reports/domain/reports_period.dart';
@@ -98,7 +102,12 @@ void main() {
     periodStart: DateTime(now.year, now.month - 1, 17),
     periodEnd: DateTime(now.year, now.month, 17),
     generatedDate: DateTime(now.year, now.month, 17),
-    dueDate: now.add(const Duration(days: 3)),
+    // Due "today" rather than a fixed offset so this always falls on/before
+    // the pay cycle's end regardless of which day of the month the test
+    // runs on — "today" is always inside its own current cycle by
+    // definition (see [SalaryCycleFull]), so this can never flake based on
+    // wall-clock date the way a fixed +N-days offset could.
+    dueDate: now,
     totalAmount: 234567.89,
     createdAt: DateTime(2026, 1, 1),
   );
@@ -126,7 +135,15 @@ void main() {
     creditCardStandingProvider.overrideWith(
       (ref, cardId) => (outstanding: 434567.89, available: 65432.11, currentCycleSpend: 200000.0),
     ),
-    nextStatementDueProvider.overrideWithValue(statement),
+    // Empty streams for every other Upcoming Due source
+    // ([upcomingDueProvider]) — these widgets don't exercise EMI/Loan/Bill/
+    // Split Expense data, but the hero card's Upcoming Due section now reads
+    // all four alongside Credit Cards, so each needs a safe (non-Firestore)
+    // value for this Firebase-less widget test.
+    emisStreamProvider.overrideWith((ref) => Stream.value(const [])),
+    loansStreamProvider.overrideWith((ref) => Stream.value(const [])),
+    billsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+    expensesStreamProvider.overrideWith((ref) => Stream.value(const [])),
   ];
 
   for (final scale in [1.0, 1.3, 2.0]) {
@@ -185,8 +202,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Cycle: '), findsOneWidget);
-    expect(find.textContaining('Card payment '), findsOneWidget);
+    expect(find.text('Cycle Progress'), findsOneWidget);
+    // The hero no longer embeds its own Upcoming Due list — that's shown
+    // exclusively by the standalone UpcomingPaymentsWidgetCard elsewhere on
+    // the dashboard, so the same due items aren't rendered twice.
+    expect(find.text('Upcoming Due'), findsNothing);
     // The plain range caption is replaced by the cycle indicator for
     // salary-cycle strategies, but must still render for other strategies.
     final monthConfig = WidgetConfiguration(
@@ -204,6 +224,6 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.textContaining('Cycle: '), findsNothing);
+    expect(find.text('Cycle Progress'), findsNothing);
   });
 }

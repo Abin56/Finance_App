@@ -4,14 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/widgets/record_split_payment_sheet.dart';
-import '../../domain/ledger_entry_type.dart';
 import '../../domain/person.dart';
-import '../providers/people_providers.dart';
 import '../providers/person_pending_participants_providers.dart';
 
 /// Which pending amount a payment is being recorded against — the three
@@ -22,12 +21,15 @@ enum _PaymentTarget { allPending, specificExpense, customAmount }
 /// "Rahul gave me money — record it" — renamed/redesigned from the old
 /// one-button "Record payment" sheet per Milestone 15. Three payment-target
 /// paths, all routed through existing settlement machinery:
-/// - All pending amount: same one-shot [LedgerRepository.addEntry] call the
-///   old sheet always made.
+/// - All pending amount / Custom amount: both fan out across the person's
+///   outstanding split/assigned-expense installments oldest-due-first via
+///   [ExpenseRepository.settleAcrossPending], so every dollar produces a
+///   traceable `InstallmentPayment` per expense instead of one
+///   undifferentiated ledger entry. Only a remainder beyond total tracked
+///   pending (e.g. an untracked manual-lending balance) still posts as a
+///   plain ledger entry.
 /// - Specific expense: delegates entirely to [RecordSplitPaymentSheet] for
 ///   the chosen participant/installment — no settlement math duplicated here.
-/// - Custom amount: same [LedgerRepository.addEntry] call, parameterized by
-///   user-entered amount/date/note instead of fixed defaults.
 class SettleUpSheet extends ConsumerStatefulWidget {
   const SettleUpSheet({super.key, required this.person});
 
@@ -73,14 +75,21 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
   Future<void> _saveAllPendingOrCustom({required double amount, required DateTime date, required String note}) async {
     setState(() => _isSaving = true);
     try {
-      final repository = ref.read(ledgerRepositoryProvider(widget.person.id));
-      await repository.addEntry(
-        widget.person,
-        type: widget.person.isCreditor ? LedgerEntryType.receivedBack : LedgerEntryType.repaid,
-        amount: amount,
-        date: date,
-        note: note.isEmpty ? 'Payment recorded' : note,
-      );
+      final pending = ref.read(personSplitParticipantsProvider(widget.person.id)).where(
+            (p) => p.installment.remainingAmount > 0,
+          ).toList()
+        ..sort((a, b) => a.installment.dueDate.compareTo(b.installment.dueDate));
+
+      await ref.read(expenseRepositoryProvider).settleAcrossPending(
+            person: widget.person,
+            pending: pending,
+            amount: amount,
+            date: date,
+            installmentPaymentRepositoryFor: (scheduleId, installmentId) => ref.read(
+              installmentPaymentRepositoryProvider((scheduleId: scheduleId, installmentId: installmentId)),
+            ),
+            note: note.isEmpty ? 'Payment recorded' : note,
+          );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {

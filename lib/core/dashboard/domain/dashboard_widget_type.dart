@@ -21,6 +21,9 @@ enum DashboardWidgetType {
   insights,
   calendar,
   quickActions,
+  creditUtilization,
+  previousCycleCarryForward,
+  expenseComparison,
 }
 
 extension DashboardWidgetTypeX on DashboardWidgetType {
@@ -64,6 +67,12 @@ extension DashboardWidgetTypeX on DashboardWidgetType {
         return 'Calendar';
       case DashboardWidgetType.quickActions:
         return 'Quick Actions';
+      case DashboardWidgetType.creditUtilization:
+        return 'Credit Utilization';
+      case DashboardWidgetType.previousCycleCarryForward:
+        return 'Previous Cycle Carry Forward';
+      case DashboardWidgetType.expenseComparison:
+        return 'My Expenses vs People';
     }
   }
 
@@ -93,19 +102,22 @@ extension DashboardWidgetTypeX on DashboardWidgetType {
       case DashboardWidgetType.creditCards:
       case DashboardWidgetType.people:
       case DashboardWidgetType.quickActions:
-        return true;
       case DashboardWidgetType.upcomingPayments:
       case DashboardWidgetType.bills:
       case DashboardWidgetType.emi:
       case DashboardWidgetType.loans:
       case DashboardWidgetType.splitExpenses:
-      case DashboardWidgetType.savingsGoals:
-      case DashboardWidgetType.recentActivity:
-      case DashboardWidgetType.budgetProgress:
       case DashboardWidgetType.cashFlow:
       case DashboardWidgetType.spendingCategories:
-      case DashboardWidgetType.insights:
+      case DashboardWidgetType.creditUtilization:
       case DashboardWidgetType.calendar:
+      case DashboardWidgetType.recentActivity:
+      case DashboardWidgetType.insights:
+      case DashboardWidgetType.previousCycleCarryForward:
+      case DashboardWidgetType.expenseComparison:
+        return true;
+      case DashboardWidgetType.savingsGoals:
+      case DashboardWidgetType.budgetProgress:
         return false;
     }
   }

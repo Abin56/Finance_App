@@ -31,18 +31,44 @@ Loan _loan({
   );
 }
 
-Installment _installment({required String scheduleId, double amountDue = 100, double amountPaid = 0}) {
+Installment _installment({
+  required String scheduleId,
+  double amountDue = 100,
+  double amountPaid = 0,
+  DateTime? dueDate,
+  bool isSkipped = false,
+}) {
   return Installment(
     id: 'inst-$scheduleId',
     scheduleId: scheduleId,
     ownerType: OwnerType.loan,
     ownerId: 'loan',
     sequenceNumber: 1,
-    dueDate: DateTime(2026, 3, 1),
+    dueDate: dueDate ?? DateTime(2026, 3, 1),
     amountDue: amountDue,
     amountPaid: amountPaid,
+    isSkipped: isSkipped,
     createdAt: DateTime(2026, 1, 1),
   );
+}
+
+/// Builds an [Installment] whose computed `.status` matches [status] —
+/// `overdue`/`upcoming` depend on `DateTime.now()`, so this pins [dueDate]
+/// far enough in the past/future to be stable regardless of when the test
+/// suite runs.
+Installment _installmentWithStatus(InstallmentStatus status, {String scheduleId = 'sched1', double amountDue = 800}) {
+  switch (status) {
+    case InstallmentStatus.paid:
+      return _installment(scheduleId: scheduleId, amountDue: amountDue, amountPaid: amountDue);
+    case InstallmentStatus.partiallyPaid:
+      return _installment(scheduleId: scheduleId, amountDue: amountDue, amountPaid: amountDue / 2);
+    case InstallmentStatus.skipped:
+      return _installment(scheduleId: scheduleId, amountDue: amountDue, isSkipped: true);
+    case InstallmentStatus.overdue:
+      return _installment(scheduleId: scheduleId, amountDue: amountDue, dueDate: DateTime(2000, 1, 1));
+    case InstallmentStatus.upcoming:
+      return _installment(scheduleId: scheduleId, amountDue: amountDue, dueDate: DateTime(2100, 1, 1));
+  }
 }
 
 InstallmentPayment _payment({
@@ -277,7 +303,7 @@ void main() {
         ledgerEntries: [giveEntry()],
         loans: const [],
         participantCountByTransactionRef: {'txn1': 2},
-        installmentStatusByTransactionRef: {'txn1': InstallmentStatus.upcoming},
+        installmentByTransactionRef: {'txn1': _installmentWithStatus(InstallmentStatus.upcoming)},
       );
 
       expect(result.single.status, PersonTimelineStatus.pending);
@@ -288,7 +314,7 @@ void main() {
         ledgerEntries: [giveEntry()],
         loans: const [],
         participantCountByTransactionRef: {'txn1': 2},
-        installmentStatusByTransactionRef: {'txn1': InstallmentStatus.partiallyPaid},
+        installmentByTransactionRef: {'txn1': _installmentWithStatus(InstallmentStatus.partiallyPaid)},
       );
 
       expect(result.single.status, PersonTimelineStatus.partial);
@@ -299,7 +325,7 @@ void main() {
         ledgerEntries: [giveEntry()],
         loans: const [],
         participantCountByTransactionRef: {'txn1': 2},
-        installmentStatusByTransactionRef: {'txn1': InstallmentStatus.paid},
+        installmentByTransactionRef: {'txn1': _installmentWithStatus(InstallmentStatus.paid)},
       );
 
       expect(result.single.status, PersonTimelineStatus.completed);
@@ -310,10 +336,43 @@ void main() {
         ledgerEntries: [giveEntry()],
         loans: const [],
         participantCountByTransactionRef: {'txn1': 2},
-        installmentStatusByTransactionRef: {'txn1': InstallmentStatus.overdue},
+        installmentByTransactionRef: {'txn1': _installmentWithStatus(InstallmentStatus.overdue)},
       );
 
       expect(result.single.status, PersonTimelineStatus.overdue);
+    });
+
+    test('a split "gave" entry carries totalAmount/paidAmount from its installment', () {
+      final installment = _installment(scheduleId: 'sched1', amountDue: 800, amountPaid: 300);
+      final result = PersonTimelineBuilder.build(
+        ledgerEntries: [giveEntry()],
+        loans: const [],
+        participantCountByTransactionRef: {'txn1': 2},
+        installmentByTransactionRef: {'txn1': installment},
+      );
+
+      expect(result.single.totalAmount, 800);
+      expect(result.single.paidAmount, 300);
+    });
+
+    test('a non-expense entry never carries totalAmount/paidAmount even if an installment is present', () {
+      final entry = LedgerEntry(
+        id: 'l1',
+        personId: 'p1',
+        type: LedgerEntryType.gave,
+        amount: 10,
+        date: DateTime(2026, 1, 1),
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      final result = PersonTimelineBuilder.build(
+        ledgerEntries: [entry],
+        loans: const [],
+        installmentByTransactionRef: {'txn1': _installment(scheduleId: 'sched1', amountDue: 800, amountPaid: 300)},
+      );
+
+      expect(result.single.totalAmount, isNull);
+      expect(result.single.paidAmount, isNull);
     });
 
     test('a split settlement ("receivedBack") entry always shows Completed', () {
@@ -332,7 +391,7 @@ void main() {
         ledgerEntries: [settlementEntry],
         loans: const [],
         participantCountByTransactionRef: {'txn1': 2},
-        installmentStatusByTransactionRef: {'txn1': InstallmentStatus.paid},
+        installmentByTransactionRef: {'txn1': _installmentWithStatus(InstallmentStatus.paid)},
       );
 
       expect(result.single.status, PersonTimelineStatus.completed);
@@ -381,6 +440,7 @@ void main() {
       final entry = result.single;
       expect(entry.id, 't1');
       expect(entry.signedAmount, 0);
+      expect(entry.displayAmount, 500);
       expect(entry.category, PersonTimelineCategory.reference);
       expect(entry.status, isNull);
       expect(entry.title, 'Lunch for Rahul');

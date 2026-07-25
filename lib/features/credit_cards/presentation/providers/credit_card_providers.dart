@@ -8,6 +8,8 @@ import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../emi/presentation/providers/emi_providers.dart';
 import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
+import '../../../../core/payment_schedule/domain/cycle_anchor.dart';
+import '../../../../core/payment_schedule/domain/cycle_engine.dart';
 import '../../data/credit_card_repository.dart';
 import '../../data/shared_credit_limit_repository.dart';
 import '../../data/statement_payment_repository.dart';
@@ -15,6 +17,7 @@ import '../../data/statement_repository.dart';
 import '../../domain/credit_card_profile.dart';
 import '../../domain/shared_credit_limit.dart';
 import '../../domain/statement.dart';
+import '../../domain/statement_cycle_item.dart';
 import '../../domain/statement_payment.dart';
 import '../../domain/statement_period.dart';
 
@@ -143,6 +146,42 @@ final statementsWithLiveTotalsProvider = Provider.autoDispose.family<List<Statem
   }).toList();
 });
 
+/// The two-section carry-forward view for [cardId]'s statements: closed,
+/// still-unpaid statements from before the current cycle
+/// ([StatementCycleView.previousCyclePending] — surfaced so they aren't
+/// missed once a new cycle starts), and the live current cycle
+/// ([StatementCycleView.current], always shown regardless of its own
+/// paid/unpaid state). A closed previous-cycle statement that's fully paid
+/// is simply absent from [previousCyclePending] — it never reappears here
+/// once settled. Built on [CycleEngine.classifyForCarryForward] (the single
+/// shared carry-forward rule) via the [StatementCycleItem] adapter, so this
+/// is the only place Credit Cards implement carry-forward — nothing here is
+/// reimplemented per screen.
+typedef StatementCycleView = ({List<Statement> previousCyclePending, Statement? current});
+
+/// Note: `result.current`/`result.future` from [CycleEngine] are
+/// deliberately unused below — they'd only ever contain an
+/// already-materialized [Statement] that happens to classify as
+/// current/future, which in practice is empty (the live in-progress cycle
+/// has no `Statement` document yet; see [currentStatementCycleProvider]).
+/// `current` here is intentionally the separately-computed live cycle, not
+/// the engine's own `result.current` — this is not the same kind of
+/// redundancy as a duplicated calculation, so don't "simplify" it away.
+final statementCycleViewProvider = Provider.autoDispose.family<StatementCycleView, String>((ref, cardId) {
+  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  final card = cards.where((c) => c.id == cardId).firstOrNull;
+  if (card == null) return (previousCyclePending: <Statement>[], current: null);
+
+  final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
+  final anchor = CycleAnchor(anchorDay: card.statementDay);
+  final items = statements.map(StatementCycleItem.new).toList();
+  final result = CycleEngine.classifyForCarryForward(items, anchor);
+
+  final previousCyclePending = result.previousCyclePending.map((item) => item.statement).toList();
+  final current = ref.watch(currentStatementCycleProvider(cardId));
+  return (previousCyclePending: previousCyclePending, current: current);
+});
+
 /// Statement-payment repository for a single statement's subcollection,
 /// scoped by (cardId, statementId).
 final statementPaymentRepositoryProvider = Provider.autoDispose
@@ -210,9 +249,9 @@ final materializeStatementProvider = FutureProvider.autoDispose.family<void, Str
   await ref.watch(statementRepositoryProvider(cardId)).materializeIfDue(card, cardTransactions, existing);
 });
 
-/// Sum of principal paid so far across every EMI linked to [cardId] — the
-/// amount a bank would restore to available credit as a converted purchase
-/// is paid down. Uses each payment's `EmiPaymentBreakdown.principalPaid`
+/// Sum of principal paid so far across every *open* EMI linked to [cardId]
+/// — the amount a bank would restore to available credit as a converted
+/// purchase is paid down. Uses each payment's `EmiPaymentBreakdown.principalPaid`
 /// when present (the real, explicit split entered at payment time); falls
 /// back to the installment's theoretical `principalPortion` share of the
 /// payment for payments recorded with no breakdown (before this feature
@@ -221,9 +260,16 @@ final materializeStatementProvider = FutureProvider.autoDispose.family<void, Str
 /// which is correct since there's no interest to separate out. Purely
 /// derived, like [creditCardStandingProvider] itself — nothing is written
 /// back to the card or the EMI when this changes.
+///
+/// Excludes `Emi.isClosed` EMIs, matching [linkedEmiPrincipalForCardProvider]:
+/// once an EMI is closed, its principal no longer counts against the card's
+/// limit at all, so its historical partial repayments must also drop out
+/// here — otherwise a partially-paid-then-closed EMI's old repayments would
+/// keep adding back into `available` on top of already being fully excluded
+/// from `linkedEmiPrincipal`, overstating available credit.
 final principalRestoredForCardProvider = Provider.autoDispose.family<double, String>((ref, cardId) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
-  final linked = emis.where((e) => e.linkedCreditCardId == cardId);
+  final linked = emis.where((e) => e.linkedCreditCardId == cardId && !e.isClosed);
 
   var restored = 0.0;
   for (final emi in linked) {
@@ -254,11 +300,34 @@ final principalRestoredForCardProvider = Provider.autoDispose.family<double, Str
   return restored;
 });
 
+/// Sum of `principalAmount` across every *open* EMI linked to [cardId] — a
+/// purchase converted to EMI ties up that much of the card's limit the
+/// moment it's created (the original purchase never posts as its own
+/// Transaction; the EMI's principal stands in for it), regardless of how
+/// much has been paid back yet. Paired with [principalRestoredForCardProvider]
+/// in [_availableFor]: `available` is reduced by this in full, then that
+/// amount is added back in as it's paid down, netting to "reduced by the
+/// still-outstanding EMI principal" — mirrors how a real card's available
+/// limit behaves when a purchase is converted to EMI at the bank.
+///
+/// Excludes `Emi.isClosed` EMIs: closing an EMI (whether fully paid off or
+/// written off early via `closeEmiEarly`) releases whatever of its
+/// principal is still reserved, the same way paying it down does — a
+/// closed EMI no longer ties up card limit regardless of how much
+/// principal was actually repaid.
+final linkedEmiPrincipalForCardProvider = Provider.autoDispose.family<double, String>((ref, cardId) {
+  final emis = ref.watch(emisStreamProvider).value ?? const [];
+  final linked = emis.where((e) => e.linkedCreditCardId == cardId && !e.isClosed);
+  return linked.fold(0.0, (sum, emi) => sum + emi.principalAmount);
+});
+
 /// A card's computed running figures — [outstanding] is every unpaid
 /// statement's remaining amount plus the current cycle's spend-to-date;
-/// [available] is the credit limit minus [outstanding], plus any principal
-/// restored by EMIs converted from card purchases. Mirrors
-/// [Person.isCreditor]/[isDebtor] being derived rather than persisted.
+/// [available] is the credit limit minus [outstanding], minus the
+/// still-outstanding principal of any EMI converted from a card purchase
+/// (tied up until repaid), plus whatever of that principal has already been
+/// repaid. Mirrors [Person.isCreditor]/[isDebtor] being derived rather than
+/// persisted.
 typedef CreditCardStanding = ({double outstanding, double available, double currentCycleSpend});
 
 /// This one card's own (unpaidStatements, currentCycleSpend) — the pieces
@@ -286,6 +355,21 @@ typedef CreditCardStanding = ({double outstanding, double available, double curr
   return (outstanding: unpaidStatements + currentCycleSpend, currentCycleSpend: currentCycleSpend);
 }
 
+/// The shared `available` formula both standing providers below apply to
+/// their own (creditLimit, outstanding, linkedEmiPrincipal, principalRestored)
+/// inputs — credit limit minus what's owed, minus the full principal of any
+/// purchase converted to EMI (tied up until repaid), plus whatever of that
+/// principal has already been repaid, never negative and never above the
+/// limit itself.
+double _availableFor({
+  required double creditLimit,
+  required double outstanding,
+  required double linkedEmiPrincipal,
+  required double principalRestored,
+}) {
+  return (creditLimit - outstanding - linkedEmiPrincipal + principalRestored).clamp(0, creditLimit);
+}
+
 /// The pooled standing across every card drawing from [sharedLimitId] —
 /// sums each sibling's own outstanding/spend/principal-restored against the
 /// facility's single [SharedCreditLimit.creditLimit], so a purchase on any
@@ -302,17 +386,24 @@ final sharedCreditLimitStandingProvider = Provider.autoDispose.family<CreditCard
   final memberCards = ref.watch(cardsUnderSharedLimitProvider(sharedLimitId));
   var totalOutstanding = 0.0;
   var totalCurrentCycleSpend = 0.0;
+  var totalLinkedEmiPrincipal = 0.0;
   var totalPrincipalRestored = 0.0;
   for (final card in memberCards) {
     final own = _cardOwnStanding(ref, card.id);
     totalOutstanding += own.outstanding;
     totalCurrentCycleSpend += own.currentCycleSpend;
+    totalLinkedEmiPrincipal += ref.watch(linkedEmiPrincipalForCardProvider(card.id));
     totalPrincipalRestored += ref.watch(principalRestoredForCardProvider(card.id));
   }
 
   return (
     outstanding: totalOutstanding,
-    available: (sharedLimit.creditLimit - totalOutstanding + totalPrincipalRestored).clamp(0, sharedLimit.creditLimit),
+    available: _availableFor(
+      creditLimit: sharedLimit.creditLimit,
+      outstanding: totalOutstanding,
+      linkedEmiPrincipal: totalLinkedEmiPrincipal,
+      principalRestored: totalPrincipalRestored,
+    ),
     currentCycleSpend: totalCurrentCycleSpend,
   );
 });
@@ -331,13 +422,33 @@ final creditCardStandingProvider = Provider.autoDispose.family<CreditCardStandin
   }
 
   final own = _cardOwnStanding(ref, cardId);
+  final linkedEmiPrincipal = ref.watch(linkedEmiPrincipalForCardProvider(cardId));
   final principalRestored = ref.watch(principalRestoredForCardProvider(cardId));
 
   return (
     outstanding: own.outstanding,
-    available: (card.creditLimit - own.outstanding + principalRestored).clamp(0, card.creditLimit),
+    available: _availableFor(
+      creditLimit: card.creditLimit,
+      outstanding: own.outstanding,
+      linkedEmiPrincipal: linkedEmiPrincipal,
+      principalRestored: principalRestored,
+    ),
     currentCycleSpend: own.currentCycleSpend,
   );
+});
+
+/// The soonest not-fully-paid statement's due date for [cardId] alone —
+/// factored out so per-card UI (the card list tile, the quick-detail sheet)
+/// can show "this card's next due date" without re-deriving the same fold
+/// themselves.
+final nextStatementDueDateForCardProvider = Provider.autoDispose.family<DateTime?, String>((ref, cardId) {
+  final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
+  DateTime? soonest;
+  for (final statement in statements) {
+    if (statement.remainingAmount <= 0) continue;
+    if (soonest == null || statement.dueDate.isBefore(soonest)) soonest = statement.dueDate;
+  }
+  return soonest;
 });
 
 /// The soonest not-fully-paid statement across every card, for the

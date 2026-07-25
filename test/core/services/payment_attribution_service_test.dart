@@ -10,9 +10,11 @@ import 'package:finance_app/core/payment_schedule/domain/installment_status.dart
 import 'package:finance_app/core/payment_schedule/domain/payment_schedule.dart';
 import 'package:finance_app/core/payment_schedule/domain/schedule_type.dart';
 import 'package:finance_app/core/services/payment_attribution_service.dart';
+import 'package:finance_app/features/bills/data/bill_occurrence_repository.dart';
 import 'package:finance_app/features/bills/data/bill_repository.dart';
 import 'package:finance_app/features/bills/data/payment_repository.dart';
 import 'package:finance_app/features/bills/domain/bill.dart';
+import 'package:finance_app/features/bills/domain/bill_occurrence.dart';
 import 'package:finance_app/features/bills/domain/bill_recurrence.dart';
 import 'package:finance_app/features/bills/domain/payment_record.dart';
 import 'package:finance_app/features/emi/data/emi_repository.dart';
@@ -319,6 +321,37 @@ void main() {
   group('PaymentAttributionService.apply — Bill payments', () {
     late BillRepository billRepository;
     late Bill bill;
+    late BillOccurrenceRepository occurrenceRepository;
+    late BillOccurrence occurrence;
+
+    BillOccurrenceRepository occurrenceRepositoryFor(String billId) {
+      final collection = firestore
+          .collection('bills')
+          .doc(billId)
+          .collection('occurrences')
+          .withConverter<BillOccurrence>(
+            fromFirestore: BillOccurrence.fromFirestore,
+            toFirestore: (o, _) => o.toFirestore(),
+          );
+      return BillOccurrenceRepository(
+        collection,
+        billRepository,
+        firestore.collection('bills').doc(billId),
+        firestore.collection('bills').doc(billId).collection('payments'),
+      );
+    }
+
+    PaymentRepository paymentRepositoryFor(String billId, BillOccurrenceRepository occurrenceRepository) {
+      final collection = firestore
+          .collection('bills')
+          .doc(billId)
+          .collection('payments')
+          .withConverter<PaymentRecord>(
+            fromFirestore: PaymentRecord.fromFirestore,
+            toFirestore: (p, _) => p.toFirestore(),
+          );
+      return PaymentRepository(collection, occurrenceRepository);
+    }
 
     setUp(() async {
       final billCollection = firestore.collection('bills').withConverter<Bill>(
@@ -333,19 +366,9 @@ void main() {
         dueDate: DateTime(2026, 1, 10),
         recurrence: BillRecurrence.monthly,
       );
+      occurrenceRepository = occurrenceRepositoryFor(bill.id);
+      occurrence = await occurrenceRepository.ensureCurrentOccurrence(bill, const []);
     });
-
-    PaymentRepository paymentRepositoryFor(String billId) {
-      final collection = firestore
-          .collection('bills')
-          .doc(billId)
-          .collection('payments')
-          .withConverter<PaymentRecord>(
-            fromFirestore: PaymentRecord.fromFirestore,
-            toFirestore: (p, _) => p.toFirestore(),
-          );
-      return PaymentRepository(collection, billRepository);
-    }
 
     test('a friend pays part of a bill (partial payment) and the person ledger updates', () async {
       final bob = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0xFF00C2A8, openingBalance: 0);
@@ -355,17 +378,16 @@ void main() {
           PaymentAttributionItem(
             obligationLabel: 'your Electricity bill',
             amount: 800,
-            record: ({required amount, required date, required note}) =>
-                paymentRepositoryFor(bill.id).recordPayment(bill, amount: amount, date: date, note: note),
+            record: ({required amount, required date, required note}) => paymentRepositoryFor(bill.id, occurrenceRepository)
+                .recordPayment(bill, occurrence, amount: amount, date: date, note: note),
           ),
         ],
         payer: PayerSource.person(bob),
         date: DateTime(2026, 1, 5),
       );
 
-      final refreshedBill = await billRepository.getByKey(bill.id);
-      expect(refreshedBill!.amountPaid, 800);
-      expect(refreshedBill.status.name, 'partiallyPaid');
+      expect(occurrence.amountPaid, 800);
+      expect(occurrence.status.name, 'partiallyPaid');
 
       final refreshedBob = await personRepository.getByKey(bob.id);
       expect(refreshedBob!.currentBalance, -800);
@@ -379,6 +401,8 @@ void main() {
         dueDate: DateTime(2026, 1, 10),
         recurrence: BillRecurrence.oneTime,
       );
+      final oneTimeOccurrenceRepository = occurrenceRepositoryFor(oneTimeBill.id);
+      final oneTimeOccurrence = await oneTimeOccurrenceRepository.ensureCurrentOccurrence(oneTimeBill, const []);
 
       final descriptions = await service.apply(
         items: [
@@ -386,16 +410,16 @@ void main() {
             obligationLabel: 'your Laptop repair bill',
             amount: 2000,
             record: ({required amount, required date, required note}) =>
-                paymentRepositoryFor(oneTimeBill.id).recordPayment(oneTimeBill, amount: amount, date: date, note: note),
+                paymentRepositoryFor(oneTimeBill.id, oneTimeOccurrenceRepository)
+                    .recordPayment(oneTimeBill, oneTimeOccurrence, amount: amount, date: date, note: note),
           ),
         ],
         payer: PayerSource.person(bob),
         date: DateTime(2026, 1, 5),
       );
 
-      final refreshedBill = await billRepository.getByKey(oneTimeBill.id);
-      expect(refreshedBill!.amountPaid, 2000);
-      expect(refreshedBill.status.name, 'paid');
+      expect(oneTimeOccurrence.amountPaid, 2000);
+      expect(oneTimeOccurrence.status.name, 'paid');
       expect(descriptions.single, 'Bob paid ₹2,000.00 towards your Laptop repair bill');
     });
   });

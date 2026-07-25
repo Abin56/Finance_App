@@ -9,6 +9,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/domain/payment_urgency.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
+import '../../../../shared/widgets/states/payment_urgency_badge.dart';
 import '../providers/cash_flow_providers.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
 
@@ -86,11 +87,32 @@ class _TimelineRow extends StatelessWidget {
             ),
             const SizedBox(width: AppSizes.md),
             Expanded(
-              child: Text(item.title, style: context.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(item.title, style: context.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (item.isCarriedOver) ...[
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: PaymentUrgencyBadge(urgency: item.urgency, compact: true),
+                    ),
+                  ],
+                ],
+              ),
             ),
-            Text(
-              CurrencyFormatter.instance.format(item.remaining),
-              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: item.urgency.color),
+            const SizedBox(width: AppSizes.sm),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(
+                  CurrencyFormatter.instance.format(item.remaining),
+                  style: context.textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600, color: item.urgency.color),
+                ),
+              ),
             ),
           ],
         ),

@@ -10,9 +10,11 @@ import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/bill.dart';
+import '../../domain/bill_occurrence.dart';
 import '../../domain/bill_recurrence.dart';
 import '../../domain/bill_status.dart';
 import '../../domain/payment_record.dart';
+import '../providers/bill_occurrence_providers.dart';
 import '../providers/bill_providers.dart';
 import '../widgets/bill_form_sheet.dart';
 import '../widgets/payment_form_sheet.dart';
@@ -28,9 +30,16 @@ class BillDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Side effect only — materializes/adopts this bill's current occurrence
+    // if due, the same "opening this screen is the trigger point" pattern
+    // `CreditCardDetailScreen` uses for `materializeStatementProvider`.
+    ref.watch(materializeBillOccurrenceProvider(billId));
+
     final billsAsync = ref.watch(billsStreamProvider);
     final bill = billsAsync.value?.where((b) => b.id == billId).firstOrNull;
+    final occurrence = ref.watch(currentBillOccurrenceProvider(billId));
     final paymentsAsync = ref.watch(paymentsStreamProvider(billId));
+    final occurrencesAsync = ref.watch(billOccurrencesStreamProvider(billId));
 
     return Scaffold(
       appBar: AppBar(
@@ -51,25 +60,27 @@ class BillDetailScreen extends ConsumerWidget {
             ),
         ],
       ),
-      floatingActionButton: bill == null
+      floatingActionButton: bill == null || occurrence == null
           ? null
           : FloatingActionButton(
               heroTag: 'bill_detail_fab',
-              onPressed: () => PaymentFormSheet.show(context, bill),
+              onPressed: () => PaymentFormSheet.show(context, bill, occurrence),
               child: const Icon(Icons.add),
             ),
-      body: bill == null
+      body: bill == null || occurrence == null
           ? const Center(child: CircularProgressIndicator())
           : paymentsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('Something went wrong: $error')),
               data: (payments) {
                 final sorted = [...payments]..sort((a, b) => b.date.compareTo(a.date));
+                final occurrences = occurrencesAsync.value ?? const [];
+                final occurrenceById = {for (final o in occurrences) o.id: o};
 
                 return ListView(
                   padding: const EdgeInsets.all(AppSizes.lg),
                   children: [
-                    _BillSummaryCard(bill: bill),
+                    _BillSummaryCard(bill: bill, occurrence: occurrence),
                     const SizedBox(height: AppSizes.lg),
                     Text('Payment Records', style: context.textTheme.titleMedium),
                     const SizedBox(height: AppSizes.sm),
@@ -96,7 +107,7 @@ class BillDetailScreen extends ConsumerWidget {
                               ),
                               child: Icon(Icons.delete_outline_rounded, color: context.colors.error),
                             ),
-                            onDismissed: (_) => _softDeleteWithUndo(context, ref, bill, payment),
+                            onDismissed: (_) => _softDeleteWithUndo(context, ref, occurrenceById, payment),
                             child: PaymentTile(payment: payment, onTap: () {}),
                           ),
                         ),
@@ -110,18 +121,20 @@ class BillDetailScreen extends ConsumerWidget {
   Future<void> _softDeleteWithUndo(
     BuildContext context,
     WidgetRef ref,
-    Bill bill,
+    Map<String, BillOccurrence> occurrenceById,
     PaymentRecord payment,
   ) async {
+    final occurrence = occurrenceById[payment.occurrenceId];
+    if (occurrence == null) return;
     final repository = ref.read(paymentRepositoryProvider(billId));
-    await repository.softDeletePayment(bill, payment);
+    await repository.softDeletePayment(occurrence, payment);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Payment moved to trash'),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => repository.restorePayment(bill, payment),
+          onPressed: () => repository.restorePayment(occurrence, payment),
         ),
       ),
     );
@@ -129,13 +142,14 @@ class BillDetailScreen extends ConsumerWidget {
 }
 
 class _BillSummaryCard extends ConsumerWidget {
-  const _BillSummaryCard({required this.bill});
+  const _BillSummaryCard({required this.bill, required this.occurrence});
 
   final Bill bill;
+  final BillOccurrence occurrence;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = bill.status;
+    final status = occurrence.status;
 
     return AppCard(
       child: Column(
@@ -144,7 +158,7 @@ class _BillSummaryCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Due ${bill.dueDate.fullDate}', style: context.textTheme.bodyMedium),
+              Text('Due ${occurrence.dueDate.fullDate}', style: context.textTheme.bodyMedium),
               Row(
                 children: [
                   Icon(status.icon, size: AppSizes.iconSm, color: status.color),
@@ -156,11 +170,11 @@ class _BillSummaryCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSizes.md),
           Text(
-            '${CurrencyFormatter.instance.format(bill.amountPaid)} of ${CurrencyFormatter.instance.format(bill.amount)}',
+            '${CurrencyFormatter.instance.format(occurrence.amountPaid)} of ${CurrencyFormatter.instance.format(occurrence.amount)}',
             style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: AppSizes.sm),
-          ProgressBar(progress: bill.amount == 0 ? 0 : bill.amountPaid / bill.amount),
+          ProgressBar(progress: occurrence.amount == 0 ? 0 : occurrence.amountPaid / occurrence.amount),
           if (bill.recurrence.name != 'oneTime') ...[
             const SizedBox(height: AppSizes.md),
             Row(

@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../features/bills/presentation/providers/bill_occurrence_providers.dart';
 import '../../../../features/bills/presentation/providers/bill_providers.dart';
 import '../../../../features/credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../../features/emi/presentation/providers/emi_providers.dart';
 import '../../../../features/expense/presentation/providers/expense_providers.dart';
 import '../../../../features/lending/presentation/providers/loan_providers.dart';
 import '../../../../features/reports/domain/reports_period.dart';
+import '../../../../features/transactions/domain/transaction.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
 import '../../../../features/transactions/presentation/providers/transaction_providers.dart';
 import '../../../payment_schedule/presentation/providers/payment_schedule_providers.dart';
@@ -32,11 +34,12 @@ final financialViewResultProvider = Provider.family<FinancialViewResult, WidgetC
   final range = config.dateStrategy.resolve(now, fiscalYearStartMonth: fiscalYearStartMonth);
 
   final module = config.financialViewModule;
-  final amount = _amountFor(ref, module, range);
-  final breakdown = _breakdownFor(ref, module, range);
+  final amount = _amountFor(ref, module, config.dateStrategy, range);
+  final breakdown = _breakdownFor(ref, module, config.dateStrategy, range);
 
   final previousRange = _previousRangeFor(config.dateStrategy, range);
-  final previousAmount = previousRange == null ? null : _amountFor(ref, module, previousRange);
+  final previousAmount =
+      previousRange == null ? null : _amountFor(ref, module, config.dateStrategy, previousRange);
 
   return FinancialViewResult(
     module: module,
@@ -56,27 +59,27 @@ DateRange? _previousRangeFor(DateRangeStrategy strategy, DateRange range) {
   return DateRange(range.start.subtract(length), range.start.subtract(const Duration(seconds: 1)));
 }
 
-double _amountFor(Ref ref, FinancialViewModule module, DateRange range) {
+double _amountFor(Ref ref, FinancialViewModule module, DateRangeStrategy strategy, DateRange range) {
   switch (module) {
     case FinancialViewModule.myExpenses:
-      return _myExpenses(ref, range);
+      return _myExpenses(ref, strategy, range);
     case FinancialViewModule.sharedExpenses:
-      return _sharedExpenses(ref, range);
+      return _sharedExpenses(ref, strategy, range);
     case FinancialViewModule.combinedExpenses:
-      return _myExpenses(ref, range) +
-          _sharedExpenses(ref, range) +
+      return _myExpenses(ref, strategy, range) +
+          _sharedExpenses(ref, strategy, range) +
           _billsPaid(ref, range) +
           _emiPaid(ref, range) +
           _loanPaid(ref, range) +
           _creditCardPaid(ref, range);
     case FinancialViewModule.income:
-      return _income(ref, range);
+      return _income(ref, strategy, range);
     case FinancialViewModule.transfers:
-      return _transfers(ref, range);
+      return _transfers(ref, strategy, range);
     case FinancialViewModule.netCashFlow:
-      final moneyIn = _income(ref, range);
-      final moneyOut = _myExpenses(ref, range) +
-          _sharedExpenses(ref, range) +
+      final moneyIn = _income(ref, strategy, range);
+      final moneyOut = _myExpenses(ref, strategy, range) +
+          _sharedExpenses(ref, strategy, range) +
           _billsPaid(ref, range) +
           _emiPaid(ref, range) +
           _loanPaid(ref, range) +
@@ -85,13 +88,13 @@ double _amountFor(Ref ref, FinancialViewModule module, DateRange range) {
   }
 }
 
-Map<String, double> _breakdownFor(Ref ref, FinancialViewModule module, DateRange range) {
+Map<String, double> _breakdownFor(Ref ref, FinancialViewModule module, DateRangeStrategy strategy, DateRange range) {
   if (module != FinancialViewModule.combinedExpenses && module != FinancialViewModule.netCashFlow) {
     return const {};
   }
   return {
-    'My Expenses': _myExpenses(ref, range),
-    'Shared Expenses': _sharedExpenses(ref, range),
+    'My Expenses': _myExpenses(ref, strategy, range),
+    'Shared Expenses': _sharedExpenses(ref, strategy, range),
     'Bills': _billsPaid(ref, range),
     'EMIs': _emiPaid(ref, range),
     'Loans': _loanPaid(ref, range),
@@ -99,34 +102,63 @@ Map<String, double> _breakdownFor(Ref ref, FinancialViewModule module, DateRange
   }..removeWhere((_, value) => value == 0);
 }
 
-/// The portion of every [Expense] in [range] that was actually mine
-/// ([Expense.myShare]) — the full amount for a plain/assigned expense, or my
-/// own participant share for a split one. Filtered by [Expense.date], the
-/// expense's own date (expenses have no accounting-month override the way
-/// [Transaction] does).
-double _myExpenses(Ref ref, DateRange range) {
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
-  return expenses.where((e) => range.contains(e.date)).fold(0.0, (sum, e) => sum + e.myShare);
+/// The single date [transaction] must be bucketed by for [strategy] — mirrors
+/// [ReportsPeriodX.reportDateFor]: [Transaction.effectiveMonth] (Accounting
+/// Month) only when [strategy] resolves to a whole calendar month
+/// ([ReportsPeriodStrategy] wrapping `thisMonth`/`lastMonth`), else
+/// [Transaction.dateTime]. A salary-cycle window (17th→17th) is day-granular,
+/// not month-granular, so `accountingMonth` — which only ever encodes a
+/// month, never a day — has no well-defined position inside it; bucketing a
+/// salary-cycle range by `effectiveMonth` would compare against the 1st of
+/// the transaction's month and silently drop transactions that plainly fall
+/// inside the cycle.
+DateTime _bucketDateFor(DateRangeStrategy strategy, Transaction transaction) {
+  final isMonthGranular = switch (strategy) {
+    ReportsPeriodStrategy(:final period) => period.isMonthGranular,
+    _ => false,
+  };
+  return isMonthGranular ? transaction.effectiveMonth : transaction.dateTime;
 }
 
-/// The portion of every split [Expense] in [range] that other participants
-/// owe — [Expense.totalAmount] minus my own share, so a split expense's
-/// "shared" total never includes the part I already paid for myself.
-double _sharedExpenses(Ref ref, DateRange range) {
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
-  return expenses.where((e) => e.isSplit && range.contains(e.date)).fold(
-        0.0,
-        (sum, e) => sum + (e.totalAmount - e.myShare),
-      );
+/// Every expense-type transaction in [range] — the single filter both
+/// [_myExpenses] and [_sharedExpenses] build on, so they can never disagree
+/// about which transactions are "in range". Sources from
+/// [calculableTransactionsProvider] (excludes `excludeFromCalculations`) and
+/// buckets by [_bucketDateFor], exactly like every other Dashboard/Reports/
+/// Budget/Cash-Flow total in the app.
+List<Transaction> _expenseTransactionsInRange(Ref ref, DateRangeStrategy strategy, DateRange range) {
+  final transactions = ref.watch(calculableTransactionsProvider);
+  return transactions
+      .where((t) => t.type == TransactionType.expense && !t.isTransfer && range.contains(_bucketDateFor(strategy, t)))
+      .toList();
+}
+
+/// The portion of every expense in [range] that was actually mine — the full
+/// amount for a plain/assigned expense, or [Expense.myShare] for a split one.
+/// Delegates the Transaction+Expense join to
+/// [myExpenseBreakdownForTransactionsProvider], the same one Reports uses, so
+/// this never re-derives its own exclusion/date filtering.
+double _myExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
+  final transactions = _expenseTransactionsInRange(ref, strategy, range);
+  return ref.watch(myExpenseBreakdownForTransactionsProvider(transactions)).total;
+}
+
+/// The portion of every split expense in [range] that other participants
+/// owe — never money I actually spent. Delegates to
+/// [othersShareForTransactionsProvider], the same join/filter contract as
+/// [_myExpenses].
+double _sharedExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
+  final transactions = _expenseTransactionsInRange(ref, strategy, range);
+  return ref.watch(othersShareForTransactionsProvider(transactions));
 }
 
 /// Real income transactions in [range] — transfers excluded since a
 /// transfer between the user's own accounts isn't real income, matching
 /// every other aggregation in the app ([Transaction.isTransfer]).
-double _income(Ref ref, DateRange range) {
+double _income(Ref ref, DateRangeStrategy strategy, DateRange range) {
   final transactions = ref.watch(calculableTransactionsProvider);
   return transactions
-      .where((t) => t.type == TransactionType.income && !t.isTransfer && range.contains(t.effectiveMonth))
+      .where((t) => t.type == TransactionType.income && !t.isTransfer && range.contains(_bucketDateFor(strategy, t)))
       .fold(0.0, (sum, t) => sum + t.amount);
 }
 
@@ -134,21 +166,32 @@ double _income(Ref ref, DateRange range) {
 /// transfer posts two transactions sharing a `transferId`, so this counts
 /// only the expense (outgoing) leg to avoid double-counting the same
 /// transfer twice.
-double _transfers(Ref ref, DateRange range) {
+double _transfers(Ref ref, DateRangeStrategy strategy, DateRange range) {
   final transactions = ref.watch(calculableTransactionsProvider);
   return transactions
-      .where((t) => t.isTransfer && t.type == TransactionType.expense && range.contains(t.effectiveMonth))
+      .where(
+        (t) => t.isTransfer && t.type == TransactionType.expense && range.contains(_bucketDateFor(strategy, t)),
+      )
       .fold(0.0, (sum, t) => sum + t.amount);
 }
 
 /// Bills paid whose due date falls in [range]. Bills have no per-payment
-/// timestamp — only a cumulative `amountPaid` against one `dueDate` — so, as
-/// with every other "paid" figure in this app (`cash_flow_providers.dart`),
-/// a payment is bucketed by its bill's due date rather than when it was
-/// actually paid.
+/// timestamp — only a cumulative `amountPaid` per occurrence against that
+/// occurrence's own `dueDate` — so, as with every other "paid" figure in
+/// this app (`cash_flow_providers.dart`), a payment is bucketed by its
+/// occurrence's due date rather than when it was actually paid. Mirrors
+/// [_emiPaid]/[_loanPaid]/[_creditCardPaid]'s per-parent-then-per-child
+/// fan-out exactly, one level added for Bills' template/occurrence split.
 double _billsPaid(Ref ref, DateRange range) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
-  return bills.where((b) => range.contains(b.dueDate)).fold(0.0, (sum, b) => sum + b.amountPaid);
+  var paid = 0.0;
+  for (final bill in bills) {
+    final occurrences = ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
+    for (final occurrence in occurrences) {
+      if (range.contains(occurrence.dueDate)) paid += occurrence.amountPaid;
+    }
+  }
+  return paid;
 }
 
 double _emiPaid(Ref ref, DateRange range) {

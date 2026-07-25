@@ -146,7 +146,9 @@ class Emi extends SoftDeletableEntity {
     if (isClosed) return EmiStatus.closed;
     if (isDefaulted) return EmiStatus.defaulted;
     final hasOverdue = installments.any((i) => i.status == InstallmentStatus.overdue);
-    return hasOverdue ? EmiStatus.overdue : EmiStatus.active;
+    if (hasOverdue) return EmiStatus.overdue;
+    final isFullyPaid = installments.isNotEmpty && installments.every((i) => i.remainingAmount <= 0);
+    return isFullyPaid ? EmiStatus.completed : EmiStatus.active;
   }
 
   factory Emi.fromFirestore(

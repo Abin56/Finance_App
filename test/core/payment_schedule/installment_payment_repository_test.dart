@@ -82,6 +82,52 @@ void main() {
 
       expect(installment.amountPaid, 1000);
     });
+
+    test('records settlementMethod/billingCycleLabel and computes remainingBalanceAfterPayment', () async {
+      final payment = await paymentRepository.recordPayment(
+        installment,
+        amount: 400,
+        date: DateTime.now(),
+        settlementMethod: 'UPI',
+        billingCycleLabel: 'Jul 2026',
+      );
+
+      expect(payment.settlementMethod, 'UPI');
+      expect(payment.billingCycleLabel, 'Jul 2026');
+      expect(payment.remainingBalanceAfterPayment, 600);
+    });
+
+    test('settlementMethod/billingCycleLabel default to null when not supplied', () async {
+      final payment = await paymentRepository.recordPayment(installment, amount: 400, date: DateTime.now());
+
+      expect(payment.settlementMethod, isNull);
+      expect(payment.billingCycleLabel, isNull);
+      expect(payment.remainingBalanceAfterPayment, 600);
+    });
+
+    // Case 2: multiple partial payments across advancing dates each get
+    // their own remainingBalanceAfterPayment snapshot and both are kept as
+    // distinct, independently-readable records.
+    test('multiple partial payments each record their own remainingBalanceAfterPayment', () async {
+      final first = await paymentRepository.recordPayment(
+        installment,
+        amount: 400,
+        date: DateTime(2026, 1, 20),
+        billingCycleLabel: 'Jan 2026',
+      );
+      final second = await paymentRepository.recordPayment(
+        installment,
+        amount: 200,
+        date: DateTime(2026, 2, 20),
+        billingCycleLabel: 'Feb 2026',
+      );
+
+      expect(first.remainingBalanceAfterPayment, 600);
+      expect(second.remainingBalanceAfterPayment, 400);
+      expect(first.billingCycleLabel, 'Jan 2026');
+      expect(second.billingCycleLabel, 'Feb 2026');
+      expect(installment.amountPaid, 600);
+    });
   });
 
   group('InstallmentPaymentRepository.softDeletePayment / restorePayment', () {

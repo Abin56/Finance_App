@@ -65,6 +65,8 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
           return status == EmiStatus.overdue;
         case EmiListFilter.defaulted:
           return status == EmiStatus.defaulted;
+        case EmiListFilter.completed:
+          return status == EmiStatus.completed;
         case EmiListFilter.closed:
           return status == EmiStatus.closed;
         case EmiListFilter.all:

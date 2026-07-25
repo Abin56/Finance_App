@@ -2,7 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/firestore_constants.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/payment_schedule/domain/cycle_anchor.dart';
+import '../../../../core/payment_schedule/domain/cycle_engine.dart';
 import '../../../../core/payment_schedule/domain/installment.dart';
+import '../../../../core/payment_schedule/domain/installment_cycle_item.dart';
 import '../../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../../core/payment_schedule/domain/installment_status.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
@@ -83,6 +86,68 @@ final emiRemainingAmountProvider = Provider.autoDispose.family<double, Emi>((ref
 final emiTotalPaidProvider = Provider.autoDispose.family<double, Emi>((ref, emi) {
   final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
   return installments.fold(0.0, (sum, i) => sum + i.amountPaid);
+});
+
+/// Count of installments already fully paid — the "N" in "N / tenure EMIs
+/// Paid" on the EMI Details hero card.
+final emiInstallmentsPaidProvider = Provider.autoDispose.family<int, Emi>((ref, emi) {
+  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  return installments.where((i) => i.status == InstallmentStatus.paid).length;
+});
+
+/// Count of installments still owed (not fully paid, not skipped) — distinct
+/// from `installmentCount - emiInstallmentsPaidProvider` so a skipped
+/// installment doesn't count as "remaining tenure" still to be paid.
+final emiRemainingTenureProvider = Provider.autoDispose.family<int, Emi>((ref, emi) {
+  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  return installments.where((i) => i.remainingAmount > 0 && !i.isSkipped).length;
+});
+
+/// Remaining principal across all installments, assuming each installment's
+/// own payments settle its interest portion before its principal portion
+/// (the standard repayment convention) — display-only, mirrors
+/// `LoanDetailScreen`'s equivalent computation. Promoted from
+/// `EmiDetailScreen`'s former private method so any screen/widget can read
+/// the same figure.
+final emiPrincipalOutstandingProvider = Provider.autoDispose.family<double, Emi>((ref, emi) {
+  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  return installments.fold(0.0, (sum, i) {
+    final interestPortion = i.interestPortion ?? 0;
+    final principalPortion = i.principalPortion ?? i.amountDue;
+    final paidTowardPrincipal = (i.amountPaid - interestPortion).clamp(0, principalPortion);
+    return sum + (principalPortion - paidTowardPrincipal);
+  });
+});
+
+/// Remaining interest across all installments — see
+/// [emiPrincipalOutstandingProvider] for the settlement convention assumed.
+final emiInterestOutstandingProvider = Provider.autoDispose.family<double, Emi>((ref, emi) {
+  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  return installments.fold(0.0, (sum, i) {
+    final interestPortion = i.interestPortion ?? 0;
+    final paidTowardInterest = i.amountPaid.clamp(0, interestPortion);
+    return sum + (interestPortion - paidTowardInterest);
+  });
+});
+
+/// Total interest payable across the *entire* schedule (paid + outstanding)
+/// — distinct from Reports' `interestPaidProvider`, which only sums
+/// interest paid so far.
+final emiTotalInterestPayableProvider = Provider.autoDispose.family<double, Emi>((ref, emi) {
+  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  return installments.fold(0.0, (sum, i) => sum + (i.interestPortion ?? 0));
+});
+
+/// Fraction (0..1) of this EMI's total schedule paid off so far — promoted
+/// from `EmiDetailScreen`'s former inline `completion` calculation so a
+/// dashboard widget can reuse the exact same figure as the detail screen's
+/// progress ring/bar.
+final emiLoanProgressProvider = Provider.autoDispose.family<double, Emi>((ref, emi) {
+  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  final totalDue = installments.fold(0.0, (sum, i) => sum + i.amountDue);
+  if (totalDue == 0) return 0;
+  final paid = ref.watch(emiTotalPaidProvider(emi));
+  return paid / totalDue;
 });
 
 /// Every non-closed EMI.
@@ -228,6 +293,47 @@ final nextEmiDueProvider = Provider<({Emi emi, Installment installment})?>((ref)
     }
   }
   return next;
+});
+
+/// The cycle anchor EMI installments classify against. Day 17, matching the
+/// People module's `personCycleAnchor` and Credit Cards' default statement
+/// day — the same coincidental-but-consistent default already used
+/// elsewhere in this codebase (`CreditCardProfile.statementDay`'s implicit
+/// default, the Dashboard's salary-cycle strategies). EMI has no
+/// per-schedule anchor-day concept of its own today, so every EMI shares
+/// this one constant for now, same posture as People's.
+const emiCycleAnchor = CycleAnchor(anchorDay: 17);
+
+/// One EMI's installments split into Previous-Cycle-Pending / Current /
+/// Future via the shared `CycleEngine`, the same carry-forward rule Credit
+/// Cards (`statementCycleViewProvider`) and People
+/// (`personCycleViewProvider`) already ship. Raw `CycleItem`-typed result —
+/// see [emiCycleViewRecordProvider] below for the unwrapped `Installment`
+/// view every screen should actually watch, mirroring how
+/// `statementCycleViewProvider` composes over its own raw engine call.
+final emiCycleViewProvider = Provider.autoDispose.family<CycleEngineResult<InstallmentCycleItem>, Emi>((ref, emi) {
+  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  final items = installments.map(InstallmentCycleItem.new).toList();
+  return CycleEngine.classifyForCarryForward(items, emiCycleAnchor);
+});
+
+/// The two-section carry-forward view for one EMI's installments, unwrapped
+/// back to plain [Installment]s — mirrors
+/// [StatementCycleView]/`statementCycleViewProvider` exactly. Unlike Credit
+/// Cards (whose live current cycle isn't materialized as a `Statement` yet,
+/// so `current` is fetched separately), every EMI installment is
+/// materialized upfront by `generateInstallments`, so [current] here is
+/// simply [emiCycleViewProvider]'s own `result.current`, unwrapped — no
+/// separate "live" fetch needed. Plural (a weekly/custom schedule could
+/// land more than one installment in the same current-cycle window).
+typedef EmiCycleView = ({List<Installment> previousCyclePending, List<Installment> current});
+
+final emiCycleViewRecordProvider = Provider.autoDispose.family<EmiCycleView, Emi>((ref, emi) {
+  final result = ref.watch(emiCycleViewProvider(emi));
+  return (
+    previousCyclePending: result.previousCyclePending.map((item) => item.installment).toList(),
+    current: result.current.map((item) => item.installment).toList(),
+  );
 });
 
 /// Every unpaid, non-skipped installment due within the next 7 days

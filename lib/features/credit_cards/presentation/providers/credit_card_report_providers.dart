@@ -4,18 +4,21 @@ import '../../../people/presentation/providers/people_providers.dart';
 import '../../../people/presentation/providers/person_statement_grouping_providers.dart';
 import 'credit_card_providers.dart';
 
-/// Sum of every card-account transaction dated within [start]..[end]
-/// (inclusive) — Reports' "Monthly Card Spend" figure. Reuses
-/// [transactionsForCardProvider] (already excludes soft-deleted entries via
-/// the account-level filter it's built on) rather than re-deriving
-/// "which transactions are on a card" a second time.
+/// Sum of every card-account transaction whose [Transaction.effectiveMonth]
+/// falls within [start]..[end] (inclusive) — Reports' "Monthly Card Spend"
+/// figure. Reuses [transactionsForCardProvider] (already excludes
+/// soft-deleted and `excludeFromCalculations` entries via the
+/// `calculableTransactionsProvider` it's built on) rather than re-deriving
+/// "which transactions are on a card" a second time. Buckets by
+/// `effectiveMonth`, not raw `dateTime`, matching the Income/Expenses figures
+/// shown alongside this one on the same Reports screen.
 final creditCardSpendForRangeProvider = Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   var total = 0.0;
   for (final card in cards) {
     final transactions = ref.watch(transactionsForCardProvider(card.id));
     total += transactions
-        .where((t) => !t.dateTime.isBefore(range.start) && !t.dateTime.isAfter(range.end))
+        .where((t) => !t.effectiveMonth.isBefore(range.start) && !t.effectiveMonth.isAfter(range.end))
         .fold(0.0, (sum, t) => sum + t.amount);
   }
   return total;

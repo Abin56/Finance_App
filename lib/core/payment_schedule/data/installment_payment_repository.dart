@@ -24,11 +24,14 @@ class InstallmentPaymentRepository extends FirestoreCrudRepository<InstallmentPa
     required double amount,
     required DateTime date,
     String note = '',
+    String? settlementMethod,
+    String? billingCycleLabel,
   }) async {
     if (amount <= 0) {
       throw const AppException('Payment amount must be greater than 0');
     }
 
+    final remainingAfter = (installment.remainingAmount - amount).clamp(0.0, installment.amountDue);
     final payment = InstallmentPayment(
       id: IdGenerator.generate(),
       installmentId: installment.id,
@@ -39,6 +42,9 @@ class InstallmentPaymentRepository extends FirestoreCrudRepository<InstallmentPa
       date: date,
       note: note,
       createdAt: DateTime.now(),
+      settlementMethod: settlementMethod,
+      billingCycleLabel: billingCycleLabel,
+      remainingBalanceAfterPayment: remainingAfter,
     );
     await add(payment.id, payment);
     await installmentRepository.applyPayment(installment, payment.amount);

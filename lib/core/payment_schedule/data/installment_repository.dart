@@ -110,9 +110,9 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
 
   /// Applies a payment delta toward this installment, clamped so
   /// [Installment.amountPaid] never exceeds [Installment.amountDue] —
-  /// mirrors `BillRepository.applyPayment`'s clamp + audit pattern, minus
-  /// rollover (installments are fixed, distinct documents, not a rolling
-  /// occurrence).
+  /// mirrors `BillOccurrenceRepository.applyPayment`'s clamp + audit
+  /// pattern (installments are fixed, distinct documents per cycle, same
+  /// as a `BillOccurrence`).
   Future<void> applyPayment(Installment installment, double delta) async {
     if (delta == 0) return;
     final newAmountPaid = (installment.amountPaid + delta).clamp(0, installment.amountDue).toDouble();

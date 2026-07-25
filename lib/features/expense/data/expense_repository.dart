@@ -12,6 +12,7 @@ import '../../people/data/ledger_repository.dart';
 import '../../people/data/person_repository.dart';
 import '../../people/domain/ledger_entry.dart';
 import '../../people/domain/ledger_entry_type.dart';
+import '../../people/domain/person.dart';
 import '../../transactions/data/transaction_repository.dart';
 import '../../transactions/domain/transaction_type.dart';
 import '../domain/expense.dart';
@@ -744,12 +745,19 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     required double amount,
     required DateTime date,
     String note = '',
+    String? settlementMethod,
   }) async {
     if (participant.installmentId != installment.id) {
       throw const AppException('This payment does not belong to this person');
     }
 
-    await installmentPaymentRepository.recordPayment(installment, amount: amount, date: date, note: note);
+    await installmentPaymentRepository.recordPayment(
+      installment,
+      amount: amount,
+      date: date,
+      note: note,
+      settlementMethod: settlementMethod,
+    );
 
     if (participant.personId == null) return;
     final person = await personRepository.getByKey(participant.personId!);
@@ -762,6 +770,71 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       note: 'Split settlement: ${expense.description}',
       transactionRef: expense.transactionId,
     );
+  }
+
+  /// Settles a lump-sum [amount] against one person's outstanding
+  /// split/assigned-expense installments, oldest-due-first — the fan-out
+  /// counterpart to [settleParticipant] for "pay everything at once" flows
+  /// (`SettleUpSheet`'s "All pending"/"Custom amount" modes, and
+  /// `PersonStatementScreen`'s "Settle All" action).
+  ///
+  /// Each installment is settled via [settleParticipant] (so every dollar
+  /// produces a traceable `InstallmentPayment`, exactly like settling one
+  /// expense at a time), until [amount] is exhausted or every installment in
+  /// [pending] is covered. If [amount] exceeds the total outstanding across
+  /// [pending] (e.g. the person also has an untracked manual-lending
+  /// balance), the remainder is posted as one plain [LedgerEntry] the same
+  /// way a manual settlement already is — no synthetic installment is
+  /// invented for it.
+  ///
+  /// [pending] must already be sorted oldest-due-first by the caller (the
+  /// provider layer, which already resolves this per-person participant
+  /// list) — this method does not re-sort, so it stays a pure fan-out with no
+  /// opinion about ordering beyond "process in the order given."
+  Future<void> settleAcrossPending({
+    required Person person,
+    required List<({Expense expense, ExpenseParticipant participant, Installment installment})> pending,
+    required double amount,
+    required DateTime date,
+    required InstallmentPaymentRepository Function(String scheduleId, String installmentId) installmentPaymentRepositoryFor,
+    String note = '',
+    String? settlementMethod,
+  }) async {
+    if (amount <= 0) {
+      throw const AppException('Settlement amount must be greater than 0');
+    }
+
+    var remaining = amount;
+    for (final item in pending) {
+      if (remaining <= 0) break;
+      final owed = item.installment.remainingAmount;
+      if (owed <= 0) continue;
+      final portion = owed < remaining ? owed : remaining;
+      await settleParticipant(
+        expense: item.expense,
+        participant: item.participant,
+        installment: item.installment,
+        installmentPaymentRepository: installmentPaymentRepositoryFor(
+          item.installment.scheduleId,
+          item.installment.id,
+        ),
+        amount: portion,
+        date: date,
+        note: note,
+        settlementMethod: settlementMethod,
+      );
+      remaining -= portion;
+    }
+
+    if (remaining > 0) {
+      await _ledgerRepositoryFor(person.id).addEntry(
+        person,
+        type: person.isCreditor ? LedgerEntryType.receivedBack : LedgerEntryType.repaid,
+        amount: remaining,
+        date: date,
+        note: note.isEmpty ? 'Settled all' : note,
+      );
+    }
   }
 
   /// Reverses this expense's ledger/schedule effect without touching the

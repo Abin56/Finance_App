@@ -472,7 +472,7 @@ void main() {
         id: 'b1',
         name: 'Electricity',
         amount: 200,
-        dueDate: DateTime(2026, 1, 5),
+        nextDueDate: DateTime(2026, 1, 5),
         recurrence: BillRecurrence.monthly,
         createdAt: DateTime(2026, 1, 1),
       );
@@ -733,7 +733,7 @@ void main() {
         id: 'b1',
         name: 'Electricity',
         amount: 200,
-        dueDate: DateTime(2026, 1, 5),
+        nextDueDate: DateTime(2026, 1, 5),
         recurrence: BillRecurrence.monthly,
         createdAt: DateTime(2026, 1, 1),
       );

@@ -11,6 +11,7 @@ abstract class FirestoreCollections {
   static const String people = 'people'; // creditors & debtors
   static const String ledger = 'ledger'; // subcollection under people/{personId}
   static const String bills = 'bills';
+  static const String billOccurrences = 'occurrences'; // subcollection under bills/{billId}
   static const String payments = 'payments'; // subcollection under bills/{billId} and installments/{installmentId}
   static const String loans = 'loans';
   static const String emis = 'emis';

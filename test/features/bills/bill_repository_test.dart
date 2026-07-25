@@ -61,6 +61,11 @@ void main() {
       final bill = await seedBill(recurrence: BillRecurrence.custom, customIntervalDays: 10);
       expect(bill.customIntervalDays, 10);
     });
+
+    test('sets nextDueDate from the given dueDate', () async {
+      final bill = await seedBill(dueDate: DateTime(2026, 3, 10));
+      expect(bill.nextDueDate, DateTime(2026, 3, 10));
+    });
   });
 
   group('BillRepository.editBill', () {
@@ -82,109 +87,21 @@ void main() {
         throwsA(isA<AppException>()),
       );
     });
-  });
 
-  group('BillRepository.applyPayment', () {
-    test('accumulates a partial payment', () async {
-      final bill = await seedBill(amount: 100);
-      await repository.applyPayment(bill, 40);
-      expect(bill.amountPaid, 40);
-    });
-
-    test('clamps at the bill amount and rolls a recurring bill over on overshoot', () async {
-      final bill = await seedBill(amount: 100, recurrence: BillRecurrence.monthly, dueDate: DateTime(2026, 3, 10));
-      await repository.applyPayment(bill, 40);
-
-      await repository.applyPayment(bill, 90);
-      expect(bill.amountPaid, 0, reason: 'reached the full amount, so it rolled over to the next occurrence');
-      expect(bill.dueDate, DateTime(2026, 4, 10));
-    });
-
-    test('clamps a one-time bill at the amount without rolling over', () async {
-      final bill = await seedBill(amount: 100, recurrence: BillRecurrence.oneTime, dueDate: DateTime(2026, 3, 10));
-      await repository.applyPayment(bill, 40);
-
-      await repository.applyPayment(bill, 90);
-      expect(bill.amountPaid, 100, reason: 'clamped at the bill amount, no rollover for one-time bills');
-      expect(bill.dueDate, DateTime(2026, 3, 10));
-    });
-
-    test('is a no-op for a zero delta', () async {
-      final bill = await seedBill();
-      await repository.applyPayment(bill, 0);
-      expect(bill.editHistory, isEmpty);
-    });
-
-    test('rolls a monthly bill forward once fully paid', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.monthly, dueDate: DateTime(2026, 3, 10), amount: 100);
-      await repository.applyPayment(bill, 100);
-
-      expect(bill.dueDate, DateTime(2026, 4, 10));
-      expect(bill.amountPaid, 0, reason: 'reset for the new occurrence');
-      expect(bill.isSkipped, isFalse);
-    });
-
-    test('does not roll a one-time bill forward once fully paid', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.oneTime, dueDate: DateTime(2026, 3, 10), amount: 100);
-      await repository.applyPayment(bill, 100);
-
-      expect(bill.dueDate, DateTime(2026, 3, 10));
-      expect(bill.amountPaid, 100);
+    test('editing nextDueDate never touches an occurrence — it is a template-only field', () async {
+      final bill = await seedBill(dueDate: DateTime(2026, 3, 10));
+      await repository.editBill(bill, nextDueDate: DateTime(2026, 3, 20));
+      expect(bill.nextDueDate, DateTime(2026, 3, 20));
     });
   });
 
-  group('BillRepository.markPaid', () {
-    test('sets amountPaid to the full amount', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.oneTime, amount: 250);
-      await repository.markPaid(bill);
-      expect(bill.amountPaid, 250);
-    });
+  group('BillRepository.advanceNextDueDate', () {
+    test('advances nextDueDate and records an audit entry', () async {
+      final bill = await seedBill(dueDate: DateTime(2026, 3, 10));
+      await repository.advanceNextDueDate(bill, DateTime(2026, 4, 10));
 
-    test('is a no-op when already fully paid', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.oneTime, amount: 250);
-      await repository.markPaid(bill);
-      final historyLengthAfterFirst = bill.editHistory.length;
-
-      await repository.markPaid(bill);
-      expect(bill.editHistory.length, historyLengthAfterFirst);
-    });
-
-    test('rolls a recurring bill forward', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.weekly, dueDate: DateTime(2026, 3, 10));
-      await repository.markPaid(bill);
-      expect(bill.dueDate, DateTime(2026, 3, 17));
-      expect(bill.amountPaid, 0);
-    });
-  });
-
-  group('BillRepository.skipOccurrence / unskip', () {
-    test('skipOccurrence marks isSkipped and rolls a recurring bill forward', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.monthly, dueDate: DateTime(2026, 3, 10));
-      await repository.skipOccurrence(bill);
-
-      expect(bill.dueDate, DateTime(2026, 4, 10));
-      expect(bill.isSkipped, isFalse, reason: 'reset for the new occurrence after rollover');
-    });
-
-    test('skipOccurrence on a one-time bill stays skipped, no rollover', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.oneTime, dueDate: DateTime(2026, 3, 10));
-      await repository.skipOccurrence(bill);
-
-      expect(bill.dueDate, DateTime(2026, 3, 10));
-      expect(bill.isSkipped, isTrue);
-    });
-
-    test('unskip reverses isSkipped on a one-time bill', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.oneTime);
-      await repository.skipOccurrence(bill);
-      await repository.unskip(bill);
-      expect(bill.isSkipped, isFalse);
-    });
-
-    test('unskip is a no-op when not skipped', () async {
-      final bill = await seedBill();
-      await repository.unskip(bill);
-      expect(bill.editHistory, isEmpty);
+      expect(bill.nextDueDate, DateTime(2026, 4, 10));
+      expect(bill.editHistory.map((e) => e.field), contains('nextDueDate'));
     });
   });
 }

@@ -14,7 +14,8 @@ import '../adapters/emi_calendar_adapter.dart';
 /// which feature produced which event.
 final calendarEventsProvider = Provider<List<CalendarEvent>>((ref) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
-  final billEvents = billsToCalendarEvents(bills);
+  final occurrenceByBillId = ref.watch(currentOccurrenceByBillIdProvider);
+  final billEvents = billsToCalendarEvents(bills, occurrenceByBillId);
 
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   final installmentsByScheduleId = <String, List<Installment>>{

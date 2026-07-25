@@ -11,8 +11,10 @@ import 'package:finance_app/core/payment_schedule/domain/installment_status.dart
 import 'package:finance_app/core/payment_schedule/domain/owner_type.dart';
 import 'package:finance_app/core/payment_schedule/domain/payment_schedule.dart';
 import 'package:finance_app/core/payment_schedule/domain/schedule_type.dart';
+import 'package:finance_app/features/emi/data/emi_payment_breakdown_repository.dart';
 import 'package:finance_app/features/emi/data/emi_repository.dart';
 import 'package:finance_app/features/emi/domain/emi.dart';
+import 'package:finance_app/features/emi/domain/emi_payment_breakdown.dart';
 import 'package:finance_app/features/emi/domain/emi_interest.dart';
 import 'package:finance_app/features/emi/domain/emi_loan_type.dart';
 import 'package:finance_app/features/emi/domain/emi_payment_history_entry.dart';
@@ -977,6 +979,93 @@ void main() {
 
       await repository.restore(emi);
       expect((await repository.getAll()).any((e) => e.id == emi.id), true);
+    });
+  });
+
+  group('EmiRepository.permanentlyDeleteEmi', () {
+    test('wipes the EMI, every installment, their payments, and the schedule — nothing orphaned', () async {
+      final emi = await repository.createEmi(
+        name: 'Fridge EMI',
+        principalAmount: 3000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+      );
+
+      final installmentRepository = installmentRepositoryFor(emi.scheduleId);
+      final installments = await installmentsFor(emi.scheduleId);
+      final first = installments.first;
+      final paymentRepository = paymentRepositoryFor(emi.scheduleId, first.id, installmentRepository);
+      final payment = await paymentRepository.recordPayment(first, amount: first.amountDue, date: DateTime(2026, 1, 1));
+
+      final breakdownCollection = firestore
+          .collection('emis')
+          .doc(emi.id)
+          .collection('paymentBreakdowns')
+          .withConverter<EmiPaymentBreakdown>(
+            fromFirestore: EmiPaymentBreakdown.fromFirestore,
+            toFirestore: (b, _) => b.toFirestore(),
+          );
+      await EmiPaymentBreakdownRepository(breakdownCollection).createBreakdown(
+        paymentId: payment.id,
+        scheduleId: emi.scheduleId,
+        installmentId: first.id,
+        principalPaid: first.amountDue,
+      );
+
+      // Sanity check everything exists before deleting.
+      expect((await repository.getAll()).any((e) => e.id == emi.id), true);
+      expect((await installmentsFor(emi.scheduleId)).length, 3);
+      final paymentsBefore = await firestore
+          .collection('paymentSchedules')
+          .doc(emi.scheduleId)
+          .collection('installments')
+          .doc(first.id)
+          .collection('payments')
+          .get();
+      expect(paymentsBefore.docs, isNotEmpty);
+      final scheduleBefore = await firestore.collection('paymentSchedules').doc(emi.scheduleId).get();
+      expect(scheduleBefore.exists, true);
+      final breakdownsBefore = await firestore.collection('emis').doc(emi.id).collection('paymentBreakdowns').get();
+      expect(breakdownsBefore.docs, isNotEmpty);
+
+      await repository.permanentlyDeleteEmi(emi);
+
+      expect((await repository.getAll()).any((e) => e.id == emi.id), false);
+      expect((await repository.getTrash()).any((e) => e.id == emi.id), false);
+      final emiDoc = await firestore.collection('emis').doc(emi.id).get();
+      expect(emiDoc.exists, false);
+
+      expect(await installmentsFor(emi.scheduleId), isEmpty);
+      final paymentsAfter = await firestore
+          .collection('paymentSchedules')
+          .doc(emi.scheduleId)
+          .collection('installments')
+          .doc(first.id)
+          .collection('payments')
+          .get();
+      expect(paymentsAfter.docs, isEmpty);
+      final scheduleAfter = await firestore.collection('paymentSchedules').doc(emi.scheduleId).get();
+      expect(scheduleAfter.exists, false);
+      final breakdownsAfter = await firestore.collection('emis').doc(emi.id).collection('paymentBreakdowns').get();
+      expect(breakdownsAfter.docs, isEmpty);
+    });
+
+    test('also removes an EMI already sitting in Trash (soft-deleted)', () async {
+      final emi = await repository.createEmi(
+        name: 'Mistaken EMI',
+        principalAmount: 500,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 2,
+      );
+      await repository.softDelete(emi);
+      expect((await repository.getTrash()).any((e) => e.id == emi.id), true);
+
+      await repository.permanentlyDeleteEmi(emi);
+
+      expect((await repository.getTrash()).any((e) => e.id == emi.id), false);
+      expect(await installmentsFor(emi.scheduleId), isEmpty);
     });
   });
 }

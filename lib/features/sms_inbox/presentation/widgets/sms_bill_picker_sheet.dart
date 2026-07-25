@@ -30,8 +30,9 @@ class _SmsBillPickerSheetState extends ConsumerState<SmsBillPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final occurrences = ref.watch(currentOccurrenceByBillIdProvider);
     final bills = (ref.watch(billsStreamProvider).value ?? const <Bill>[])
-        .where((b) => b.remainingAmount > 0)
+        .where((b) => (occurrences[b.id]?.remainingAmount ?? 0) > 0)
         .toList();
     final selectedBill = bills.where((b) => b.id == _billId).firstOrNull;
 
@@ -55,7 +56,9 @@ class _SmsBillPickerSheetState extends ConsumerState<SmsBillPickerSheet> {
               for (final bill in bills)
                 DropdownMenuItem(
                   value: bill.id,
-                  child: Text('${bill.name} · ${CurrencyFormatter.instance.format(bill.remainingAmount)} left'),
+                  child: Text(
+                    '${bill.name} · ${CurrencyFormatter.instance.format(occurrences[bill.id]!.remainingAmount)} left',
+                  ),
                 ),
             ],
             onChanged: (value) => setState(() => _billId = value),

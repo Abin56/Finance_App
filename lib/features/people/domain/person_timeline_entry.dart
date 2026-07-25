@@ -81,7 +81,10 @@ class PersonTimelineEntry {
     required this.color,
     this.status,
     this.note = '',
-  });
+    this.totalAmount,
+    this.paidAmount,
+    double? displayAmount,
+  }) : displayAmount = displayAmount ?? signedAmount;
 
   final String id;
   final DateTime date;
@@ -89,8 +92,17 @@ class PersonTimelineEntry {
   final String title;
 
   /// Same sign convention as [LedgerEntry.signedAmount]: positive moves the
-  /// person's pending amount toward "they owe you more".
+  /// person's pending amount toward "they owe you more". Zero for a
+  /// [PersonTimelineCategory.reference] entry, which has no balance effect —
+  /// use [displayAmount] to show what the row is actually for.
   final double signedAmount;
+
+  /// The amount to render on the row/share text — same value as
+  /// [signedAmount] for every balance-affecting entry, but the real
+  /// transaction amount (unsigned, informational only) for a
+  /// [PersonTimelineCategory.reference] entry, whose [signedAmount] is always
+  /// zero since it never moves the person's balance.
+  final double displayAmount;
   final PersonTimelineCategory category;
 
   /// User-friendly color for this entry's amount/icon — red only for an open
@@ -101,6 +113,17 @@ class PersonTimelineEntry {
   final Color color;
   final PersonTimelineStatus? status;
   final String note;
+
+  /// The backing `Installment.amountDue` for an [PersonTimelineCategory.assignedExpense]/
+  /// [PersonTimelineCategory.splitExpense] entry — null for every other
+  /// category, and null even for those two if no installment could be
+  /// resolved. Powers [PersonTimelineCycleItem]'s real partial-payment
+  /// carry-forward math instead of a binary paid/unpaid guess.
+  final double? totalAmount;
+
+  /// The backing `Installment.amountPaid` at build time — same nullability
+  /// rule as [totalAmount].
+  final double? paidAmount;
 
   /// Soft-deleted entries (from either source) are excluded from totals and
   /// the default timeline view, mirroring how [LedgerRepository.watchAll]

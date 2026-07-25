@@ -33,7 +33,7 @@ abstract class ShareStatement {
       final runningBalance = balanceAfterById[entry.id]!;
       final dot = entry.status == null ? '' : '${ShareFormat.statusDot(entry.status)} ';
       buffer.writeln('$dot${entry.date.shortDate}  ${entry.title}');
-      buffer.writeln('  $sign${CurrencyFormatter.instance.format(entry.signedAmount.abs())}'
+      buffer.writeln('  $sign${CurrencyFormatter.instance.format(entry.displayAmount.abs())}'
           '  →  Amount Left: ${CurrencyFormatter.instance.format(runningBalance)}');
       if (entry.note.isNotEmpty) buffer.writeln('  Note: ${entry.note}');
       buffer.writeln();

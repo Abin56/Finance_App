@@ -8,20 +8,25 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/services/fiscal_year_controller.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/section_header.dart';
-import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../emi/presentation/providers/emi_providers.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
+import '../../../insights/presentation/providers/insight_generation_provider.dart';
+import '../../../insights/presentation/widgets/insight_card.dart';
 import '../../domain/reports_period.dart';
+import '../providers/category_spending_breakdown_provider.dart';
 import '../widgets/cash_flow_chart.dart';
+import '../widgets/category_spending_pie_chart.dart';
 import '../widgets/credit_card_report_section.dart';
 import '../widgets/emi_report_section.dart';
+import '../widgets/financial_health_section.dart';
+import '../widgets/monthly_comparison_chart.dart';
 import '../widgets/monthly_financial_report_card.dart';
 import '../widgets/reports_category_list.dart';
-import '../widgets/reports_insight_card.dart';
+import '../widgets/spending_trend_chart.dart';
 import '../widgets/reports_my_expense_card.dart';
 import '../widgets/reports_overview_card.dart';
 import '../widgets/reports_period_chips.dart';
@@ -44,8 +49,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final transactions = ref.watch(calculableTransactionsProvider);
-    final categories = ref.watch(categoriesStreamProvider).value ?? const [];
-    final categoriesById = {for (final c in categories) c.id: c};
     final emis = ref.watch(emisStreamProvider).value ?? const [];
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
 
@@ -74,25 +77,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final netSavings = income - expenses;
     final prevNetSavings = prevIncome - prevExpenses;
 
-    final expenseEntries = periodTransactions.where((t) => t.type == TransactionType.expense);
-    final totalsByCategory = <String, double>{};
-    for (final t in expenseEntries) {
-      totalsByCategory.update(t.categoryId, (v) => v + t.amount, ifAbsent: () => t.amount);
-    }
     final myExpenseBreakdown = ref.watch(myExpenseBreakdownForTransactionsProvider(periodTransactions));
     final moneyToReceive = ref.watch(totalPendingSplitAmountProvider);
     final moneyReceived = ref.watch(moneyReceivedForRangeProvider((start: range.start, end: range.end)));
 
-    final ranked = totalsByCategory.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final categoryEntries = [
-      for (final entry in ranked)
-        if (categoriesById[entry.key] != null)
-          CategorySpendingEntry(
-            category: categoriesById[entry.key]!,
-            amount: entry.value,
-            percentOfTotal: expenses == 0 ? 0 : entry.value / expenses,
-          ),
-    ];
+    final categoryEntries = ref.watch(categorySpendingBreakdownProvider((range: range, period: _period)));
+    final insightArgs = (range: range, previousRange: previousRange, period: _period);
+    final insights = ref.watch(generalInsightsProvider(insightArgs));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reports')),
@@ -150,6 +141,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   period: _period,
                 ),
                 const SizedBox(height: AppSizes.lg),
+                SpendingTrendChart(args: (range: range, period: _period)),
+                const SizedBox(height: AppSizes.lg),
+                const MonthlyComparisonChart(),
+                const SizedBox(height: AppSizes.lg),
                 SectionHeader(
                   title: 'Spending by Category',
                   actionLabel: categoryEntries.isEmpty ? null : 'View all',
@@ -161,20 +156,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                     title: 'No spending yet',
                     subtitle: 'Your top spending categories will appear here.',
                   )
-                else
+                else ...[
+                  CategorySpendingPieChart(entries: categoryEntries),
+                  const SizedBox(height: AppSizes.sm),
                   ReportsCategoryList(
                     entries: categoryEntries,
                     onTapCategory: (category) =>
                         context.push('${AppRoutes.reports}/category/${category.id}?period=${_period.name}'),
                   ),
-                if (netSavings > 0 && prevNetSavings != 0) ...[
+                ],
+                if (insights.isNotEmpty) ...[
                   const SizedBox(height: AppSizes.lg),
                   const SectionHeader(title: 'Recent Insights'),
-                  ReportsInsightCard(
-                    message: netSavings >= prevNetSavings
-                        ? 'Great! You saved ${(netSavings - prevNetSavings).abs().toStringAsFixed(0)} more compared to last period.'
-                        : 'You saved ${(prevNetSavings - netSavings).abs().toStringAsFixed(0)} less compared to last period.',
-                  ),
+                  InsightsList(insights: insights),
                 ],
                 if (emis.isNotEmpty) ...[
                   const SizedBox(height: AppSizes.lg),
@@ -184,6 +178,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   const SizedBox(height: AppSizes.lg),
                   CreditCardReportSection(periodStart: range.start, periodEnd: range.end),
                 ],
+                const SizedBox(height: AppSizes.lg),
+                FinancialHealthSection(range: range, previousRange: previousRange, period: _period),
               ],
             ),
     );

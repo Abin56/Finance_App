@@ -8,6 +8,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/num_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/domain/payment_urgency.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/charts/progress_bar.dart';
@@ -17,7 +18,6 @@ import '../../domain/credit_card_profile.dart';
 import '../../domain/credit_card_status.dart';
 import '../../domain/shared_credit_limit.dart';
 import '../../domain/statement.dart';
-import '../../domain/statement_status.dart';
 import '../providers/credit_card_providers.dart';
 import '../widgets/credit_card_form_sheet.dart';
 
@@ -131,6 +131,8 @@ class CreditCardDetailScreen extends ConsumerWidget {
     final current = ref.watch(currentStatementCycleProvider(cardId));
     final statements = [...ref.watch(statementsWithLiveTotalsProvider(cardId))]
       ..sort((a, b) => b.periodEnd.compareTo(a.periodEnd));
+    final cycleView = ref.watch(statementCycleViewProvider(cardId));
+    final previousCyclePendingIds = cycleView.previousCyclePending.map((s) => s.id).toSet();
 
     return Scaffold(
       appBar: AppBar(
@@ -147,8 +149,8 @@ class CreditCardDetailScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Card Settings',
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Card',
             onPressed: () => CreditCardFormSheet.show(context, card: card),
           ),
         ],
@@ -174,14 +176,32 @@ class CreditCardDetailScreen extends ConsumerWidget {
             const SizedBox(height: AppSizes.lg),
             _CardInfoSection(card: card),
           ],
+          if (cycleView.previousCyclePending.isNotEmpty) ...[
+            const SizedBox(height: AppSizes.lg),
+            Text('Previous Cycle Pending', style: context.textTheme.titleMedium),
+            const SizedBox(height: AppSizes.sm),
+            for (final statement in cycleView.previousCyclePending)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                child: _StatementTile(
+                  statement: statement,
+                  isCurrent: false,
+                  isCarriedForward: true,
+                  onTap: () => context.push('${AppRoutes.creditCards}/$cardId/statements/${statement.id}'),
+                ),
+              ),
+          ],
           const SizedBox(height: AppSizes.lg),
-          Text('Statements', style: context.textTheme.titleMedium),
+          Text('Current Cycle', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.sm),
           if (current != null)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSizes.sm),
-              child: _StatementTile(statement: current, isCurrent: true, onTap: null),
+              child: _StatementTile(statement: current, isCurrent: true, isCarriedForward: false, onTap: null),
             ),
+          const SizedBox(height: AppSizes.lg),
+          Text('Statements', style: context.textTheme.titleMedium),
+          const SizedBox(height: AppSizes.sm),
           if (statements.isEmpty && current == null)
             const EmptyState(
               icon: Icons.receipt_long_outlined,
@@ -195,6 +215,7 @@ class CreditCardDetailScreen extends ConsumerWidget {
                 child: _StatementTile(
                   statement: statement,
                   isCurrent: false,
+                  isCarriedForward: previousCyclePendingIds.contains(statement.id),
                   onTap: () => context.push('${AppRoutes.creditCards}/$cardId/statements/${statement.id}'),
                 ),
               ),
@@ -408,15 +429,31 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _StatementTile extends StatelessWidget {
-  const _StatementTile({required this.statement, required this.isCurrent, required this.onTap});
+  const _StatementTile({
+    required this.statement,
+    required this.isCurrent,
+    required this.isCarriedForward,
+    required this.onTap,
+  });
 
   final Statement statement;
   final bool isCurrent;
+
+  /// True when this statement is a closed, still-unpaid statement from
+  /// before the current cycle (see `statementCycleViewProvider`) — its
+  /// status pill shows [PaymentUrgency.carriedForward] instead of its own
+  /// [Statement.status], so it visually stands out as "still pending from
+  /// last cycle" wherever it's rendered.
+  final bool isCarriedForward;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final status = statement.status;
+    final urgency = PaymentUrgencyX.fromCarryForward(
+      isCarriedForward: isCarriedForward,
+      statementStatus: statement.status,
+    );
+    final color = urgency.color;
     return AppCard(
       onTap: onTap,
       child: Row(
@@ -424,8 +461,8 @@ class _StatementTile extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: status.color.withValues(alpha: 0.15), shape: BoxShape.circle),
-            child: Icon(isCurrent ? Icons.hourglass_top_rounded : status.icon, color: status.color, size: AppSizes.iconSm),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+            child: Icon(isCurrent ? Icons.hourglass_top_rounded : urgency.icon, color: color, size: AppSizes.iconSm),
           ),
           const SizedBox(width: AppSizes.md),
           Expanded(
@@ -439,15 +476,24 @@ class _StatementTile extends StatelessWidget {
                   style: context.textTheme.titleSmall,
                 ),
                 Text(
-                  isCurrent ? 'In progress' : status.label,
-                  style: context.textTheme.bodySmall?.copyWith(color: isCurrent ? null : status.color),
+                  isCurrent ? 'In progress' : urgency.label,
+                  style: context.textTheme.bodySmall?.copyWith(color: isCurrent ? null : color),
                 ),
               ],
             ),
           ),
-          Text(
-            CurrencyFormatter.instance.format(statement.totalAmount),
-            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                CurrencyFormatter.instance.format(statement.remainingAmount),
+                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                'of ${CurrencyFormatter.instance.format(statement.totalAmount)}',
+                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+              ),
+            ],
           ),
         ],
       ),

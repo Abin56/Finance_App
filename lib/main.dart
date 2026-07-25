@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/constants/app_strings.dart';
@@ -96,6 +97,17 @@ class _FinanceAppState extends ConsumerState<FinanceApp> with WidgetsBindingObse
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
+      // Pinned (not derived from the device's system locale) so every
+      // showDatePicker's keyboard-entry mode consistently expects/displays
+      // dd/mm/yyyy for every user, regardless of what locale their device
+      // happens to be set to.
+      locale: const Locale('en', 'GB'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en', 'GB')],
       routerConfig: router,
     );
   }

@@ -246,6 +246,41 @@ void main() {
 
       expect(emi.statusGiven(installments), EmiStatus.active);
     });
+
+    test('returns completed when every installment is fully paid and not closed', () {
+      final emi = buildEmi();
+      final installments = [
+        _installment(dueDate: DateTime.now().subtract(const Duration(days: 30)), amountDue: 100, amountPaid: 100),
+        _installment(dueDate: DateTime.now().subtract(const Duration(days: 1)), amountDue: 100, amountPaid: 100),
+      ];
+
+      expect(emi.statusGiven(installments), EmiStatus.completed);
+    });
+
+    test('returns active, not completed, when an installment is still partially unpaid', () {
+      final emi = buildEmi();
+      final installments = [
+        _installment(dueDate: DateTime.now().subtract(const Duration(days: 30)), amountDue: 100, amountPaid: 100),
+        _installment(dueDate: DateTime.now().add(const Duration(days: 10)), amountDue: 100, amountPaid: 50),
+      ];
+
+      expect(emi.statusGiven(installments), EmiStatus.active);
+    });
+
+    test('returns active, not completed, for an EMI with no installments yet', () {
+      final emi = buildEmi();
+
+      expect(emi.statusGiven(const []), EmiStatus.active);
+    });
+
+    test('closed takes precedence over completed', () {
+      final emi = buildEmi(isClosed: true);
+      final installments = [
+        _installment(dueDate: DateTime.now().subtract(const Duration(days: 30)), amountDue: 100, amountPaid: 100),
+      ];
+
+      expect(emi.statusGiven(installments), EmiStatus.closed);
+    });
   });
 
   group('emiInstallmentStatusLabel', () {

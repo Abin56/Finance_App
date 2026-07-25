@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
+import '../../../bills/presentation/providers/bill_occurrence_providers.dart';
 import '../../../bills/presentation/providers/bill_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../emi/presentation/providers/emi_providers.dart';
@@ -43,15 +44,19 @@ final loanPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKe
   return total;
 });
 
-/// Sum of `Bill.amountPaid` across every bill whose due date falls within
-/// [range] — "Total Bills Paid" for an arbitrary report period (as opposed
-/// to [paidBillsProvider], which has no date filter).
+/// Sum of `BillOccurrence.amountPaid` across every bill's occurrences whose
+/// due date falls within [range] — "Total Bills Paid" for an arbitrary
+/// report period (as opposed to [paidBillsProvider], which has no date
+/// filter).
 final billsPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   var total = 0.0;
-  for (final b in bills) {
-    if (b.dueDate.isBefore(range.start) || b.dueDate.isAfter(range.end)) continue;
-    total += b.amountPaid;
+  for (final bill in bills) {
+    final occurrences = ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
+    for (final o in occurrences) {
+      if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end)) continue;
+      total += o.amountPaid;
+    }
   }
   return total;
 });

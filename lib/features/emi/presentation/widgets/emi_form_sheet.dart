@@ -11,6 +11,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
+import '../../../credit_cards/domain/credit_card_profile.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../domain/emi.dart';
 import '../../domain/emi_interest.dart';
@@ -234,6 +235,18 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
 
   int? get _parsedDueDayOfMonth => int.tryParse(_dueDayOfMonthController.text.trim());
 
+  /// "Card Name •••• 1234" — appends the last 4 digits (when set) so
+  /// otherwise-identically-named cards are distinguishable in the linked
+  /// card dropdown, matching the "•••• 1234" format used on the Credit
+  /// Cards list/detail screens.
+  String _cardLabel(CreditCardProfile card, Map<String, String> accountNameById) {
+    final name = accountNameById[card.accountId] ?? 'Card';
+    if (card.lastFourDigits != null && card.lastFourDigits!.isNotEmpty) {
+      return '$name •••• ${card.lastFourDigits}';
+    }
+    return name;
+  }
+
   Future<bool> _confirmTermsChange(double remaining) {
     return showDialog<bool>(
       context: context,
@@ -412,7 +425,7 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                   for (final card in creditCards)
                     DropdownMenuItem<String?>(
                       value: card.id,
-                      child: Text(accountNameById[card.accountId] ?? 'Card'),
+                      child: Text(_cardLabel(card, accountNameById)),
                     ),
                 ],
                 onChanged: (value) => setState(() => _linkedCreditCardId = value),

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/extensions/num_extensions.dart';
+import '../../../../core/interest/interest_period.dart';
 import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/charts/loan_progress_ring.dart';
+import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../domain/emi.dart';
@@ -18,14 +20,16 @@ import '../providers/emi_providers.dart';
 import '../widgets/emi_form_sheet.dart';
 import '../widgets/emi_installment_tile.dart';
 import '../widgets/emi_payment_history_tile.dart';
+import '../widgets/record_emi_lump_sum_settlement_sheet.dart';
 import '../widgets/record_emi_multi_payment_sheet.dart';
 import '../widgets/record_emi_payment_sheet.dart';
 
-/// One EMI's detail — header stats (principal/paid/remaining, plus
-/// interest breakdown when the EMI carries interest), its installments
-/// grouped by This week / This month / Next month / Overdue (long-press an
-/// installment to skip/unskip it), a full payment history timeline, and
-/// Close / Close early (write off the remaining balance) actions.
+/// One EMI's detail — a premium, banking-app-style summary: hero progress
+/// card, loan overview, outstanding principal/interest split (interest-
+/// bearing EMIs only), overall progress, linked-credit-card standing (card-
+/// linked EMIs only), an installment timeline, a lifetime statistics card,
+/// quick actions, and the full payment history. Close / Close early (write
+/// off the remaining balance) / default actions live in the app bar.
 class EmiDetailScreen extends ConsumerWidget {
   const EmiDetailScreen({super.key, required this.emiId});
 
@@ -45,6 +49,7 @@ class EmiDetailScreen extends ConsumerWidget {
     final remaining = ref.watch(emiRemainingAmountProvider(emi));
     final paid = ref.watch(emiTotalPaidProvider(emi));
     final repository = ref.watch(emiRepositoryProvider);
+    final cycleView = ref.watch(emiCycleViewRecordProvider(emi));
 
     return Scaffold(
       appBar: AppBar(
@@ -59,6 +64,11 @@ class EmiDetailScreen extends ConsumerWidget {
                   .toList();
               RecordEmiMultiPaymentSheet.show(context, emi, unpaid);
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.request_quote_outlined),
+            tooltip: 'Settle lump sum',
+            onPressed: () => RecordEmiLumpSumSettlementSheet.show(context, emi),
           ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
@@ -88,6 +98,14 @@ class EmiDetailScreen extends ConsumerWidget {
                   await repository.clearDefaulted(emi);
                   return;
                 }
+                if (action == _CloseAction.delete) {
+                  if (!context.mounted) return;
+                  final confirmed = await _confirmDelete(context, emi.name);
+                  if (confirmed != true) return;
+                  await repository.permanentlyDeleteEmi(emi);
+                  if (context.mounted) Navigator.of(context).pop();
+                  return;
+                }
                 if (!context.mounted) return;
                 final confirmed = await _confirmEarlyClosure(context, remaining);
                 if (confirmed != true) return;
@@ -105,6 +123,11 @@ class EmiDetailScreen extends ConsumerWidget {
                   const PopupMenuItem(value: _CloseAction.clearDefaulted, child: Text('Clear defaulted'))
                 else
                   const PopupMenuItem(value: _CloseAction.markDefaulted, child: Text('Mark as defaulted')),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: _CloseAction.delete,
+                  child: Text('Delete EMI', style: TextStyle(color: Colors.red)),
+                ),
               ],
             ),
         ],
@@ -119,134 +142,37 @@ class EmiDetailScreen extends ConsumerWidget {
           final nextMonth = ref.watch(nextMonthInstallmentsProvider(emi.scheduleId));
           final overdue = ref.watch(overdueInstallmentsProvider(emi.scheduleId));
 
-          final totalDue = sorted.fold(0.0, (sum, i) => sum + i.amountDue);
-          final completion = totalDue == 0 ? 0.0 : paid / totalDue;
-          final nextDue = sorted.where((i) => i.remainingAmount > 0).firstOrNull;
-          final expectedClosing = sorted.isEmpty ? null : sorted.last.dueDate;
+          final nextDueInstallment = sorted.where((i) => i.remainingAmount > 0).firstOrNull;
+          final emiAmount = (nextDueInstallment ?? sorted.lastOrNull)?.amountDue ?? 0.0;
+          final installmentsPaid = ref.watch(emiInstallmentsPaidProvider(emi));
+          final remainingTenure = ref.watch(emiRemainingTenureProvider(emi));
+          final progress = ref.watch(emiLoanProgressProvider(emi));
 
           return ListView(
             padding: const EdgeInsets.all(AppSizes.lg),
             children: [
-              Container(
-                padding: const EdgeInsets.all(AppSizes.lg),
-                decoration: BoxDecoration(
-                  color: context.colors.surface,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: AppSizes.xs,
-                      runSpacing: AppSizes.xs,
-                      children: [
-                        Chip(
-                          avatar: Icon(emi.loanType.icon, size: AppSizes.iconSm),
-                          label: Text(emi.loanType.label),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        Chip(
-                          avatar: Icon(status.icon, size: AppSizes.iconSm, color: status.color),
-                          label: Text(status.label),
-                          labelStyle: TextStyle(color: status.color),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSizes.lg),
-                    Row(
-                      children: [
-                        LoanProgressRing(
-                          progress: completion,
-                          color: status.color,
-                          centerLabel: completion.asPercent,
-                          centerSubLabel: 'paid',
-                        ),
-                        const SizedBox(width: AppSizes.lg),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _statRow(context, 'Loan amount', emi.principalAmount),
-                              _statRow(context, 'Amount paid', paid),
-                              _statRow(context, 'Amount left', remaining),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (emi.interest != null) ...[
-                      const Divider(height: AppSizes.xl),
-                      _statRow(context, 'Loan amount left', _remainingPrincipal(sorted)),
-                      _statRow(context, 'Interest left', _remainingInterest(sorted)),
-                    ],
-                    const Divider(height: AppSizes.xl),
-                    if (nextDue != null) _dateRow(context, 'Next Due', nextDue.dueDate),
-                    if (expectedClosing != null) _dateRow(context, 'Expected Closing', expectedClosing),
-                  ],
-                ),
-              ),
+              _heroCard(context, emi, status, emiAmount, installmentsPaid, progress, nextDueInstallment),
               const SizedBox(height: AppSizes.lg),
-              Container(
-                padding: const EdgeInsets.all(AppSizes.lg),
-                decoration: BoxDecoration(
-                  color: context.colors.surface,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Loan info', style: context.textTheme.titleMedium),
-                    const SizedBox(height: AppSizes.sm),
-                    if (emi.loanNumber != null) _textRow(context, 'Loan number', emi.loanNumber!),
-                    if (emi.lenderName != null && emi.lenderName!.isNotEmpty)
-                      _textRow(context, 'Bank name', emi.lenderName!),
-                    if (emi.branch != null) _textRow(context, 'Branch', emi.branch!),
-                    if (emi.customerId != null) _textRow(context, 'Customer ID', emi.customerId!),
-                    if (emi.sanctionDate != null) _dateRow(context, 'Sanction date', emi.sanctionDate!),
-                    if (emi.disbursementDate != null) _dateRow(context, 'Loan Taken', emi.disbursementDate!),
-                    _dateRow(context, 'First EMI', emi.startDate),
-                    _textRow(context, 'Monthly Due', _ordinalDayLabel(emi.dueDayOfMonth ?? emi.startDate.day)),
-                    if (emi.isAutoDebitEnabled)
-                      _textRow(context, 'Auto debit', emi.autoDebitAccount ?? 'Enabled'),
-                    if (emi.linkedCreditCardId != null)
-                      _textRow(
-                        context,
-                        'Linked credit card',
-                        ref.watch(accountForCardProvider(emi.linkedCreditCardId!))?.name ?? 'Card',
-                      ),
-                  ],
-                ),
-              ),
-              if (_hasCharges(emi)) ...[
+              _loanOverviewCard(context, emi, emiAmount, remainingTenure),
+              if (emi.interest != null) ...[
                 const SizedBox(height: AppSizes.lg),
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.lg),
-                  decoration: BoxDecoration(
-                    color: context.colors.surface,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Charges', style: context.textTheme.titleMedium),
-                      const SizedBox(height: AppSizes.sm),
-                      if (emi.processingFee > 0) _statRow(context, 'Processing fee', emi.processingFee),
-                      if (emi.insuranceAmount > 0) _statRow(context, 'Insurance', emi.insuranceAmount),
-                      if (emi.extraCharges > 0) _statRow(context, 'Other charges', emi.extraCharges),
-                      if (emi.foreclosureAmount != null)
-                        _statRow(context, 'Foreclosure amount', emi.foreclosureAmount!),
-                      if (emi.prepaymentCharges != null)
-                        _statRow(context, 'Prepayment charges', emi.prepaymentCharges!),
-                    ],
-                  ),
-                ),
+                _outstandingCard(context, ref, emi),
               ],
               const SizedBox(height: AppSizes.lg),
-              if (overdue.isNotEmpty) _group(context, ref, emi, 'Missed Payment', overdue),
-              if (thisWeek.isNotEmpty) _group(context, ref, emi, 'This week', thisWeek),
-              if (thisMonth.isNotEmpty) _group(context, ref, emi, 'This month', thisMonth),
-              if (nextMonth.isNotEmpty) _group(context, ref, emi, 'Next month', nextMonth),
+              _progressCard(context, paid, remaining, progress),
+              if (emi.linkedCreditCardId != null) ...[
+                const SizedBox(height: AppSizes.lg),
+                _creditCardLinkCard(context, ref, emi),
+              ],
+              const SizedBox(height: AppSizes.lg),
+              _timelineSection(context, ref, emi, cycleView, overdue, thisWeek, thisMonth, nextMonth),
+              if (emi.interest != null) ...[
+                const SizedBox(height: AppSizes.lg),
+                _statisticsCard(context, ref, emi),
+              ],
+              const SizedBox(height: AppSizes.lg),
+              _quickActions(context, ref, emi, status, nextDueInstallment),
+              const SizedBox(height: AppSizes.lg),
               Text('Payment Records', style: context.textTheme.titleMedium),
               const SizedBox(height: AppSizes.sm),
               Builder(builder: (context) {
@@ -276,15 +202,225 @@ class EmiDetailScreen extends ConsumerWidget {
     );
   }
 
+  Widget _card(BuildContext context, {required List<Widget> children, bool elevated = false}) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.lg),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        boxShadow: elevated ? AppShadows.elevated(context) : AppShadows.soft(context),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+    );
+  }
+
+  Widget _heroCard(
+    BuildContext context,
+    Emi emi,
+    EmiStatus status,
+    double emiAmount,
+    int installmentsPaid,
+    double progress,
+    Installment? nextDue,
+  ) {
+    return _card(
+      context,
+      elevated: true,
+      children: [
+        Row(
+          children: [
+            Icon(emi.loanType.icon, size: AppSizes.iconMd, color: context.colors.primary),
+            const SizedBox(width: AppSizes.sm),
+            Expanded(
+              child: Text(emi.loanType.label, style: context.textTheme.titleMedium),
+            ),
+            Chip(
+              avatar: Icon(status.icon, size: AppSizes.iconSm, color: status.color),
+              label: Text(status.label),
+              labelStyle: TextStyle(color: status.color),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.md),
+        Text(
+          '${CurrencyFormatter.instance.format(emiAmount)} / month',
+          style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: AppSizes.md),
+        ProgressBar(progress: progress, label: '$installmentsPaid / ${emi.installmentCount} EMIs Paid'),
+        if (nextDue != null) ...[
+          const SizedBox(height: AppSizes.md),
+          _statRow(context, 'Next EMI', nextDue.dueDate.fullDate, isDate: true),
+        ],
+      ],
+    );
+  }
+
+  Widget _loanOverviewCard(BuildContext context, Emi emi, double emiAmount, int remainingTenure) {
+    final bookedOn = emi.sanctionDate ?? emi.disbursementDate ?? emi.startDate;
+    return _card(
+      context,
+      children: [
+        Text('Loan Overview', style: context.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.sm),
+        _statRow(context, 'Loan Amount', CurrencyFormatter.instance.format(emi.principalAmount)),
+        _statRow(context, 'Booked On', bookedOn.fullDate, isDate: true),
+        if (emi.interest != null)
+          _statRow(context, 'Interest', '${emi.interest!.ratePercent}% ${emi.interest!.period.label}'),
+        _statRow(context, 'Tenure', '${emi.installmentCount} ${_unitLabel(emi)}'),
+        _statRow(context, 'EMI', CurrencyFormatter.instance.format(emiAmount)),
+        _statRow(context, 'Remaining', '$remainingTenure ${_unitLabel(emi)}'),
+      ],
+    );
+  }
+
+  Widget _outstandingCard(BuildContext context, WidgetRef ref, Emi emi) {
+    final principalOutstanding = ref.watch(emiPrincipalOutstandingProvider(emi));
+    final interestOutstanding = ref.watch(emiInterestOutstandingProvider(emi));
+    return _card(
+      context,
+      children: [
+        Text('Outstanding', style: context.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.sm),
+        _statRow(context, 'Outstanding Principal', CurrencyFormatter.instance.format(principalOutstanding)),
+        _statRow(context, 'Outstanding Interest', CurrencyFormatter.instance.format(interestOutstanding)),
+        const Divider(height: AppSizes.lg),
+        _statRow(
+          context,
+          'Total Outstanding',
+          CurrencyFormatter.instance.format(principalOutstanding + interestOutstanding),
+          emphasize: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _progressCard(BuildContext context, double paid, double remaining, double progress) {
+    return _card(
+      context,
+      children: [
+        Text('Progress', style: context.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.sm),
+        _statRow(context, 'Paid', CurrencyFormatter.instance.format(paid)),
+        _statRow(context, 'Remaining', CurrencyFormatter.instance.format(remaining)),
+        const SizedBox(height: AppSizes.sm),
+        ProgressBar(progress: progress, label: 'Progress · ${progress.asPercent}'),
+      ],
+    );
+  }
+
+  Widget _creditCardLinkCard(BuildContext context, WidgetRef ref, Emi emi) {
+    final cardId = emi.linkedCreditCardId!;
+    final cardName = ref.watch(accountForCardProvider(cardId))?.name ?? 'Card';
+    final reserved = ref.watch(linkedEmiPrincipalForCardProvider(cardId));
+    final restored = ref.watch(principalRestoredForCardProvider(cardId));
+    return _card(
+      context,
+      children: [
+        Text('Linked Credit Card', style: context.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.sm),
+        _statRow(context, 'Card', cardName),
+        _statRow(context, 'Reserved Credit', CurrencyFormatter.instance.format(reserved)),
+        _statRow(context, 'Credit Restored', CurrencyFormatter.instance.format(restored)),
+        _statRow(
+          context,
+          'Remaining Reserved',
+          CurrencyFormatter.instance.format((reserved - restored).clamp(0, reserved)),
+          emphasize: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _timelineSection(
+    BuildContext context,
+    WidgetRef ref,
+    Emi emi,
+    EmiCycleView cycleView,
+    List<Installment> overdue,
+    List<Installment> thisWeek,
+    List<Installment> thisMonth,
+    List<Installment> nextMonth,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Installment Timeline', style: context.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.sm),
+        if (cycleView.previousCyclePending.isNotEmpty)
+          _group(context, ref, emi, 'Previous Cycle Pending', cycleView.previousCyclePending),
+        if (overdue.isNotEmpty) _group(context, ref, emi, 'Missed Payment', overdue),
+        if (thisWeek.isNotEmpty) _group(context, ref, emi, 'This week', thisWeek),
+        if (thisMonth.isNotEmpty) _group(context, ref, emi, 'This month', thisMonth),
+        if (nextMonth.isNotEmpty) _group(context, ref, emi, 'Next month', nextMonth),
+      ],
+    );
+  }
+
+  Widget _statisticsCard(BuildContext context, WidgetRef ref, Emi emi) {
+    final totalInterestPayable = ref.watch(emiTotalInterestPayableProvider(emi));
+    final interestOutstanding = ref.watch(emiInterestOutstandingProvider(emi));
+    final interestPaid = (totalInterestPayable - interestOutstanding).clamp(0, totalInterestPayable);
+    return _card(
+      context,
+      children: [
+        Text('Statistics', style: context.textTheme.titleMedium),
+        const SizedBox(height: AppSizes.sm),
+        _statRow(context, 'Total Interest', CurrencyFormatter.instance.format(totalInterestPayable)),
+        _statRow(context, 'Interest Paid', CurrencyFormatter.instance.format(interestPaid)),
+        _statRow(context, 'Interest Remaining', CurrencyFormatter.instance.format(interestOutstanding)),
+      ],
+    );
+  }
+
+  Widget _quickActions(
+    BuildContext context,
+    WidgetRef ref,
+    Emi emi,
+    EmiStatus status,
+    Installment? nextDue,
+  ) {
+    return Wrap(
+      spacing: AppSizes.sm,
+      runSpacing: AppSizes.sm,
+      children: [
+        OutlinedButton.icon(
+          onPressed: () => EmiFormSheet.show(context, emi: emi),
+          icon: const Icon(Icons.edit_outlined),
+          label: const Text('Edit Loan'),
+        ),
+        if (nextDue != null)
+          OutlinedButton.icon(
+            onPressed: () => RecordEmiPaymentSheet.show(context, emi, nextDue),
+            icon: const Icon(Icons.payments_outlined),
+            label: const Text('Record Payment'),
+          ),
+        OutlinedButton.icon(
+          onPressed: () => EmiFormSheet.show(context, emi: emi),
+          icon: const Icon(Icons.update_rounded),
+          label: const Text('Extend Tenure'),
+        ),
+        if (status != EmiStatus.closed)
+          OutlinedButton.icon(
+            onPressed: () => ref.read(emiRepositoryProvider).closeEmi(emi),
+            icon: const Icon(Icons.lock_outline_rounded),
+            label: const Text('Close Loan'),
+          ),
+      ],
+    );
+  }
+
   Widget _group(BuildContext context, WidgetRef ref, Emi emi, String title, List<Installment> installments) {
+    final descending = [...installments]..sort((a, b) => b.sequenceNumber.compareTo(a.sequenceNumber));
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: context.textTheme.titleMedium),
+          Text(title, style: context.textTheme.titleSmall),
           const SizedBox(height: AppSizes.sm),
-          for (final installment in installments)
+          for (final installment in descending)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSizes.sm),
               child: GestureDetector(
@@ -357,63 +493,27 @@ class EmiDetailScreen extends ConsumerWidget {
     );
   }
 
-  /// Remaining principal across all installments, assuming each
-  /// installment's own payments settle its interest portion before its
-  /// principal portion (the standard repayment convention) — display-only,
-  /// mirrors `LoanDetailScreen`'s equivalent computation.
-  double _remainingPrincipal(List<Installment> installments) {
-    return installments.fold(0.0, (sum, i) {
-      final interestPortion = i.interestPortion ?? 0;
-      final principalPortion = i.principalPortion ?? i.amountDue;
-      final paidTowardPrincipal = (i.amountPaid - interestPortion).clamp(0, principalPortion);
-      return sum + (principalPortion - paidTowardPrincipal);
-    });
-  }
-
-  double _remainingInterest(List<Installment> installments) {
-    return installments.fold(0.0, (sum, i) {
-      final interestPortion = i.interestPortion ?? 0;
-      final paidTowardInterest = i.amountPaid.clamp(0, interestPortion);
-      return sum + (interestPortion - paidTowardInterest);
-    });
-  }
-
-  Widget _statRow(BuildContext context, String label, double value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSizes.sm),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
-          ),
-          Text(
-            CurrencyFormatter.instance.format(value),
-            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+  Future<bool?> _confirmDelete(BuildContext context, String emiName) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete this EMI?'),
+        content: Text(
+          '"$emiName" and its entire payment history will be permanently deleted — this cannot be undone. '
+          'Use this if the loan was added by mistake. Any credit reserved against a linked card is released.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
   }
 
-  Widget _dateRow(BuildContext context, String label, DateTime date) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSizes.sm),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
-          ),
-          Text(date.fullDate, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-
-  Widget _textRow(BuildContext context, String label, String value) {
+  Widget _statRow(BuildContext context, String label, String value, {bool isDate = false, bool emphasize = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.sm),
       child: Row(
@@ -426,7 +526,9 @@ class EmiDetailScreen extends ConsumerWidget {
           Flexible(
             child: Text(
               value,
-              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontWeight: emphasize ? FontWeight.w800 : FontWeight.w700,
+              ),
               textAlign: TextAlign.end,
             ),
           ),
@@ -435,27 +537,13 @@ class EmiDetailScreen extends ConsumerWidget {
     );
   }
 
-  /// "Every 5th" / "Every 21st" — a plain-language label for a day of
-  /// month, used for [Emi.dueDayOfMonth] (or its `startDate.day` fallback).
-  String _ordinalDayLabel(int day) {
-    final suffix = switch (day) {
-      1 || 21 || 31 => 'st',
-      2 || 22 => 'nd',
-      3 || 23 => 'rd',
-      _ => 'th',
-    };
-    return 'Every $day$suffix';
-  }
-
-  bool _hasCharges(Emi emi) {
-    return emi.processingFee > 0 ||
-        emi.insuranceAmount > 0 ||
-        emi.extraCharges > 0 ||
-        emi.foreclosureAmount != null ||
-        emi.prepaymentCharges != null;
+  /// "Months" for monthly/custom/one-time schedules, "Weeks" for weekly —
+  /// used for Tenure/Remaining labels on the Loan Overview card.
+  String _unitLabel(Emi emi) {
+    return emi.installmentFrequency.name == 'weekly' ? 'Weeks' : 'Months';
   }
 }
 
-enum _CloseAction { close, closeEarly, markDefaulted, clearDefaulted }
+enum _CloseAction { close, closeEarly, markDefaulted, clearDefaulted, delete }
 
 enum _InstallmentAction { skip, unskip }

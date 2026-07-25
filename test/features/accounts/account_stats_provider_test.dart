@@ -128,4 +128,46 @@ void main() {
     expect(stats.currentMonthExpense, 300);
     expect(stats.expense, 1000, reason: 'total expense still includes both months');
   });
+
+  test(
+    'currentMonthExpense respects an accountingMonth override instead of the raw dateTime '
+    '(regression: used to filter by dateTime.isSameMonth, ignoring the override entirely)',
+    () async {
+      final accountId = await createAccount('A');
+      final now = DateTime.now();
+      final nextMonth = DateTime(now.year, now.month + 1);
+      final lastMonth = DateTime(now.year, now.month - 1);
+
+      final transactions = container.read(transactionRepositoryProvider);
+      // Dated this month, but reassigned to next month — must NOT count
+      // toward this month's currentMonthExpense.
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 400,
+        dateTime: now,
+        accountId: accountId,
+        categoryId: 'misc',
+        accountingMonth: nextMonth,
+      );
+      // Dated last month, but reassigned to this month — MUST count toward
+      // this month's currentMonthExpense.
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 250,
+        dateTime: DateTime(lastMonth.year, lastMonth.month, 15),
+        accountId: accountId,
+        categoryId: 'misc',
+        accountingMonth: DateTime(now.year, now.month),
+      );
+
+      await container.read(transactionsStreamProvider.future);
+
+      final stats = container.read(accountStatsProvider(accountId));
+      expect(
+        stats.currentMonthExpense,
+        250,
+        reason: 'currentMonthExpense must bucket by effectiveMonth (accountingMonth override), not raw dateTime',
+      );
+    },
+  );
 }

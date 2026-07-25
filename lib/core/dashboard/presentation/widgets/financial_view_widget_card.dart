@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
-import '../../../../features/credit_cards/domain/statement_status.dart';
-import '../../../../features/credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../domain/date_range_strategy.dart';
 import '../../domain/financial_view_module.dart';
 import '../../domain/widget_configuration.dart';
@@ -46,96 +43,182 @@ class FinancialViewWidgetCard extends ConsumerWidget {
       SalaryCycleFull(:final anchorDay) => anchorDay,
       _ => null,
     };
+    // Only the default "Spent This Pay Period" hero instance gets the
+    // gradient-hero treatment — other Financial View instances the user
+    // adds (e.g. "Income · Last 30 Days") stay as regular cards so the
+    // gradient hero remains a single, unambiguous focal point.
+    final isHero = cycleAnchorDay != null && config.financialViewModule == FinancialViewModule.combinedExpenses;
 
-    return DashboardWidgetCard(
-      onTap: onConfigure,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                config.title,
+                style: textTheme.labelLarge?.copyWith(
+                  color: isHero ? Colors.white.withValues(alpha: 0.85) : null,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Flexible(
+              child: _DateStrategyChip(label: config.dateStrategy.label, isHero: isHero, onTap: onConfigure),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.md),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
                 child: Text(
-                  config.title,
-                  style: textTheme.labelLarge,
-                  overflow: TextOverflow.ellipsis,
+                  format.format(result.amount),
+                  style: (isHero ? textTheme.headlineLarge : textTheme.headlineMedium)?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: isHero ? Colors.white : null,
+                  ),
                 ),
               ),
+            ),
+            if (percentChange != null) ...[
+              const SizedBox(width: AppSizes.sm),
               Flexible(
-                child: InputChip(
-                  label: Text(
-                    config.dateStrategy.label,
-                    style: textTheme.labelSmall,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  onPressed: onConfigure,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: AppSizes.xs),
+                  child: _ComparePill(percentChange: percentChange, increaseIsGood: increaseIsGood, isHero: isHero),
                 ),
               ),
             ],
-          ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.xs),
+        if (cycleAnchorDay == null)
+          Text(
+            '${result.range.start.shortDate} – ${result.range.end.shortDate}',
+            style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          )
+        else ...[
           const SizedBox(height: AppSizes.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    format.format(result.amount),
-                    style: textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              if (percentChange != null) ...[
-                const SizedBox(width: AppSizes.sm),
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: AppSizes.xs),
-                    child: _ComparePill(percentChange: percentChange, increaseIsGood: increaseIsGood),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: AppSizes.xs),
-          if (cycleAnchorDay == null)
-            Text(
-              '${result.range.start.shortDate} – ${result.range.end.shortDate}',
-              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-            )
-          else ...[
-            const SizedBox(height: AppSizes.sm),
-            _BillingCycleIndicator(anchorDay: cycleAnchorDay),
-            const _NextCardDueRow(),
-          ],
-          if (result.breakdown.isNotEmpty) ...[
-            const SizedBox(height: AppSizes.md),
-            const Divider(height: 1),
-            const SizedBox(height: AppSizes.xs),
-            for (final entry in result.breakdown.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        entry.key,
-                        style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: AppSizes.sm),
-                    Text(format.format(entry.value), style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-          ],
+          _BillingCycleIndicator(anchorDay: cycleAnchorDay, isHero: isHero),
         ],
+        if (result.breakdown.isNotEmpty) ...[
+          const SizedBox(height: AppSizes.md),
+          Divider(height: 1, color: isHero ? Colors.white.withValues(alpha: 0.2) : null),
+          const SizedBox(height: AppSizes.sm),
+          for (final entry in result.breakdown.entries)
+            _BreakdownRow(label: entry.key, amount: entry.value, format: format, isHero: isHero),
+        ],
+      ],
+    );
+
+    return isHero
+        ? DashboardWidgetGradientCard(
+            onTap: onConfigure,
+            child: Padding(padding: const EdgeInsets.all(AppSizes.xl), child: content),
+          )
+        : DashboardWidgetCard(onTap: onConfigure, child: content);
+  }
+}
+
+/// Semantic color for a Financial View breakdown line — matches the same
+/// module labels [_breakdownFor] in `expense_calculator_provider.dart`
+/// always emits, so each row gets a consistent colored dot rather than a
+/// bare text row.
+Color _breakdownColor(String label) {
+  switch (label) {
+    case 'My Expenses':
+      return AppColors.expense;
+    case 'Shared Expenses':
+      return AppColors.pending;
+    case 'Bills':
+      return AppColors.info;
+    case 'EMIs':
+      return AppColors.savings;
+    case 'Loans':
+      return AppColors.warning;
+    case 'Credit Card Payments':
+      return AppColors.primary;
+    default:
+      return AppColors.expense;
+  }
+}
+
+class _BreakdownRow extends StatelessWidget {
+  const _BreakdownRow({required this.label, required this.amount, required this.format, required this.isHero});
+
+  final String label;
+  final double amount;
+  final NumberFormat format;
+  final bool isHero;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = context.textTheme;
+    final labelColor = isHero ? Colors.white.withValues(alpha: 0.85) : context.colors.onSurfaceVariant;
+    final valueColor = isHero ? Colors.white : null;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: _breakdownColor(label), shape: BoxShape.circle),
+          ),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Text(
+              label,
+              style: textTheme.bodySmall?.copyWith(color: labelColor),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSizes.sm),
+          Text(
+            format.format(amount),
+            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DateStrategyChip extends StatelessWidget {
+  const _DateStrategyChip({required this.label, required this.isHero, this.onTap});
+
+  final String label;
+  final bool isHero;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = context.textTheme;
+    final fg = isHero ? Colors.white : context.colors.onSurfaceVariant;
+    final bg = isHero ? Colors.white.withValues(alpha: 0.16) : context.colors.surfaceContainerHighest;
+
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+          child: Text(
+            label,
+            style: textTheme.labelSmall?.copyWith(color: fg, fontWeight: FontWeight.w600),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ),
     );
   }
@@ -150,13 +233,13 @@ class FinancialViewWidgetCard extends ConsumerWidget {
 /// [SalaryCycleToDate], since a to-date total still belongs to one full
 /// 17th→17th cycle the user thinks in.
 class _BillingCycleIndicator extends StatelessWidget {
-  const _BillingCycleIndicator({required this.anchorDay});
+  const _BillingCycleIndicator({required this.anchorDay, required this.isHero});
 
   final int anchorDay;
+  final bool isHero;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final textTheme = context.textTheme;
     final now = DateTime.now();
     final cycle = SalaryCycleFull(anchorDay: anchorDay).resolve(now);
@@ -164,50 +247,68 @@ class _BillingCycleIndicator extends StatelessWidget {
     final elapsedDays = now.dateOnly.difference(cycle.start.dateOnly).inDays;
     final daysLeft = (totalDays - elapsedDays).clamp(0, totalDays);
     final progress = totalDays == 0 ? 1.0 : (elapsedDays / totalDays).clamp(0.0, 1.0);
+    final primaryColor = isHero ? Colors.white : context.colors.onSurface;
+    final mutedColor = isHero ? Colors.white.withValues(alpha: 0.75) : context.colors.onSurfaceVariant;
+    final trackColor = isHero ? Colors.white.withValues(alpha: 0.24) : context.colors.primary.withValues(alpha: 0.12);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Cycle Progress',
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+            Expanded(
+              child: Text(
+                'Cycle Progress',
+                style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700, color: primaryColor),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            Text(
-              '${now.shortDate} / ${cycle.end.shortDate}',
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+            const SizedBox(width: AppSizes.sm),
+            Flexible(
+              child: Text(
+                '${now.shortDate} / ${cycle.end.shortDate}',
+                style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700, color: primaryColor),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+              ),
             ),
           ],
         ),
-        const SizedBox(height: AppSizes.xs),
+        const SizedBox(height: AppSizes.sm),
         ClipRRect(
           borderRadius: BorderRadius.circular(AppSizes.radiusPill),
           child: LinearProgressIndicator(
             value: progress,
-            minHeight: 6,
-            backgroundColor: colors.primary.withValues(alpha: 0.12),
+            minHeight: 9,
+            color: isHero ? Colors.white : null,
+            backgroundColor: trackColor,
           ),
         ),
         const SizedBox(height: AppSizes.xs),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '${(progress * 100).round()}% complete',
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+            Expanded(
+              child: Text(
+                '${(progress * 100).round()}% complete',
+                style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700, color: primaryColor),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            Text(
-              daysLeft == 0 ? 'Ends today' : '$daysLeft ${daysLeft == 1 ? 'day' : 'days'} left',
-              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            const SizedBox(width: AppSizes.sm),
+            Flexible(
+              child: Text(
+                daysLeft == 0 ? 'Ends today' : '$daysLeft ${daysLeft == 1 ? 'day' : 'days'} left',
+                style: textTheme.bodySmall?.copyWith(color: mutedColor),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 2),
         Text(
           '${cycle.start.shortDate} → ${cycle.end.shortDate}',
-          style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+          style: textTheme.labelSmall?.copyWith(color: mutedColor),
           overflow: TextOverflow.ellipsis,
         ),
       ],
@@ -215,79 +316,24 @@ class _BillingCycleIndicator extends StatelessWidget {
   }
 }
 
-/// The soonest not-fully-paid card statement's due date and remaining
-/// amount, shown inside the billing-cycle hero so "what do I owe next and
-/// by when" sits beside "what have I spent this cycle". Hidden entirely
-/// when no unpaid statement exists — never a guessed or placeholder date.
-class _NextCardDueRow extends ConsumerWidget {
-  const _NextCardDueRow();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statement = ref.watch(nextStatementDueProvider);
-    if (statement == null) return const SizedBox.shrink();
-
-    final colors = context.colors;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-    final status = statement.status;
-    final accent = switch (status) {
-      StatementStatus.overdue => AppColors.error,
-      StatementStatus.dueSoon => AppColors.warning,
-      _ => colors.primary,
-    };
-    final dueLabel = switch (status) {
-      StatementStatus.overdue => 'was due ${statement.dueDate.shortDate}',
-      _ => 'due ${statement.dueDate.shortDate}',
-    };
-
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSizes.sm),
-      child: Material(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-          onTap: () => context.push('/creditCards/${statement.cardId}/statements/${statement.id}'),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-            child: Row(
-              children: [
-                Icon(Icons.event_rounded, size: AppSizes.iconSm, color: accent),
-                const SizedBox(width: AppSizes.sm),
-                Expanded(
-                  child: Text(
-                    'Card payment ${format.format(statement.remainingAmount)} $dueLabel',
-                    style: context.textTheme.bodySmall?.copyWith(color: accent, fontWeight: FontWeight.w600),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: accent),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _ComparePill extends StatelessWidget {
-  const _ComparePill({required this.percentChange, required this.increaseIsGood});
+  const _ComparePill({required this.percentChange, required this.increaseIsGood, required this.isHero});
 
   final double percentChange;
   final bool increaseIsGood;
+  final bool isHero;
 
   @override
   Widget build(BuildContext context) {
     final isIncrease = percentChange >= 0;
     final isGood = isIncrease == increaseIsGood;
-    final color = isGood ? AppColors.success : AppColors.error;
+    final color = isHero ? Colors.white : (isGood ? AppColors.success : AppColors.error);
     final arrow = isIncrease ? '↑' : '↓';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: isHero ? Colors.white.withValues(alpha: 0.18) : color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
       child: Text(

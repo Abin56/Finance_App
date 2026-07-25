@@ -1,3 +1,4 @@
+import '../../../core/constants/firestore_constants.dart';
 import '../../../core/data/firestore_crud_repository.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/interest/interest_calculator.dart';
@@ -499,6 +500,45 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     emi.recordEdit(field: 'isClosed', oldValue: 'true', newValue: 'false');
     emi.isClosed = false;
     await update(emi);
+  }
+
+  /// Wipes [emi] and everything under it — unlike plain `permanentlyDelete`
+  /// (inherited from `FirestoreCrudRepository`, which only removes the
+  /// `emis/{emiId}` document itself), this also deletes every `Installment`
+  /// on the linked schedule, each installment's own `payments` subcollection,
+  /// the `PaymentSchedule` document, and every `EmiPaymentBreakdown` — so
+  /// nothing orphaned is left in Firestore that a card's
+  /// `linkedEmiPrincipalForCardProvider`/`principalRestoredForCardProvider`,
+  /// Dashboard, Reports, or Cash Flow could pick up after the fact. For "I
+  /// added this by mistake" — skips Trash/soft-delete entirely, unlike
+  /// [FirestoreCrudRepository.softDelete].
+  Future<void> permanentlyDeleteEmi(Emi emi) async {
+    final installmentRepository = _installmentRepositoryFor(emi.scheduleId);
+    final installments = await installmentRepository.getAll();
+    final trashedInstallments = await installmentRepository.getTrash();
+
+    for (final installment in [...installments, ...trashedInstallments]) {
+      final paymentsSnapshot = await installmentRepository.collection
+          .doc(installment.id)
+          .collection(FirestoreCollections.payments)
+          .get();
+      for (final paymentDoc in paymentsSnapshot.docs) {
+        await paymentDoc.reference.delete();
+      }
+      await installmentRepository.permanentlyDelete(installment);
+    }
+
+    final breakdownsSnapshot =
+        await collection.doc(emi.id).collection(FirestoreCollections.paymentBreakdowns).get();
+    for (final breakdownDoc in breakdownsSnapshot.docs) {
+      await breakdownDoc.reference.delete();
+    }
+
+    _cancelReminders(emi.id);
+    _cancelEndingReminder(emi.id);
+
+    await paymentScheduleRepository.collection.doc(emi.scheduleId).delete();
+    await permanentlyDelete(emi);
   }
 
   /// Reschedules reminders against [nextDueDate] — the caller resolves this

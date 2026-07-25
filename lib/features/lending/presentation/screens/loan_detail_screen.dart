@@ -11,6 +11,7 @@ import '../../../people/presentation/providers/people_providers.dart';
 import '../providers/loan_providers.dart';
 import '../widgets/loan_form_sheet.dart';
 import '../widgets/loan_installment_tile.dart';
+import '../widgets/record_loan_lump_sum_settlement_sheet.dart';
 import '../widgets/record_loan_payment_sheet.dart';
 
 /// One loan's detail — header stats (lent/received/remaining, plus
@@ -37,11 +38,17 @@ class LoanDetailScreen extends ConsumerWidget {
     final remaining = ref.watch(loanRemainingAmountProvider(loan));
     final received = ref.watch(loanTotalReceivedProvider(loan));
     final repository = ref.watch(loanRepositoryProvider);
+    final cycleView = ref.watch(loanCycleViewRecordProvider(loan));
 
     return Scaffold(
       appBar: AppBar(
         title: Text(loan.name?.isNotEmpty == true ? loan.name! : 'Loan to ${person?.name ?? 'unknown'}'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.request_quote_outlined),
+            tooltip: 'Settle lump sum',
+            onPressed: () => RecordLoanLumpSumSettlementSheet.show(context, loan),
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Edit loan',
@@ -89,6 +96,21 @@ class LoanDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (cycleView.previousCyclePending.isNotEmpty) ...[
+                const SizedBox(height: AppSizes.lg),
+                Text('Previous Cycle Pending', style: context.textTheme.titleMedium),
+                const SizedBox(height: AppSizes.sm),
+                for (final installment in cycleView.previousCyclePending)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                    child: LoanInstallmentTile(
+                      installment: installment,
+                      onTap: installment.remainingAmount <= 0
+                          ? null
+                          : () => RecordLoanPaymentSheet.show(context, installment),
+                    ),
+                  ),
+              ],
               const SizedBox(height: AppSizes.lg),
               Text('Schedule', style: context.textTheme.titleMedium),
               const SizedBox(height: AppSizes.sm),

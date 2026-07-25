@@ -65,12 +65,24 @@ class _CategoryRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(entry.category.name, style: context.textTheme.bodyLarge),
-                      Text(
-                        CurrencyFormatter.instance.format(entry.amount),
-                        style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                      Expanded(
+                        child: Text(
+                          entry.category.name,
+                          style: context.textTheme.bodyLarge,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: AppSizes.sm),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            CurrencyFormatter.instance.format(entry.amount),
+                            style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
                       ),
                     ],
                   ),

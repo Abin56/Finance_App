@@ -165,7 +165,7 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
   }
 
   /// Applies a payment delta toward [statement], clamped so [amountPaid]
-  /// never exceeds [totalAmount] — mirrors [BillRepository.applyPayment].
+  /// never exceeds [totalAmount] — mirrors `BillOccurrenceRepository.applyPayment`.
   Future<void> applyPayment(Statement statement, double delta) async {
     if (delta == 0) return;
     final newAmountPaid = (statement.amountPaid + delta).clamp(0, statement.totalAmount).toDouble();

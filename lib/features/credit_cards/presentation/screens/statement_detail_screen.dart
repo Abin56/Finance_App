@@ -7,12 +7,12 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/domain/payment_urgency.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../transactions/presentation/widgets/transaction_date_group_header.dart';
 import '../../../transactions/presentation/widgets/transaction_tile.dart';
-import '../../domain/statement_status.dart';
 import '../providers/credit_card_providers.dart';
 import '../widgets/record_statement_payment_sheet.dart';
 import '../widgets/statement_fees_sheet.dart';
@@ -52,7 +52,14 @@ class StatementDetailScreen extends ConsumerWidget {
     }
     final sortedDays = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
 
-    final status = statement.status;
+    final isCarriedForward = ref
+        .watch(statementCycleViewProvider(cardId))
+        .previousCyclePending
+        .any((s) => s.id == statement.id);
+    final urgency = PaymentUrgencyX.fromCarryForward(
+      isCarriedForward: isCarriedForward,
+      statementStatus: statement.status,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +91,7 @@ class StatementDetailScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Statement Period', style: context.textTheme.bodySmall),
-                    _StatusBadge(status: status),
+                    _StatusBadge(urgency: urgency),
                   ],
                 ),
                 Text(
@@ -113,7 +120,7 @@ class StatementDetailScreen extends ConsumerWidget {
                       child: _SummaryStat(label: 'Paid', value: statement.amountPaid, color: AppColors.success),
                     ),
                     Expanded(
-                      child: _SummaryStat(label: 'Remaining', value: statement.remainingAmount, color: status.color),
+                      child: _SummaryStat(label: 'Remaining', value: statement.remainingAmount, color: urgency.color),
                     ),
                   ],
                 ),
@@ -213,21 +220,22 @@ class _SummaryStat extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.urgency});
 
-  final StatementStatus status;
+  final PaymentUrgency urgency;
 
   @override
   Widget build(BuildContext context) {
+    final color = urgency.color;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
       decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       ),
       child: Text(
-        status.label,
-        style: context.textTheme.labelMedium?.copyWith(color: status.color, fontWeight: FontWeight.w600),
+        urgency.label,
+        style: context.textTheme.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

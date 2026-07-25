@@ -30,6 +30,14 @@ const _cardThemeColors = <Color>[
   Color(0xFF78909C), // silver
   Color(0xFFB8860B), // gold
   Color(0xFF00695C), // teal
+  Color(0xFFAD1457), // pink
+  Color(0xFFEF6C00), // orange
+  Color(0xFF4527A0), // indigo
+  Color(0xFF00838F), // cyan
+  Color(0xFF558B2F), // olive
+  Color(0xFF5D4037), // brown
+  Color(0xFF37474F), // slate
+  Color(0xFFF9A825), // amber
 ];
 
 /// How this card's credit limit is sourced — chosen up front (add mode) or
@@ -366,6 +374,11 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   final _pairPaymentDueDayController = TextEditingController();
   CardNetwork? _pairCardNetwork;
 
+  /// The linked card's own color — defaults to a different swatch than the
+  /// primary card's [_colorValue] so two cards under the same shared limit
+  /// aren't visually indistinguishable in the wallet carousel/list.
+  int _pairColorValue = _cardThemeColors[1].toARGB32();
+
   /// Add mode: user opted to create a second brand-new card sharing this
   /// one's limit, entered together in this same form/save — the simplified
   /// replacement for the old "does an existing card share this?" question
@@ -548,15 +561,56 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
     _goToStep(_step - 1);
   }
 
+  void _showSaveError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // The form spans multiple PageView steps, and pages outside the
+    // PageView's build cache aren't in the widget tree — so a field on a
+    // step the user never revisited can hold invalid/empty text that
+    // `_formKey.currentState!.validate()` above never actually checked.
+    // Re-validate every numeric field that's about to be parsed here,
+    // rather than let a raw parse throw a raw FormatException at the user.
+    final statementDay = int.tryParse(_statementDayController.text.trim());
+    final paymentDueDay = int.tryParse(_paymentDueDayController.text.trim());
+    final creditLimitText = _creditLimitController.text.trim();
+    final sharedLimitAmountText = _sharedLimitAmountController.text.trim();
+    final needsSharedLimitAmount =
+        (_isEditing && _limitSource == _LimitSource.newSharedLimit) || (!_isEditing && _addNewPairCard);
+    final needsOwnCreditLimit =
+        !needsSharedLimitAmount && !(_isEditing && _limitSource == _LimitSource.existingSharedLimit);
+    if (statementDay == null || statementDay < 1 || statementDay > 31) {
+      _showSaveError('Enter a valid statement day (1-31).');
+      return;
+    }
+    if (paymentDueDay == null || paymentDueDay < 1 || paymentDueDay > 31) {
+      _showSaveError('Enter a valid payment due day (1-31).');
+      return;
+    }
+    if (needsSharedLimitAmount && double.tryParse(sharedLimitAmountText) == null) {
+      _showSaveError('Enter a valid shared credit limit amount.');
+      return;
+    }
+    if (needsOwnCreditLimit && double.tryParse(creditLimitText) == null) {
+      _showSaveError('Enter a valid credit limit.');
+      return;
+    }
+    final addingLinkedCard =
+        _addNewPairCard && (!_isEditing || _limitSource == _LimitSource.newSharedLimit);
+    if (addingLinkedCard &&
+        (int.tryParse(_pairStatementDayController.text.trim()) == null ||
+            int.tryParse(_pairPaymentDueDayController.text.trim()) == null)) {
+      _showSaveError('Enter valid statement and payment due days for the linked card.');
+      return;
+    }
 
     setState(() => _isSaving = true);
     try {
       final repository = ref.read(creditCardRepositoryProvider);
       final minimumDuePercent = double.tryParse(_minimumDuePercentController.text.trim());
-      final statementDay = int.parse(_statementDayController.text.trim());
-      final paymentDueDay = int.parse(_paymentDueDayController.text.trim());
 
       // Resolve the shared-limit facility (if any) before touching the
       // card itself — a brand-new facility needs to exist first so the
@@ -570,7 +624,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           case _LimitSource.newSharedLimit:
             final sharedLimit = await ref.read(sharedCreditLimitRepositoryProvider).createSharedLimit(
                   name: _sharedLimitNameController.text.trim(),
-                  creditLimit: double.parse(_sharedLimitAmountController.text.trim()),
+                  creditLimit: double.parse(sharedLimitAmountText),
                 );
             sharedLimitId = sharedLimit.id;
           case _LimitSource.existingSharedLimit:
@@ -582,12 +636,12 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         // this card's own account/id exist.
         final sharedLimit = await ref.read(sharedCreditLimitRepositoryProvider).createSharedLimit(
               name: BankRegistry.byId(_bankId)?.name ?? 'Shared limit',
-              creditLimit: double.parse(_sharedLimitAmountController.text.trim()),
+              creditLimit: double.parse(sharedLimitAmountText),
             );
         sharedLimitId = sharedLimit.id;
       }
       final hasSharedLimit = sharedLimitId != null;
-      final creditLimit = hasSharedLimit ? null : double.parse(_creditLimitController.text.trim());
+      final creditLimit = hasSharedLimit ? null : double.parse(creditLimitText);
 
       final cardHolderName =
           _cardHolderNameController.text.trim().isEmpty ? null : _cardHolderNameController.text.trim();
@@ -642,6 +696,10 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           sharedLimitId: sharedLimitId,
           clearSharedLimitId: clearSharedLimitId,
         );
+
+        if (_limitSource == _LimitSource.newSharedLimit && _addNewPairCard && sharedLimitId != null) {
+          await _createLinkedPairCard(sharedLimitId);
+        }
       } else {
         // Use a linked existing card account if the user picked one; otherwise
         // create the card's account inline so "add a card" is a single step.
@@ -678,32 +736,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         );
 
         if (_addNewPairCard && sharedLimitId != null) {
-          final pairLastFourDigits = _pairLastFourDigitsController.text.trim();
-          final pairNickname = _pairNicknameController.text.trim();
-          final pairCardHolderName = _pairCardHolderNameController.text.trim();
-          final pairAccount = await ref.read(accountRepositoryProvider).createAccount(
-                name: pairNickname.isNotEmpty
-                    ? pairNickname
-                    : cardDisplayName(
-                        bank: BankRegistry.byId(_bankId),
-                        networkLabel: _pairCardNetwork?.label,
-                        last4: pairLastFourDigits.isEmpty ? null : pairLastFourDigits,
-                      ),
-                type: AccountType.card,
-                openingBalance: 0,
-                colorValue: _colorValue,
-                bankId: _bankId,
-              );
-          await repository.createCard(
-            accountId: pairAccount.id,
-            statementDay: int.parse(_pairStatementDayController.text.trim()),
-            paymentDueDay: int.parse(_pairPaymentDueDayController.text.trim()),
-            creditLimit: 0,
-            cardNetwork: _pairCardNetwork,
-            lastFourDigits: pairLastFourDigits.isEmpty ? null : pairLastFourDigits,
-            cardHolderName: pairCardHolderName.isEmpty ? null : pairCardHolderName,
-            sharedLimitId: sharedLimitId,
-          );
+          await _createLinkedPairCard(sharedLimitId);
         }
       }
       if (mounted) Navigator.of(context).pop();
@@ -715,6 +748,48 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         );
       }
     }
+  }
+
+  /// Creates the brand-new second card entered via [_secondCardFields] and
+  /// points it at [sharedLimitId] — shared by both add-mode (pairing while
+  /// creating the first card) and edit-mode (pairing while switching an
+  /// existing card onto a brand-new shared limit), since the "linked card"
+  /// fields and toggle are the same UI either way.
+  Future<void> _createLinkedPairCard(String sharedLimitId) async {
+    final repository = ref.read(creditCardRepositoryProvider);
+    final pairLastFourDigits = _pairLastFourDigitsController.text.trim();
+    final pairNickname = _pairNicknameController.text.trim();
+    final pairCardHolderName = _pairCardHolderNameController.text.trim();
+    final pairAccount = await ref.read(accountRepositoryProvider).createAccount(
+          name: pairNickname.isNotEmpty
+              ? pairNickname
+              : cardDisplayName(
+                  bank: BankRegistry.byId(_bankId),
+                  networkLabel: _pairCardNetwork?.label,
+                  last4: pairLastFourDigits.isEmpty ? null : pairLastFourDigits,
+                ),
+          type: AccountType.card,
+          openingBalance: 0,
+          colorValue: _pairColorValue,
+          bankId: _bankId,
+        );
+    await repository.createCard(
+      accountId: pairAccount.id,
+      statementDay: int.parse(_pairStatementDayController.text.trim()),
+      paymentDueDay: int.parse(_pairPaymentDueDayController.text.trim()),
+      creditLimit: 0,
+      cardNetwork: _pairCardNetwork,
+      lastFourDigits: pairLastFourDigits.isEmpty ? null : pairLastFourDigits,
+      cardHolderName: pairCardHolderName.isEmpty ? null : pairCardHolderName,
+      sharedLimitId: sharedLimitId,
+    );
+  }
+
+  /// The first [_cardThemeColors] swatch that isn't the primary card's own
+  /// [_colorValue] — used to re-pick [_pairColorValue] whenever it would
+  /// otherwise collide with the primary card's color.
+  int _nextDistinctPairColor() {
+    return _cardThemeColors.map((c) => c.toARGB32()).firstWhere((c) => c != _colorValue, orElse: () => _colorValue);
   }
 
   String? _dayValidator(String? value) {
@@ -783,6 +858,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           if (_addNewPairCard && _sharedLimitAmountController.text.trim().isEmpty) {
             _sharedLimitAmountController.text = _creditLimitController.text.trim();
           }
+          if (_addNewPairCard && _pairColorValue == _colorValue) _pairColorValue = _nextDistinctPairColor();
         }),
         child: Container(
           padding: const EdgeInsets.all(AppSizes.md),
@@ -824,6 +900,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                   if (value && _sharedLimitAmountController.text.trim().isEmpty) {
                     _sharedLimitAmountController.text = _creditLimitController.text.trim();
                   }
+                  if (value && _pairColorValue == _colorValue) _pairColorValue = _nextDistinctPairColor();
                 }),
               ),
             ],
@@ -873,6 +950,48 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
             prefixText: '•••• ',
             keyboardType: TextInputType.number,
             maxLength: 4,
+          ),
+          const SizedBox(height: AppSizes.sm),
+          Text(
+            'Card color',
+            style: context.textTheme.labelMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+          ),
+          const SizedBox(height: AppSizes.xs),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final color in _cardThemeColors)
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSizes.sm),
+                    child: GestureDetector(
+                      onTap: () => setState(() => _pairColorValue = color.toARGB32()),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [color, Color.lerp(color, Colors.black, 0.4)!],
+                          ),
+                          shape: BoxShape.circle,
+                          border: _pairColorValue == color.toARGB32()
+                              ? Border.all(color: context.colors.surface, width: 2)
+                              : null,
+                          boxShadow: _pairColorValue == color.toARGB32()
+                              ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 8, spreadRadius: 1)]
+                              : null,
+                        ),
+                        child: _pairColorValue == color.toARGB32()
+                            ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+                            : null,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: AppSizes.sm),
           _PremiumField(
@@ -1118,6 +1237,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                   selected: {_limitSource},
                   onSelectionChanged: (selection) => setState(() {
                     _limitSource = selection.first;
+                    if (_limitSource != _LimitSource.newSharedLimit) _addNewPairCard = false;
                     if (_limitSource == _LimitSource.newSharedLimit &&
                         _sharedLimitNameController.text.trim().isEmpty) {
                       _sharedLimitNameController.text = BankRegistry.byId(_bankId)?.name ?? '';
@@ -1141,6 +1261,12 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                         ),
                         const SizedBox(height: AppSizes.md),
                         _sharedAmountField(),
+                        const SizedBox(height: AppSizes.md),
+                        _pairLimitToggleCard(context),
+                        if (_addNewPairCard) ...[
+                          const SizedBox(height: AppSizes.md),
+                          _secondCardFields(context),
+                        ],
                       ],
                     ),
                   _LimitSource.existingSharedLimit => selectableSharedLimits.isEmpty

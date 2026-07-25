@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/firestore_constants.dart';
+import '../../../../core/payment_schedule/domain/cycle_anchor.dart';
+import '../../../../core/payment_schedule/domain/cycle_engine.dart';
+import '../../../../core/payment_schedule/domain/installment.dart';
+import '../../../../core/payment_schedule/domain/installment_cycle_item.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/providers/firebase_providers.dart';
 import '../../data/loan_repository.dart';
@@ -69,4 +73,37 @@ final activeLoansProvider = Provider<List<Loan>>((ref) {
 final totalAmountToReceiveProvider = Provider<double>((ref) {
   final loans = ref.watch(loansStreamProvider).value ?? const [];
   return loans.fold(0.0, (sum, l) => sum + ref.watch(loanRemainingAmountProvider(l)));
+});
+
+/// The cycle anchor Loan installments classify against — day 17, the same
+/// default reused for EMI's `emiCycleAnchor` and People's `personCycleAnchor`.
+/// Loans have no per-schedule anchor-day concept of their own today, so
+/// every loan shares this one constant for now.
+const loanCycleAnchor = CycleAnchor(anchorDay: 17);
+
+/// One loan's installments split into Previous-Cycle-Pending / Current /
+/// Future via the shared `CycleEngine`, the same carry-forward rule Credit
+/// Cards/People/EMI already use. Raw `CycleItem`-typed result — see
+/// [loanCycleViewRecordProvider] below for the unwrapped `Installment` view
+/// every screen should actually watch.
+final loanCycleViewProvider = Provider.autoDispose.family<CycleEngineResult<InstallmentCycleItem>, Loan>((ref, loan) {
+  final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+  final items = installments.map(InstallmentCycleItem.new).toList();
+  return CycleEngine.classifyForCarryForward(items, loanCycleAnchor);
+});
+
+/// The two-section carry-forward view for one loan's installments, unwrapped
+/// back to plain [Installment]s — mirrors `EmiCycleView`/
+/// [emiCycleViewRecordProvider] exactly. Every loan installment is
+/// materialized upfront by `generateInstallments`, so [current] is simply
+/// [loanCycleViewProvider]'s own `result.current`, unwrapped — no separate
+/// "live" fetch needed.
+typedef LoanCycleView = ({List<Installment> previousCyclePending, List<Installment> current});
+
+final loanCycleViewRecordProvider = Provider.autoDispose.family<LoanCycleView, Loan>((ref, loan) {
+  final result = ref.watch(loanCycleViewProvider(loan));
+  return (
+    previousCyclePending: result.previousCyclePending.map((item) => item.installment).toList(),
+    current: result.current.map((item) => item.installment).toList(),
+  );
 });

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../features/dashboard/presentation/widgets/greeting_header.dart';
 import '../../domain/dashboard_widget_type.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/dashboard_layout_providers.dart';
@@ -11,6 +10,7 @@ import '../widgets/coming_soon_widget_card.dart';
 import '../widgets/dashboard_widget_registry.dart';
 import '../widgets/dashboard_widget_shell.dart';
 import '../widgets/financial_view_config_sheet.dart';
+import '../widgets/greeting_header.dart';
 
 /// The Dashboard tab, rebuilt on the widget-based architecture: renders
 /// whatever the active [DashboardLayout] contains, in View Mode by default,
@@ -43,7 +43,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const listPadding = EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance);
+    const listPadding = EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.xl, AppSizes.lg, AppSizes.fabClearance);
 
     final colors = context.colors;
 
@@ -59,7 +59,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   colors: [colors.primary.withValues(alpha: 0.06), colors.primary.withValues(alpha: 0)],
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.xl, AppSizes.lg, AppSizes.lg),
+              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.xl, AppSizes.lg, AppSizes.xl),
               child: Row(
                 children: [
                   const Expanded(child: GreetingHeader()),
@@ -112,7 +112,7 @@ class _ViewModeList extends ConsumerWidget {
     return ListView.separated(
       padding: padding,
       itemCount: built.length + (comingSoonTypes.isEmpty ? 0 : 1),
-      separatorBuilder: (_, _) => const SizedBox(height: AppSizes.lg),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSizes.xl),
       itemBuilder: (context, index) {
         if (index == built.length) {
           return ComingSoonWidgetCard(types: comingSoonTypes);

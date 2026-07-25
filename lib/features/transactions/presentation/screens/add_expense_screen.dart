@@ -190,6 +190,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     setState(() {
       _categoryId = picked;
       _categoryError = null;
+      if (_descriptionController.text.trim().isEmpty) {
+        final category = categories.where((c) => c.id == picked).firstOrNull;
+        if (category != null) _descriptionController.text = category.name;
+      }
     });
   }
 

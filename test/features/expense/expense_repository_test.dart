@@ -1544,4 +1544,218 @@ void main() {
       );
     });
   });
+
+  group('ExpenseRepository.settleAcrossPending', () {
+    InstallmentPaymentRepository installmentPaymentRepositoryFor(String scheduleId, String installmentId) {
+      final collection = firestore
+          .collection('paymentSchedules')
+          .doc(scheduleId)
+          .collection('installments')
+          .doc(installmentId)
+          .collection('payments')
+          .withConverter<InstallmentPayment>(
+            fromFirestore: InstallmentPayment.fromFirestore,
+            toFirestore: (p, _) => p.toFirestore(),
+          );
+      return InstallmentPaymentRepository(collection, installmentRepositoryFor(scheduleId));
+    }
+
+    Future<List<InstallmentPayment>> paymentsFor(String scheduleId, String installmentId) async {
+      final snapshot = await firestore
+          .collection('paymentSchedules')
+          .doc(scheduleId)
+          .collection('installments')
+          .doc(installmentId)
+          .collection('payments')
+          .get();
+      return snapshot.docs.map((d) => InstallmentPayment.fromFirestore(d, null)).toList();
+    }
+
+    // Case 4/bypass fix: settling a lump sum smaller than total pending
+    // clears the oldest expense first, leaving the newer one untouched —
+    // each keeps its own independent InstallmentPayment history.
+    test('settles oldest-due-first, leaving the newest partially/fully unsettled', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+
+      final older = await repository.createExpense(
+        description: 'Groceries',
+        totalAmount: 100,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.custom,
+        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
+        dueDate: DateTime(2026, 1, 10),
+      );
+      final newer = await repository.createExpense(
+        description: 'Taxi',
+        totalAmount: 100,
+        date: DateTime(2026, 2, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.custom,
+        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
+        dueDate: DateTime(2026, 2, 10),
+      );
+
+      final olderInstallment = (await installmentsFor(older.scheduleId!)).single;
+      final newerInstallment = (await installmentsFor(newer.scheduleId!)).single;
+
+      final pending = [
+        (expense: older, participant: older.participants.single, installment: olderInstallment),
+        (expense: newer, participant: newer.participants.single, installment: newerInstallment),
+      ]..sort((a, b) => a.installment.dueDate.compareTo(b.installment.dueDate));
+
+      await repository.settleAcrossPending(
+        person: alice,
+        pending: pending,
+        amount: 150,
+        date: DateTime(2026, 2, 15),
+        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+      );
+
+      final refreshedOlder = (await installmentsFor(older.scheduleId!)).single;
+      final refreshedNewer = (await installmentsFor(newer.scheduleId!)).single;
+      expect(refreshedOlder.remainingAmount, 0);
+      expect(refreshedNewer.remainingAmount, 50);
+
+      // Each expense produced its own traceable InstallmentPayment.
+      final olderPayments = await paymentsFor(older.scheduleId!, olderInstallment.id);
+      final newerPayments = await paymentsFor(newer.scheduleId!, newerInstallment.id);
+      expect(olderPayments, hasLength(1));
+      expect(olderPayments.single.amount, 100);
+      expect(newerPayments, hasLength(1));
+      expect(newerPayments.single.amount, 50);
+
+      final refreshedAlice = await personRepository.getByKey(alice.id);
+      expect(refreshedAlice!.currentBalance, 50);
+    });
+
+    test('an amount exactly matching total pending settles every installment with no remainder ledger entry', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+
+      final expense = await repository.createExpense(
+        description: 'Dinner',
+        totalAmount: 80,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.custom,
+        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 80)],
+      );
+      final installment = (await installmentsFor(expense.scheduleId!)).single;
+
+      await repository.settleAcrossPending(
+        person: alice,
+        pending: [(expense: expense, participant: expense.participants.single, installment: installment)],
+        amount: 80,
+        date: DateTime(2026, 1, 10),
+        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+      );
+
+      final refreshedAlice = await personRepository.getByKey(alice.id);
+      expect(refreshedAlice!.currentBalance, 0);
+
+      final ledger = ledgerRepositoryFor(alice.id);
+      final entries = await ledger.getAll();
+      // Only the original "gave" entry plus the settleParticipant-posted
+      // "receivedBack" entry exist — no separate lump-sum remainder entry.
+      expect(entries.where((e) => e.note == 'Settled all'), isEmpty);
+    });
+
+    // An amount exceeding total tracked pending (e.g. the person also has an
+    // untracked manual-lending balance) posts the remainder as a plain
+    // ledger entry rather than inventing a synthetic installment for it.
+    test('an amount exceeding total pending posts the remainder as a plain ledger entry', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 50);
+
+      final expense = await repository.createExpense(
+        description: 'Dinner',
+        totalAmount: 80,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.custom,
+        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 80)],
+      );
+      final installment = (await installmentsFor(expense.scheduleId!)).single;
+
+      await repository.settleAcrossPending(
+        person: alice,
+        pending: [(expense: expense, participant: expense.participants.single, installment: installment)],
+        amount: 130,
+        date: DateTime(2026, 1, 10),
+        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+        note: 'Settled all',
+      );
+
+      final refreshedInstallment = (await installmentsFor(expense.scheduleId!)).single;
+      expect(refreshedInstallment.remainingAmount, 0);
+
+      final ledger = ledgerRepositoryFor(alice.id);
+      final remainderEntries = (await ledger.getAll()).where((e) => e.note == 'Settled all');
+      expect(remainderEntries, hasLength(1));
+      expect(remainderEntries.single.amount, 50);
+    });
+
+    // Case 5: settling one of several unpaid expenses months later leaves
+    // every other expense's records — and the untouched expense's own
+    // Installment/payment history — byte-identical.
+    test('settling one expense leaves another unpaid expense fully untouched (independent history)', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+
+      final expenseA = await repository.createExpense(
+        description: 'Groceries',
+        totalAmount: 100,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.custom,
+        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
+      );
+      final expenseB = await repository.createExpense(
+        description: 'Movie tickets',
+        totalAmount: 60,
+        date: DateTime(2026, 1, 2),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.custom,
+        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 60)],
+      );
+
+      final installmentA = (await installmentsFor(expenseA.scheduleId!)).single;
+      final installmentB = (await installmentsFor(expenseB.scheduleId!)).single;
+
+      await repository.settleAcrossPending(
+        person: alice,
+        pending: [(expense: expenseA, participant: expenseA.participants.single, installment: installmentA)],
+        amount: 100,
+        date: DateTime(2026, 7, 1),
+        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+      );
+
+      final refreshedB = (await installmentsFor(expenseB.scheduleId!)).single;
+      expect(refreshedB.amountPaid, 0);
+      expect(refreshedB.remainingAmount, 60);
+      expect(await paymentsFor(expenseB.scheduleId!, installmentB.id), isEmpty);
+
+      final refreshedA = (await installmentsFor(expenseA.scheduleId!)).single;
+      expect(refreshedA.remainingAmount, 0);
+    });
+
+    test('rejects an amount <= 0', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+
+      await expectLater(
+        repository.settleAcrossPending(
+          person: alice,
+          pending: const [],
+          amount: 0,
+          date: DateTime(2026, 1, 1),
+          installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+        ),
+        throwsA(isA<AppException>()),
+      );
+    });
+  });
 }

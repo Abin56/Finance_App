@@ -5,6 +5,7 @@ import '../../../../core/payment_schedule/domain/installment_status.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../shared/domain/payment_urgency.dart';
 import '../../../bills/domain/bill_status.dart';
+import '../../../bills/presentation/providers/bill_occurrence_providers.dart';
 import '../../../bills/presentation/providers/bill_providers.dart';
 import '../../../credit_cards/domain/credit_card_profile.dart';
 import '../../../credit_cards/domain/credit_card_status.dart';
@@ -26,13 +27,16 @@ import '../../../transactions/presentation/providers/transaction_providers.dart'
 ///
 /// Section 1's "due this month" breakdowns intentionally deviate from the
 /// underlying repositories' `thisMonth()`/calendar-month semantics: they
-/// merge this month's items with anything still unpaid from a prior month
-/// (see `_isOverdueCarryOver` below), so "Payments Due This Month" reflects
-/// what the user actually owes right now rather than contradicting Section
-/// 4's timeline, which already surfaces overdue items regardless of month.
-/// `InstallmentRepository.thisMonth`/`Bill`/`Statement` themselves are left
-/// untouched — every other screen that reads them keeps strict calendar-
-/// month behavior.
+/// merge this month's items with anything still unpaid from a prior cycle
+/// (each module's own `*CycleViewProvider.previousCyclePending`, the same
+/// shared `CycleEngine`-classified carry-forward set Credit Cards/EMI/
+/// Loan/Bills/People already surface on their own screens — see
+/// `cycle_engine.dart`), so "Payments Due This Month" reflects what the
+/// user actually owes right now rather than contradicting Section 4's
+/// timeline, which already surfaces carried-over items regardless of
+/// month. `InstallmentRepository.thisMonth`/`Bill`/`Statement` themselves
+/// are left untouched — every other screen that reads them keeps strict
+/// calendar-month behavior.
 
 /// A single row's due/paid/remaining figures for Section 1 ("Payments Due
 /// This Month").
@@ -46,29 +50,18 @@ DueCategoryBreakdown _combine(Iterable<DueCategoryBreakdown> rows) {
   return (due: due, paid: paid, remaining: due - paid);
 }
 
-/// Whether [dueDate] belongs to a prior, still-unpaid occurrence that
-/// `thisMonth()`-style calendar filtering would otherwise drop — due before
-/// the current month's start and carrying a positive [remaining], not
-/// skipped. Checked *in addition to* (never instead of) each category's
-/// this-month set, so Section 1 merges "this month" with "still owed from
-/// before", matching what Section 4's timeline already shows. A due date
-/// can't be in both the this-month set and before the current month's
-/// start, so the two sets never overlap — no dedup needed beyond that.
-bool _isOverdueCarryOver(DateTime dueDate, double remaining, bool isSkipped, DateTime now) {
-  return !isSkipped && remaining > 0 && dueDate.isBefore(now.startOfMonth);
-}
-
 /// Sum of this-month installment due/paid across every active EMI, plus any
-/// still-unpaid installment carried over from a prior month.
+/// still-unpaid installment carried forward from a prior cycle per the
+/// shared `CycleEngine` (`emiCycleViewRecordProvider`).
 final emiDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
   final now = DateTime.now();
   final emis = ref.watch(activeEmisProvider);
   var due = 0.0, paid = 0.0;
   for (final emi in emis) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-    for (final i in installments) {
-      final isThisMonth = i.dueDate.isSameMonth(now);
-      if (!isThisMonth && !_isOverdueCarryOver(i.dueDate, i.remainingAmount, i.isSkipped, now)) continue;
+    final view = ref.watch(emiCycleViewRecordProvider(emi));
+    final carriedOver = view.previousCyclePending;
+    final thisMonth = view.current.where((i) => i.dueDate.isSameMonth(now));
+    for (final i in {...carriedOver, ...thisMonth}) {
       due += i.amountDue;
       paid += i.amountPaid;
     }
@@ -77,16 +70,17 @@ final emiDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
 });
 
 /// Sum of this-month installment due/paid across every active Loan, plus any
-/// still-unpaid installment carried over from a prior month.
+/// still-unpaid installment carried forward from a prior cycle per the
+/// shared `CycleEngine` (`loanCycleViewRecordProvider`).
 final loanDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
   final now = DateTime.now();
   final loans = ref.watch(activeLoansProvider);
   var due = 0.0, paid = 0.0;
   for (final loan in loans) {
-    final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
-    for (final i in installments) {
-      final isThisMonth = i.dueDate.isSameMonth(now);
-      if (!isThisMonth && !_isOverdueCarryOver(i.dueDate, i.remainingAmount, i.isSkipped, now)) continue;
+    final view = ref.watch(loanCycleViewRecordProvider(loan));
+    final carriedOver = view.previousCyclePending;
+    final thisMonth = view.current.where((i) => i.dueDate.isSameMonth(now));
+    for (final i in {...carriedOver, ...thisMonth}) {
       due += i.amountDue;
       paid += i.amountPaid;
     }
@@ -95,34 +89,43 @@ final loanDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
 });
 
 /// Sum of this-month bill amount/paid, excluding skipped occurrences, plus
-/// any still-unpaid bill carried over from a prior month.
+/// any still-unpaid occurrence carried forward from a prior cycle per the
+/// shared `CycleEngine` (`billOccurrenceCycleViewProvider`). Fans out
+/// per-bill, same as [emiDueThisMonthBreakdownProvider]/
+/// [loanDueThisMonthBreakdownProvider] fan out per-owner.
 final billsDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   final now = DateTime.now();
   var due = 0.0, paid = 0.0;
-  for (final b in bills) {
-    if (b.status == BillStatus.skipped) continue;
-    final isThisMonth = b.dueDate.isSameMonth(now);
-    if (!isThisMonth && !_isOverdueCarryOver(b.dueDate, b.remainingAmount, b.isSkipped, now)) continue;
-    due += b.amount;
-    paid += b.amountPaid;
+  for (final bill in bills) {
+    final view = ref.watch(billOccurrenceCycleViewProvider(bill.id));
+    final carriedOver = view.previousCyclePending;
+    final current = view.current;
+    final thisMonth = current != null && current.dueDate.isSameMonth(now) ? [current] : const [];
+    for (final o in {...carriedOver, ...thisMonth}) {
+      if (o.status == BillStatus.skipped) continue;
+      due += o.amount;
+      paid += o.amountPaid;
+    }
   }
   return (due: due, paid: paid, remaining: due - paid);
 });
 
 /// Sum of this-month statement total/paid across every card, excluding
-/// already-paid statements, plus any still-unpaid statement carried over
-/// from a prior month.
+/// already-paid statements, plus any still-unpaid statement carried forward
+/// from a prior cycle per the shared `CycleEngine`
+/// (`statementCycleViewProvider`).
 final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   final now = DateTime.now();
   var due = 0.0, paid = 0.0;
   for (final card in cards) {
-    final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
-    for (final s in statements) {
+    final view = ref.watch(statementCycleViewProvider(card.id));
+    final carriedOver = view.previousCyclePending;
+    final current = view.current;
+    final thisMonth = current != null && current.dueDate.isSameMonth(now) ? [current] : const [];
+    for (final s in {...carriedOver, ...thisMonth}) {
       if (s.status == StatementStatus.paid) continue;
-      final isThisMonth = s.dueDate.isSameMonth(now);
-      if (!isThisMonth && !_isOverdueCarryOver(s.dueDate, s.remainingAmount, false, now)) continue;
       due += s.totalAmount;
       paid += s.amountPaid;
     }
@@ -229,7 +232,11 @@ final activeCardStatementSummariesProvider = Provider<List<CardStatementSummary>
 /// Which domain an [UpcomingPaymentItem] came from, for routing on tap.
 enum UpcomingPaymentKind { emi, loan, bill, creditCard }
 
-/// One merged row in Section 4's upcoming-payments timeline.
+/// One merged row in Section 4's upcoming-payments timeline. [isCarriedOver]
+/// mirrors the Dashboard's `UpcomingDueItem.isCarriedOver` — both are now
+/// sourced from the same per-module `*CycleViewProvider`s, so a row flagged
+/// here agrees with what that module's own screen shows as "Previous Cycle
+/// Pending".
 typedef UpcomingPaymentItem = ({
   UpcomingPaymentKind kind,
   String title,
@@ -237,73 +244,93 @@ typedef UpcomingPaymentItem = ({
   double amountDue,
   double remaining,
   PaymentUrgency urgency,
+  bool isCarriedOver,
   String routeId,
 });
 
 /// Every unpaid, non-skipped EMI/Loan installment, Bill, and Credit Card
 /// statement, merged and sorted with overdue items always first (regardless
-/// of date), then ascending due date — Section 4's data source.
+/// of date), then ascending due date — Section 4's data source. Carry-
+/// forward status comes from each module's own `*CycleViewProvider`, the
+/// same shared `CycleEngine`-classified set [emiDueThisMonthBreakdownProvider]
+/// and friends above read — no independent cutoff logic of this provider's
+/// own.
 final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((ref) {
   final items = <UpcomingPaymentItem>[];
 
   for (final emi in ref.watch(activeEmisProvider)) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-    for (final i in installments) {
+    final view = ref.watch(emiCycleViewRecordProvider(emi));
+    final relevant = [...view.previousCyclePending, ...view.current];
+    for (final i in relevant) {
       if (i.status == InstallmentStatus.paid || i.isSkipped) continue;
+      final isCarriedOver = view.previousCyclePending.contains(i);
       items.add((
         kind: UpcomingPaymentKind.emi,
         title: emi.name,
         dueDate: i.dueDate,
         amountDue: i.amountDue,
         remaining: i.remainingAmount,
-        urgency: PaymentUrgencyX.fromInstallmentStatus(i.status),
+        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromInstallmentStatus(i.status),
+        isCarriedOver: isCarriedOver,
         routeId: emi.id,
       ));
     }
   }
 
   for (final loan in ref.watch(activeLoansProvider)) {
-    final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
-    for (final i in installments) {
+    final view = ref.watch(loanCycleViewRecordProvider(loan));
+    final relevant = [...view.previousCyclePending, ...view.current];
+    for (final i in relevant) {
       if (i.status == InstallmentStatus.paid || i.isSkipped) continue;
+      final isCarriedOver = view.previousCyclePending.contains(i);
       items.add((
         kind: UpcomingPaymentKind.loan,
         title: loan.name ?? 'Loan',
         dueDate: i.dueDate,
         amountDue: i.amountDue,
         remaining: i.remainingAmount,
-        urgency: PaymentUrgencyX.fromInstallmentStatus(i.status),
+        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromInstallmentStatus(i.status),
+        isCarriedOver: isCarriedOver,
         routeId: loan.id,
       ));
     }
   }
 
   final bills = ref.watch(billsStreamProvider).value ?? const [];
-  for (final b in bills) {
-    if (b.status == BillStatus.paid || b.status == BillStatus.skipped) continue;
-    items.add((
-      kind: UpcomingPaymentKind.bill,
-      title: b.name,
-      dueDate: b.dueDate,
-      amountDue: b.amount,
-      remaining: b.remainingAmount,
-      urgency: PaymentUrgencyX.fromBillStatus(b.status),
-      routeId: b.id,
-    ));
+  for (final bill in bills) {
+    final view = ref.watch(billOccurrenceCycleViewProvider(bill.id));
+    final relevant = [...view.previousCyclePending, if (view.current != null) view.current!];
+    for (final o in relevant) {
+      if (o.status == BillStatus.paid || o.status == BillStatus.skipped) continue;
+      final isCarriedOver = view.previousCyclePending.contains(o);
+      items.add((
+        kind: UpcomingPaymentKind.bill,
+        title: bill.name,
+        dueDate: o.dueDate,
+        amountDue: o.amount,
+        remaining: o.remainingAmount,
+        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromBillStatus(o.status),
+        isCarriedOver: isCarriedOver,
+        routeId: bill.id,
+      ));
+    }
   }
 
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   for (final card in cards) {
-    final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
-    for (final s in statements) {
+    final view = ref.watch(statementCycleViewProvider(card.id));
+    final relevant = [...view.previousCyclePending, if (view.current != null) view.current!];
+    for (final s in relevant) {
       if (s.status == StatementStatus.paid) continue;
+      final isCarriedOver = view.previousCyclePending.contains(s);
       items.add((
         kind: UpcomingPaymentKind.creditCard,
         title: card.lastFourDigits != null ? 'Card •••• ${card.lastFourDigits}' : 'Credit Card',
         dueDate: s.dueDate,
         amountDue: s.totalAmount,
         remaining: s.remainingAmount,
-        urgency: PaymentUrgencyX.fromStatementStatus(s.status),
+        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromStatementStatus(s.status),
+        isCarriedOver: isCarriedOver,
         routeId: card.id,
       ));
     }
@@ -344,9 +371,12 @@ final _billsPaidThisMonthProvider = Provider<double>((ref) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   final now = DateTime.now();
   var paid = 0.0;
-  for (final b in bills) {
-    if (!b.dueDate.isSameMonth(now) || b.status == BillStatus.skipped) continue;
-    paid += b.amountPaid;
+  for (final bill in bills) {
+    final occurrences = ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
+    for (final o in occurrences) {
+      if (!o.dueDate.isSameMonth(now) || o.status == BillStatus.skipped) continue;
+      paid += o.amountPaid;
+    }
   }
   return paid;
 });

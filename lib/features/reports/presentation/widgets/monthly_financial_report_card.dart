@@ -42,9 +42,10 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
     final emiPaid = ref.watch(emiPaidForRangeProvider(range));
     final loanPaid = ref.watch(loanPaidForRangeProvider(range));
     final creditCardBillsPaid = ref.watch(creditCardBillsPaidForRangeProvider(range));
+    final billOccurrences = ref.watch(currentOccurrenceByBillIdProvider);
     final pendingBills =
-        ref.watch(overdueBillsProvider).fold(0.0, (sum, b) => sum + b.remainingAmount) +
-            ref.watch(upcomingBillsProvider).fold(0.0, (sum, b) => sum + b.remainingAmount);
+        ref.watch(overdueBillsProvider).fold(0.0, (sum, b) => sum + billOccurrences[b.id]!.remainingAmount) +
+            ref.watch(upcomingBillsProvider).fold(0.0, (sum, b) => sum + billOccurrences[b.id]!.remainingAmount);
     final pendingEmi = ref.watch(totalRemainingEmiBalanceProvider);
     final pendingLoans = ref.watch(totalAmountToReceiveProvider);
     final moneyToReceive = ref.watch(totalMoneyToReceiveProvider);

@@ -10,23 +10,55 @@ import '../../../../core/extensions/context_extensions.dart';
 /// out of the `dashboard` feature so the new widget-based architecture
 /// (living under `core/dashboard`) doesn't depend back on it.
 class DashboardWidgetCard extends StatelessWidget {
-  const DashboardWidgetCard({super.key, required this.child, this.onTap, this.padding});
+  const DashboardWidgetCard({
+    super.key,
+    required this.child,
+    this.onTap,
+    this.padding,
+    this.backgroundColor,
+    this.showHairline = true,
+    this.isHero = false,
+  });
 
   final Widget child;
   final VoidCallback? onTap;
   final EdgeInsetsGeometry? padding;
 
+  /// Overrides the plain [ColorScheme.surface] fill — used by cards that
+  /// need a semantic tint (e.g. the warning-tinted Previous Cycle card)
+  /// without every card re-implementing its own [Material]/[Container].
+  final Color? backgroundColor;
+
+  /// Whether to draw the subtle 1px outline Apple-style cards use alongside
+  /// their shadow for definition on light, low-contrast backgrounds. Off by
+  /// default for tinted cards where a hairline would fight the tint.
+  final bool showHairline;
+
+  /// Widens internal padding to the hero rhythm ([AppSizes.xl] all around)
+  /// for the dashboard's largest, most prominent cards. Non-hero cards use a
+  /// tighter vertical rhythm ([AppSizes.md]) than horizontal ([AppSizes.lg])
+  /// — Apple Wallet/Fitness-style compact spacing — since card content is
+  /// almost always wider than it is tall.
+  final bool isHero;
+
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Material(
-      color: context.colors.surface,
+      color: backgroundColor ?? colors.surface,
       borderRadius: BorderRadius.circular(AppSizes.radiusCard),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          decoration: BoxDecoration(boxShadow: AppShadows.soft(context)),
-          padding: padding ?? const EdgeInsets.all(AppSizes.lg),
+          decoration: BoxDecoration(
+            boxShadow: AppShadows.soft(context),
+            border: showHairline ? Border.all(color: colors.outlineVariant.withValues(alpha: 0.4)) : null,
+          ),
+          padding: padding ??
+              (isHero
+                  ? const EdgeInsets.all(AppSizes.xl)
+                  : const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md)),
           child: child,
         ),
       ),
@@ -56,7 +88,7 @@ class DashboardWidgetGradientCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            boxShadow: AppShadows.soft(context),
+            boxShadow: AppShadows.elevated(context),
           ),
           child: child,
         ),

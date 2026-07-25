@@ -7,6 +7,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
@@ -14,15 +15,16 @@ import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/widgets/add_expense_chooser.dart';
 import '../../domain/ledger_entry.dart';
-import '../../domain/ledger_entry_type.dart';
 import '../../domain/person.dart';
 import '../../domain/person_timeline_entry.dart';
 import '../providers/people_providers.dart';
 import '../providers/person_expense_stats_provider.dart';
+import '../providers/person_pending_participants_providers.dart';
 import '../providers/person_statement_grouping_providers.dart';
 import '../providers/person_timeline_providers.dart';
 import '../widgets/adjust_balance_sheet.dart';
 import '../widgets/ledger_entry_form_sheet.dart';
+import '../widgets/person_cycle_summary_card.dart';
 import '../widgets/person_expense_stats_card.dart';
 import '../widgets/person_form_sheet.dart';
 import '../widgets/person_pending_breakdown.dart';
@@ -33,6 +35,7 @@ import '../widgets/settle_up_sheet.dart';
 import '../widgets/share_statement.dart';
 import 'person_expense_detail_screen.dart';
 import 'person_ledger_trash_screen.dart';
+import 'statement_pdf_preview_screen.dart';
 
 /// Which view of the Contact Ledger is showing (Figma frame 1's tab bar):
 /// the expense/lending history, an aggregated summary, or the payments this
@@ -105,6 +108,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
   Widget build(BuildContext context) {
     final peopleAsync = ref.watch(peopleStreamProvider);
     final timeline = ref.watch(personTimelineProvider(widget.personId));
+    final cycleView = ref.watch(personCycleViewProvider(widget.personId));
     final ledgerEntries = ref.watch(ledgerStreamProvider(widget.personId)).value ?? const [];
     final ledgerEntryById = {for (final e in ledgerEntries) e.id: e};
 
@@ -184,7 +188,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                   ),
                 ),
                 if (_tab != _LedgerTab.summary)
-                  ..._historyOrPaymentsSlivers(context, person, sortedAll, ledgerEntryById),
+                  ..._historyOrPaymentsSlivers(context, person, sortedAll, ledgerEntryById, cycleView),
               ],
             ),
     );
@@ -195,6 +199,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     Person person,
     List<PersonTimelineEntry> sortedAll,
     Map<String, LedgerEntry> ledgerEntryById,
+    PersonCycleView cycleView,
   ) {
     final visible = _visibleFor(_tab, sortedAll);
     final isPayments = _tab == _LedgerTab.payments;
@@ -216,19 +221,14 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
       ];
     }
 
-    // Flatten to month-header/row slots once per build so itemBuilder stays
-    // O(1) and only visible rows get built, rather than materializing every
-    // month's tiles up front regardless of scroll position.
-    final slots = <Object>[];
-    String? currentMonth;
-    for (final entry in visible) {
-      final month = entry.date.monthYear;
-      if (month != currentMonth) {
-        currentMonth = month;
-        slots.add(month);
-      }
-      slots.add(entry);
-    }
+    // The Payments tab is entirely settlements (no `assignedExpense`/
+    // `splitExpense` entry is ever a settlement itself, see
+    // `PersonTimelineEntry.isSettlement`), so cycle sectioning — which only
+    // ever applies to those two categories — never has anything to show
+    // there; keep its existing flat month-grouped rendering unchanged.
+    final slots = isPayments
+        ? _monthGroupedSlots(visible)
+        : _cycleSectionedSlots(visible, cycleView);
 
     return [
       SliverPadding(
@@ -237,6 +237,9 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
           itemCount: slots.length,
           itemBuilder: (context, index) {
             final slot = slots[index];
+            if (slot is _CycleSectionHeader) {
+              return _CycleSectionHeaderTile(header: slot);
+            }
             if (slot is String) {
               return Padding(
                 padding: const EdgeInsets.only(top: AppSizes.sm, bottom: AppSizes.sm),
@@ -246,9 +249,16 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                 ),
               );
             }
+            final entry = slot as PersonTimelineEntry;
             return Padding(
               padding: const EdgeInsets.only(bottom: AppSizes.sm),
-              child: _buildTile(context, person, slot as PersonTimelineEntry, ledgerEntryById),
+              child: _buildTile(
+                context,
+                person,
+                entry,
+                ledgerEntryById,
+                carriedForward: cycleView.carriedForwardIds.contains(entry.id),
+              ),
             );
           },
         ),
@@ -282,15 +292,58 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     ];
   }
 
+  /// The plain flat month-header/row slots, unchanged from before cycle
+  /// sectioning existed — used for the Payments tab, which cycle sectioning
+  /// never applies to (see [_historyOrPaymentsSlivers]).
+  List<Object> _monthGroupedSlots(List<PersonTimelineEntry> entries) {
+    final slots = <Object>[];
+    String? currentMonth;
+    for (final entry in entries) {
+      final month = entry.date.monthYear;
+      if (month != currentMonth) {
+        currentMonth = month;
+        slots.add(month);
+      }
+      slots.add(entry);
+    }
+    return slots;
+  }
+
+  /// History tab slots: a "Previous Cycle Pending" section (only when
+  /// [PersonCycleView.previousCyclePending] is non-empty — fully settled
+  /// previous-cycle entries simply have nothing to show there), followed by
+  /// "Current Cycle" containing the carried-forward entries first, then
+  /// every other visible entry (current-cycle expense-linked entries plus
+  /// every uncycled running-balance entry — lending, settlements,
+  /// adjustments, references — month-grouped exactly as before).
+  List<Object> _cycleSectionedSlots(List<PersonTimelineEntry> visible, PersonCycleView cycleView) {
+    final visibleIds = visible.map((e) => e.id).toSet();
+    final previousPending = cycleView.previousCyclePending.where((e) => visibleIds.contains(e.id)).toList();
+    final carriedForward = previousPending.toList();
+    final carriedForwardIds = carriedForward.map((e) => e.id).toSet();
+    final rest = visible.where((e) => !carriedForwardIds.contains(e.id)).toList();
+
+    final slots = <Object>[];
+    if (previousPending.isNotEmpty) {
+      slots.add(const _CycleSectionHeader('Previous Cycle Pending'));
+      slots.addAll(_monthGroupedSlots(previousPending));
+    }
+    slots.add(const _CycleSectionHeader('Current Cycle'));
+    slots.addAll(_monthGroupedSlots([...carriedForward, ...rest]));
+    return slots;
+  }
+
   Widget _buildTile(
     BuildContext context,
     Person person,
     PersonTimelineEntry entry,
-    Map<String, LedgerEntry> ledgerEntryById,
-  ) {
+    Map<String, LedgerEntry> ledgerEntryById, {
+    bool carriedForward = false,
+  }) {
     final transactionRef = _transactionRefFor(entry, ledgerEntryById);
     final tile = _ContactLedgerTile(
       entry: entry,
+      carriedForward: carriedForward,
       onTap: entry.category == PersonTimelineCategory.reference
           ? () => context.push('${AppRoutes.transactions}/${entry.id}')
           : transactionRef == null
@@ -379,6 +432,8 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
         AdjustBalanceSheet.show(context, person);
       case _MenuAction.share:
         ShareStatement.share(context, person, entries);
+      case _MenuAction.exportPdf:
+        _exportPdf(person, sortedAllFor: entries);
       case _MenuAction.editPerson:
         PersonFormSheet.show(context, person: person);
       case _MenuAction.trash:
@@ -390,8 +445,54 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     }
   }
 
-  /// One-tap "clear everything owed" — confirms, then records the whole
-  /// pending balance as paid in a single [LedgerRepository.addEntry] call.
+  /// Exports exactly what's currently visible on screen — the active tab's
+  /// filtered rows (History/Payments honor search + date range; Summary
+  /// exports the full timeline, matching what [_SummaryTab] itself displays,
+  /// since its aggregates are never narrowed by search/date range either).
+  void _exportPdf(Person person, {required List<PersonTimelineEntry> sortedAllFor}) {
+    final visible = _tab == _LedgerTab.summary ? sortedAllFor : _visibleFor(_tab, sortedAllFor);
+
+    // Running balance is a chronological fold over the person's *entire*
+    // ledger, not just the visible subset — so the balance carried into the
+    // first visible row is `openingBalance` plus every earlier entry in the
+    // full timeline, regardless of tab/search. Without this, a date-range
+    // filter that excludes earlier history would make every running balance
+    // shown in the PDF wrong.
+    final openingBalanceForRange = visible.isEmpty
+        ? person.openingBalance
+        : person.openingBalance +
+            sortedAllFor
+                .where((e) => e.date.isBefore(visible.first.date))
+                .fold(0.0, (sum, e) => sum + e.signedAmount);
+
+    StatementPdfPreviewScreen.open(
+      context,
+      person: person,
+      entries: visible,
+      expenseStats: ref.read(personExpenseStatsProvider(widget.personId)),
+      filterDescription: _filterDescription(),
+      openingBalanceForRange: openingBalanceForRange,
+    );
+  }
+
+  /// Human-readable summary of the active tab/search/date-range filter, e.g.
+  /// "History · 1 Jan – 31 Jan 2026 · "fuel"" — shown on the PDF's
+  /// Statement Info section so a reader never mistakes a filtered export
+  /// for the person's full history. Empty when nothing is filtered.
+  String _filterDescription() {
+    if (_tab == _LedgerTab.summary) return '';
+    final parts = <String>[_tab == _LedgerTab.payments ? 'Payments' : 'History'];
+    if (_dateRange != null) {
+      parts.add('${_dateRange!.start.fullDate} – ${_dateRange!.end.fullDate}');
+    }
+    if (_query.trim().isNotEmpty) parts.add('"${_query.trim()}"');
+    return parts.join(' · ');
+  }
+
+  /// One-tap "clear everything owed" — confirms, then fans the whole pending
+  /// balance out across the person's outstanding installments oldest-first
+  /// via [ExpenseRepository.settleAcrossPending], so every dollar produces a
+  /// traceable settlement instead of one undifferentiated ledger entry.
   Future<void> _confirmSettleAll(BuildContext context, WidgetRef ref, Person person) async {
     if (person.currentBalance == 0) return;
     final amount = CurrencyFormatter.instance.format(person.currentBalance.abs());
@@ -413,14 +514,21 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      final repository = ref.read(ledgerRepositoryProvider(person.id));
-      await repository.addEntry(
-        person,
-        type: person.isCreditor ? LedgerEntryType.receivedBack : LedgerEntryType.repaid,
-        amount: person.currentBalance.abs(),
-        date: DateTime.now(),
-        note: 'Settled all',
-      );
+      final pending = ref.read(personSplitParticipantsProvider(person.id)).where(
+            (p) => p.installment.remainingAmount > 0,
+          ).toList()
+        ..sort((a, b) => a.installment.dueDate.compareTo(b.installment.dueDate));
+
+      await ref.read(expenseRepositoryProvider).settleAcrossPending(
+            person: person,
+            pending: pending,
+            amount: person.currentBalance.abs(),
+            date: DateTime.now(),
+            installmentPaymentRepositoryFor: (scheduleId, installmentId) => ref.read(
+              installmentPaymentRepositoryProvider((scheduleId: scheduleId, installmentId: installmentId)),
+            ),
+            note: 'Settled all',
+          );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${person.name}\'s balance is settled')));
       }
@@ -448,6 +556,8 @@ class _SummaryTab extends ConsumerWidget {
       children: [
         PersonStatementHeader(person: person, entries: entries),
         const SizedBox(height: AppSizes.lg),
+        PersonCycleSummaryCard(summary: ref.watch(personCycleSummaryProvider(personId))),
+        const SizedBox(height: AppSizes.lg),
         PersonPendingBreakdown(entries: entries),
         const SizedBox(height: AppSizes.lg),
         PersonStatementGroupsCard(groups: ref.watch(personStatementGroupsProvider(personId))),
@@ -456,7 +566,18 @@ class _SummaryTab extends ConsumerWidget {
   }
 }
 
-enum _MenuAction { recordPayment, request, search, dateFilter, correctBalance, share, editPerson, trash, settleAll }
+enum _MenuAction {
+  recordPayment,
+  request,
+  search,
+  dateFilter,
+  correctBalance,
+  share,
+  exportPdf,
+  editPerson,
+  trash,
+  settleAll,
+}
 
 class _OverflowMenu extends StatelessWidget {
   const _OverflowMenu({required this.person, required this.entries, required this.onAction});
@@ -476,7 +597,8 @@ class _OverflowMenu extends StatelessWidget {
         const PopupMenuItem(value: _MenuAction.search, child: _MenuTile(icon: Icons.search_rounded, label: 'Search')),
         const PopupMenuItem(value: _MenuAction.dateFilter, child: _MenuTile(icon: Icons.date_range_outlined, label: 'Date Filter')),
         const PopupMenuItem(value: _MenuAction.correctBalance, child: _MenuTile(icon: Icons.tune_rounded, label: 'Correct Balance')),
-        const PopupMenuItem(value: _MenuAction.share, child: _MenuTile(icon: Icons.share_outlined, label: 'Share Statement')),
+        const PopupMenuItem(value: _MenuAction.share, child: _MenuTile(icon: Icons.notes_rounded, label: 'Share as Text')),
+        const PopupMenuItem(value: _MenuAction.exportPdf, child: _MenuTile(icon: Icons.picture_as_pdf_outlined, label: 'Export PDF')),
         const PopupMenuItem(value: _MenuAction.editPerson, child: _MenuTile(icon: Icons.edit_outlined, label: 'Edit Person')),
         const PopupMenuItem(value: _MenuAction.trash, child: _MenuTile(icon: Icons.delete_outline_rounded, label: 'Trash')),
         if (person.currentBalance != 0)
@@ -508,10 +630,15 @@ class _MenuTile extends StatelessWidget {
 /// a tinted category/type icon, the expense description, its date and money
 /// direction, the signed amount, and — for expense entries — a status pill.
 class _ContactLedgerTile extends StatelessWidget {
-  const _ContactLedgerTile({required this.entry, required this.onTap});
+  const _ContactLedgerTile({required this.entry, required this.onTap, this.carriedForward = false});
 
   final PersonTimelineEntry entry;
   final VoidCallback? onTap;
+
+  /// True when this entry is previous-cycle-pending, shown again at the top
+  /// of the Current Cycle section so the user can't miss it — see
+  /// `personCycleViewProvider`.
+  final bool carriedForward;
 
   static const _splitSettlementPrefix = 'Split settlement:';
   static const _splitGivenPrefix = 'Split:';
@@ -532,57 +659,111 @@ class _ContactLedgerTile extends StatelessWidget {
     final directionColor = positive ? AppColors.success : AppColors.error;
 
     return Material(
-      color: context.colors.surface,
+      color: carriedForward ? AppColors.warning.withValues(alpha: 0.08) : context.colors.surface,
       borderRadius: BorderRadius.circular(AppSizes.radiusLg),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.md),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(color: amountColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
-                child: Icon(entry.icon, color: amountColor, size: AppSizes.iconSm),
-              ),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(_title, style: context.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
-                        const SizedBox(width: AppSizes.sm),
-                        Text(
-                          CurrencyFormatter.instance.format(signed.abs()),
-                          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(
-                          directionLabel == null ? entry.date.fullDate : '${entry.date.fullDate} · $directionLabel',
-                          style: context.textTheme.bodySmall?.copyWith(
-                            color: directionLabel == null ? context.colors.onSurface.withValues(alpha: 0.6) : directionColor,
+      child: Container(
+        decoration: carriedForward
+            ? BoxDecoration(border: Border(left: BorderSide(color: AppColors.warning, width: 3)))
+            : null,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSizes.md),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: amountColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
+                  child: Icon(entry.icon, color: amountColor, size: AppSizes.iconSm),
+                ),
+                const SizedBox(width: AppSizes.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (carriedForward)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(
+                            'CARRIED FORWARD · PREVIOUS CYCLE PENDING',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.textTheme.labelSmall?.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
-                        const Spacer(),
-                        if (entry.status != null) _StatusPill(status: entry.status!),
-                      ],
-                    ),
-                  ],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(_title, style: context.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                          const SizedBox(width: AppSizes.sm),
+                          Text(
+                            CurrencyFormatter.instance.format(entry.displayAmount.abs()),
+                            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              directionLabel == null ? entry.date.fullDate : '${entry.date.fullDate} · $directionLabel',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.textTheme.bodySmall?.copyWith(
+                                color: directionLabel == null ? context.colors.onSurface.withValues(alpha: 0.6) : directionColor,
+                              ),
+                            ),
+                          ),
+                          if (entry.category == PersonTimelineCategory.reference) ...[
+                            const SizedBox(width: AppSizes.sm),
+                            const _ReferenceOnlyPill(),
+                          ] else if (entry.status != null) ...[
+                            const SizedBox(width: AppSizes.sm),
+                            _StatusPill(status: entry.status!),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A cycle-section header within the History tab's list — "Previous Cycle
+/// Pending" or "Current Cycle" — distinct from the plain month-header
+/// strings the same slot list also carries (see `_cycleSectionedSlots`).
+class _CycleSectionHeader {
+  const _CycleSectionHeader(this.label);
+
+  final String label;
+}
+
+class _CycleSectionHeaderTile extends StatelessWidget {
+  const _CycleSectionHeaderTile({required this.header});
+
+  final _CycleSectionHeader header;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSizes.md, bottom: AppSizes.xs),
+      child: Text(
+        header.label,
+        style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -615,6 +796,39 @@ class _StatusPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
       decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusSm)),
       child: Text(label, style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// Flags a [PersonTimelineCategory.reference] tile — a transaction merely
+/// linked to this person (`Transaction.linkedPersonId`) with no "owes me"
+/// toggle, so it shows its real amount ([PersonTimelineEntry.displayAmount])
+/// but never affects this person's balance or the stats card above. Without
+/// this, a nonzero tile amount next to zero stats/balance reads as a bug
+/// rather than "this was just a note".
+class _ReferenceOnlyPill extends StatelessWidget {
+  const _ReferenceOnlyPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Reference only — does not affect balance',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
+        decoration: BoxDecoration(
+          color: context.colors.onSurface.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+        ),
+        child: Text(
+          'Reference only',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.textTheme.labelSmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

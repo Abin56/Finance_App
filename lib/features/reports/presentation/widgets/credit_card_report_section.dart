@@ -6,16 +6,21 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/states/section_header.dart';
+import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_report_providers.dart';
 
 /// Credit Card section of the Reports screen — Monthly Card Spend,
-/// Statement History, Category Spend (reuses the screen's own category
-/// breakdown, filtered to card transactions, passed in rather than
-/// recomputed here), Friend Pending inside statement, plus Interest
-/// Paid/Late Fees when the user has manually logged either (this app has no
-/// interest-calculation engine, so both are simply omitted when empty
-/// rather than shown as 0 — mirrors [EmiReportSection]'s conditional
-/// rendering).
+/// Statement History, Credit Utilization (the same aggregate
+/// [totalCreditCardOutstandingProvider]/[totalCreditAvailableProvider]
+/// figure the Dashboard's `CreditUtilizationWidgetCard` renders — kept as
+/// one figure inside this section rather than a second Reports section, so
+/// every credit-card analytic stays in one place), Category Spend (reuses
+/// the screen's own category breakdown, filtered to card transactions,
+/// passed in rather than recomputed here), Friend Pending inside
+/// statement, plus Interest Paid/Late Fees when the user has manually
+/// logged either (this app has no interest-calculation engine, so both are
+/// simply omitted when empty rather than shown as 0 — mirrors
+/// [EmiReportSection]'s conditional rendering).
 class CreditCardReportSection extends ConsumerWidget {
   const CreditCardReportSection({super.key, required this.periodStart, required this.periodEnd});
 
@@ -30,6 +35,10 @@ class CreditCardReportSection extends ConsumerWidget {
     final friendPending = ref.watch(totalFriendPendingInStatementsProvider);
     final interestCharged = ref.watch(interestChargedForRangeProvider(range));
     final lateFees = ref.watch(lateFeesForRangeProvider(range));
+    final outstanding = ref.watch(totalCreditCardOutstandingProvider);
+    final available = ref.watch(totalCreditAvailableProvider);
+    final limit = outstanding + available;
+    final utilization = limit <= 0 ? null : (outstanding / limit).clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -51,6 +60,10 @@ class CreditCardReportSection extends ConsumerWidget {
                   Expanded(child: _ReportStat(label: 'Statement History', value: '$statementCount')),
                 ],
               ),
+              if (utilization != null) ...[
+                const SizedBox(height: AppSizes.sm),
+                _ReportStat(label: 'Credit Utilization', value: '${(utilization * 100).round()}%'),
+              ],
               const SizedBox(height: AppSizes.sm),
               _ReportStat(
                 label: 'Friend Pending inside statement',

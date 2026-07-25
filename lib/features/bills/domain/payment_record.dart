@@ -3,9 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/models/audit_entry.dart';
 import '../../../core/models/soft_deletable_entity.dart';
 
-/// A single payment applied toward a [Bill]'s current occurrence.
+/// A single payment applied toward a [Bill]'s occurrence.
 /// Append-only like [LedgerEntry] — soft-delete (which reverses its effect
-/// on [Bill.amountPaid]) and restore are the only ways its effect changes.
+/// on [BillOccurrence.amountPaid]) and restore are the only ways its
+/// effect changes.
 class PaymentRecord extends SoftDeletableEntity {
   PaymentRecord({
     required this.id,
@@ -14,13 +15,22 @@ class PaymentRecord extends SoftDeletableEntity {
     required this.date,
     required this.createdAt,
     this.note = '',
+    this.occurrenceId,
   });
 
   @override
   final String id;
   final String billId;
 
-  /// Always positive — payments only ever add toward [Bill.amountPaid].
+  /// Which [BillOccurrence] this payment paid down. Nullable only for
+  /// records written before this field existed — backfilled the first time
+  /// their bill is read post-migration (see
+  /// `BillOccurrenceRepository.ensureCurrentOccurrence`). Every payment
+  /// recorded going forward always sets this.
+  final String? occurrenceId;
+
+  /// Always positive — payments only ever add toward
+  /// [BillOccurrence.amountPaid].
   final double amount;
   final DateTime date;
   final String note;
@@ -37,6 +47,7 @@ class PaymentRecord extends SoftDeletableEntity {
       amount: (data['amount'] as num).toDouble(),
       date: (data['date'] as Timestamp).toDate(),
       note: data['note'] as String? ?? '',
+      occurrenceId: data['occurrenceId'] as String?,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
@@ -52,6 +63,7 @@ class PaymentRecord extends SoftDeletableEntity {
       'amount': amount,
       'date': Timestamp.fromDate(date),
       'note': note,
+      'occurrenceId': occurrenceId,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),

@@ -6,23 +6,30 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../categories/domain/category.dart';
 import '../../domain/bill.dart';
+import '../../domain/bill_occurrence.dart';
 import '../../domain/bill_status.dart';
 
 /// Row for a single bill — status-colored icon, name, due-date/category
 /// subtitle, remaining amount, and a status badge. Swipeable to
 /// soft-delete, handled by the screen that owns the Dismissible key.
+/// [occurrence] is the bill's current occurrence (null only if it hasn't
+/// been materialized yet, momentarily, before
+/// `materializeBillOccurrenceProvider` first resolves).
 class BillTile extends StatelessWidget {
-  const BillTile({super.key, required this.bill, required this.category, required this.onTap});
+  const BillTile({super.key, required this.bill, required this.occurrence, required this.category, required this.onTap});
 
   final Bill bill;
+  final BillOccurrence? occurrence;
   final Category? category;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final status = bill.status;
+    final occurrence = this.occurrence;
+    if (occurrence == null) return const SizedBox.shrink();
+    final status = occurrence.status;
     final subtitleParts = [
-      bill.dueDate.shortDate,
+      occurrence.dueDate.shortDate,
       if (category != null) category!.name,
     ];
 
@@ -64,7 +71,7 @@ class BillTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    CurrencyFormatter.instance.format(bill.remainingAmount),
+                    CurrencyFormatter.instance.format(occurrence.remainingAmount),
                     style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   Text(

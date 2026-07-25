@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # State management
   flutter_riverpod: ^2.6.1
@@ -61,6 +63,11 @@ dependencies:
   pdf: ^3.11.1
   path_provider: ^2.1.5
 
+  # Person statement PDF export (real `pw.Text`, not a screenshot image —
+  # see lib/core/pdf/) — `printing`'s PdfPreview gives the in-app preview
+  # screen its scrollable/paginated view plus built-in share/print actions.
+  printing: ^5.13.4
+
   # Bills & reminders
   table_calendar: ^3.1.3
   flutter_local_notifications: ^18.0.1
@@ -106,6 +113,20 @@ flutter:
     - assets/images/
     - assets/lottie/
     - assets/icons/
+    - assets/fonts/
+
+  # Loaded once at PDF-generation time via `FontManager`/`pw.Font.ttf` (see
+  # lib/core/pdf/font_manager.dart) — not registered as an app-wide Flutter
+  # TextTheme font, since it exists purely for ₹-glyph-safe real-text PDF
+  # rendering, not on-screen UI (which uses Plus Jakarta Sans via
+  # google_fonts). Declaring it here is what makes the asset bundle-loadable
+  # via `rootBundle.load` at all.
+  fonts:
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+        - asset: assets/fonts/NotoSans-SemiBold.ttf
+        - asset: assets/fonts/NotoSans-Bold.ttf
 
 flutter_launcher_icons:
   android: true

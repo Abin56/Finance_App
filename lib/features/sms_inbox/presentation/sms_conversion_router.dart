@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../accounts/presentation/providers/account_providers.dart';
+import '../../bills/presentation/providers/bill_occurrence_providers.dart';
 import '../../bills/presentation/widgets/payment_form_sheet.dart';
 import '../../categories/presentation/providers/category_providers.dart';
 import '../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -102,9 +103,13 @@ class SmsConversionRouter {
       case SmsConversionTarget.billPayment:
         final bill = await SmsBillPickerSheet.show(context);
         if (bill == null || !context.mounted) return;
+        await ref.read(materializeBillOccurrenceProvider(bill.id).future);
+        final occurrence = ref.read(currentBillOccurrenceProvider(bill.id));
+        if (occurrence == null || !context.mounted) return;
         await PaymentFormSheet.show(
           context,
           bill,
+          occurrence,
           smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
         );
         return;

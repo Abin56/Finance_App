@@ -5,11 +5,13 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/payment_record.dart';
+import '../providers/bill_occurrence_providers.dart';
 import '../providers/bill_providers.dart';
 
 /// Soft-deleted payments for one bill, scoped by [billId]. Restore/
-/// permanent-delete go through [PaymentRepository]'s bill-aware methods
-/// so [Bill.amountPaid] stays correct — mirrors [PersonLedgerTrashScreen].
+/// permanent-delete go through [PaymentRepository]'s occurrence-aware
+/// methods so [BillOccurrence.amountPaid] stays correct — mirrors
+/// [PersonLedgerTrashScreen].
 class BillPaymentsTrashScreen extends ConsumerWidget {
   const BillPaymentsTrashScreen({super.key, required this.billId});
 
@@ -18,7 +20,8 @@ class BillPaymentsTrashScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trashAsync = ref.watch(paymentsTrashStreamProvider(billId));
-    final bill = ref.watch(billsStreamProvider).value?.where((b) => b.id == billId).firstOrNull;
+    final occurrences = ref.watch(billOccurrencesStreamProvider(billId)).value ?? const [];
+    final occurrenceById = {for (final o in occurrences) o.id: o};
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
@@ -40,6 +43,7 @@ class BillPaymentsTrashScreen extends ConsumerWidget {
             separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
             itemBuilder: (context, index) {
               final payment = trashed[index];
+              final occurrence = occurrenceById[payment.occurrenceId];
               return ListTile(
                 tileColor: Theme.of(context).colorScheme.surface,
                 shape: RoundedRectangleBorder(
@@ -55,9 +59,9 @@ class BillPaymentsTrashScreen extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.restore_rounded),
                       tooltip: 'Restore',
-                      onPressed: bill == null
+                      onPressed: occurrence == null
                           ? null
-                          : () => ref.read(paymentRepositoryProvider(billId)).restorePayment(bill, payment),
+                          : () => ref.read(paymentRepositoryProvider(billId)).restorePayment(occurrence, payment),
                     ),
                     IconButton(
                       icon: Icon(Icons.delete_forever_rounded, color: Theme.of(context).colorScheme.error),

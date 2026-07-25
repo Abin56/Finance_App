@@ -255,7 +255,7 @@ void main() {
         id: 'b1',
         name: 'Electricity',
         amount: 1800,
-        dueDate: _now,
+        nextDueDate: _now,
         recurrence: BillRecurrence.monthly,
         createdAt: _now,
       );
@@ -367,7 +367,7 @@ void main() {
         id: 'b1',
         name: 'Electricity',
         amount: 1800,
-        dueDate: _now,
+        nextDueDate: _now,
         recurrence: BillRecurrence.monthly,
         createdAt: _now,
       );

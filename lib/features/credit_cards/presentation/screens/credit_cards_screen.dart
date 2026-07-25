@@ -34,6 +34,12 @@ class CreditCardsScreen extends ConsumerStatefulWidget {
   ConsumerState<CreditCardsScreen> createState() => _CreditCardsScreenState();
 }
 
+/// A lighter tint pulled from the hero card's own gradient
+/// ([_LimitSummaryCard._defaultGradient]) — used for "Add Card" so it reads
+/// as part of the same purple wallet family instead of an unrelated brand
+/// or semantic color.
+const Color _addCardAccent = Color(0xFF6B3F8C);
+
 class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
   int _frontIndex = 0;
 
@@ -76,8 +82,16 @@ class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
           }
 
           final sortedCards = List<CreditCardProfile>.of(cards)
-            // Active cards first; closed/cancelled sink to the bottom.
-            ..sort((a, b) => (a.status.isActive ? 0 : 1).compareTo(b.status.isActive ? 0 : 1));
+            // Active cards first; closed/cancelled sink to the bottom. Within
+            // each group, ascending by bank name (A→Z) — cards with no bank
+            // set sort last within their group.
+            ..sort((a, b) {
+              final statusCompare = (a.status.isActive ? 0 : 1).compareTo(b.status.isActive ? 0 : 1);
+              if (statusCompare != 0) return statusCompare;
+              final bankA = BankRegistry.byId(accountBankIdById[a.accountId])?.name ?? '￿';
+              final bankB = BankRegistry.byId(accountBankIdById[b.accountId])?.name ?? '￿';
+              return bankA.toLowerCase().compareTo(bankB.toLowerCase());
+            });
           final frontIndex = _frontIndex.clamp(0, sortedCards.length - 1);
           final frontCard = sortedCards[frontIndex];
 
@@ -110,7 +124,7 @@ class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
                       colorValue: accountColorById[frontCard.accountId],
                     ),
                     const SizedBox(height: AppSizes.sm),
-                    _StandaloneLimitSummaryCard(cards: sortedCards),
+                    const _StandaloneLimitSummaryCard(),
                     const SizedBox(height: AppSizes.lg),
                     _AllCardsSection(
                       cards: sortedCards,
@@ -213,22 +227,24 @@ class _AddCardButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: context.colors.primaryContainer,
-      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      color: _addCardAccent,
+      borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      shadowColor: _addCardAccent.withValues(alpha: 0.4),
       child: InkWell(
         onTap: () => CreditCardFormSheet.show(context),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-          child: Column(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.add_rounded, color: context.colors.onPrimaryContainer),
-              const SizedBox(height: 2),
+              const Icon(Icons.add_rounded, size: AppSizes.iconSm, color: Colors.white),
+              const SizedBox(width: 4),
               Text(
                 'Add Card',
-                style: context.textTheme.labelSmall?.copyWith(
-                  color: context.colors.onPrimaryContainer,
+                style: context.textTheme.labelLarge?.copyWith(
+                  color: Colors.white,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -425,10 +441,7 @@ class _CardQuickDetailSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final standing = ref.watch(creditCardStandingProvider(card.id));
-    final nextDue = ref
-        .watch(statementsWithLiveTotalsProvider(card.id))
-        .where((s) => s.remainingAmount > 0)
-        .fold<DateTime?>(null, (soonest, s) => soonest == null || s.dueDate.isBefore(soonest) ? s.dueDate : soonest);
+    final nextDue = ref.watch(nextStatementDueDateForCardProvider(card.id));
 
     return SafeArea(
       child: Padding(
@@ -563,6 +576,7 @@ class _QuickActionsRow extends StatelessWidget {
               icon: Icons.add_rounded,
               label: 'Add Card',
               onTap: () => CreditCardFormSheet.show(context),
+              accentColor: _addCardAccent,
             ),
           ),
         ],
@@ -572,14 +586,23 @@ class _QuickActionsRow extends StatelessWidget {
 }
 
 class _QuickAction extends StatelessWidget {
-  const _QuickAction({required this.icon, required this.label, required this.onTap});
+  const _QuickAction({required this.icon, required this.label, required this.onTap, this.accentColor});
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
+  /// Overrides the neutral surface-tint look with a distinct color — used
+  /// for "Add Card", the one action here that creates something new rather
+  /// than acting on the card already in view.
+  final Color? accentColor;
+
   @override
   Widget build(BuildContext context) {
+    final iconColor = accentColor != null ? Colors.white : context.colors.onSurface.withValues(alpha: 0.8);
+    final circleColor = accentColor ?? context.colors.surfaceContainerHighest.withValues(alpha: 0.6);
+    final labelColor = accentColor ?? context.colors.onSurface.withValues(alpha: 0.7);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -595,15 +618,18 @@ class _QuickAction extends StatelessWidget {
                 height: 36,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: context.colors.surfaceContainerHighest.withValues(alpha: 0.6),
+                  color: circleColor,
                   shape: BoxShape.circle,
+                  boxShadow: accentColor != null
+                      ? [BoxShadow(color: accentColor!.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))]
+                      : null,
                 ),
-                child: Icon(icon, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.8)),
+                child: Icon(icon, size: AppSizes.iconSm, color: iconColor),
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: context.textTheme.labelSmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                style: context.textTheme.labelSmall?.copyWith(color: labelColor, fontWeight: accentColor != null ? FontWeight.w700 : null),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -679,31 +705,13 @@ class _CardStandingSummaryCard extends ConsumerWidget {
 /// a shared facility's limit/standing exactly once no matter how many
 /// member cards draw from it.
 class _StandaloneLimitSummaryCard extends ConsumerWidget {
-  const _StandaloneLimitSummaryCard({required this.cards});
-
-  final List<CreditCardProfile> cards;
+  const _StandaloneLimitSummaryCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    var totalLimit = 0.0;
-    var totalAvailable = 0.0;
-    var totalOutstanding = 0.0;
-    final countedSharedLimits = <String>{};
-    for (final card in cards) {
-      if (card.sharedLimitId != null) {
-        if (!countedSharedLimits.add(card.sharedLimitId!)) continue;
-        final sharedLimit = ref.watch(sharedCreditLimitForCardProvider(card.id));
-        final standing = ref.watch(creditCardStandingProvider(card.id));
-        totalLimit += sharedLimit?.creditLimit ?? 0;
-        totalAvailable += standing.available;
-        totalOutstanding += standing.outstanding;
-      } else {
-        final standing = ref.watch(creditCardStandingProvider(card.id));
-        totalLimit += card.creditLimit;
-        totalAvailable += standing.available;
-        totalOutstanding += standing.outstanding;
-      }
-    }
+    final totalLimit = ref.watch(totalCreditLimitProvider);
+    final totalAvailable = ref.watch(totalCreditAvailableProvider);
+    final totalOutstanding = ref.watch(totalCreditCardOutstandingProvider);
     final ratio = totalLimit <= 0 ? 0.0 : (totalOutstanding / totalLimit).clampedProgress;
 
     return _LimitSummaryCard(
@@ -981,8 +989,15 @@ class _StatusFilterDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isFiltered = value != null;
+    final backgroundColor = isFiltered
+        ? context.colors.primaryContainer.withValues(alpha: 0.5)
+        : context.colors.surfaceContainerHighest.withValues(alpha: 0.6);
+    final foregroundColor =
+        isFiltered ? context.colors.onPrimaryContainer : context.colors.onSurface.withValues(alpha: 0.75);
+
     return Material(
-      color: context.colors.primaryContainer.withValues(alpha: 0.5),
+      color: backgroundColor,
       borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       clipBehavior: Clip.antiAlias,
       child: PopupMenuButton<CreditCardStatus?>(
@@ -1001,12 +1016,12 @@ class _StatusFilterDropdown extends StatelessWidget {
               Text(
                 value?.label ?? 'All Cards',
                 style: context.textTheme.labelLarge?.copyWith(
-                  color: context.colors.onPrimaryContainer,
+                  color: foregroundColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(width: 2),
-              Icon(Icons.arrow_drop_down_rounded, color: context.colors.onPrimaryContainer),
+              Icon(Icons.arrow_drop_down_rounded, color: foregroundColor),
             ],
           ),
         ),
@@ -1030,10 +1045,7 @@ class _CardListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final standing = ref.watch(creditCardStandingProvider(card.id));
-    final nextDue = ref
-        .watch(statementsWithLiveTotalsProvider(card.id))
-        .where((s) => s.remainingAmount > 0)
-        .fold<DateTime?>(null, (soonest, s) => soonest == null || s.dueDate.isBefore(soonest) ? s.dueDate : soonest);
+    final nextDue = ref.watch(nextStatementDueDateForCardProvider(card.id));
 
     return Material(
       color: Colors.transparent,

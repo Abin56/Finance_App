@@ -3,11 +3,24 @@ import 'package:flutter/material.dart';
 import '../../domain/dashboard_widget_type.dart';
 import '../../domain/widget_configuration.dart';
 import 'accounts_widget_card.dart';
+import 'bills_widget_card.dart';
+import 'calendar_widget_card.dart';
+import 'cash_flow_widget_card.dart';
 import 'credit_cards_widget_card.dart';
+import 'credit_utilization_widget_card.dart';
+import 'emi_widget_card.dart';
 import 'financial_view_widget_card.dart';
+import 'insights_widget_card.dart';
+import 'loans_widget_card.dart';
+import 'expense_comparison_widget_card.dart';
 import 'net_worth_widget_card.dart';
 import 'people_widget_card.dart';
+import 'previous_cycle_widget_card.dart';
 import 'quick_actions_widget_card.dart';
+import 'recent_activity_widget_card.dart';
+import 'spending_categories_widget_card.dart';
+import 'split_expenses_widget_card.dart';
+import 'upcoming_payments_widget_card.dart';
 
 /// Maps a [DashboardWidgetType] to the widget that renders it. This is the
 /// single place a new type gets wired in — the dashboard shell, Edit Mode
@@ -33,17 +46,33 @@ Widget buildDashboardWidget(DashboardWidgetType type, WidgetConfiguration config
     case DashboardWidgetType.quickActions:
       return QuickActionsWidgetCard(config: config);
     case DashboardWidgetType.upcomingPayments:
+      return UpcomingPaymentsWidgetCard(config: config);
     case DashboardWidgetType.bills:
+      return BillsWidgetCard(config: config);
     case DashboardWidgetType.emi:
+      return EmiWidgetCard(config: config);
     case DashboardWidgetType.loans:
+      return LoansWidgetCard(config: config);
     case DashboardWidgetType.splitExpenses:
-    case DashboardWidgetType.savingsGoals:
-    case DashboardWidgetType.recentActivity:
-    case DashboardWidgetType.budgetProgress:
+      return SplitExpensesWidgetCard(config: config);
     case DashboardWidgetType.cashFlow:
+      return CashFlowWidgetCard(config: config);
     case DashboardWidgetType.spendingCategories:
-    case DashboardWidgetType.insights:
+      return SpendingCategoriesWidgetCard(config: config);
+    case DashboardWidgetType.creditUtilization:
+      return CreditUtilizationWidgetCard(config: config);
     case DashboardWidgetType.calendar:
+      return CalendarWidgetCard(config: config);
+    case DashboardWidgetType.recentActivity:
+      return RecentActivityWidgetCard(config: config);
+    case DashboardWidgetType.insights:
+      return InsightsWidgetCard(config: config);
+    case DashboardWidgetType.previousCycleCarryForward:
+      return PreviousCycleWidgetCard(config: config);
+    case DashboardWidgetType.expenseComparison:
+      return ExpenseComparisonWidgetCard(config: config);
+    case DashboardWidgetType.savingsGoals:
+    case DashboardWidgetType.budgetProgress:
       return _NotYetBuiltCard(type: type);
   }
 }

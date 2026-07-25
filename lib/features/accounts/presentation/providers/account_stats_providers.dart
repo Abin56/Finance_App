@@ -42,7 +42,7 @@ final accountStatsProvider = Provider.autoDispose.family<AccountStats, String>((
       income += t.amount;
     } else {
       expense += t.amount;
-      if (t.dateTime.isSameMonth(now)) currentMonthExpense += t.amount;
+      if (t.effectiveMonth.isSameMonth(now)) currentMonthExpense += t.amount;
     }
   }
 

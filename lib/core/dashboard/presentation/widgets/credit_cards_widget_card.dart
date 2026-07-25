@@ -26,8 +26,6 @@ class CreditCardsWidgetCard extends ConsumerWidget {
 
   final WidgetConfiguration config;
 
-  static const _maxVisible = 3;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cards = ref.watch(activeCreditCardsProvider);
@@ -52,8 +50,6 @@ class CreditCardsWidgetCard extends ConsumerWidget {
 
     final outstanding = ref.watch(totalCreditCardOutstandingProvider);
     final available = ref.watch(totalCreditAvailableProvider);
-    final visible = cards.take(_maxVisible).toList();
-    final remaining = cards.length - visible.length;
     final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     return DashboardWidgetCard(
@@ -89,15 +85,7 @@ class CreditCardsWidgetCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSizes.sm),
           const Divider(height: 1),
-          for (final card in visible) _CardUsageRow(card: card, format: format),
-          if (remaining > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSizes.xs),
-              child: Text(
-                '+$remaining more',
-                style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-              ),
-            ),
+          for (final card in cards) _CardUsageRow(card: card, format: format),
         ],
       ),
     );
@@ -116,20 +104,27 @@ class _SummaryStat extends StatelessWidget {
     final textTheme = context.textTheme;
     final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
-        const SizedBox(height: 2),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(
-            format.format(amount),
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.md),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+          const SizedBox(height: AppSizes.xs),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              format.format(amount),
+              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -180,7 +175,15 @@ class _CardUsageRow extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.credit_card_rounded, size: AppSizes.iconSm, color: colors.onSurfaceVariant),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.credit_card_rounded, size: AppSizes.iconSm, color: colors.onSurfaceVariant),
+                ),
                 const SizedBox(width: AppSizes.sm),
                 Expanded(
                   child: Text(
@@ -190,9 +193,15 @@ class _CardUsageRow extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: AppSizes.sm),
-                Text(
-                  format.format(standing.outstanding),
-                  style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      format.format(standing.outstanding),
+                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
                 ),
               ],
             ),

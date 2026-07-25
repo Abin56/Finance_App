@@ -228,17 +228,44 @@ final myExpenseBreakdownForTransactionsProvider = Provider.family<MyExpenseBreak
   },
 );
 
+/// Sum of [Expense.othersShare] across every split expense in [transactions]
+/// — what other participants owe, never money I actually spent. Same
+/// caller-filters-first contract as [myExpenseBreakdownForTransactionsProvider]:
+/// this never re-derives date/exclusion filtering itself, so the two can
+/// never silently disagree about which transactions are "in period".
+final othersShareForTransactionsProvider = Provider.family<double, List<Transaction>>(
+  (ref, transactions) {
+    final expenseByTransactionId = {
+      for (final e in ref.watch(expensesStreamProvider).value ?? const []) e.transactionId: e,
+    };
+
+    var total = 0.0;
+    for (final t in transactions) {
+      if (t.type != TransactionType.expense) continue;
+      final expense = expenseByTransactionId[t.id];
+      if (expense != null && expense.isSplit) total += expense.othersShare;
+    }
+    return total;
+  },
+);
+
 /// Sum of [InstallmentPayment.amount] collected from split-expense
-/// participants whose owning [Expense] is dated within [start]..[end] —
-/// Reports' "Money Received" figure, the one Task 7 number with no existing
-/// analog (every other split-expense total reads cached `Installment`
-/// fields rather than individual payments).
+/// participants whose owning [Expense]'s linked [Transaction] falls within
+/// [start]..[end] — Reports' "Money Received" figure, the one Task 7 number
+/// with no existing analog (every other split-expense total reads cached
+/// `Installment` fields rather than individual payments). Buckets by the
+/// linked transaction's [Transaction.effectiveMonth] (not [Expense.date])
+/// and skips a transaction marked `excludeFromCalculations`, matching every
+/// other Reports/Dashboard figure shown alongside this one.
 final moneyReceivedForRangeProvider = Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+  final calculableById = {for (final t in ref.watch(calculableTransactionsProvider)) t.id: t};
   var total = 0.0;
   for (final expense in expenses) {
     if (!expense.isSplit || expense.scheduleId == null) continue;
-    if (expense.date.isBefore(range.start) || expense.date.isAfter(range.end)) continue;
+    final transaction = calculableById[expense.transactionId];
+    if (transaction == null) continue;
+    if (transaction.effectiveMonth.isBefore(range.start) || transaction.effectiveMonth.isAfter(range.end)) continue;
     final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
     total += installments.fold(0.0, (sum, i) => sum + i.amountPaid);
   }

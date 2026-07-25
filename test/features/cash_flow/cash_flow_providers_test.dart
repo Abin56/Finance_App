@@ -4,7 +4,10 @@ import 'package:finance_app/features/accounts/domain/account_type.dart';
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
 import 'package:finance_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:finance_app/core/payment_schedule/domain/schedule_type.dart';
+import 'package:finance_app/features/bills/domain/bill.dart';
+import 'package:finance_app/features/bills/domain/bill_occurrence.dart';
 import 'package:finance_app/features/bills/domain/bill_recurrence.dart';
+import 'package:finance_app/features/bills/presentation/providers/bill_occurrence_providers.dart';
 import 'package:finance_app/features/bills/presentation/providers/bill_providers.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
 import 'package:finance_app/features/emi/presentation/providers/emi_providers.dart';
@@ -41,6 +44,29 @@ void main() {
     await container.read(authStateProvider.future);
   });
 
+  /// Awaits `materializeBillOccurrenceProvider` for [billId] — `.listen(...)`
+  /// keeps this `autoDispose` family instance alive for the duration of the
+  /// await (a bare `ref.read(...future)` with no active listener can be
+  /// torn down by autoDispose mid-flight before the Future resolves).
+  Future<void> materializeBill(ProviderContainer container, String billId) async {
+    final sub = container.listen(materializeBillOccurrenceProvider(billId), (_, _) {});
+    addTearDown(sub.close);
+    await container.read(materializeBillOccurrenceProvider(billId).future);
+  }
+
+  /// Materializes [bill]'s current occurrence and records a payment against
+  /// it — the real path the app takes (PaymentFormSheet resolves the
+  /// current occurrence before recording), collapsed into one helper since
+  /// every test below only cares about the resulting due/paid figures.
+  Future<BillOccurrence> recordBillPayment(ProviderContainer container, Bill bill, {required double amount}) async {
+    await materializeBill(container, bill.id);
+    final occurrence = container.read(currentBillOccurrenceProvider(bill.id))!;
+    final paymentRepo = container.read(paymentRepositoryProvider(bill.id));
+    await paymentRepo.recordPayment(bill, occurrence, amount: amount, date: DateTime.now());
+    await container.read(billOccurrencesStreamProvider(bill.id).future);
+    return occurrence;
+  }
+
   group('totalDueThisMonthProvider', () {
     test('sums due/paid/remaining across this-month bills only (current month only)', () async {
       final now = DateTime.now();
@@ -52,10 +78,8 @@ void main() {
         dueDate: DateTime(now.year, now.month, 10),
         recurrence: BillRecurrence.monthly,
       );
-      final paymentRepo = container.read(paymentRepositoryProvider(billA.id));
-      await paymentRepo.recordPayment(billA, amount: 400, date: now);
-
       await container.read(billsStreamProvider.future);
+      await recordBillPayment(container, billA, amount: 400);
 
       final breakdown = container.read(billsDueThisMonthBreakdownProvider);
       expect(breakdown.due, 1000);
@@ -72,17 +96,17 @@ void main() {
       final now = DateTime.now();
       final bills = container.read(billRepositoryProvider);
 
-      // Due last month, never paid — dueDate never rolled forward since
-      // BillRepository only advances it on full payment/skip.
+      // Due last month, never paid — the occurrence's dueDate never rolls
+      // forward since it only advances once fully paid/skipped.
       final lastMonth = DateTime(now.year, now.month - 1, 10);
-      await bills.createBill(
+      final oldBill = await bills.createBill(
         name: 'Old bill',
         amount: 500,
         dueDate: lastMonth,
         recurrence: BillRecurrence.monthly,
       );
-
       await container.read(billsStreamProvider.future);
+      await materializeBill(container, oldBill.id);
 
       final breakdown = container.read(billsDueThisMonthBreakdownProvider);
       expect(breakdown.due, 500);
@@ -103,18 +127,18 @@ void main() {
         dueDate: DateTime(now.year, now.month, 10),
         recurrence: BillRecurrence.monthly,
       );
-      final paymentRepo = container.read(paymentRepositoryProvider(current.id));
-      await paymentRepo.recordPayment(current, amount: 400, date: now);
+      await container.read(billsStreamProvider.future);
+      await recordBillPayment(container, current, amount: 400);
 
       final lastMonth = DateTime(now.year, now.month - 1, 10);
-      await bills.createBill(
+      final oldBill = await bills.createBill(
         name: 'Old bill',
         amount: 500,
         dueDate: lastMonth,
         recurrence: BillRecurrence.monthly,
       );
-
       await container.read(billsStreamProvider.future);
+      await materializeBill(container, oldBill.id);
 
       final breakdown = container.read(billsDueThisMonthBreakdownProvider);
       expect(breakdown.due, 1500, reason: '1000 this month + 500 overdue');
@@ -136,10 +160,8 @@ void main() {
         dueDate: lastMonth,
         recurrence: BillRecurrence.oneTime,
       );
-      final paymentRepo = container.read(paymentRepositoryProvider(oldBill.id));
-      await paymentRepo.recordPayment(oldBill, amount: 500, date: now);
-
       await container.read(billsStreamProvider.future);
+      await recordBillPayment(container, oldBill, amount: 500);
 
       final breakdown = container.read(billsDueThisMonthBreakdownProvider);
       expect(breakdown.due, 0, reason: 'a fully-paid overdue bill must not be counted as still due');
@@ -150,18 +172,19 @@ void main() {
       final now = DateTime.now();
       final bills = container.read(billRepositoryProvider);
 
-      await bills.createBill(
+      final bill = await bills.createBill(
         name: 'Electricity',
         amount: 1000,
         dueDate: DateTime(now.year, now.month, 10),
         recurrence: BillRecurrence.monthly,
       );
-
       await container.read(billsStreamProvider.future);
+      await materializeBill(container, bill.id);
 
       // This-month items and carry-over overdue items are drawn from the
-      // same single pass over `billsStreamProvider` — assert the row count
-      // implied by the total matches exactly one bill's amount, not two.
+      // same single pass over each bill's occurrences — assert the row
+      // count implied by the total matches exactly one bill's amount, not
+      // two.
       final breakdown = container.read(billsDueThisMonthBreakdownProvider);
       expect(breakdown.due, 1000, reason: 'billA must be counted exactly once, not once per branch');
     });
@@ -234,7 +257,7 @@ void main() {
         dueDate: now.subtract(const Duration(days: 5)),
         recurrence: BillRecurrence.monthly,
       );
-      await bills.createBill(
+      final upcomingBill = await bills.createBill(
         name: 'Upcoming internet',
         amount: 999,
         dueDate: now.add(const Duration(days: 1)),
@@ -242,6 +265,8 @@ void main() {
       );
 
       await container.read(billsStreamProvider.future);
+      await materializeBill(container, overdueBill.id);
+      await materializeBill(container, upcomingBill.id);
 
       final items = container.read(upcomingPaymentsTimelineProvider);
       expect(items, isNotEmpty);
@@ -279,20 +304,18 @@ void main() {
       );
 
       final bills = container.read(billRepositoryProvider);
-      // Paid partially (not in full) so the bill stays in this month's
-      // breakdown rather than rolling over to its next recurring
-      // occurrence (see `Bill`'s rollover-on-full-payment behavior).
+      // Paid partially (not in full) so the occurrence stays open rather
+      // than settling and rolling over to a new one.
       final bill = await bills.createBill(
         name: 'Water',
         amount: 300,
         dueDate: DateTime(now.year, now.month, 15),
         recurrence: BillRecurrence.monthly,
       );
-      final paymentRepo = container.read(paymentRepositoryProvider(bill.id));
-      await paymentRepo.recordPayment(bill, amount: 150, date: now);
+      await container.read(billsStreamProvider.future);
+      await recordBillPayment(container, bill, amount: 150);
 
       await container.read(transactionsStreamProvider.future);
-      await container.read(billsStreamProvider.future);
 
       final cashFlow = container.read(cashFlowThisMonthProvider);
       expect(cashFlow.moneyIn, 5000);

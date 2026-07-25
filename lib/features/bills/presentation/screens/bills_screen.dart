@@ -8,6 +8,7 @@ import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../domain/bill.dart';
+import '../../domain/bill_occurrence.dart';
 import '../../domain/bill_status.dart';
 import '../providers/bill_providers.dart';
 import '../widgets/bill_filter.dart';
@@ -43,15 +44,21 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
     if (result != null) setState(() => _filter = result);
   }
 
-  List<Bill> _applyFilters(List<Bill> bills, Map<String, String> categoryNamesById) {
+  List<Bill> _applyFilters(
+    List<Bill> bills,
+    Map<String, BillOccurrence> occurrenceByBillId,
+    Map<String, String> categoryNamesById,
+  ) {
     final query = _query.trim().toLowerCase();
 
     return bills.where((b) {
-      if (_filter.status != null && b.status != _filter.status) return false;
+      final occurrence = occurrenceByBillId[b.id];
+      if (occurrence == null) return false;
+      if (_filter.status != null && occurrence.status != _filter.status) return false;
       if (_filter.categoryId != null && b.categoryId != _filter.categoryId) return false;
       if (_filter.accountId != null && b.accountId != _filter.accountId) return false;
-      if (_filter.startDate != null && b.dueDate.isBefore(_filter.startDate!)) return false;
-      if (_filter.endDate != null && b.dueDate.isAfter(_filter.endDate!)) return false;
+      if (_filter.startDate != null && occurrence.dueDate.isBefore(_filter.startDate!)) return false;
+      if (_filter.endDate != null && occurrence.dueDate.isAfter(_filter.endDate!)) return false;
 
       if (query.isEmpty) return true;
       final categoryName = categoryNamesById[b.categoryId] ?? '';
@@ -64,6 +71,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
   @override
   Widget build(BuildContext context) {
     final billsAsync = ref.watch(billsStreamProvider);
+    final occurrenceByBillId = ref.watch(currentOccurrenceByBillIdProvider);
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
     final categoryNamesById = {for (final c in categories) c.id: c.name};
@@ -133,7 +141,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
             );
           }
 
-          final visible = _applyFilters(bills, categoryNamesById);
+          final visible = _applyFilters(bills, occurrenceByBillId, categoryNamesById);
           if (visible.isEmpty) {
             return const EmptyState(
               icon: Icons.search_off_rounded,
@@ -144,7 +152,9 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
 
           final grouped = <BillStatus, List<Bill>>{};
           for (final bill in visible) {
-            grouped.putIfAbsent(bill.status, () => []).add(bill);
+            final status = occurrenceByBillId[bill.id]?.status;
+            if (status == null) continue;
+            grouped.putIfAbsent(status, () => []).add(bill);
           }
 
           const statusOrder = [
@@ -209,6 +219,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                   onDismissed: (_) => _softDeleteWithUndo(bill),
                   child: BillTile(
                     bill: bill,
+                    occurrence: occurrenceByBillId[bill.id],
                     category: categoriesById[bill.categoryId],
                     onTap: () => context.push('${AppRoutes.bills}/${bill.id}'),
                   ),

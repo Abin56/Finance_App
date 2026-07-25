@@ -19,6 +19,9 @@ class InstallmentPayment extends SoftDeletableEntity {
     required this.date,
     required this.createdAt,
     this.note = '',
+    this.settlementMethod,
+    this.billingCycleLabel,
+    this.remainingBalanceAfterPayment,
   });
 
   @override
@@ -37,6 +40,21 @@ class InstallmentPayment extends SoftDeletableEntity {
   final String note;
   final DateTime createdAt;
 
+  /// How this payment was made (e.g. "Cash", "UPI", "Bank Transfer") —
+  /// nullable free-text, only meaningfully populated for split-expense
+  /// settlements today; other owner types never set it.
+  final String? settlementMethod;
+
+  /// Display label (e.g. "Jul 2026") for the billing cycle this payment was
+  /// recorded in, per `CycleAnchor` — nullable, computed at write time by
+  /// the caller.
+  final String? billingCycleLabel;
+
+  /// This installment's `remainingAmount` immediately after this payment was
+  /// applied — nullable, filled at write time from the installment already
+  /// in hand.
+  final double? remainingBalanceAfterPayment;
+
   factory InstallmentPayment.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
     SnapshotOptions? options,
@@ -52,6 +70,9 @@ class InstallmentPayment extends SoftDeletableEntity {
       date: (data['date'] as Timestamp).toDate(),
       note: data['note'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      settlementMethod: data['settlementMethod'] as String?,
+      billingCycleLabel: data['billingCycleLabel'] as String?,
+      remainingBalanceAfterPayment: (data['remainingBalanceAfterPayment'] as num?)?.toDouble(),
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -70,6 +91,9 @@ class InstallmentPayment extends SoftDeletableEntity {
       'date': Timestamp.fromDate(date),
       'note': note,
       'createdAt': Timestamp.fromDate(createdAt),
+      'settlementMethod': settlementMethod,
+      'billingCycleLabel': billingCycleLabel,
+      'remainingBalanceAfterPayment': remainingBalanceAfterPayment,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),

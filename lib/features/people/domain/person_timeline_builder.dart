@@ -52,12 +52,14 @@ abstract class PersonTimelineBuilder {
   /// `transactionRef` isn't in the map (e.g. a non-split ledger entry) falls
   /// back to [PersonTimelineCategory.lending].
   ///
-  /// [installmentStatusByTransactionRef] supplies each split/assigned
-  /// expense's *own* participant installment status (not the whole
-  /// schedule's), so a "Split: Dinner" entry can show live Pending/Partial/
-  /// Completed the same way a loan entry does — a "Split settlement: ..."
-  /// entry (money already collected) always reads Completed regardless,
-  /// since it's a historical record of a specific past payment.
+  /// [installmentByTransactionRef] supplies each split/assigned expense's
+  /// *own* participant installment (not the whole schedule's), so a "Split:
+  /// Dinner" entry can show live Pending/Partial/Completed the same way a
+  /// loan entry does — a "Split settlement: ..." entry (money already
+  /// collected) always reads Completed regardless, since it's a historical
+  /// record of a specific past payment. Also supplies the entry's
+  /// [PersonTimelineEntry.totalAmount]/[PersonTimelineEntry.paidAmount] for
+  /// real (non-binary) partial-payment carry-forward math.
   /// [referencedTransactions] are plain `Transaction`s linked to this person
   /// (`Transaction.linkedPersonId`) with no owed toggle and therefore no
   /// backing `Expense`/`LedgerEntry` at all — the caller is responsible for
@@ -71,13 +73,13 @@ abstract class PersonTimelineBuilder {
     required List<LoanTimelineData> loans,
     List<Transaction> referencedTransactions = const [],
     Map<String, int> participantCountByTransactionRef = const {},
-    Map<String, InstallmentStatus> installmentStatusByTransactionRef = const {},
+    Map<String, Installment> installmentByTransactionRef = const {},
     bool includeDeleted = false,
   }) {
     final entries = <PersonTimelineEntry>[
       for (final entry in ledgerEntries)
         if (includeDeleted || !entry.isDeleted)
-          _fromLedgerEntry(entry, participantCountByTransactionRef, installmentStatusByTransactionRef),
+          _fromLedgerEntry(entry, participantCountByTransactionRef, installmentByTransactionRef),
       for (final loanData in loans) ..._fromLoan(loanData, includeDeleted: includeDeleted),
       for (final transaction in referencedTransactions)
         if (includeDeleted || !transaction.isDeleted) _fromReferencedTransaction(transaction),
@@ -92,6 +94,7 @@ abstract class PersonTimelineBuilder {
       icon: transaction.type.icon,
       title: transaction.description.isNotEmpty ? transaction.description : transaction.type.label,
       signedAmount: 0,
+      displayAmount: transaction.amount,
       category: PersonTimelineCategory.reference,
       isDeleted: transaction.isDeleted,
       color: AppColors.pending,
@@ -119,9 +122,10 @@ abstract class PersonTimelineBuilder {
   static PersonTimelineEntry _fromLedgerEntry(
     LedgerEntry entry,
     Map<String, int> participantCountByTransactionRef,
-    Map<String, InstallmentStatus> installmentStatusByTransactionRef,
+    Map<String, Installment> installmentByTransactionRef,
   ) {
     final category = _categoryForLedgerEntry(entry, participantCountByTransactionRef);
+    final installment = installmentByTransactionRef[entry.transactionRef];
     return PersonTimelineEntry(
       id: entry.id,
       date: entry.date,
@@ -129,10 +133,16 @@ abstract class PersonTimelineBuilder {
       title: entry.type.label,
       signedAmount: entry.signedAmount,
       category: category,
-      status: _statusForLedgerEntry(entry, category, installmentStatusByTransactionRef),
+      status: _statusForLedgerEntry(entry, category, installment),
       note: entry.note,
       isDeleted: entry.isDeleted,
       color: entry.type.color,
+      totalAmount: category == PersonTimelineCategory.splitExpense || category == PersonTimelineCategory.assignedExpense
+          ? installment?.amountDue
+          : null,
+      paidAmount: category == PersonTimelineCategory.splitExpense || category == PersonTimelineCategory.assignedExpense
+          ? installment?.amountPaid
+          : null,
     );
   }
 
@@ -142,14 +152,14 @@ abstract class PersonTimelineBuilder {
   static PersonTimelineStatus? _statusForLedgerEntry(
     LedgerEntry entry,
     PersonTimelineCategory category,
-    Map<String, InstallmentStatus> installmentStatusByTransactionRef,
+    Installment? installment,
   ) {
     if (category != PersonTimelineCategory.splitExpense && category != PersonTimelineCategory.assignedExpense) {
       return null;
     }
     if (entry.type == LedgerEntryType.receivedBack) return PersonTimelineStatus.completed;
 
-    final installmentStatus = installmentStatusByTransactionRef[entry.transactionRef];
+    final installmentStatus = installment?.status;
     if (installmentStatus == null) return null;
     switch (installmentStatus) {
       case InstallmentStatus.paid:

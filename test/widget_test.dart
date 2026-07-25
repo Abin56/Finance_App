@@ -11,7 +11,7 @@ import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
 import 'package:finance_app/core/constants/app_strings.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
-import 'package:finance_app/features/dashboard/presentation/widgets/dashboard_spending_snapshot_card.dart';
+import 'package:finance_app/core/dashboard/presentation/widgets/dashboard_spending_snapshot_card.dart';
 import 'package:finance_app/features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'package:finance_app/features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
 

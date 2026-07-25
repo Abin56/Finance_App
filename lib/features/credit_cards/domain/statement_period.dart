@@ -1,3 +1,4 @@
+import '../../../core/payment_schedule/domain/cycle_anchor.dart';
 import 'credit_card_profile.dart';
 
 /// One statement cycle's window and due date — `[periodStart, periodEnd]`
@@ -45,14 +46,14 @@ abstract class StatementPeriodCalculator {
 
   /// The cycle whose `periodEnd` (statement date) is on or after [now] —
   /// i.e. the currently in-progress (not yet closed) cycle. [now] defaults
-  /// to [DateTime.now] when omitted.
+  /// to [DateTime.now] when omitted. Delegates the month-clamped window math
+  /// to [CycleAnchor] (the shared `core/payment_schedule` cycle engine) so
+  /// this calculator and the engine never drift apart on cycle boundaries;
+  /// only the due-date math (which falls in the month *after* the statement
+  /// closes, unlike a generic cycle) stays card-specific here.
   static StatementPeriod currentCycleFor(CreditCardProfile card, {DateTime? now}) {
-    final today = now ?? DateTime.now();
-    var periodEnd = _dayInMonth(today.year, today.month, card.statementDay);
-    if (periodEnd.isBefore(DateTime(today.year, today.month, today.day))) {
-      periodEnd = _addMonths(periodEnd, 1);
-    }
-    return _periodEnding(card, periodEnd);
+    final period = CycleAnchor(anchorDay: card.statementDay).currentCycleFor(now: now);
+    return _periodEnding(card, period.end);
   }
 
   /// The most recently *closed* cycle as of [now] — the one a `Statement`

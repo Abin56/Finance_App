@@ -62,15 +62,17 @@ class CashFlowChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: AppSizes.sm,
+            runSpacing: AppSizes.xs,
             children: [
               Text('Income vs Expenses', style: context.textTheme.titleSmall),
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                spacing: AppSizes.md,
                 children: [
                   _LegendDot(color: TransactionType.income.color, label: 'Income'),
-                  const SizedBox(width: AppSizes.md),
                   _LegendDot(color: TransactionType.expense.color, label: 'Expenses'),
                 ],
               ),

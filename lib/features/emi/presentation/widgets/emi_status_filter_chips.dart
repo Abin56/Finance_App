@@ -4,7 +4,7 @@ import '../../../../core/constants/app_sizes.dart';
 
 /// The status filters the EMI list supports — distinct from [EmiStatus]
 /// itself since "All" and "Upcoming EMI" aren't derived statuses.
-enum EmiListFilter { all, active, upcoming, overdue, defaulted, closed }
+enum EmiListFilter { all, active, upcoming, overdue, defaulted, completed, closed }
 
 extension EmiListFilterX on EmiListFilter {
   String get label {
@@ -19,6 +19,8 @@ extension EmiListFilterX on EmiListFilter {
         return 'Missed Payment';
       case EmiListFilter.defaulted:
         return 'Defaulted';
+      case EmiListFilter.completed:
+        return 'Completed';
       case EmiListFilter.closed:
         return 'Closed';
     }

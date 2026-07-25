@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:finance_app/core/dashboard/presentation/widgets/dashboard_spending_snapshot_card.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
 import 'package:finance_app/features/cash_flow/presentation/widgets/payments_due_card.dart';
-import 'package:finance_app/features/dashboard/presentation/widgets/dashboard_spending_snapshot_card.dart';
 import 'package:finance_app/features/reports/presentation/widgets/reports_overview_card.dart';
 
 /// Cards that lay 3+ stats across one Row on a small (360dp) phone.
