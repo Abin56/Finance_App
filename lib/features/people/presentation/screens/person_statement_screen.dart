@@ -10,6 +10,7 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
@@ -465,6 +466,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                 .where((e) => e.date.isBefore(visible.first.date))
                 .fold(0.0, (sum, e) => sum + e.signedAmount);
 
+    final currentUser = ref.read(authRepositoryProvider).currentUser;
     StatementPdfPreviewScreen.open(
       context,
       person: person,
@@ -472,6 +474,8 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
       expenseStats: ref.read(personExpenseStatsProvider(widget.personId)),
       filterDescription: _filterDescription(),
       openingBalanceForRange: openingBalanceForRange,
+      currentUserEmail: currentUser?.email,
+      currentUserDisplayName: currentUser?.displayName,
     );
   }
 
@@ -650,6 +654,15 @@ class _ContactLedgerTile extends StatelessWidget {
     return note.isNotEmpty ? note : entry.title;
   }
 
+  /// True when this entry has a resolved total with some (but not all) of it
+  /// paid — the case where showing just the reduced amount would otherwise
+  /// hide that a payment was already made against it.
+  bool get _hasPartialPayment {
+    final total = entry.totalAmount;
+    final paid = entry.paidAmount;
+    return total != null && paid != null && paid > 0 && paid < total;
+  }
+
   @override
   Widget build(BuildContext context) {
     final signed = entry.signedAmount;
@@ -703,9 +716,20 @@ class _ContactLedgerTile extends StatelessWidget {
                             child: Text(_title, style: context.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                           const SizedBox(width: AppSizes.sm),
-                          Text(
-                            CurrencyFormatter.instance.format(entry.displayAmount.abs()),
-                            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                CurrencyFormatter.instance.format(entry.remainingDisplayAmount.abs()),
+                                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
+                              ),
+                              if (_hasPartialPayment)
+                                Text(
+                                  'of ${CurrencyFormatter.instance.format(entry.totalAmount!.abs())}',
+                                  style: context.textTheme.labelSmall
+                                      ?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                                ),
+                            ],
                           ),
                         ],
                       ),

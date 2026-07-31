@@ -83,6 +83,7 @@ class PersonTimelineEntry {
     this.note = '',
     this.totalAmount,
     this.paidAmount,
+    this.otherParticipantNames = const [],
     double? displayAmount,
   }) : displayAmount = displayAmount ?? signedAmount;
 
@@ -114,6 +115,12 @@ class PersonTimelineEntry {
   final PersonTimelineStatus? status;
   final String note;
 
+  /// Other people this [PersonTimelineCategory.splitExpense] was shared with
+  /// — everyone on the backing `Expense.participants` except the statement's
+  /// own subject person and the payer ("Me"). Empty for every other category,
+  /// and for a split expense with no other tracked participants.
+  final List<String> otherParticipantNames;
+
   /// The backing `Installment.amountDue` for an [PersonTimelineCategory.assignedExpense]/
   /// [PersonTimelineCategory.splitExpense] entry — null for every other
   /// category, and null even for those two if no installment could be
@@ -124,6 +131,18 @@ class PersonTimelineEntry {
   /// The backing `Installment.amountPaid` at build time — same nullability
   /// rule as [totalAmount].
   final double? paidAmount;
+
+  /// What's still owed on this entry after any partial/advance payments —
+  /// [totalAmount] minus [paidAmount] when both are known (an
+  /// [PersonTimelineCategory.assignedExpense]/[PersonTimelineCategory.splitExpense]
+  /// with a resolved installment), otherwise [displayAmount] unchanged, since
+  /// every other entry has nothing partial to reduce.
+  double get remainingDisplayAmount {
+    final total = totalAmount;
+    final paid = paidAmount;
+    if (total == null || paid == null) return displayAmount;
+    return (total - paid).clamp(0, total);
+  }
 
   /// Soft-deleted entries (from either source) are excluded from totals and
   /// the default timeline view, mirroring how [LedgerRepository.watchAll]

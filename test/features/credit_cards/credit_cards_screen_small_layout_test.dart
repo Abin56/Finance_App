@@ -72,7 +72,7 @@ void main() {
     await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
     await tester.pumpAndSettle();
 
-    expect(find.text('Total Credit Limit'), findsOneWidget);
+    expect(find.text('Credit Overview'), findsOneWidget);
     expect(find.text('All Cards (1)'), findsOneWidget);
     expect(find.text('Available'), findsOneWidget);
     expect(tester.takeException(), isNull);

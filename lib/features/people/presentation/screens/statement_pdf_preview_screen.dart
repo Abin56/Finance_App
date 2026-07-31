@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/utils/author_name.dart';
 import '../../domain/person.dart';
 import '../../domain/person_timeline_entry.dart';
 import '../pdf/statement_pdf_builder.dart';
@@ -25,6 +26,8 @@ class StatementPdfPreviewScreen extends StatelessWidget {
     required PersonExpenseStats expenseStats,
     required String filterDescription,
     required double openingBalanceForRange,
+    required String? currentUserEmail,
+    String? currentUserDisplayName,
   }) {
     final model = StatementPdfModel.build(
       person: person,
@@ -32,6 +35,7 @@ class StatementPdfPreviewScreen extends StatelessWidget {
       expenseStats: expenseStats,
       filterDescription: filterDescription,
       openingBalanceForRange: openingBalanceForRange,
+      currentUserName: authorNameFromEmail(currentUserEmail, displayName: currentUserDisplayName),
     );
     return Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => StatementPdfPreviewScreen(model: model)),

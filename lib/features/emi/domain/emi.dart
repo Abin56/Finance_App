@@ -98,10 +98,16 @@ class Emi extends SoftDeletableEntity {
   /// installments are never touched.
   EmiInterest? interest;
 
-  /// Immutable after creation — also seeds the linked schedule's
-  /// `firstDueDate`. This is "First EMI Date" in the UI: installment #1
-  /// always falls exactly here, regardless of [dueDayOfMonth].
-  final DateTime startDate;
+  /// Seeds the linked schedule's `firstDueDate`. This is "First EMI Date" in
+  /// the UI: installment #1 always falls exactly here, regardless of
+  /// [dueDayOfMonth]. Editable only before any payment exists on the EMI —
+  /// see `EmiRepository.editStartDate`, which regenerates the whole
+  /// unpaid schedule against the new date. Once installment #1 (or any
+  /// installment) has a payment recorded, this locks, same posture as
+  /// [principalAmount] — rewriting a historical, already-settled
+  /// installment's due date would violate "paid installments remain
+  /// immutable".
+  DateTime startDate;
 
   /// The fixed day of the month (1-31) every installment *after* the first
   /// lands on — e.g. 5 means every EMI from #2 onward is due on the 5th,

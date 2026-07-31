@@ -130,7 +130,13 @@ class SettingsScreen extends ConsumerWidget {
                 title: const Text('People'),
                 subtitle: const Text('Track money given, borrowed, and repaid'),
                 trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.people),
+                // People is also a bottom-nav shell branch (unlike the other
+                // tiles here, which are standalone routes) — context.push
+                // would stack a second PeopleScreen page on top of the one
+                // already alive in that branch, producing a duplicate page
+                // key crash. context.go switches to the existing branch
+                // instead, exactly like tapping the bottom-nav tab does.
+                onTap: () => context.go(AppRoutes.people),
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,

@@ -26,13 +26,13 @@ class TransactionTableWidget extends pw.StatelessWidget {
   final PdfFonts fonts;
 
   static const _columnWidths = <int, pw.TableColumnWidth>{
-    0: pw.FlexColumnWidth(1.1), // Date
-    1: pw.FlexColumnWidth(3.2), // Description
-    2: pw.FlexColumnWidth(1.6), // Category
-    3: pw.FlexColumnWidth(1.1), // Paid By
-    4: pw.FlexColumnWidth(1.3), // Amount
-    5: pw.FlexColumnWidth(1.3), // Balance
-    6: pw.FlexColumnWidth(1.4), // Status
+    0: pw.FlexColumnWidth(1.0), // Date
+    1: pw.FlexColumnWidth(3.0), // Description
+    2: pw.FlexColumnWidth(1.5), // Category
+    3: pw.FlexColumnWidth(1.0), // Paid By
+    4: pw.FlexColumnWidth(1.2), // Amount
+    5: pw.FlexColumnWidth(1.2), // Balance
+    6: pw.FlexColumnWidth(1.7), // Status
   };
 
   @override
@@ -62,11 +62,18 @@ class TransactionTableWidget extends pw.StatelessWidget {
             row.paidBy,
             fmt.format(row.displayAmount.abs()),
             fmt.format(row.runningBalanceAfter),
-            row.statusLabel == null
-                ? ''
-                : PdfStatusPill(label: row.statusLabel!, tone: row.statusTone!, fonts: fonts),
+            '',
           ],
       ],
+      cellBuilder: (index, data, rowNum) {
+        if (index != 6) return null;
+        final row = model.rows[rowNum - 1];
+        if (row.statusLabel == null) return null;
+        return pw.Align(
+          alignment: pw.Alignment.center,
+          child: PdfStatusPill(label: row.statusLabel!, tone: row.statusTone!, fonts: fonts),
+        );
+      },
       columnWidths: _columnWidths,
       border: null,
       headerDecoration: const pw.BoxDecoration(color: PdfTokens.surfaceVariant),
@@ -101,7 +108,8 @@ class TransactionTableWidget extends pw.StatelessWidget {
   }
 
   static String _description(StatementPdfRow row) {
-    if (row.note == null || row.note!.isEmpty) return row.title;
-    return row.note!;
+    final base = row.note == null || row.note!.isEmpty ? row.title : row.note!;
+    if (row.otherParticipantNames.isEmpty) return base;
+    return '$base (with ${row.otherParticipantNames.join(', ')})';
   }
 }

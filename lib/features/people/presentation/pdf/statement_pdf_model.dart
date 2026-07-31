@@ -78,6 +78,7 @@ class StatementPdfModel {
     required PersonExpenseStats expenseStats,
     required String filterDescription,
     required double openingBalanceForRange,
+    required String currentUserName,
   }) {
     final balanceAfterById = PersonTimelineBuilder.runningBalances(
       openingBalance: openingBalanceForRange,
@@ -125,7 +126,12 @@ class StatementPdfModel {
       expenseStatsPending: expenseStats.pending,
       rows: [
         for (final entry in entriesOldestFirst)
-          StatementPdfRow._fromEntry(entry, personName: person.name, runningBalanceAfter: balanceAfterById[entry.id]!),
+          StatementPdfRow._fromEntry(
+            entry,
+            personName: person.name,
+            currentUserName: currentUserName,
+            runningBalanceAfter: balanceAfterById[entry.id]!,
+          ),
       ],
     );
   }
@@ -147,6 +153,7 @@ class StatementPdfRow {
     required this.statusLabel,
     required this.statusTone,
     required this.paidBy,
+    this.otherParticipantNames = const [],
   });
 
   final String id;
@@ -160,6 +167,10 @@ class StatementPdfRow {
   final String? statusLabel;
   final PdfStatusTone? statusTone;
 
+  /// Other people this split expense was shared with, for display alongside
+  /// the row's description — empty for every non-split row.
+  final List<String> otherParticipantNames;
+
   /// Honestly derived from [signedAmount]'s sign — the same sign convention
   /// [LedgerEntryType]/[Person.currentBalance] already rely on, not a guess:
   /// positive means money moved toward "they owe you more" (you paid),
@@ -170,11 +181,12 @@ class StatementPdfRow {
   factory StatementPdfRow._fromEntry(
     PersonTimelineEntry entry, {
     required String personName,
+    required String currentUserName,
     required double runningBalanceAfter,
   }) {
     final String paidBy;
     if (entry.signedAmount > 0) {
-      paidBy = 'You';
+      paidBy = currentUserName;
     } else if (entry.signedAmount < 0) {
       paidBy = personName;
     } else {
@@ -193,6 +205,7 @@ class StatementPdfRow {
       statusLabel: entry.status?.label,
       statusTone: _toneForStatus(entry.status),
       paidBy: paidBy,
+      otherParticipantNames: entry.otherParticipantNames,
     );
   }
 

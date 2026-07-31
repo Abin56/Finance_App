@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../domain/transaction_type.dart';
 import 'transaction_filter.dart';
 
@@ -57,6 +59,7 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
+    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = _type == null
         ? ref.watch(categoriesStreamProvider).value ?? const []
         : ref.watch(categoriesForTypeProvider(_type!));
@@ -117,7 +120,7 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All')),
                   for (final account in accounts)
-                    DropdownMenuItem(value: account.id, child: Text(account.name)),
+                    DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
                 ],
                 onChanged: (value) => setState(() => _accountId = value),
               ),

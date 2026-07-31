@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
 import 'package:finance_app/features/categories/presentation/providers/category_providers.dart';
+import 'package:finance_app/features/credit_cards/presentation/providers/credit_card_providers.dart';
 import 'package:finance_app/features/expense/presentation/widgets/assign_expense_sheet.dart';
 import 'package:finance_app/features/people/domain/person.dart';
 import 'package:finance_app/features/people/presentation/providers/people_providers.dart';
@@ -29,6 +30,7 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           categoriesStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
         ],
         child: MaterialApp(home: Scaffold(body: AssignExpenseSheet(initialPerson: initialPerson))),

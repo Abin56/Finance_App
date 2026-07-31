@@ -74,12 +74,18 @@ abstract class PersonTimelineBuilder {
     List<Transaction> referencedTransactions = const [],
     Map<String, int> participantCountByTransactionRef = const {},
     Map<String, Installment> installmentByTransactionRef = const {},
+    Map<String, List<String>> otherParticipantNamesByTransactionRef = const {},
     bool includeDeleted = false,
   }) {
     final entries = <PersonTimelineEntry>[
       for (final entry in ledgerEntries)
         if (includeDeleted || !entry.isDeleted)
-          _fromLedgerEntry(entry, participantCountByTransactionRef, installmentByTransactionRef),
+          _fromLedgerEntry(
+            entry,
+            participantCountByTransactionRef,
+            installmentByTransactionRef,
+            otherParticipantNamesByTransactionRef,
+          ),
       for (final loanData in loans) ..._fromLoan(loanData, includeDeleted: includeDeleted),
       for (final transaction in referencedTransactions)
         if (includeDeleted || !transaction.isDeleted) _fromReferencedTransaction(transaction),
@@ -123,6 +129,7 @@ abstract class PersonTimelineBuilder {
     LedgerEntry entry,
     Map<String, int> participantCountByTransactionRef,
     Map<String, Installment> installmentByTransactionRef,
+    Map<String, List<String>> otherParticipantNamesByTransactionRef,
   ) {
     final category = _categoryForLedgerEntry(entry, participantCountByTransactionRef);
     final installment = installmentByTransactionRef[entry.transactionRef];
@@ -143,6 +150,9 @@ abstract class PersonTimelineBuilder {
       paidAmount: category == PersonTimelineCategory.splitExpense || category == PersonTimelineCategory.assignedExpense
           ? installment?.amountPaid
           : null,
+      otherParticipantNames: category == PersonTimelineCategory.splitExpense
+          ? otherParticipantNamesByTransactionRef[entry.transactionRef] ?? const []
+          : const [],
     );
   }
 

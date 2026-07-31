@@ -666,7 +666,7 @@ class _CardStandingSummaryCard extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _LimitSummaryCard(
-          title: sharedLimit != null ? '${sharedLimit.name} Shared Credit Limit' : 'Card Credit Limit',
+          title: sharedLimit != null ? '${sharedLimit.name} Shared Credit' : 'Card Credit Overview',
           totalLimit: totalLimit,
           available: standing.available,
           used: standing.outstanding,
@@ -715,7 +715,7 @@ class _StandaloneLimitSummaryCard extends ConsumerWidget {
     final ratio = totalLimit <= 0 ? 0.0 : (totalOutstanding / totalLimit).clampedProgress;
 
     return _LimitSummaryCard(
-      title: 'Total Credit Limit',
+      title: 'Credit Overview',
       totalLimit: totalLimit,
       available: totalAvailable,
       used: totalOutstanding,

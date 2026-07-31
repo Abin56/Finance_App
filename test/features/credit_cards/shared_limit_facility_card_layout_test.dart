@@ -108,7 +108,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.textContaining('HDFC Shared Credit Limit'), findsOneWidget);
+    expect(find.textContaining('HDFC Shared Credit'), findsOneWidget);
     expect(find.text('Available Credit'), findsOneWidget);
     expect(find.text('2 physical cards'), findsOneWidget);
     expect(find.text('Add another card'), findsOneWidget);

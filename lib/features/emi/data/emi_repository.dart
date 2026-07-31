@@ -455,6 +455,95 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     _scheduleEndingReminder(emi);
   }
 
+  /// Changes [Emi.startDate] ("First EMI Date") — only permitted before any
+  /// payment exists anywhere on the EMI, since installment #1's due date is
+  /// [startDate] itself and a paid installment's due date must never be
+  /// rewritten after the fact (same posture as [principalAmount] locking
+  /// once [hasPayments] is true). Regenerates every installment from
+  /// scratch against the new date, reusing the EMI's existing
+  /// interest/frequency/count/dueDayOfMonth — equivalent to what
+  /// [createEmi] would have produced had the user picked this date
+  /// originally.
+  Future<void> editStartDate(
+    Emi emi, {
+    required DateTime newStartDate,
+    required bool hasPayments,
+    required List<Installment> currentInstallments,
+  }) async {
+    if (hasPayments) {
+      throw const AppException('First EMI Date can\'t be changed after a payment has been recorded');
+    }
+
+    final installmentRepository = _installmentRepositoryFor(emi.scheduleId);
+    // Unlike editEmiTerms's replaceUnpaid (which only clears a tail and
+    // deliberately leaves skipped installments alone), the whole schedule is
+    // being thrown away here — a skipped-but-unpaid installment must be
+    // removed too, or it's left behind as a stale orphan once every
+    // installment is regenerated against the new date.
+    for (final installment in currentInstallments) {
+      await installmentRepository.softDelete(installment);
+    }
+
+    List<PrecomputedInstallmentAmount>? precomputed;
+    final interest = emi.interest;
+    if (interest != null) {
+      final breakdown = InterestCalculator.calculate(
+        principal: emi.principalAmount,
+        type: interest.type,
+        ratePercent: interest.ratePercent,
+        period: interest.period,
+        installmentCount: emi.installmentCount,
+        installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: _installmentsPerYearFor(emi.installmentFrequency),
+      );
+      precomputed = breakdown.periods
+          .map((p) => PrecomputedInstallmentAmount(
+                amountDue: p.paymentAmount,
+                principalPortion: p.principalPortion,
+                interestPortion: p.interestPortion,
+              ))
+          .toList();
+    }
+
+    final schedule = await paymentScheduleRepository.getByKey(emi.scheduleId);
+    final totalAmount =
+        precomputed == null ? emi.principalAmount : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
+    if (schedule != null) {
+      await paymentScheduleRepository.editSchedule(
+        schedule,
+        totalAmount: totalAmount,
+        firstDueDate: newStartDate,
+      );
+    }
+
+    final newInstallments = await installmentRepository.generateInstallments(
+      PaymentSchedule(
+        id: emi.scheduleId,
+        ownerType: OwnerType.emi,
+        ownerId: emi.id,
+        totalAmount: totalAmount,
+        scheduleType: emi.installmentFrequency,
+        firstDueDate: newStartDate,
+        installmentCount: emi.installmentCount,
+        createdAt: emi.createdAt,
+      ),
+      precomputedAmounts: precomputed,
+      dueDayOfMonth: emi.dueDayOfMonth,
+    );
+
+    emi.recordEdit(
+      field: 'startDate',
+      oldValue: emi.startDate.toIso8601String(),
+      newValue: newStartDate.toIso8601String(),
+    );
+    emi.startDate = newStartDate;
+    emi.endDate = newInstallments.last.dueDate;
+    await update(emi);
+
+    rescheduleReminders(emi, newInstallments.first.dueDate);
+    _scheduleEndingReminder(emi);
+  }
+
   Future<void> closeEmi(Emi emi) async {
     if (emi.isClosed) return;
     emi.recordEdit(field: 'isClosed', oldValue: 'false', newValue: 'true');

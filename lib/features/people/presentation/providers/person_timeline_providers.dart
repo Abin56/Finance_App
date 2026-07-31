@@ -51,6 +51,14 @@ final personTimelineProvider = Provider.autoDispose.family<List<PersonTimelineEn
     for (final expense in expenses) expense.transactionId: expense.participants.length,
   };
 
+  final otherParticipantNamesByTransactionRef = {
+    for (final expense in expenses)
+      expense.transactionId: [
+        for (final participant in expense.participants)
+          if (!participant.isMe && participant.personId != personId) participant.name,
+      ],
+  };
+
   final installmentByTransactionRef = <String, Installment>{};
   for (final expense in expenses) {
     if (expense.scheduleId == null) continue;
@@ -70,6 +78,7 @@ final personTimelineProvider = Provider.autoDispose.family<List<PersonTimelineEn
     referencedTransactions: referencedTransactions,
     participantCountByTransactionRef: participantCountByTransactionRef,
     installmentByTransactionRef: installmentByTransactionRef,
+    otherParticipantNamesByTransactionRef: otherParticipantNamesByTransactionRef,
   );
 });
 

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
 import 'package:finance_app/features/categories/presentation/providers/category_providers.dart';
+import 'package:finance_app/features/credit_cards/presentation/providers/credit_card_providers.dart';
 import 'package:finance_app/features/people/presentation/providers/people_providers.dart';
 import 'package:finance_app/features/transactions/presentation/screens/add_expense_screen.dart';
 
@@ -21,6 +22,7 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           categoriesStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: const MaterialApp(home: AddExpenseScreen()),

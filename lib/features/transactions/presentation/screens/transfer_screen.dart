@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
 import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../domain/transaction_type.dart';
@@ -121,6 +123,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
+    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
 
     return Scaffold(
@@ -170,7 +173,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                         decoration: InputDecoration(labelText: 'From account', errorText: _sourceError),
                         items: [
                           for (final account in accounts)
-                            DropdownMenuItem(value: account.id, child: Text(account.name)),
+                            DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
                         ],
                         onChanged: (value) => setState(() {
                           _sourceAccountId = value;
@@ -183,7 +186,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                         decoration: InputDecoration(labelText: 'To account', errorText: _destinationError),
                         items: [
                           for (final account in accounts)
-                            DropdownMenuItem(value: account.id, child: Text(account.name)),
+                            DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
                         ],
                         onChanged: (value) => setState(() {
                           _destinationAccountId = value;

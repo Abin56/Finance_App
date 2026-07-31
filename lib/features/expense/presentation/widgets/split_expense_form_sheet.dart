@@ -8,6 +8,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
@@ -17,6 +18,7 @@ import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/inputs/month_year_stepper.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../people/presentation/widgets/person_form_sheet.dart';
@@ -535,6 +537,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
+    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
     final peopleAsync = ref.watch(peopleStreamProvider);
     final people = peopleAsync.value ?? const [];
@@ -612,7 +615,12 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                               children: [
                                 BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 20),
                                 const SizedBox(width: AppSizes.sm),
-                                Flexible(child: Text(account.name, overflow: TextOverflow.ellipsis)),
+                                Flexible(
+                                  child: Text(
+                                    accountPickerLabel(account, creditCards),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ],
                             ),
                           ),

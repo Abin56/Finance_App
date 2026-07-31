@@ -338,6 +338,113 @@ void main() {
     });
   });
 
+  group('EmiRepository.editStartDate', () {
+    test('regenerates the whole schedule against the new date before any payment exists', () async {
+      final emi = await repository.createEmi(
+        name: 'Phone EMI',
+        principalAmount: 1200,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+      );
+      final before = await installmentsFor(emi.scheduleId);
+
+      final newStartDate = DateTime(2026, 3, 15);
+      await repository.editStartDate(
+        emi,
+        newStartDate: newStartDate,
+        hasPayments: false,
+        currentInstallments: before,
+      );
+
+      expect(emi.startDate, newStartDate);
+      final active = [...await installmentRepositoryFor(emi.scheduleId).getAll()]
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      expect(active.length, 3);
+      expect(active.first.dueDate, newStartDate);
+      expect(emi.endDate, active.last.dueDate);
+
+      final schedule = await scheduleRepository.getByKey(emi.scheduleId);
+      expect(schedule!.firstDueDate, newStartDate);
+    });
+
+    test('rejects the change once a payment has been recorded', () async {
+      final emi = await repository.createEmi(
+        name: 'Phone EMI',
+        principalAmount: 1200,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+      );
+      final installments = await installmentsFor(emi.scheduleId);
+
+      await expectLater(
+        repository.editStartDate(
+          emi,
+          newStartDate: DateTime(2026, 3, 15),
+          hasPayments: true,
+          currentInstallments: installments,
+        ),
+        throwsA(isA<AppException>()),
+      );
+    });
+
+    test('does not leave a skipped-but-unpaid installment orphaned after regeneration', () async {
+      final emi = await repository.createEmi(
+        name: 'Phone EMI',
+        principalAmount: 1200,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+      );
+      final before = [...await installmentsFor(emi.scheduleId)]
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      final installmentRepository = installmentRepositoryFor(emi.scheduleId);
+      await installmentRepository.skipInstallment(before.first);
+      final withSkip = await installmentsFor(emi.scheduleId);
+
+      await repository.editStartDate(
+        emi,
+        newStartDate: DateTime(2026, 4, 1),
+        hasPayments: false,
+        currentInstallments: withSkip,
+      );
+
+      final active = await installmentRepositoryFor(emi.scheduleId).getAll();
+      expect(active.length, 3);
+      expect(active.every((i) => !i.isSkipped), true);
+    });
+
+    test('preserves interest amortization against the new date', () async {
+      final emi = await repository.createEmi(
+        name: 'Personal loan',
+        principalAmount: 12000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+        interest: const EmiInterest(type: InterestType.flat, ratePercent: 12, period: InterestPeriod.yearly),
+      );
+      final before = await installmentsFor(emi.scheduleId);
+      final schedule = await scheduleRepository.getByKey(emi.scheduleId);
+      final totalBefore = schedule!.totalAmount;
+
+      await repository.editStartDate(
+        emi,
+        newStartDate: DateTime(2026, 6, 1),
+        hasPayments: false,
+        currentInstallments: before,
+      );
+
+      final scheduleAfter = await scheduleRepository.getByKey(emi.scheduleId);
+      expect(scheduleAfter!.totalAmount, closeTo(totalBefore, 0.01));
+      final active = [...await installmentRepositoryFor(emi.scheduleId).getAll()]
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      expect(active.length, 3);
+      expect(active.first.dueDate, DateTime(2026, 6, 1));
+      expect(active.first.interestPortion, isNotNull);
+    });
+  });
+
   group('EmiRepository.editEmiTerms', () {
     test('regenerates the full schedule when nothing has been paid yet', () async {
       final emi = await repository.createEmi(

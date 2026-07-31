@@ -7,6 +7,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -16,6 +17,8 @@ import '../../../accounts/domain/account_type.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/domain/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../credit_cards/domain/credit_card_profile.dart';
+import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../expense/data/expense_repository.dart';
 import '../../../expense/domain/expense.dart';
 import '../../../expense/domain/split_type.dart';
@@ -463,6 +466,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
+    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesForTypeProvider(_type));
     final selectedCategory = categories.where((c) => c.id == _categoryId).firstOrNull;
 
@@ -669,6 +673,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       for (final account in accounts)
                         _PaymentMethodChip(
                           account: account,
+                          creditCards: creditCards,
                           selected: account.id == _accountId,
                           onTap: () => setState(() {
                             _accountId = account.id;
@@ -945,16 +950,22 @@ class _PersonField extends ConsumerWidget {
 }
 
 class _PaymentMethodChip extends StatelessWidget {
-  const _PaymentMethodChip({required this.account, required this.selected, required this.onTap});
+  const _PaymentMethodChip({
+    required this.account,
+    required this.creditCards,
+    required this.selected,
+    required this.onTap,
+  });
 
   final Account account;
+  final List<CreditCardProfile> creditCards;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
-      label: Text(account.name),
+      label: Text(accountPickerLabel(account, creditCards)),
       avatar: account.type == AccountType.bank || account.type == AccountType.card
           ? BankAvatar(bankId: account.bankId, fallbackName: account.name, size: AppSizes.iconSm + 2)
           : Icon(account.type.icon, size: AppSizes.iconSm),

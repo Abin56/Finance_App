@@ -8,6 +8,7 @@ import 'package:finance_app/features/accounts/presentation/providers/account_pro
 import 'package:finance_app/features/categories/domain/category.dart';
 import 'package:finance_app/features/categories/domain/category_type.dart';
 import 'package:finance_app/features/categories/presentation/providers/category_providers.dart';
+import 'package:finance_app/features/credit_cards/presentation/providers/credit_card_providers.dart';
 import 'package:finance_app/features/expense/presentation/widgets/split_expense_form_sheet.dart';
 import 'package:finance_app/features/people/presentation/providers/people_providers.dart';
 import 'package:finance_app/features/transactions/presentation/screens/add_expense_screen.dart';
@@ -42,6 +43,7 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
           categoriesStreamProvider.overrideWith((ref) => Stream.value([category])),
+          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: MaterialApp(

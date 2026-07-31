@@ -235,6 +235,15 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
 
   int? get _parsedDueDayOfMonth => int.tryParse(_dueDayOfMonthController.text.trim());
 
+  /// Whether First EMI Date differs from [widget.emi]'s current [Emi.startDate]
+  /// — only meaningful while editing, and only ever actionable when the form
+  /// itself allowed the field to be tapped (i.e. no payments recorded yet).
+  bool get _startDateChanged {
+    final emi = widget.emi;
+    if (emi == null) return false;
+    return !_startDate.isAtSameMomentAs(emi.startDate);
+  }
+
   /// "Card Name •••• 1234" — appends the last 4 digits (when set) so
   /// otherwise-identically-named cards are distinguishable in the linked
   /// card dropdown, matching the "•••• 1234" format used on the Credit
@@ -245,6 +254,23 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
       return '$name •••• ${card.lastFourDigits}';
     }
     return name;
+  }
+
+  Future<bool> _confirmStartDateChange() {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Change First EMI Date?'),
+        content: const Text(
+          'This regenerates every payment in this loan\'s schedule against the new date. Since no payments have '
+          'been recorded yet, nothing else is affected.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Update')),
+        ],
+      ),
+    ).then((value) => value ?? false);
   }
 
   Future<bool> _confirmTermsChange(double remaining) {
@@ -266,6 +292,11 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_isEditing && _startDateChanged) {
+      final confirmed = await _confirmStartDateChange();
+      if (!confirmed) return;
+    }
 
     if (_isEditing && _termsChanged) {
       final emi = widget.emi!;
@@ -306,6 +337,15 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
           linkedCreditCardId: _linkedCreditCardId,
           clearLinkedCreditCardId: _linkedCreditCardId == null,
         );
+        if (_startDateChanged) {
+          final installments = ref.read(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+          await repository.editStartDate(
+            emi,
+            newStartDate: _startDate,
+            hasPayments: hasPayments,
+            currentInstallments: installments,
+          );
+        }
         if (_termsChanged) {
           final installments = ref.read(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
           await repository.editEmiTerms(
@@ -454,12 +494,20 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
               const SizedBox(height: AppSizes.md),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                enabled: !_isEditing,
+                enabled: !hasPayments,
                 title: const Text('First EMI Date'),
                 subtitle: Text('${_startDate.day}/${_startDate.month}/${_startDate.year}'),
                 trailing: const Icon(Icons.calendar_today_outlined),
-                onTap: _isEditing ? null : _pickStartDate,
+                onTap: hasPayments ? null : _pickStartDate,
               ),
+              if (hasPayments)
+                const Padding(
+                  padding: EdgeInsets.only(top: AppSizes.xs),
+                  child: Text(
+                    'First EMI Date can\'t be changed after a payment has been recorded',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
               const SizedBox(height: AppSizes.md),
               DropdownButtonFormField<ScheduleType>(
                 initialValue: _installmentFrequency,

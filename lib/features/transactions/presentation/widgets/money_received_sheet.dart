@@ -9,11 +9,13 @@ import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/services/providers/receipt_classification_providers.dart';
 import '../../../../core/services/receipt_classification_router.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../emi/domain/emi.dart';
 import '../../../emi/presentation/providers/emi_providers.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
@@ -256,6 +258,7 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
+    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesForTypeProvider(TransactionType.income));
     final people = ref.watch(peopleStreamProvider).value ?? const [];
     final loans = ref.watch(activeLoansProvider);
@@ -328,7 +331,7 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
                     decoration: InputDecoration(labelText: 'Account', errorText: _accountError),
                     items: [
                       for (final account in accounts)
-                        DropdownMenuItem(value: account.id, child: Text(account.name)),
+                        DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
                     ],
                     onChanged: (value) => setState(() {
                       _accountId = value;

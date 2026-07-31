@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -99,6 +100,7 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
   @override
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
+    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
 
     return Padding(
@@ -143,7 +145,7 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
                     decoration: InputDecoration(labelText: 'Pay from', errorText: _accountError),
                     items: [
                       for (final account in accounts)
-                        DropdownMenuItem(value: account.id, child: Text(account.name)),
+                        DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
                     ],
                     onChanged: (value) => setState(() {
                       _accountId = value;
