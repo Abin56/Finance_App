@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 
 /// Total income / total expenses / net savings for the selected period,
 /// each with a percent change vs. the prior comparable period.
@@ -28,7 +28,8 @@ class ReportsOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final netSavings = income - expenses;
 
-    return AppCard(
+    return ClayCard(
+      isHero: true,
       child: Row(
         // From ~1.3x text scale "Total Expenses" wraps and the others don't, so
         // the columns differ in height; without this the shorter ones centre

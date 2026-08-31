@@ -51,6 +51,7 @@ class AssignExpenseSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => AssignExpenseSheet(smsPrefill: smsPrefill, initialPerson: initialPerson, draft: draft),
     );
   }
@@ -142,6 +143,7 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
         dueDate: _dueDate,
         excludeFromCalculations: _excludeFromCalculations,
         accountingMonth: _customAccountingMonth ? _accountingMonth : null,
+        source: widget.smsPrefill == null ? null : 'sms',
       );
 
       await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);

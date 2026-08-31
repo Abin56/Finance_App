@@ -6,6 +6,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/dashboard_widget_type.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/dashboard_layout_providers.dart';
+import '../../../theme/clay_theme.dart';
 import '../widgets/coming_soon_widget_card.dart';
 import '../widgets/dashboard_widget_registry.dart';
 import '../widgets/dashboard_widget_shell.dart';
@@ -43,11 +44,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const listPadding = EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.xl, AppSizes.lg, AppSizes.fabClearance);
-
-    final colors = context.colors;
+    const listPadding = EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance);
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       body: SafeArea(
         child: Column(
           children: [
@@ -56,19 +56,36 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [colors.primary.withValues(alpha: 0.06), colors.primary.withValues(alpha: 0)],
+                  // Halved in dark mode — the same 8% wash calibrated to sit
+                  // quietly on a near-white background reads as a distinct
+                  // blue haze on a near-black one.
+                  colors: [
+                    AppClay.primary.withValues(alpha: context.isDarkMode ? 0.04 : 0.08),
+                    AppClay.primary.withValues(alpha: 0),
+                  ],
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.xl, AppSizes.lg, AppSizes.xl),
+              padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.lg, AppSizes.md, AppSizes.lg),
               child: Row(
                 children: [
                   const Expanded(child: GreetingHeader()),
                   const SizedBox(width: AppSizes.sm),
-                  IconButton.filledTonal(
-                    onPressed: () => setState(() => _editMode = !_editMode),
-                    icon: Icon(_editMode ? Icons.check : Icons.edit_outlined),
-                    tooltip: _editMode ? 'Done' : 'Edit Dashboard',
-                    style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppClay.card(context),
+                      shape: BoxShape.circle,
+                      boxShadow: AppClay.soft(context),
+                    ),
+                    child: IconButton(
+                      onPressed: () => setState(() => _editMode = !_editMode),
+                      icon: Icon(
+                        _editMode ? Icons.check_rounded : Icons.edit_outlined,
+                        color: AppClay.primaryAccent(context),
+                        size: AppSizes.iconMd,
+                      ),
+                      tooltip: _editMode ? 'Done' : 'Edit Dashboard',
+                      style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
+                    ),
                   ),
                 ],
               ),
@@ -112,7 +129,7 @@ class _ViewModeList extends ConsumerWidget {
     return ListView.separated(
       padding: padding,
       itemCount: built.length + (comingSoonTypes.isEmpty ? 0 : 1),
-      separatorBuilder: (_, _) => const SizedBox(height: AppSizes.xl),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSizes.lg),
       itemBuilder: (context, index) {
         if (index == built.length) {
           return ComingSoonWidgetCard(types: comingSoonTypes);

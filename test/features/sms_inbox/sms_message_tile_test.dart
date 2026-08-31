@@ -3,10 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:finance_app/features/sms_inbox/domain/parsed_sms_transaction.dart';
 import 'package:finance_app/features/sms_inbox/domain/raw_sms_message.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_confidence_scorer.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_import_status.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_inbox_item.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_category.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_direction.dart';
+import 'package:finance_app/features/sms_inbox/domain/transaction_candidate.dart';
 import 'package:finance_app/features/sms_inbox/presentation/widgets/sms_message_tile.dart';
 
 /// The SMS Inbox's compact rows are the whole point of the redesign, so they
@@ -45,12 +47,28 @@ void main() {
     );
   }
 
+  TransactionCandidate candidateFor(SmsInboxItem item, {bool needsReview = true}) {
+    return TransactionCandidate(
+      id: 'cand-${item.id}',
+      smsItemId: item.id,
+      amount: item.parsed?.amount ?? 0,
+      direction: item.parsed?.direction ?? SmsTransactionDirection.debit,
+      eventType: item.parsed?.category ?? SmsTransactionCategory.unknown,
+      transactionDate: item.rawMessage.date,
+      confidenceLevel: needsReview ? ConfidenceLevel.low : ConfidenceLevel.high,
+      confidenceScore: needsReview ? 0.2 : 0.9,
+      needsReview: needsReview,
+      createdAt: item.rawMessage.date,
+    );
+  }
+
   Future<void> pumpTile(
     WidgetTester tester,
     SmsInboxItem item, {
     double width = 360,
     double textScale = 1.0,
     bool selectionMode = false,
+    TransactionCandidate? candidate,
   }) async {
     tester.view.physicalSize = Size(width, 800);
     tester.view.devicePixelRatio = 1.0;
@@ -62,7 +80,7 @@ void main() {
         data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
         child: MaterialApp(
           home: Scaffold(
-            body: SmsMessageTile(item: item, onTap: () {}, selectionMode: selectionMode),
+            body: SmsMessageTile(item: item, onTap: () {}, selectionMode: selectionMode, candidate: candidate),
           ),
         ),
       ),
@@ -134,6 +152,39 @@ void main() {
 
       expect(find.text('Amount unclear'), findsOneWidget);
       expect(find.textContaining('VM-SBIBNK'), findsOneWidget);
+    });
+  });
+
+  group('needs-review indicator', () {
+    testWidgets('shows a badge on the avatar for a pending item needing review', (tester) async {
+      final item = itemWith(status: SmsImportStatus.pending);
+      await pumpTile(tester, item, candidate: candidateFor(item, needsReview: true));
+
+      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsOneWidget);
+    });
+
+    testWidgets('shows no badge when the candidate does not need review', (tester) async {
+      final item = itemWith(status: SmsImportStatus.pending);
+      await pumpTile(tester, item, candidate: candidateFor(item, needsReview: false));
+
+      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsNothing);
+    });
+
+    testWidgets('shows no badge once the item is no longer pending, even if flagged', (tester) async {
+      final item = itemWith(status: SmsImportStatus.imported);
+      await pumpTile(tester, item, candidate: candidateFor(item, needsReview: true));
+
+      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsNothing);
+    });
+
+    testWidgets('shows no badge and does not change row height without a candidate', (tester) async {
+      final item = itemWith();
+      await pumpTile(tester, item);
+
+      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsNothing);
+      final height = tester.getSize(find.byType(SmsMessageTile)).height;
+      expect(height, greaterThanOrEqualTo(70));
+      expect(height, lessThanOrEqualTo(90));
     });
   });
 }

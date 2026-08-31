@@ -51,7 +51,7 @@ class EmiWidgetCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           if (items.isEmpty)
             Text('No EMIs due this cycle.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
           else

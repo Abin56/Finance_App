@@ -7,8 +7,8 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/domain/payment_urgency.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/states/payment_urgency_badge.dart';
 import '../providers/cash_flow_providers.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
@@ -31,7 +31,7 @@ class UpcomingPaymentsTimeline extends ConsumerWidget {
       );
     }
 
-    return AppCard(
+    return ClayCard(
       padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

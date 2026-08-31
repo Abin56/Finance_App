@@ -536,6 +536,42 @@ void main() {
       expect(untouchedPartial.amountDue, 1000);
     });
 
+    test('re-amortization only credits the paid fraction of a partially-paid (or skipped) installment', () async {
+      final emi = await repository.createEmi(
+        name: 'Personal loan',
+        principalAmount: 4000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 4,
+        interest: const EmiInterest(type: InterestType.flat, ratePercent: 0, period: InterestPeriod.yearly),
+      );
+      final installmentRepository = installmentRepositoryFor(emi.scheduleId);
+      final installments = await installmentsFor(emi.scheduleId);
+      final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+
+      // Pay half of the first installment's 1000 principal, then skip it —
+      // this used to make editEmiTerms credit the whole 1000 as paid down
+      // instead of the 500 actually received.
+      await installmentRepository.applyPayment(sorted[0], 500);
+      await installmentRepository.skipInstallment(sorted[0]);
+      final afterSkip = await installmentsFor(emi.scheduleId);
+
+      await repository.editEmiTerms(
+        emi,
+        currentInstallments: afterSkip,
+        interest: null,
+        installmentFrequency: ScheduleType.monthly,
+        newInstallmentCount: 4,
+      );
+
+      final after = await installmentRepository.getAll();
+      final newTail = after.where((i) => i.id != sorted[0].id).toList();
+      final totalNewPrincipal = newTail.fold(0.0, (sum, i) => sum + (i.principalPortion ?? i.amountDue));
+      // Only 500 of the 4000 principal has actually been paid down, so the
+      // remaining tail must re-amortize 3500 — not 3000.
+      expect(totalNewPrincipal, closeTo(3500, 0.01));
+    });
+
     test('rejects a new installment count lower than the number already settled', () async {
       final emi = await repository.createEmi(
         name: 'Personal loan',

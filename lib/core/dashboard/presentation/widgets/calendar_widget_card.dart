@@ -9,6 +9,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../features/calendar/domain/calendar_event.dart';
 import '../../../../features/calendar/presentation/providers/calendar_providers.dart';
 import '../../domain/widget_configuration.dart';
+import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.calendar] — a lightweight "Upcoming Events"
@@ -53,7 +54,7 @@ class CalendarWidgetCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           if (upcoming.isEmpty)
             Text('Nothing upcoming.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
           else
@@ -81,15 +82,10 @@ class _EventRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       onTap: () => context.push(event.routePath),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(color: event.color.withValues(alpha: 0.14), shape: BoxShape.circle),
-              child: Icon(event.icon, size: AppSizes.iconSm, color: event.color),
-            ),
+            ClayIconChip(icon: event.icon, color: event.color),
             const SizedBox(width: AppSizes.sm),
             Expanded(
               child: Column(

@@ -12,10 +12,11 @@ import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/month_year_stepper.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -187,6 +188,8 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
+      useSafeArea: true,
       builder: (_) => SplitExpenseFormSheet(
         convertFrom: convertFrom,
         existingExpense: existingExpense,
@@ -498,6 +501,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
           dueDate: _dueDate,
           excludeFromCalculations: _excludeFromCalculations,
           accountingMonth: _customAccountingMonth ? _accountingMonth : null,
+          source: widget.smsPrefill == null ? null : 'sms',
         );
 
         await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);
@@ -542,62 +546,54 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
     final peopleAsync = ref.watch(peopleStreamProvider);
     final people = peopleAsync.value ?? const [];
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isEditing
-                    ? (widget.assignOnly ? 'Edit assigned expense' : 'Edit shared expense')
-                    : widget.assignOnly
-                        ? 'Assign to a person'
-                        : (_isConverting ? 'Turn into a shared expense' : 'Share an expense'),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              if (_isConverting) ...[
-                const SizedBox(height: AppSizes.xs),
-                Text(
-                  widget.assignOnly
-                      ? 'The amount, category, account, and date stay the same as the original expense — just choose who it was really for.'
-                      : 'The amount, category, account, and date stay the same as the original expense — just add who you shared it with.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-              ],
-              const SizedBox(height: AppSizes.lg),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: _isEditing
+            ? (widget.assignOnly ? 'Edit assigned expense' : 'Edit shared expense')
+            : widget.assignOnly
+                ? 'Assign to a person'
+                : (_isConverting ? 'Turn into a shared expense' : 'Share an expense'),
+        description: !_isConverting
+            ? null
+            : widget.assignOnly
+                ? 'The amount, category, account, and date stay the same as the original expense — just choose who it was really for.'
+                : 'The amount, category, account, and date stay the same as the original expense — just add who you shared it with.',
+        confirmLabel: _isEditing
+            ? 'Save changes'
+            : widget.assignOnly
+                ? 'Assign to person'
+                : (_isConverting ? 'Turn into a shared expense' : 'Save shared expense'),
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              const SectionLabel('Expense Details'),
+              const SizedBox(height: AppSizes.sm),
               if (_isConverting)
                 _ReadOnlyExpenseSummary(prefill: widget.convertFrom!)
               else ...[
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description'),
+                  decoration: _premiumDecoration(context, label: 'Description'),
+                  style: Theme.of(context).textTheme.bodyMedium,
                   validator: Validators.required,
                   textInputAction: TextInputAction.next,
                   onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
                 ),
-                const SizedBox(height: AppSizes.md),
+                const SizedBox(height: AppSizes.sm),
                 TextFormField(
                   controller: _amountController,
                   focusNode: _amountFocusNode,
-                  decoration: const InputDecoration(labelText: 'Total amount'),
+                  decoration: _premiumDecoration(context, label: 'Total amount'),
+                  style: Theme.of(context).textTheme.bodyMedium,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   validator: Validators.amount,
                   textInputAction: TextInputAction.done,
                   onChanged: (_) => _revalidateSplit(),
                 ),
-                const SizedBox(height: AppSizes.md),
+                const SizedBox(height: AppSizes.sm),
                 accountsAsync.when(
                   loading: () => const LinearProgressIndicator(),
                   error: (error, _) => Text('Could not load accounts: $error'),
@@ -605,7 +601,8 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                     final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
                     return DropdownButtonFormField<String>(
                       initialValue: validId,
-                      decoration: InputDecoration(labelText: 'Account', errorText: _accountError),
+                      decoration: _premiumDecoration(context, label: 'Account', errorText: _accountError),
+                      style: Theme.of(context).textTheme.bodyMedium,
                       items: [
                         for (final account in accounts)
                           DropdownMenuItem(
@@ -632,10 +629,11 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                     );
                   },
                 ),
-                const SizedBox(height: AppSizes.md),
+                const SizedBox(height: AppSizes.sm),
                 DropdownButtonFormField<String>(
                   initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-                  decoration: InputDecoration(labelText: 'Category', errorText: _categoryError),
+                  decoration: _premiumDecoration(context, label: 'Category', errorText: _categoryError),
+                  style: Theme.of(context).textTheme.bodyMedium,
                   items: [
                     for (final category in categories)
                       DropdownMenuItem(value: category.id, child: Text(category.name)),
@@ -645,15 +643,11 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                     _categoryError = null;
                   }),
                 ),
-                const SizedBox(height: AppSizes.md),
-                OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                  label: Text(_date.fullDate),
-                ),
+                const SizedBox(height: AppSizes.sm),
+                _PremiumTapButton(onTap: _pickDate, icon: Icons.calendar_today_outlined, label: _date.fullDate),
               ],
-              const SizedBox(height: AppSizes.md),
-              Text('Due date', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: AppSizes.sm),
+              const SectionLabel('Due Date'),
               const SizedBox(height: AppSizes.xs),
               Builder(
                 builder: (context) {
@@ -663,18 +657,19 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                       : ref.watch(installmentsStreamProvider(scheduleId)).value ?? const <Installment>[];
                   final effectiveDueDate =
                       _dueDate ?? currentInstallments.firstOrNull?.dueDate ?? _date.add(const Duration(days: 7));
-                  return OutlinedButton.icon(
-                    onPressed: () => _pickDueDate(effectiveDueDate),
-                    icon: const Icon(Icons.event_outlined, size: AppSizes.iconSm),
-                    label: Text(effectiveDueDate.fullDate),
+                  return _PremiumTapButton(
+                    onTap: () => _pickDueDate(effectiveDueDate),
+                    icon: Icons.event_outlined,
+                    label: effectiveDueDate.fullDate,
                   );
                 },
               ),
+              const SizedBox(height: AppSizes.sm),
+              const SectionLabel('How to Share'),
+              const SizedBox(height: AppSizes.sm),
               if (!widget.assignOnly) ...[
-                const SizedBox(height: AppSizes.lg),
-                Text('How to share', style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: AppSizes.sm),
                 SegmentedButton<SplitType>(
+                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
                   segments: const [
                     ButtonSegment(value: SplitType.equal, label: Text('Equal')),
                     ButtonSegment(value: SplitType.custom, label: Text('Custom')),
@@ -687,8 +682,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                   },
                 ),
               ],
-              const SizedBox(height: AppSizes.lg),
+              const SizedBox(height: AppSizes.sm),
               CheckboxListTile(
+                dense: true,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 value: _includeMe,
@@ -705,15 +701,17 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                 const SizedBox(height: AppSizes.sm),
                 TextFormField(
                   controller: _meRow.valueController,
-                  decoration: InputDecoration(
-                    labelText: 'My share (${_splitType == SplitType.percentage ? 'percent' : 'amount'})',
+                  decoration: _premiumDecoration(
+                    context,
+                    label: 'My share (${_splitType == SplitType.percentage ? 'percent' : 'amount'})',
                   ),
+                  style: Theme.of(context).textTheme.bodyMedium,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => _revalidateSplit(),
                 ),
               ],
-              const SizedBox(height: AppSizes.lg),
-              Text(widget.assignOnly ? 'Who was this for' : 'Split Between', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: AppSizes.sm),
+              SectionLabel(widget.assignOnly ? 'Who was this for' : 'Split Between'),
               if (widget.assignOnly && _personError != null) ...[
                 const SizedBox(height: AppSizes.xs),
                 Text(_personError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
@@ -755,21 +753,27 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                 ),
               ],
               if (_preview != null) ...[
-                const SizedBox(height: AppSizes.lg),
+                const SizedBox(height: AppSizes.sm),
                 _SplitPreviewCard(participants: _preview!),
               ],
               if (!_isConverting) ...[
-                const SizedBox(height: AppSizes.md),
+                const SizedBox(height: AppSizes.sm),
+                const SectionLabel('Notes'),
+                const SizedBox(height: AppSizes.sm),
                 TextFormField(
                   controller: _notesController,
-                  decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                  decoration: _premiumDecoration(context, label: 'Notes (optional)'),
+                  style: Theme.of(context).textTheme.bodyMedium,
                   maxLines: 3,
                   textInputAction: TextInputAction.done,
                 ),
               ],
               if (!_isConverting && !_isEditing) ...[
-                const SizedBox(height: AppSizes.md),
+                const SizedBox(height: AppSizes.sm),
+                const SectionLabel('Advanced Options'),
+                const SizedBox(height: AppSizes.xs),
                 SwitchListTile(
+                  dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: const Text("Don't count this in my totals"),
                   subtitle: const Text(
@@ -780,6 +784,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                 ),
                 const SizedBox(height: AppSizes.sm),
                 SwitchListTile(
+                  dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Count this in a different month?'),
                   subtitle: Text(
@@ -803,16 +808,6 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                   ),
                 ],
               ],
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: _isEditing
-                    ? 'Save changes'
-                    : widget.assignOnly
-                        ? 'Assign to person'
-                        : (_isConverting ? 'Turn into a shared expense' : 'Save shared expense'),
-                isLoading: _isSaving,
-                onPressed: _save,
-              ),
               if (_isEditing) ...[
                 const SizedBox(height: AppSizes.sm),
                 OutlinedButton.icon(
@@ -825,9 +820,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                   label: const Text('Delete Expense'),
                 ),
               ],
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -1030,18 +1023,20 @@ class _ParticipantFieldState extends State<_ParticipantField> {
                   padding: const EdgeInsets.only(bottom: AppSizes.sm),
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
-                      labelText: 'Search people',
-                      isDense: true,
-                      prefixIcon: Icon(Icons.search_rounded, size: AppSizes.iconSm),
+                    decoration: _premiumDecoration(
+                      context,
+                      label: 'Search people',
+                      prefixIcon: const Icon(Icons.search_rounded, size: AppSizes.iconSm),
                     ),
+                    style: Theme.of(context).textTheme.bodyMedium,
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
               DropdownButtonFormField<String?>(
                 initialValue: validPersonId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Person (optional)'),
+                decoration: _premiumDecoration(context, label: 'Person (optional)'),
+                style: Theme.of(context).textTheme.bodyMedium,
                 items: [
                   const DropdownMenuItem<String?>(
                     value: null,
@@ -1073,7 +1068,8 @@ class _ParticipantFieldState extends State<_ParticipantField> {
               const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: row.nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
+                decoration: _premiumDecoration(context, label: 'Name'),
+                style: Theme.of(context).textTheme.bodyMedium,
                 onChanged: (_) => widget.onChanged(),
               ),
             ],
@@ -1085,7 +1081,8 @@ class _ParticipantFieldState extends State<_ParticipantField> {
             flex: 2,
             child: TextFormField(
               controller: row.valueController,
-              decoration: InputDecoration(labelText: widget.valueLabel),
+              decoration: _premiumDecoration(context, label: widget.valueLabel),
+              style: Theme.of(context).textTheme.bodyMedium,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => widget.onChanged(),
             ),
@@ -1098,6 +1095,80 @@ class _ParticipantFieldState extends State<_ParticipantField> {
             onPressed: widget.onRemove,
           ),
       ],
+    );
+  }
+}
+
+/// The filled, borderless-until-focus field decoration every text/dropdown
+/// field on this sheet shares — same vocabulary as `AddExpenseScreen`'s
+/// `_premiumDecoration`, so switching between the plain and shared-expense
+/// forms doesn't feel like two different apps. Neutral (not brand-tinted):
+/// color on a form is reserved for state that means something (a selected
+/// choice, a validation error), not decoration.
+InputDecoration _premiumDecoration(
+  BuildContext context, {
+  required String label,
+  String? errorText,
+  Widget? prefixIcon,
+}) {
+  final colors = context.colors;
+  return InputDecoration(
+    labelText: label,
+    errorText: errorText,
+    prefixIcon: prefixIcon,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    filled: true,
+    fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.primary, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.2),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.6),
+    ),
+  );
+}
+
+/// A filled icon+label tap button — the premium replacement for
+/// [OutlinedButton.icon], used for the Date/Due Date pickers so they match
+/// this sheet's filled-field language instead of standing out as the one
+/// outlined control on the page.
+class _PremiumTapButton extends StatelessWidget {
+  const _PremiumTapButton({required this.onTap, required this.icon, required this.label});
+
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: AppSizes.iconSm, color: colors.primary),
+              const SizedBox(width: AppSizes.xs),
+              Text(label, style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

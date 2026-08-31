@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart' hide Transaction;
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:finance_app/features/transactions/domain/transaction.dart';
 import 'package:finance_app/features/transactions/domain/transaction_type.dart';
@@ -335,6 +336,77 @@ void main() {
       expect(restored.editHistory, hasLength(1));
       expect(restored.editHistory.first.field, 'amount');
       expect(restored.isDeleted, isTrue);
+    });
+
+    test('preserves a non-null source', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        source: 'sms',
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.source, 'sms');
+    });
+
+    test('defaults source to null for a normal (manually-entered) transaction', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.source, isNull);
+    });
+
+    test('deserializes an old document that predates the source field', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore.collection('transactions').withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      // Simulates a pre-existing production document written before `source`
+      // existed: the key is entirely absent, not present-and-null.
+      await firestore.collection('transactions').doc('old-t1').set({
+        'type': 'expense',
+        'amount': 42.0,
+        'dateTime': Timestamp.fromDate(DateTime(2025, 6, 1)),
+        'accountId': 'a1',
+        'categoryId': 'c1',
+        'createdAt': Timestamp.fromDate(DateTime(2025, 6, 1)),
+      });
+
+      final restored = (await collection.doc('old-t1').get()).data()!;
+
+      expect(restored.amount, 42.0);
+      expect(restored.source, isNull);
     });
   });
 }

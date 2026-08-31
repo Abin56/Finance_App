@@ -83,7 +83,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ),
       ),
-      body: _body(query, results),
+      body: SafeArea(child: _body(query, results)),
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
 import '../../domain/person.dart';
@@ -33,53 +34,45 @@ class PersonTile extends StatelessWidget {
         ? 'Needs to Pay Me'
         : 'I Need to Pay';
 
-    return Material(
-      color: context.colors.surface,
-      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.lg),
-          child: Row(
-            children: [
-              PersonAvatar(name: person.name, colorValue: person.avatarColorValue),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return ClayCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          PersonAvatar(name: person.name, colorValue: person.avatarColorValue),
+          const SizedBox(width: AppSizes.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            person.name,
-                            style: context.textTheme.titleMedium,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: AppSizes.xs),
-                        _Pill(label: pillLabel, color: direction.color),
-                      ],
-                    ),
-                    Text(
-                      subtitle,
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                    Flexible(
+                      child: Text(
+                        person.name,
+                        style: context.textTheme.titleMedium,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: AppSizes.xs),
+                    _Pill(label: pillLabel, color: direction.color),
                   ],
                 ),
-              ),
-              Text(
-                CurrencyFormatter.instance.format(person.currentBalance.abs()),
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
-              ),
-              const SizedBox(width: AppSizes.xs),
-              Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
-            ],
+                Text(
+                  subtitle,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          Text(
+            CurrencyFormatter.instance.format(person.currentBalance.abs()),
+            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
+          ),
+          const SizedBox(width: AppSizes.xs),
+          Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+        ],
       ),
     );
   }

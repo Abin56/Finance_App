@@ -9,6 +9,7 @@ import 'package:finance_app/core/payment_schedule/domain/payment_schedule.dart';
 import 'package:finance_app/core/payment_schedule/domain/schedule_type.dart';
 import 'package:finance_app/features/lending/data/loan_repository.dart';
 import 'package:finance_app/features/lending/domain/loan.dart';
+import 'package:finance_app/features/lending/domain/loan_category.dart';
 import 'package:finance_app/features/lending/domain/loan_interest.dart';
 import 'package:finance_app/features/lending/domain/loan_repayment_type.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -114,6 +115,76 @@ void main() {
         ),
         throwsA(isA<AppException>()),
       );
+    });
+  });
+
+  group('LoanRepository.createLoan — category', () {
+    test('personal category without personId throws', () async {
+      await expectLater(
+        repository.createLoan(
+          category: LoanCategory.personal,
+          loanAmount: 100,
+          loanDate: DateTime(2026, 1, 1),
+          repaymentType: LoanRepaymentType.oneTime,
+          dueDate: DateTime(2026, 2, 1),
+        ),
+        throwsA(isA<AppException>()),
+      );
+    });
+
+    test('institutional category without institutionName throws', () async {
+      await expectLater(
+        repository.createLoan(
+          category: LoanCategory.institutional,
+          loanAmount: 100,
+          loanDate: DateTime(2026, 1, 1),
+          repaymentType: LoanRepaymentType.oneTime,
+          dueDate: DateTime(2026, 2, 1),
+        ),
+        throwsA(isA<AppException>()),
+      );
+    });
+
+    test('institutional loan persists with personId null and institution fields set, ignoring any personId passed', () async {
+      final loan = await repository.createLoan(
+        category: LoanCategory.institutional,
+        personId: 'p1', // must be ignored — an institutional loan is never person-linked
+        institutionName: 'HDFC Bank',
+        loanType: 'Home Loan',
+        loanNumber: 'HL-1',
+        accountNumber: 'AC-1',
+        branch: 'MG Road',
+        loanAmount: 500000,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 2, 1),
+      );
+
+      expect(loan.personId, isNull);
+      expect(loan.category, LoanCategory.institutional);
+      expect(loan.institutionName, 'HDFC Bank');
+      expect(loan.loanType, 'Home Loan');
+      expect(loan.loanNumber, 'HL-1');
+      expect(loan.accountNumber, 'AC-1');
+      expect(loan.branch, 'MG Road');
+    });
+
+    test('personal loan (default category) persists exactly as before, with no institution fields set', () async {
+      final loan = await repository.createLoan(
+        personId: 'p1',
+        loanAmount: 100,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 2, 1),
+      );
+
+      expect(loan.category, LoanCategory.personal);
+      expect(loan.personId, 'p1');
+      expect(loan.institutionName, isNull);
+      expect(loan.loanType, isNull);
+      expect(loan.loanNumber, isNull);
+      expect(loan.accountNumber, isNull);
+      expect(loan.branch, isNull);
     });
   });
 

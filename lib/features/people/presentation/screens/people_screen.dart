@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/clay_theme.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/person.dart';
@@ -75,6 +77,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     final peopleAsync = ref.watch(peopleStreamProvider);
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         title: _searching
             ? TextField(
@@ -105,10 +108,10 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: ClayFab(
         heroTag: 'people_fab',
+        icon: Icons.add_rounded,
         onPressed: () => PersonFormSheet.show(context),
-        child: const Icon(Icons.add),
       ),
       body: peopleAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -130,7 +133,10 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
           final netBalance = people.fold(0.0, (total, p) => total + p.currentBalance);
 
           return ListView(
-            padding: const EdgeInsets.all(AppSizes.lg),
+            // Bottom padding clears the local FAB (fabClearance = FAB height
+            // + its margin + breathing room), same convention as the
+            // Dashboard's scrollable body.
+            padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
             children: [
               OverallBalanceCard(netBalance: netBalance),
               const SizedBox(height: AppSizes.lg),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/theme/clay_theme.dart';
 import '../widgets/cash_flow_summary_card.dart';
 import '../widgets/credit_card_statement_summary_card.dart';
 import '../widgets/money_to_receive_card.dart';
@@ -18,10 +19,12 @@ class CashFlowScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(title: const Text('Cash Flow')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(AppSizes.lg),
+          // Bottom padding clears the shell's floating "+" button.
+          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
           children: const [
             PaymentsDueCard(),
             SizedBox(height: AppSizes.lg),

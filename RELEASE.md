@@ -4,12 +4,15 @@ How to produce release builds. For anything Play Store specific — the app ID
 rename, Data Safety, privacy policy, store assets, submission — see
 [PLAY_STORE.md](PLAY_STORE.md).
 
-FlowFi supports two distinct release artifacts:
+FlowFi supports two distinct release artifacts, built via an explicit Gradle
+product flavor (`--flavor`) rather than an environment variable — Flutter
+refuses to build without `--flavor` once flavors are declared, so it is not
+possible to forget which one you meant:
 
-| Artifact | For | SMS Inbox | Command |
-|---|---|---|---|
-| **APK** | Sideloading onto your own phone | Optional (opt-in) | `flutter build apk --release` |
-| **AAB** | Google Play upload | **Never** | `flutter build appbundle --release` |
+| Artifact | Flavor | For | SMS Inbox | Command |
+|---|---|---|---|---|
+| **APK** | `sideload` | Sideloading onto your own phone | **Always on** | `flutter build apk --release --flavor sideload` |
+| **AAB** | `play` | Google Play upload | **Never** | `flutter build appbundle --release --flavor play` |
 
 > Play does not accept APKs for new apps — it requires an App Bundle. The APK
 > path exists purely for personal sideloading.
@@ -26,46 +29,42 @@ profile builds are unaffected and need no keystore.
 ```
 flutter clean
 flutter pub get
-flutter build apk --release
+flutter build apk --release --flavor sideload
 ```
 
-Output: `build/app/outputs/flutter-apk/app-release.apk`
+Output: `build/app/outputs/flutter-apk/app-sideload-release.apk`
 
 Copy to your phone and install (enable "install from unknown sources" if
 prompted). It is signed with the release keystore, so it updates in place over a
 previous release build.
 
-**This APK does not include the SMS Inbox permission.** Release builds strip
-`READ_SMS` by default so that a Play upload is compliant unless you explicitly
-opt out. To build a personal APK that keeps SMS:
-
-```
-FLOWFI_SMS=1 flutter build apk --release
-```
-
-PowerShell:
-
-```
-$env:FLOWFI_SMS="1"; flutter build apk --release; Remove-Item Env:\FLOWFI_SMS
-```
-
-Gradle logs a warning when the flag is active. Never upload that artifact to Play
-— see [PLAY_STORE.md](PLAY_STORE.md#sms-inbox-and-the-play-build) for why.
+**This APK always includes the SMS Inbox permission** — the `sideload` flavor
+keeps `READ_SMS` deterministically (see
+[android/app/src/sideload/AndroidManifest.xml](android/app/src/sideload/AndroidManifest.xml)).
+A Gradle verification task (`verifySmsPermissionSideloadRelease`) runs
+automatically as part of this build and fails it if `READ_SMS` is ever missing
+from the merged manifest, so a successful build is proof the permission is
+present — not just an assumption. Never upload this flavor's output to Play —
+see [PLAY_STORE.md](PLAY_STORE.md#sms-inbox-and-the-play-build) for why.
 
 ## Release App Bundle (Play upload)
 
 ```
 flutter clean
 flutter pub get
-flutter build appbundle --release
+flutter build appbundle --release --flavor play
 ```
 
-Output: `build/app/outputs/bundle/release/app-release.aab`
+Output: `build/app/outputs/bundle/playRelease/app-play-release.aab`
 
-Do **not** set `FLOWFI_SMS` for this build. Verify the result before uploading:
+The `play` flavor removes `READ_SMS` deterministically (see
+[android/app/src/play/AndroidManifest.xml](android/app/src/play/AndroidManifest.xml)),
+and the same Gradle verification task (`verifySmsPermissionPlayRelease`) fails
+the build if `READ_SMS` is ever present. Still worth a manual spot check before
+uploading:
 
 ```
-unzip -p build/app/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml | strings | grep -i SMS
+unzip -p build/app/outputs/bundle/playRelease/app-play-release.aab base/manifest/AndroidManifest.xml | strings | grep -i SMS
 ```
 
 Must print nothing. (`bundletool dump manifest` is the rigorous check; the

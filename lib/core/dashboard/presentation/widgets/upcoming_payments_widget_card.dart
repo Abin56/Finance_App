@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
@@ -12,6 +11,8 @@ import '../../../../shared/widgets/states/payment_urgency_badge.dart';
 import '../../domain/date_range_strategy.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/upcoming_due_provider.dart';
+import '../../../theme/clay_theme.dart';
+import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 import 'upcoming_due_breakdown_sheet.dart';
 
@@ -43,7 +44,7 @@ class UpcomingPaymentsWidgetCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           if (items.isEmpty)
             Text(
               'Nothing due this cycle.',
@@ -80,7 +81,7 @@ class UpcomingDueList extends StatelessWidget {
         if (carriedOver.isNotEmpty) ...[
           Text(
             'Carried Over From Previous Cycle',
-            style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700, color: AppColors.warning),
+            style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700, color: AppClay.warning),
           ),
           for (final item in carriedOver) UpcomingDueRow(item: item),
         ],
@@ -148,28 +149,23 @@ class UpcomingDueRow extends StatelessWidget {
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderRadius: BorderRadius.circular(AppClay.radiusMd),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        borderRadius: BorderRadius.circular(AppClay.radiusMd),
         onTap: () => UpcomingDueBreakdownSheet.show(context, item),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSizes.sm, horizontal: AppSizes.xs),
+          padding: const EdgeInsets.symmetric(vertical: AppSizes.xs, horizontal: AppSizes.xs),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: tint.withValues(alpha: 0.14), shape: BoxShape.circle),
-                child: Icon(iconForUpcomingDueKind(item.kind), size: AppSizes.iconMd, color: tint),
-              ),
-              const SizedBox(width: AppSizes.md),
+              ClayIconChip(icon: iconForUpcomingDueKind(item.kind), color: tint, glow: true),
+              const SizedBox(width: AppSizes.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       item.title,
-                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -194,11 +190,11 @@ class UpcomingDueRow extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: Text(
                     format.format(item.remaining),
-                    style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: colors.onSurfaceVariant.withValues(alpha: 0.5)),
+              Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: colors.onSurfaceVariant.withValues(alpha: 0.5)),
             ],
           ),
         ),

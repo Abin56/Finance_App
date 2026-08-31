@@ -29,15 +29,17 @@ class BudgetScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSizes.lg),
-        children: const [
-          DailyBudgetCard(),
-          SizedBox(height: AppSizes.lg),
-          MonthlyBudgetCard(),
-          SizedBox(height: AppSizes.xl),
-          CategoryBudgetsSection(),
-        ],
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(AppSizes.lg),
+          children: const [
+            DailyBudgetCard(),
+            SizedBox(height: AppSizes.lg),
+            MonthlyBudgetCard(),
+            SizedBox(height: AppSizes.xl),
+            CategoryBudgetsSection(),
+          ],
+        ),
       ),
     );
   }

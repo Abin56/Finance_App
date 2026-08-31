@@ -353,8 +353,15 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     // the principalPortion counts (interest already paid isn't principal);
     // for non-interest ones, the whole amountPaid is principal.
     final principalPaid = settled.fold(0.0, (sum, i) {
-      if (i.isSkipped && i.amountPaid == 0) return sum;
-      return sum + (i.principalPortion ?? i.amountPaid);
+      if (i.amountPaid <= 0) return sum;
+      final principalShare = i.principalPortion ?? i.amountDue;
+      // A fully-paid installment counts its whole principal share. One
+      // that's only partially paid (including a partial payment later
+      // skipped) counts only the principal fraction of what was actually
+      // paid — crediting the full share here would overstate principal
+      // paid down and understate outstandingPrincipal below.
+      if (i.amountPaid >= i.amountDue) return sum + principalShare;
+      return sum + principalShare * (i.amountPaid / i.amountDue);
     });
     final outstandingPrincipal = (emi.principalAmount - principalPaid).clamp(0, emi.principalAmount).toDouble();
     final remainingCount = newInstallmentCount - settled.length;

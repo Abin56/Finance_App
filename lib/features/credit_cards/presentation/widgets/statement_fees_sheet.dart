@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../domain/statement.dart';
 import '../providers/credit_card_providers.dart';
 
@@ -23,6 +23,7 @@ class StatementFeesSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => StatementFeesSheet(cardId: cardId, statement: statement),
     );
   }
@@ -73,26 +74,14 @@ class _StatementFeesSheetState extends ConsumerState<StatementFeesSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
+    return SectionedFormSheet(
+      title: 'Interest & late fees',
+      description: "Log any interest or late fee this statement charged — leave blank if it didn't.",
+      isSaving: _isSaving,
+      onConfirm: _save,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Interest & late fees', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: AppSizes.xs),
-          Text(
-            "Log any interest or late fee this statement charged — leave blank if it didn't.",
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: AppSizes.lg),
           TextField(
             controller: _interestController,
             decoration: const InputDecoration(labelText: 'Interest charged (optional)'),
@@ -104,9 +93,6 @@ class _StatementFeesSheetState extends ConsumerState<StatementFeesSheet> {
             decoration: const InputDecoration(labelText: 'Late fee (optional)'),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
-          const SizedBox(height: AppSizes.xl),
-          PrimaryButton(label: 'Save', isLoading: _isSaving, onPressed: _save),
-          const SizedBox(height: AppSizes.sm),
         ],
       ),
     );

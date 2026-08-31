@@ -133,7 +133,7 @@ class TransactionDetailScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: ListView(
+      body: SafeArea(child: ListView(
         padding: const EdgeInsets.all(AppSizes.lg),
         children: [
           _TransactionHeroCard(transaction: transaction, accountName: account?.name, categoryName: category?.name),
@@ -166,7 +166,7 @@ class TransactionDetailScreen extends ConsumerWidget {
             _SettlementHistorySection(expense: expense),
           ],
         ],
-      ),
+      )),
     );
   }
 

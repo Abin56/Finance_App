@@ -5,6 +5,7 @@ import '../../../core/payment_schedule/domain/installment.dart';
 import '../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../core/payment_schedule/domain/installment_status.dart';
 import '../../lending/domain/loan.dart';
+import '../../lending/domain/loan_direction.dart';
 import '../../lending/domain/loan_status.dart';
 import '../../transactions/domain/transaction.dart';
 import '../../transactions/domain/transaction_type.dart';
@@ -202,18 +203,19 @@ abstract class PersonTimelineBuilder {
     if (!includeDeleted && loan.isDeleted) return const [];
 
     final loanStatus = loan.statusGiven(data.installments);
+    final isGiven = loan.direction == LoanDirection.given;
     final entries = <PersonTimelineEntry>[
       PersonTimelineEntry(
         id: 'loan-${loan.id}',
         date: loan.loanDate,
-        icon: Icons.call_made_rounded,
-        title: 'Money lent',
-        signedAmount: loan.loanAmount,
+        icon: isGiven ? Icons.call_made_rounded : Icons.call_received_rounded,
+        title: isGiven ? 'Money lent' : 'Money borrowed',
+        signedAmount: isGiven ? loan.loanAmount : -loan.loanAmount,
         category: PersonTimelineCategory.lending,
         status: _statusForLoan(loanStatus),
         note: loan.name ?? loan.notes,
         isDeleted: loan.isDeleted,
-        color: AppColors.debit,
+        color: isGiven ? AppColors.debit : AppColors.credit,
       ),
     ];
 
@@ -223,14 +225,14 @@ abstract class PersonTimelineBuilder {
         PersonTimelineEntry(
           id: 'loan-payment-${payment.id}',
           date: payment.date,
-          icon: Icons.undo_rounded,
-          title: 'Loan payment received',
-          signedAmount: -payment.amount,
+          icon: isGiven ? Icons.undo_rounded : Icons.redo_rounded,
+          title: isGiven ? 'Loan payment received' : 'Loan payment made',
+          signedAmount: isGiven ? -payment.amount : payment.amount,
           category: PersonTimelineCategory.lending,
           status: PersonTimelineStatus.completed,
           note: payment.note,
           isDeleted: payment.isDeleted,
-          color: AppColors.credit,
+          color: isGiven ? AppColors.credit : AppColors.debit,
         ),
       );
     }

@@ -80,7 +80,8 @@ class StatementDetailScreen extends ConsumerWidget {
               icon: const Icon(Icons.payments_outlined),
               label: const Text('Pay'),
             ),
-      body: ListView(
+      body: SafeArea(
+        child: ListView(
         padding: const EdgeInsets.all(AppSizes.lg),
         children: [
           AppCard(
@@ -165,6 +166,7 @@ class StatementDetailScreen extends ConsumerWidget {
                 ),
             ],
         ],
+        ),
       ),
     );
   }

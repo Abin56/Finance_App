@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/theme/clay_theme.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/section_header.dart';
 import '../providers/savings_providers.dart';
@@ -29,6 +31,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final goalsAsync = ref.watch(savingsGoalsStreamProvider);
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         title: const Text('Savings'),
         actions: [
@@ -41,12 +44,12 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: ClayFab(
         heroTag: 'savings_fab',
+        icon: Icons.add_rounded,
         onPressed: () => SavingsGoalFormSheet.show(context),
-        child: const Icon(Icons.add),
       ),
-      body: goalsAsync.when(
+      body: SafeArea(child: goalsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (goals) {
@@ -63,7 +66,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(AppSizes.lg),
+            padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
             children: [
               if (activeGoals.isEmpty)
                 const EmptyState(
@@ -94,7 +97,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
             ],
           );
         },
-      ),
+      )),
     );
   }
 }

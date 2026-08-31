@@ -1,8 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Play Store release overlay. Merged over src/main + every plugin's library
-         manifest for `release` builds only; debug/profile are untouched.
+    <!-- Play Store distribution flavor overlay. Merged over src/main + every
+         plugin's library manifest for every build type of the `play` flavor
+         (playDebug, playProfile, playRelease).
 
          Google Play restricts the SMS permission group to apps that are the
          user's default SMS handler. A finance app that parses transaction texts
@@ -14,11 +15,12 @@
          node="remove" is declared here (rather than by editing src/main) because
          flutter_sms_inbox contributes READ_SMS from its own library manifest —
          deleting the line in src/main would not be enough to keep it out of the
-         merged release manifest. The app manifest wins the merge, so this does.
+         merged manifest. The app manifest wins the merge, so this does.
 
-         Opt back in for a personal, sideloaded (non-Play) build by setting
-         FLOWFI_SMS=1 before a release build.
-         See PLAY_STORE.md, "SMS Inbox and the Play build". -->
+         Build with the "play" flavor (see RELEASE.md for the exact command;
+         not written out here because a literal double-hyphen CLI flag inside
+         an XML comment is invalid XML and fails the manifest merger). See
+         PLAY_STORE.md, section "SMS Inbox and the Play build". -->
     <uses-permission
         android:name="android.permission.READ_SMS"
         tools:node="remove" />

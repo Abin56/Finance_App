@@ -1,8 +1,19 @@
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:finance_app/features/sms_inbox/data/merchant_memory_dao.dart';
+import 'package:finance_app/features/sms_inbox/data/merchant_memory_repository.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_dao.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_database.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_repository.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_reader_adapter.dart';
+import 'package:finance_app/features/sms_inbox/data/sms_transaction_candidate_repository.dart';
+import 'package:finance_app/features/sms_inbox/domain/raw_sms_message.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_confidence_scorer.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_import_status.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_inbox_item.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_prefill.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_transaction_candidate_cloud.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_transaction_category.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_transaction_direction.dart';
 import 'package:finance_app/features/sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import 'package:finance_app/features/sms_inbox/presentation/sms_import_completion.dart';
 import 'package:flutter/material.dart';
@@ -96,5 +107,90 @@ void main() {
       completeSmsImport(capturedRef, smsPrefill: null, linkedEntityId: 'txn-1'),
       completes,
     );
+  });
+
+  group('linkSmsImportViaRepositories — cloud candidate cleanup', () {
+    late SmsInboxRepository inboxRepository;
+    late MerchantMemoryRepository memoryRepository;
+
+    SmsTransactionCandidateRepository cloudRepositoryFor(FakeFirebaseFirestore firestore) {
+      final collection = firestore.collection('smsTransactionCandidates').withConverter<SmsTransactionCandidateCloud>(
+            fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
+            toFirestore: (c, _) => c.toFirestore(),
+          );
+      return SmsTransactionCandidateRepository(collection);
+    }
+
+    setUp(() {
+      inboxRepository = SmsInboxRepository(SmsInboxDao(database), const SmsReaderAdapter());
+      memoryRepository = MerchantMemoryRepository(MerchantMemoryDao(database));
+    });
+
+    test('deletes the cloud candidate doc when a cloud repository is supplied', () async {
+      final dao = SmsInboxDao(database);
+      await dao.insertIfNew(
+        SmsInboxItem(
+          id: 'sms-1',
+          messageKey: 'msg-sms-1',
+          rawMessage: RawSmsMessage(address: 'VM-HDFCBK', body: 'body', date: DateTime(2026, 7, 15)),
+          dedupKey: 'dedup-sms-1',
+          status: SmsImportStatus.pending,
+          createdAt: DateTime(2026, 7, 15),
+        ),
+      );
+
+      final cloudRepository = cloudRepositoryFor(FakeFirebaseFirestore());
+      await cloudRepository.add(
+        'sms-1',
+        SmsTransactionCandidateCloud(
+          smsItemId: 'sms-1',
+          amount: 100,
+          direction: SmsTransactionDirection.debit,
+          eventType: SmsTransactionCategory.cardPurchase,
+          transactionDate: DateTime(2026, 7, 15),
+          confidenceLevel: ConfidenceLevel.high,
+          confidenceScore: 0.9,
+          needsReview: false,
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      await linkSmsImportViaRepositories(
+        inboxRepository: inboxRepository,
+        memoryRepository: memoryRepository,
+        smsId: 'sms-1',
+        linkedEntityId: 'txn-1',
+        cloudCandidateRepository: cloudRepository,
+      );
+
+      expect(await cloudRepository.getAll(), isEmpty);
+    });
+
+    test('is a no-op cloud-wise (and still completes) when no cloud repository is supplied', () async {
+      final dao = SmsInboxDao(database);
+      await dao.insertIfNew(
+        SmsInboxItem(
+          id: 'sms-2',
+          messageKey: 'msg-sms-2',
+          rawMessage: RawSmsMessage(address: 'VM-HDFCBK', body: 'body', date: DateTime(2026, 7, 15)),
+          dedupKey: 'dedup-sms-2',
+          status: SmsImportStatus.pending,
+          createdAt: DateTime(2026, 7, 15),
+        ),
+      );
+
+      await expectLater(
+        linkSmsImportViaRepositories(
+          inboxRepository: inboxRepository,
+          memoryRepository: memoryRepository,
+          smsId: 'sms-2',
+          linkedEntityId: 'txn-2',
+        ),
+        completes,
+      );
+
+      final stored = await inboxRepository.getAll();
+      expect(stored.single.status, SmsImportStatus.imported);
+    });
   });
 }

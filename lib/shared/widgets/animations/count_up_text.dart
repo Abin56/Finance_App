@@ -19,11 +19,16 @@ class CountUpText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Tabular figures so digits don't shift width as the count-up animates —
+    // matches the web app's `tabular-nums` on every currency figure.
+    final tabularStyle = (style ?? const TextStyle()).copyWith(
+      fontFeatures: [const FontFeature.tabularFigures()],
+    );
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: value),
       duration: duration,
       curve: Curves.easeOutCubic,
-      builder: (context, animatedValue, _) => Text(formatter(animatedValue), style: style),
+      builder: (context, animatedValue, _) => Text(formatter(animatedValue), style: tabularStyle),
     );
   }
 }

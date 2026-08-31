@@ -8,7 +8,10 @@ import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/inputs/chip_selector.dart';
+import '../../../../shared/widgets/inputs/color_swatch_picker.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../domain/account.dart';
 import '../../domain/account_type.dart';
 import '../providers/account_providers.dart';
@@ -25,6 +28,10 @@ class AccountFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      // The sheet renders its own banded header with a close button (see
+      // SectionedFormSheet below) — a drag handle on top of that would be a
+      // second, redundant "how do I close this" affordance.
+      showDragHandle: false,
       builder: (_) => AccountFormSheet(account: account),
     );
   }
@@ -149,161 +156,195 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isEditing ? 'Edit account' : 'Add account',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSizes.lg),
-              DropdownButtonFormField<AccountType>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: 'Type'),
-                items: [
-                  for (final type in AccountType.values)
-                    DropdownMenuItem(value: type, child: Text(type.label)),
-                ],
-                onChanged: (value) => setState(() => _type = value!),
-              ),
-              if (_type == AccountType.bank || _type == AccountType.card) ...[
-                const SizedBox(height: AppSizes.md),
-                InkWell(
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  onTap: _pickBank,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: 'Bank'),
-                    child: Row(
-                      children: [
-                        BankAvatar(bankId: _bankId, fallbackName: _nameController.text, size: 28),
-                        const SizedBox(width: AppSizes.sm),
-                        Expanded(
-                          child: Text(
-                            BankRegistry.byId(_bankId)?.name ?? 'Select bank (optional)',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_isBankLinked)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSizes.xs, left: AppSizes.md),
-                    child: Text(
-                      'Shown as "$_computedName"',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: _isEditing ? 'Edit Account' : 'Add an Account',
+        description: _isEditing ? null : 'A few details to start tracking balances and transactions.',
+        accentColor: Color(_colorValue),
+        confirmLabel: _isEditing ? 'Save Changes' : 'Add Account',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SectionLabel('Account Details'),
+            const SizedBox(height: AppSizes.sm),
+            ChipSelector<AccountType>(
+              options: [
+                for (final type in AccountType.values)
+                  ChipOption(value: type, label: type.label, icon: type.icon),
               ],
-              if (!_isBankLinked) ...[
-                const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Account name'),
-                  validator: Validators.required,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _openingBalanceFocusNode.requestFocus(),
-                ),
-              ],
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _openingBalanceController,
-                focusNode: _openingBalanceFocusNode,
-                enabled: !_isEditing,
-                decoration: InputDecoration(
-                  labelText: 'Starting amount',
-                  helperText: _isEditing ? 'Starting amount can\'t be changed later' : null,
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: Wrap(
-                      spacing: AppSizes.sm,
-                      runSpacing: AppSizes.sm,
-                      children: [
-                        for (final color in AppColors.categoryPalette)
-                          GestureDetector(
-                            onTap: () => setState(() => _colorValue = color.toARGB32()),
-                            child: CircleAvatar(
-                              radius: 16,
-                              backgroundColor: color,
-                              child: _colorValue == color.toARGB32()
-                                  ? const Icon(Icons.check, color: Colors.white, size: 16)
-                                  : null,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  if (BankRegistry.byId(_bankId) != null)
-                    TextButton(
-                      onPressed: () => setState(() {
-                        final color = BankRegistry.byId(_bankId)!.primaryColor.toARGB32();
-                        _colorValue = color;
-                        _colorAppliedByBank = color;
-                      }),
-                      child: const Text('Reset to bank color'),
-                    ),
-                ],
-              ),
+              value: _type,
+              onChanged: (value) => setState(() => _type = value),
+            ),
+            if (_type == AccountType.bank || _type == AccountType.card) ...[
               const SizedBox(height: AppSizes.sm),
-              Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  title: const Text('More options (optional)'),
+              _PremiumTapRow(
+                onTap: _pickBank,
+                child: Row(
                   children: [
-                    TextFormField(
-                      controller: _accountHolderNameController,
-                      decoration: const InputDecoration(labelText: 'Account holder name'),
-                      textCapitalization: TextCapitalization.words,
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    TextFormField(
-                      controller: _accountNumberLast4Controller,
-                      decoration: const InputDecoration(
-                        labelText: 'Account number (last 4 digits)',
-                        prefixText: '•••• ',
+                    BankAvatar(bankId: _bankId, fallbackName: _nameController.text, size: 28),
+                    const SizedBox(width: AppSizes.sm),
+                    Expanded(
+                      child: Text(
+                        BankRegistry.byId(_bankId)?.name ?? 'Select bank (optional)',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      keyboardType: TextInputType.number,
-                      maxLength: 4,
                     ),
-                    TextFormField(
-                      controller: _notesController,
-                      decoration: const InputDecoration(labelText: 'Notes'),
-                      maxLines: 2,
-                    ),
+                    Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
                   ],
                 ),
               ),
-              const SizedBox(height: AppSizes.lg),
-              PrimaryButton(
-                label: _isEditing ? 'Save changes' : 'Add account',
-                isLoading: _isSaving,
-                onPressed: _save,
-              ),
-              const SizedBox(height: AppSizes.sm),
+              if (_isBankLinked)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSizes.xs, left: AppSizes.sm),
+                  child: Text(
+                    'Shown as "$_computedName"',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
             ],
-          ),
+            if (!_isBankLinked) ...[
+              const SizedBox(height: AppSizes.sm),
+              TextFormField(
+                controller: _nameController,
+                decoration: _premiumDecoration(context, label: 'Account name'),
+                style: Theme.of(context).textTheme.bodyMedium,
+                validator: Validators.required,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _openingBalanceFocusNode.requestFocus(),
+              ),
+            ],
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _openingBalanceController,
+              focusNode: _openingBalanceFocusNode,
+              enabled: !_isEditing,
+              decoration: _premiumDecoration(
+                context,
+                label: 'Starting amount',
+                helperText: _isEditing ? 'Starting amount can\'t be changed later' : null,
+              ),
+              style: Theme.of(context).textTheme.bodyMedium,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: Validators.amount,
+              textInputAction: TextInputAction.done,
+            ),
+
+            const SizedBox(height: AppSizes.md),
+            const SectionLabel('Color'),
+            const SizedBox(height: AppSizes.sm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ColorSwatchPicker(
+                    value: Color(_colorValue),
+                    onChanged: (color) => setState(() => _colorValue = color.toARGB32()),
+                  ),
+                ),
+                if (BankRegistry.byId(_bankId) != null)
+                  TextButton(
+                    onPressed: () => setState(() {
+                      final color = BankRegistry.byId(_bankId)!.primaryColor.toARGB32();
+                      _colorValue = color;
+                      _colorAppliedByBank = color;
+                    }),
+                    child: const Text('Reset to bank color'),
+                  ),
+              ],
+            ),
+
+            const SizedBox(height: AppSizes.md),
+            const SectionLabel('Additional Info (optional)'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _accountHolderNameController,
+              decoration: _premiumDecoration(context, label: 'Account holder name'),
+              style: Theme.of(context).textTheme.bodyMedium,
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _accountNumberLast4Controller,
+              decoration: _premiumDecoration(context, label: 'Account number (last 4 digits)', prefixText: '•••• '),
+              style: Theme.of(context).textTheme.bodyMedium,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+            ),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _notesController,
+              decoration: _premiumDecoration(context, label: 'Notes'),
+              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The filled, borderless-until-focus field decoration every field on this
+/// sheet shares — same vocabulary as `SplitExpenseFormSheet`'s
+/// `_premiumDecoration`.
+InputDecoration _premiumDecoration(
+  BuildContext context, {
+  required String label,
+  String? helperText,
+  String? prefixText,
+}) {
+  final colors = Theme.of(context).colorScheme;
+  return InputDecoration(
+    labelText: label,
+    helperText: helperText,
+    prefixText: prefixText,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    filled: true,
+    fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.primary, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.2),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.6),
+    ),
+  );
+}
+
+/// A filled, tappable row — the premium replacement for wrapping a plain
+/// [InkWell] around an [InputDecorator], used for the Bank picker so it
+/// shares the same surface treatment as this sheet's text fields.
+class _PremiumTapRow extends StatelessWidget {
+  const _PremiumTapRow({required this.onTap, required this.child});
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          child: child,
         ),
       ),
     );

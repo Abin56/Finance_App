@@ -42,7 +42,6 @@ class DashboardSpendingSnapshotCard extends StatelessWidget {
         icon: Icons.receipt_long_outlined,
         title: 'Spending Snapshot',
         message: 'Add an income or expense to see today\'s and this month\'s totals here.',
-        radius: AppSizes.radiusCard,
         actionLabel: 'Add a transaction',
         onTap: () => AddExpenseScreen.show(context),
       );

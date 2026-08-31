@@ -7,6 +7,7 @@ import '../../../constants/app_sizes.dart';
 import '../../../extensions/context_extensions.dart';
 import '../../../router/app_routes.dart';
 import '../../../../features/auth/presentation/providers/auth_providers.dart';
+import '../../../theme/clay_theme.dart';
 
 /// Time-of-day greeting shown at the top of the dashboard, personalized
 /// with the signed-in user's first name when available. Carries the app's
@@ -39,14 +40,14 @@ class GreetingHeader extends ConsumerWidget {
             children: [
               Text(
                 firstName == null ? _greeting() : '${_greeting()}, $firstName',
-                style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: AppSizes.xs),
+              const SizedBox(height: 2),
               Text(
-                'Here\'s your financial overview',
-                style: context.textTheme.bodyMedium?.copyWith(
+                'Your financial overview',
+                style: context.textTheme.labelSmall?.copyWith(
                   color: context.colors.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),
@@ -56,21 +57,47 @@ class GreetingHeader extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(width: AppSizes.sm),
-        IconButton.filledTonal(
-          onPressed: () => context.push(AppRoutes.search),
-          icon: const Icon(Icons.search_rounded),
+        const SizedBox(width: AppSizes.xs),
+        _ClayIconButton(
+          icon: Icons.search_rounded,
           tooltip: 'Search',
-          style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: () => context.push(AppRoutes.search),
         ),
-        const SizedBox(width: AppSizes.sm),
-        IconButton.filledTonal(
-          onPressed: () => context.push(AppRoutes.settings),
-          icon: const Icon(Icons.notifications_outlined),
+        const SizedBox(width: AppSizes.xs),
+        _ClayIconButton(
+          icon: Icons.notifications_outlined,
           tooltip: 'Notifications',
-          style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: () => context.push(AppRoutes.settings),
         ),
       ],
+    );
+  }
+}
+
+/// A soft, floating circular icon button — the Dashboard's replacement for
+/// the Material `filledTonal` button, matching the claymorphism language
+/// used across the rest of the widget cards.
+class _ClayIconButton extends StatelessWidget {
+  const _ClayIconButton({required this.icon, required this.tooltip, required this.onPressed});
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppClay.card(context),
+        shape: BoxShape.circle,
+        boxShadow: AppClay.soft(context),
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: AppClay.primaryAccent(context), size: AppSizes.iconMd),
+        tooltip: tooltip,
+        style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
+      ),
     );
   }
 }

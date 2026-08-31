@@ -68,6 +68,7 @@ void main() {
   testWidgets('selecting a person shows their name and a clear action', (tester) async {
     await pump(tester);
 
+    await tester.ensureVisible(find.text('Add a person (optional)'));
     await tester.tap(find.text('Add a person (optional)'));
     await tester.pumpAndSettle();
 
@@ -82,6 +83,7 @@ void main() {
   testWidgets('clearing a selected person returns to the empty/optional state', (tester) async {
     await pump(tester);
 
+    await tester.ensureVisible(find.text('Add a person (optional)'));
     await tester.tap(find.text('Add a person (optional)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rahul Sharma').last);
@@ -89,6 +91,7 @@ void main() {
     expect(find.text('Rahul Sharma'), findsOneWidget);
 
     // The clear (x) icon inside the Person row.
+    await tester.ensureVisible(find.widgetWithIcon(IconButton, Icons.cancel).last);
     await tester.tap(find.widgetWithIcon(IconButton, Icons.cancel).last);
     await tester.pumpAndSettle();
 

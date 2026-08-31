@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/inputs/color_swatch_picker.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../domain/person.dart';
 import '../providers/people_providers.dart';
 
@@ -21,6 +23,7 @@ class PersonFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => PersonFormSheet(person: person),
     );
   }
@@ -98,99 +101,117 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isEditing ? 'Edit person' : 'Add person',
-                style: Theme.of(context).textTheme.titleLarge,
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: _isEditing ? 'Edit person' : 'Add person',
+        confirmLabel: _isEditing ? 'Save changes' : 'Add person',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionLabel('Person Details'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _nameController,
+              decoration: _premiumDecoration(context, label: 'Name'),
+              style: Theme.of(context).textTheme.bodyMedium,
+              validator: Validators.required,
+              textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) => _phoneFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _phoneController,
+              focusNode: _phoneFocusNode,
+              decoration: _premiumDecoration(context, label: 'Phone (optional)'),
+              style: Theme.of(context).textTheme.bodyMedium,
+              keyboardType: TextInputType.phone,
+              validator: Validators.phone,
+              textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _emailController,
+              focusNode: _emailFocusNode,
+              decoration: _premiumDecoration(context, label: 'Email (optional)'),
+              style: Theme.of(context).textTheme.bodyMedium,
+              keyboardType: TextInputType.emailAddress,
+              validator: Validators.email,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSizes.md),
+            const SectionLabel('Starting Balance'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _openingBalanceController,
+              enabled: !_isEditing,
+              decoration: _premiumDecoration(
+                context,
+                label: 'Starting Amount Left',
+                helperText: _isEditing
+                    ? 'Starting Amount Left can\'t be changed later'
+                    : 'Positive = they owe you, negative = you owe them',
               ),
-              const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-                validator: Validators.required,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _phoneFocusNode.requestFocus(),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _phoneController,
-                focusNode: _phoneFocusNode,
-                decoration: const InputDecoration(labelText: 'Phone (optional)'),
-                keyboardType: TextInputType.phone,
-                validator: Validators.phone,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _emailController,
-                focusNode: _emailFocusNode,
-                decoration: const InputDecoration(labelText: 'Email (optional)'),
-                keyboardType: TextInputType.emailAddress,
-                validator: Validators.email,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _openingBalanceController,
-                enabled: !_isEditing,
-                decoration: InputDecoration(
-                  labelText: 'Starting Amount Left',
-                  helperText: _isEditing
-                      ? 'Starting Amount Left can\'t be changed later'
-                      : 'Positive = they owe you, negative = you owe them',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                validator: Validators.signedAmount,
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notes (optional)'),
-                maxLines: 3,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.md),
-              Wrap(
-                spacing: AppSizes.sm,
-                children: [
-                  for (final color in AppColors.categoryPalette)
-                    GestureDetector(
-                      onTap: () => setState(() => _avatarColorValue = color.toARGB32()),
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: color,
-                        child: _avatarColorValue == color.toARGB32()
-                            ? const Icon(Icons.check, color: Colors.white, size: 16)
-                            : null,
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: _isEditing ? 'Save changes' : 'Add person',
-                isLoading: _isSaving,
-                onPressed: _save,
-              ),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+              style: Theme.of(context).textTheme.bodyMedium,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+              validator: Validators.signedAmount,
+            ),
+            const SizedBox(height: AppSizes.md),
+            const SectionLabel('Color'),
+            const SizedBox(height: AppSizes.sm),
+            ColorSwatchPicker(
+              value: Color(_avatarColorValue),
+              onChanged: (color) => setState(() => _avatarColorValue = color.toARGB32()),
+            ),
+            const SizedBox(height: AppSizes.md),
+            const SectionLabel('Notes'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _notesController,
+              decoration: _premiumDecoration(context, label: 'Notes (optional)'),
+              style: Theme.of(context).textTheme.bodyMedium,
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// The filled, borderless-until-focus field decoration every field on this
+/// sheet shares — same vocabulary as `SplitExpenseFormSheet`'s
+/// `_premiumDecoration`.
+InputDecoration _premiumDecoration(
+  BuildContext context, {
+  required String label,
+  String? helperText,
+}) {
+  final colors = Theme.of(context).colorScheme;
+  return InputDecoration(
+    labelText: label,
+    helperText: helperText,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    filled: true,
+    fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.primary, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.2),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.6),
+    ),
+  );
 }

@@ -8,6 +8,7 @@ import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
 import '../../domain/sms_transaction_category.dart';
 import '../../domain/sms_transaction_direction.dart';
+import '../../domain/transaction_candidate.dart';
 
 /// One SMS in the inbox, rendered as a compact ~76dp messaging-app row
 /// (channel icon, amount, merchant, time, status chip) rather than a
@@ -19,6 +20,7 @@ class SmsMessageTile extends StatelessWidget {
     super.key,
     required this.item,
     required this.onTap,
+    this.candidate,
     this.selectionMode = false,
     this.selected = false,
     this.onLongPress,
@@ -26,6 +28,15 @@ class SmsMessageTile extends StatelessWidget {
 
   final SmsInboxItem item;
   final VoidCallback onTap;
+
+  /// This SMS's `TransactionCandidate`, if one exists — passed in by the
+  /// screen (which already watches `transactionCandidatesProvider`) rather
+  /// than watched here, so this tile stays a plain, easily-tested
+  /// `StatelessWidget` with no provider dependency of its own. Null is a
+  /// normal state (unparsed message, or a scan hasn't produced one yet) and
+  /// simply shows no review indicator.
+  final TransactionCandidate? candidate;
+
   final bool selectionMode;
   final bool selected;
   final VoidCallback? onLongPress;
@@ -35,6 +46,10 @@ class SmsMessageTile extends StatelessWidget {
     final parsed = item.parsed;
     final direction = parsed?.direction;
     final amountColor = _amountColor(context, direction);
+    // Only meaningful while the message is still awaiting a decision — once
+    // converted or ignored, whether the original match needed review is no
+    // longer actionable from this row.
+    final needsReview = item.status == SmsImportStatus.pending && (candidate?.needsReview ?? false);
 
     return Material(
       color: selected ? context.colors.primary.withValues(alpha: 0.08) : context.colors.surface,
@@ -45,7 +60,13 @@ class SmsMessageTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
           child: Row(
             children: [
-              _Leading(item: item, selectionMode: selectionMode, selected: selected, color: amountColor),
+              _Leading(
+                item: item,
+                selectionMode: selectionMode,
+                selected: selected,
+                color: amountColor,
+                needsReview: needsReview,
+              ),
               const SizedBox(width: AppSizes.md),
               Expanded(
                 child: Column(
@@ -134,12 +155,24 @@ class SmsMessageTile extends StatelessWidget {
 /// The channel avatar (UPI / card / bank), which flips to a checkbox in
 /// multi-select so the row height never changes between the two modes.
 class _Leading extends StatelessWidget {
-  const _Leading({required this.item, required this.selectionMode, required this.selected, required this.color});
+  const _Leading({
+    required this.item,
+    required this.selectionMode,
+    required this.selected,
+    required this.color,
+    this.needsReview = false,
+  });
 
   final SmsInboxItem item;
   final bool selectionMode;
   final bool selected;
   final Color color;
+
+  /// Shows a small corner dot rather than a second chip or a line of text —
+  /// the row has no spare height for either (see the 70-90dp budget this
+  /// tile is held to), and the full "why" already lives one tap away in
+  /// `SmsMessageDetailSheet`'s `SmsCandidateSummary`.
+  final bool needsReview;
 
   @override
   Widget build(BuildContext context) {
@@ -159,11 +192,34 @@ class _Leading extends StatelessWidget {
       );
     }
 
-    return Container(
+    final avatar = Container(
       width: 40,
       height: 40,
       decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
       child: Icon(_icon(item.parsed?.category), size: AppSizes.iconMd, color: color),
+    );
+
+    if (!needsReview) return avatar;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        avatar,
+        Positioned(
+          top: -2,
+          right: -2,
+          child: Container(
+            key: const ValueKey('sms_tile_needs_review_badge'),
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: AppColors.warning,
+              shape: BoxShape.circle,
+              border: Border.all(color: context.colors.surface, width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

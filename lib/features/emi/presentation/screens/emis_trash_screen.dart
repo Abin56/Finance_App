@@ -16,7 +16,7 @@ class EmisTrashScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
-      body: trashAsync.when(
+      body: SafeArea(child: trashAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (trashed) {
@@ -58,7 +58,7 @@ class EmisTrashScreen extends ConsumerWidget {
             },
           );
         },
-      ),
+      )),
     );
   }
 
@@ -76,7 +76,7 @@ class EmisTrashScreen extends ConsumerWidget {
     );
 
     if (confirmed == true) {
-      await ref.read(emiRepositoryProvider).permanentlyDelete(emi);
+      await ref.read(emiRepositoryProvider).permanentlyDeleteEmi(emi);
     }
   }
 }

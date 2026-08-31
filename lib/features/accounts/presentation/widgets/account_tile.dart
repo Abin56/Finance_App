@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../domain/account.dart';
@@ -19,50 +20,35 @@ class AccountTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(account.colorValue);
 
-    return Material(
-      color: context.colors.surface,
-      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.lg),
-          child: Row(
-            children: [
-              if (account.type == AccountType.bank || account.type == AccountType.card)
-                BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 44)
-              else
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+    return ClayCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppSizes.lg),
+      child: Row(
+        children: [
+          if (account.type == AccountType.bank || account.type == AccountType.card)
+            BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 44)
+          else
+            ClayIconChip(icon: account.type.icon, color: color, size: 44, iconSize: 22),
+          const SizedBox(width: AppSizes.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(account.name, style: context.textTheme.titleMedium),
+                Text(
+                  account.type.label,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.6),
                   ),
-                  child: Icon(account.type.icon, color: color),
                 ),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(account.name, style: context.textTheme.titleMedium),
-                    Text(
-                      account.type.label,
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                CurrencyFormatter.instance.format(account.currentBalance),
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+          Text(
+            CurrencyFormatter.instance.format(account.currentBalance),
+            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
       ),
     );
   }

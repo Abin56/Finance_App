@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
@@ -10,6 +9,8 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../features/transactions/domain/history_entry.dart';
 import '../../../../features/transactions/presentation/providers/history_providers.dart';
 import '../../domain/widget_configuration.dart';
+import '../../../theme/clay_theme.dart';
+import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.recentActivity] — a true cross-feature
@@ -47,7 +48,7 @@ class RecentActivityWidgetCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           if (entries.isEmpty)
             Text('No activity yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
           else
@@ -65,25 +66,20 @@ class _CompactHistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = entry.isCredit ? AppColors.credit : AppColors.debit;
+    final color = entry.isCredit ? AppClay.income : AppClay.expense;
     final sign = entry.isCredit ? '+' : '-';
     final textTheme = context.textTheme;
     final colors = context.colors;
     final routePath = entry.routePath;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      borderRadius: BorderRadius.circular(AppClay.radiusSm),
       onTap: routePath == null ? null : () => context.push(routePath),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-              child: Icon(entry.icon, size: AppSizes.iconSm, color: color),
-            ),
+            ClayIconChip(icon: entry.icon, color: color),
             const SizedBox(width: AppSizes.sm),
             Expanded(
               child: Column(

@@ -15,7 +15,8 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('About')),
-      body: Center(
+      body: SafeArea(
+        child: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSizes.xl),
           child: Column(
@@ -28,6 +29,7 @@ class AboutScreen extends StatelessWidget {
               Text('Version $_version', style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
+        ),
         ),
       ),
     );

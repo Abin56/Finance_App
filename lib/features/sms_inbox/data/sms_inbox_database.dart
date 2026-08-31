@@ -18,6 +18,7 @@ class SmsInboxDatabase {
   static const String tableName = 'sms_inbox';
   static const String merchantMemoryTableName = 'sms_merchant_memory';
   static const String deletedMessageKeysTableName = 'sms_deleted_message_keys';
+  static const String transactionCandidatesTableName = 'sms_transaction_candidates';
 
   /// v3 — added `sms_deleted_message_keys`, a tombstone table recording the
   /// `message_key` of every row the user has ever deleted. Without it,
@@ -27,7 +28,12 @@ class SmsInboxDatabase {
   /// user's delete (and, for an already-converted SMS, resurrecting a
   /// pending row for a message that already has a real transaction behind
   /// it). `scanInbox()` now checks this table before inserting.
-  static const int schemaVersion = 3;
+  ///
+  /// v4 — added `sms_transaction_candidates`, purely additive: one row per
+  /// [tableName] row that `TransactionCandidateBuilder` was able to produce
+  /// a candidate for (account/card match + confidence). No existing table,
+  /// column, or row is touched by this upgrade.
+  static const int schemaVersion = 4;
 
   static SmsInboxDatabase? _instance;
 
@@ -83,6 +89,42 @@ class SmsInboxDatabase {
     await _createInboxIndexes(db);
     await _createMerchantMemoryTable(db);
     await _createDeletedMessageKeysTable(db);
+    await _createTransactionCandidatesTable(db);
+  }
+
+  /// One row per [tableName] row a `TransactionCandidateBuilder` run
+  /// produced a candidate for — see `TransactionCandidate`. `sms_item_id`
+  /// is not declared `UNIQUE`/a foreign key at the SQL level (sqflite's
+  /// ON DELETE CASCADE support is inconsistent across platforms), so
+  /// candidate regeneration/cleanup is the DAO's responsibility, same
+  /// posture as `duplicate_of_id` on [tableName] itself.
+  static Future<void> _createTransactionCandidatesTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $transactionCandidatesTableName (
+        id TEXT PRIMARY KEY,
+        sms_item_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        direction TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        transaction_date INTEGER NOT NULL,
+        merchant TEXT,
+        bank_name TEXT,
+        matched_account_id TEXT,
+        matched_card_id TEXT,
+        reference_number TEXT,
+        confidence_level TEXT NOT NULL,
+        confidence_score REAL NOT NULL,
+        needs_review INTEGER NOT NULL,
+        review_reasons TEXT,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_sms_transaction_candidates_sms_item_id ON $transactionCandidatesTableName(sms_item_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sms_transaction_candidates_needs_review ON $transactionCandidatesTableName(needs_review)',
+    );
   }
 
   /// One row per deleted [SmsInboxItem.messageKey] — a tombstone so a
@@ -163,9 +205,15 @@ class SmsInboxDatabase {
     }
     // The v1→v2 branch above already creates this table via its own
     // _onCreate call, so guard against a double-create when a v1 database
-    // jumps straight to v3.
+    // jumps straight to v3 (or further).
     if (oldVersion == 2) {
       await _createDeletedMessageKeysTable(db);
+    }
+    // Same guard for v4's table: a v1 database jumping straight to v4 already
+    // got it from the _onCreate call above; only v2/v3 databases need it
+    // created here.
+    if (oldVersion == 2 || oldVersion == 3) {
+      await _createTransactionCandidatesTable(db);
     }
   }
 
@@ -248,6 +296,52 @@ class SmsInboxDatabase {
           ''');
           await db.execute('CREATE INDEX idx_sms_inbox_status ON $tableName(status)');
           await db.execute('CREATE INDEX idx_sms_inbox_received_at ON $tableName(received_at)');
+        },
+      ),
+    );
+  }
+
+  /// Test-only seam for the v3→v4 migration: creates the schema exactly as
+  /// it existed at v3 (before `sms_transaction_candidates`), so a test can
+  /// seed it and then reopen at [schemaVersion] to exercise [_onUpgrade]
+  /// against real rows — mirrors [openV1ForTest]'s role for the v1→v2 step.
+  @visibleForTesting
+  static Future<Database> openV3ForTest(String path) {
+    return databaseFactory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 3,
+        singleInstance: false,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE $tableName (
+              id TEXT PRIMARY KEY,
+              message_key TEXT NOT NULL UNIQUE,
+              dedup_key TEXT NOT NULL,
+              duplicate_of_id TEXT,
+              duplicate_reason TEXT,
+              sender TEXT NOT NULL,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL,
+              direction TEXT,
+              amount REAL,
+              merchant TEXT,
+              bank_name TEXT,
+              masked_account TEXT,
+              reference_number TEXT,
+              category TEXT,
+              confidence REAL,
+              status TEXT NOT NULL DEFAULT 'pending',
+              linked_entity_id TEXT,
+              linked_entity_route TEXT,
+              imported_at INTEGER,
+              ignored_at INTEGER,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await _createInboxIndexes(db);
+          await _createMerchantMemoryTable(db);
+          await _createDeletedMessageKeysTable(db);
         },
       ),
     );

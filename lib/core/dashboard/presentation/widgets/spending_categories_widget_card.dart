@@ -54,20 +54,20 @@ class SpendingCategoriesWidgetCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           if (entries.isEmpty)
             Text('No spending yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
           else ...[
-            Center(child: AppPieChart(data: categorySpendingEntriesToPieData(entries), size: 140)),
-            const SizedBox(height: AppSizes.md),
+            Center(child: AppPieChart(data: categorySpendingEntriesToPieData(entries), size: 116)),
+            const SizedBox(height: AppSizes.sm),
             for (final entry in entries.take(5))
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
+                padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
                     Container(
-                      width: 10,
-                      height: 10,
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(color: Color(entry.category.colorValue), shape: BoxShape.circle),
                     ),
                     const SizedBox(width: AppSizes.sm),

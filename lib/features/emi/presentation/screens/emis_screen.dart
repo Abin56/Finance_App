@@ -136,7 +136,8 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
           final searched = _applySearch(emis);
           final visible = _applyFilters(searched, ref);
 
-          return CustomScrollView(
+          return SafeArea(
+            child: CustomScrollView(
             slivers: [
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, 0),
@@ -224,6 +225,7 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
                 ),
               ),
             ],
+            ),
           );
         },
       ),

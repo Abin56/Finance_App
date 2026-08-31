@@ -1,0 +1,15 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Personal, non-Play distribution flavor overlay. Merged over src/main +
+         every plugin's library manifest for every build type of the `sideload`
+         flavor (sideloadDebug, sideloadProfile, sideloadRelease). Contributes
+         nothing, so READ_SMS from src/main and from flutter_sms_inbox's own
+         library manifest survives the merge and the SMS Inbox feature works.
+
+         Build with the "sideload" flavor (see RELEASE.md for the exact
+         command; not written out here because a literal double-hyphen CLI
+         flag inside an XML comment is invalid XML and fails the manifest
+         merger).
+
+         Never upload this flavor's output to Google Play. See
+         PLAY_STORE.md, section "SMS Inbox and the Play build". -->
+</manifest>

@@ -8,6 +8,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../features/accounts/presentation/providers/account_providers.dart';
 import '../../domain/widget_configuration.dart';
+import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.accounts] — every non-deleted [Account] and
@@ -40,7 +41,9 @@ class AccountsWidgetCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(config.title, style: textTheme.labelLarge),
+              Expanded(
+                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+              ),
               GestureDetector(
                 onTap: () => context.push(AppRoutes.accounts),
                 child: Text(
@@ -59,22 +62,17 @@ class AccountsWidgetCard extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
                 child: Row(
                   children: [
-                    Container(
-                      width: AppSizes.iconXl,
-                      height: AppSizes.iconXl,
-                      decoration: BoxDecoration(
-                        color: Color(account.colorValue).withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.account_balance_wallet_outlined, color: Color(account.colorValue), size: AppSizes.iconMd),
+                    ClayIconChip(
+                      icon: Icons.account_balance_wallet_outlined,
+                      color: Color(account.colorValue),
                     ),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
-                      child: Text(account.name, style: textTheme.bodyMedium, overflow: TextOverflow.ellipsis),
+                      child: Text(account.name, style: textTheme.bodySmall, overflow: TextOverflow.ellipsis),
                     ),
                     Text(
                       format.format(account.currentBalance),
-                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),

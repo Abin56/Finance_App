@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../transactions/domain/transaction_type.dart';
 import '../data/merchant_memory_repository.dart';
 import '../data/sms_inbox_repository.dart';
+import '../data/sms_transaction_candidate_repository.dart';
 import '../domain/sms_prefill.dart';
 import 'providers/sms_inbox_providers.dart';
 
@@ -62,6 +63,13 @@ Future<void> completeSmsImport(
 /// Repository-level equivalent of [completeSmsImport] for callers that
 /// don't have a [WidgetRef] — currently `SmsBulkConverter`, which holds its
 /// repositories directly so its conversion loop stays plain, testable logic.
+///
+/// [cloudCandidateRepository] is optional so existing tests/callers that
+/// construct this without cloud wiring keep working unchanged; when given,
+/// [smsId]'s cloud candidate doc (if any) is deleted right after marking
+/// imported — same "delete now, sync() reconciles the rest" pattern as
+/// `SmsInboxItemsNotifier._removeCloudCandidate`, best-effort and isolated
+/// from the linking failure it's already nested inside.
 Future<void> linkSmsImportViaRepositories({
   required SmsInboxRepository inboxRepository,
   required MerchantMemoryRepository memoryRepository,
@@ -70,11 +78,15 @@ Future<void> linkSmsImportViaRepositories({
   String? merchant,
   TransactionType? learnCategoryType,
   String? learnCategoryId,
+  SmsTransactionCandidateRepository? cloudCandidateRepository,
 }) async {
   await _swallowLinkingFailure(smsId, () async {
     await inboxRepository.markImported(smsId, linkedEntityId: linkedEntityId);
     if (learnCategoryType != null && learnCategoryId != null) {
       await memoryRepository.record(merchant: merchant, transactionType: learnCategoryType, categoryId: learnCategoryId);
+    }
+    if (cloudCandidateRepository != null) {
+      await cloudCandidateRepository.deleteById(smsId);
     }
   });
 }

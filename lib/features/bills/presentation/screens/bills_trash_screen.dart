@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
+import '../../data/bill_deletion_service.dart';
 import '../../domain/bill.dart';
+import '../providers/bill_occurrence_providers.dart';
 import '../providers/bill_providers.dart';
 
 /// Soft-deleted bills awaiting restore or permanent deletion.
@@ -17,7 +19,7 @@ class BillsTrashScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
-      body: trashAsync.when(
+      body: SafeArea(child: trashAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (trashed) {
@@ -65,7 +67,7 @@ class BillsTrashScreen extends ConsumerWidget {
             },
           );
         },
-      ),
+      )),
     );
   }
 
@@ -86,7 +88,12 @@ class BillsTrashScreen extends ConsumerWidget {
     );
 
     if (confirmed == true) {
-      await ref.read(billRepositoryProvider).permanentlyDelete(bill);
+      await permanentlyDeleteBillAndHistory(
+        bill,
+        billRepository: ref.read(billRepositoryProvider),
+        occurrenceRepository: ref.read(billOccurrenceRepositoryProvider(bill.id)),
+        paymentRepository: ref.read(paymentRepositoryProvider(bill.id)),
+      );
     }
   }
 }

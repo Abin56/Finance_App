@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../features/expense/presentation/providers/expense_providers.dart';
@@ -12,6 +11,7 @@ import '../../../../features/transactions/presentation/providers/transaction_pro
 import '../../../services/fiscal_year_controller.dart';
 import '../../domain/date_range_strategy.dart';
 import '../../domain/widget_configuration.dart';
+import '../../../theme/clay_theme.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.expenseComparison] — my share of this
@@ -60,7 +60,7 @@ class ExpenseComparisonWidgetCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: AppSizes.lg),
+          const SizedBox(height: AppSizes.sm),
           if (total <= 0)
             Text(
               'No expenses in this period yet.',
@@ -73,7 +73,7 @@ class ExpenseComparisonWidgetCard extends ConsumerWidget {
                   child: _ComparisonStat(
                     label: 'My Expenses',
                     amount: myExpenses,
-                    color: AppColors.primary,
+                    color: AppClay.primary,
                     format: format,
                   ),
                 ),
@@ -82,7 +82,7 @@ class ExpenseComparisonWidgetCard extends ConsumerWidget {
                   child: _ComparisonStat(
                     label: 'People\'s Share',
                     amount: othersShare,
-                    color: AppColors.secondary,
+                    color: AppClay.secondary,
                     format: format,
                     alignEnd: true,
                   ),
@@ -96,11 +96,19 @@ class ExpenseComparisonWidgetCard extends ConsumerWidget {
                 children: [
                   Expanded(
                     flex: (myFraction * 1000).round().clamp(1, 999),
-                    child: Container(height: 10, color: AppColors.primary),
+                    child: Container(
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(colors: [AppClay.secondary, AppClay.primary]),
+                      ),
+                    ),
                   ),
                   Expanded(
                     flex: (1000 - (myFraction * 1000).round()).clamp(1, 999),
-                    child: Container(height: 10, color: AppColors.secondary),
+                    child: Container(
+                      height: 7,
+                      decoration: BoxDecoration(color: AppClay.secondary.withValues(alpha: 0.5)),
+                    ),
                   ),
                 ],
               ),
@@ -111,11 +119,11 @@ class ExpenseComparisonWidgetCard extends ConsumerWidget {
               children: [
                 Text(
                   '${(myFraction * 100).round()}% mine',
-                  style: textTheme.labelSmall?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700),
+                  style: textTheme.labelSmall?.copyWith(color: AppClay.primary, fontWeight: FontWeight.w700),
                 ),
                 Text(
                   '${(100 - myFraction * 100).round()}% others\'',
-                  style: textTheme.labelSmall?.copyWith(color: AppColors.secondary, fontWeight: FontWeight.w700),
+                  style: textTheme.labelSmall?.copyWith(color: AppClay.secondary, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -146,7 +154,7 @@ class _ComparisonStat extends StatelessWidget {
     final crossAlign = alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final textAlign = alignEnd ? TextAlign.end : TextAlign.start;
     final boxAlign = alignEnd ? Alignment.centerRight : Alignment.centerLeft;
-    final dot = Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle));
+    final dot = Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle));
     final labelText = Flexible(
       child: Text(
         label,
@@ -170,7 +178,7 @@ class _ComparisonStat extends StatelessWidget {
           alignment: boxAlign,
           child: Text(
             format.format(amount),
-            style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: color),
+            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
             textAlign: textAlign,
           ),
         ),

@@ -13,18 +13,20 @@ class SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.account_balance_wallet_rounded, size: AppSizes.xxxl * 2, color: theme.colorScheme.primary),
-            const SizedBox(height: AppSizes.lg),
-            Text(AppStrings.appName, style: theme.textTheme.headlineMedium),
-            const SizedBox(height: AppSizes.sm),
-            Text(AppStrings.tagline, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: AppSizes.xxl),
-            const CircularProgressIndicator(),
-          ],
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.account_balance_wallet_rounded, size: AppSizes.xxxl * 2, color: theme.colorScheme.primary),
+              const SizedBox(height: AppSizes.lg),
+              Text(AppStrings.appName, style: theme.textTheme.headlineMedium),
+              const SizedBox(height: AppSizes.sm),
+              Text(AppStrings.tagline, style: theme.textTheme.bodyMedium),
+              const SizedBox(height: AppSizes.xxl),
+              const CircularProgressIndicator(),
+            ],
+          ),
         ),
       ),
     );

@@ -5,9 +5,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/num_extensions.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../domain/savings_goal.dart';
 import '../providers/savings_providers.dart';
@@ -79,7 +79,7 @@ class SavingsGoalTile extends ConsumerWidget {
     final dueDateLabel = _dueDateLabel;
     final overdue = dueDateLabel == 'Missed Payment';
 
-    return AppCard(
+    return ClayCard(
       onTap: () => SavingsGoalFormSheet.show(context, goal: goal),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

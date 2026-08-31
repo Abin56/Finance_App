@@ -33,15 +33,17 @@ class MiniTrendChart extends StatelessWidget {
             LineChartBarData(
               spots: [for (var i = 0; i < points.length; i++) FlSpot(i.toDouble(), points[i])],
               isCurved: true,
-              color: color,
-              barWidth: 2,
+              curveSmoothness: 0.3,
+              gradient: LinearGradient(colors: [color.withValues(alpha: 0.6), color]),
+              barWidth: 2.5,
+              isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [color.withValues(alpha: 0.35), color.withValues(alpha: 0)],
+                  colors: [color.withValues(alpha: 0.4), color.withValues(alpha: 0)],
                 ),
               ),
             ),

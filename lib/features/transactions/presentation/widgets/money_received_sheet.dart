@@ -12,7 +12,8 @@ import '../../../../core/services/receipt_classification_router.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -51,6 +52,7 @@ class MoneyReceivedSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => MoneyReceivedSheet(smsPrefill: smsPrefill),
     );
   }
@@ -148,6 +150,7 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
             categoryId: _categoryId!,
             target: target,
             note: _noteController.text.trim(),
+            source: widget.smsPrefill == null ? null : 'sms',
           );
 
       await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: transaction.id);
@@ -201,7 +204,10 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
 
       case ReceiptTargetKind.loanInstallment:
         final loan = loans.firstWhere((l) => l.id == _loanId);
-        final person = people.firstWhere((p) => p.id == loan.personId);
+        // Institutional loans have no linked person — `person` stays null
+        // for them, and `ReceiptClassificationRouter` skips the ledger
+        // update accordingly instead of requiring one.
+        final person = loan.personId == null ? null : people.firstWhereOrNull((p) => p.id == loan.personId);
         final installment = targetInstallments.firstWhere((i) => i.id == _installmentId);
         return ReceiptClassificationTarget(
           loan: loan,
@@ -285,25 +291,29 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
             ? unpaidEmiInstallments
             : const <Installment>[];
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Money received', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.lg),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Money received',
+        confirmLabel: 'Save',
+        isSaving: _isSaving,
+        onConfirm: () => _save(
+          people: people,
+          loans: loans,
+          emis: emis,
+          savingsGoals: savingsGoals,
+          targetInstallments: targetInstallments,
+          pendingSplitParticipants: pendingSplitParticipants,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              const SectionLabel('What & How Much'),
+              const SizedBox(height: AppSizes.sm),
               DropdownButtonFormField<ReceiptPurpose>(
                 initialValue: purpose,
-                decoration: InputDecoration(labelText: 'Why did you receive this?', errorText: _purposeError),
+                decoration: _premiumDecoration(context, label: 'Why did you receive this?', errorText: _purposeError),
+                style: Theme.of(context).textTheme.bodyMedium,
                 items: [
                   for (final p in ReceiptPurpose.values) DropdownMenuItem(value: p, child: Text(p.label)),
                 ],
@@ -313,14 +323,17 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
                   _resetTargetSelections();
                 }),
               ),
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(labelText: 'Amount'),
+                decoration: _premiumDecoration(context, label: 'Amount'),
+                style: Theme.of(context).textTheme.bodyMedium,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: Validators.amount,
               ),
               const SizedBox(height: AppSizes.md),
+              const SectionLabel('Where From'),
+              const SizedBox(height: AppSizes.sm),
               accountsAsync.when(
                 loading: () => const LinearProgressIndicator(),
                 error: (error, _) => Text('Could not load accounts: $error'),
@@ -328,7 +341,8 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
                   final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
                   return DropdownButtonFormField<String>(
                     initialValue: validId,
-                    decoration: InputDecoration(labelText: 'Account', errorText: _accountError),
+                    decoration: _premiumDecoration(context, label: 'Account', errorText: _accountError),
+                    style: Theme.of(context).textTheme.bodyMedium,
                     items: [
                       for (final account in accounts)
                         DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
@@ -340,10 +354,11 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
                   );
                 },
               ),
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.sm),
               DropdownButtonFormField<String>(
                 initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-                decoration: InputDecoration(labelText: 'Category', errorText: _categoryError),
+                decoration: _premiumDecoration(context, label: 'Category', errorText: _categoryError),
+                style: Theme.of(context).textTheme.bodyMedium,
                 items: [
                   for (final category in categories)
                     DropdownMenuItem(value: category.id, child: Text(category.name)),
@@ -353,14 +368,12 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
                   _categoryError = null;
                 }),
               ),
-              const SizedBox(height: AppSizes.md),
-              OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                label: Text(_date.fullDate),
-              ),
+              const SizedBox(height: AppSizes.sm),
+              _PremiumTapButton(onTap: _pickDate, icon: Icons.calendar_today_outlined, label: _date.fullDate),
               if (purpose != null && purpose.targetKind != ReceiptTargetKind.none) ...[
-                const SizedBox(height: AppSizes.lg),
+                const SizedBox(height: AppSizes.md),
+                const SectionLabel('Details'),
+                const SizedBox(height: AppSizes.sm),
                 ..._buildTargetFields(
                   purpose: purpose,
                   people: people,
@@ -373,28 +386,16 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
                 ),
               ],
               const SizedBox(height: AppSizes.md),
+              const SectionLabel('Note'),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
+                decoration: _premiumDecoration(context, label: 'Note (optional)'),
+                style: Theme.of(context).textTheme.bodyMedium,
                 maxLines: 2,
                 textInputAction: TextInputAction.done,
               ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: 'Save',
-                isLoading: _isSaving,
-                onPressed: () => _save(
-                  people: people,
-                  loans: loans,
-                  emis: emis,
-                  savingsGoals: savingsGoals,
-                  targetInstallments: targetInstallments,
-                  pendingSplitParticipants: pendingSplitParticipants,
-                ),
-              ),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -415,7 +416,8 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         return [
           DropdownButtonFormField<String>(
             initialValue: people.any((p) => p.id == _personId) ? _personId : null,
-            decoration: InputDecoration(labelText: 'Who returned the money?', errorText: _targetError),
+            decoration: _premiumDecoration(context, label: 'Who returned the money?', errorText: _targetError),
+            style: Theme.of(context).textTheme.bodyMedium,
             items: [
               for (final person in people) DropdownMenuItem(value: person.id, child: Text(person.name)),
             ],
@@ -430,7 +432,8 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         return [
           DropdownButtonFormField<String>(
             initialValue: loans.any((l) => l.id == _loanId) ? _loanId : null,
-            decoration: InputDecoration(labelText: 'Which loan is this for?', errorText: _targetError),
+            decoration: _premiumDecoration(context, label: 'Which loan is this for?', errorText: _targetError),
+            style: Theme.of(context).textTheme.bodyMedium,
             items: [
               for (final loan in loans)
                 DropdownMenuItem(
@@ -445,10 +448,11 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
             }),
           ),
           if (_loanId != null) ...[
-            const SizedBox(height: AppSizes.md),
+            const SizedBox(height: AppSizes.sm),
             DropdownButtonFormField<String>(
               initialValue: unpaidLoanInstallments.any((i) => i.id == _installmentId) ? _installmentId : null,
-              decoration: InputDecoration(labelText: 'Which payment is this for?', errorText: _targetError),
+              decoration: _premiumDecoration(context, label: 'Which payment is this for?', errorText: _targetError),
+              style: Theme.of(context).textTheme.bodyMedium,
               items: [
                 for (final installment in unpaidLoanInstallments)
                   DropdownMenuItem(
@@ -470,7 +474,8 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         return [
           DropdownButtonFormField<String>(
             initialValue: emis.any((e) => e.id == _emiId) ? _emiId : null,
-            decoration: InputDecoration(labelText: 'Which EMI is this for?', errorText: _targetError),
+            decoration: _premiumDecoration(context, label: 'Which EMI is this for?', errorText: _targetError),
+            style: Theme.of(context).textTheme.bodyMedium,
             items: [
               for (final emi in emis) DropdownMenuItem(value: emi.id, child: Text(emi.name)),
             ],
@@ -481,10 +486,11 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
             }),
           ),
           if (_emiId != null) ...[
-            const SizedBox(height: AppSizes.md),
+            const SizedBox(height: AppSizes.sm),
             DropdownButtonFormField<String>(
               initialValue: unpaidEmiInstallments.any((i) => i.id == _installmentId) ? _installmentId : null,
-              decoration: InputDecoration(labelText: 'Which payment is this for?', errorText: _targetError),
+              decoration: _premiumDecoration(context, label: 'Which payment is this for?', errorText: _targetError),
+              style: Theme.of(context).textTheme.bodyMedium,
               items: [
                 for (final installment in unpaidEmiInstallments)
                   DropdownMenuItem(
@@ -506,7 +512,8 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         return [
           DropdownButtonFormField<String>(
             initialValue: savingsGoals.any((g) => g.id == _savingsGoalId) ? _savingsGoalId : null,
-            decoration: InputDecoration(labelText: 'Which savings goal does this add to?', errorText: _targetError),
+            decoration: _premiumDecoration(context, label: 'Which savings goal does this add to?', errorText: _targetError),
+            style: Theme.of(context).textTheme.bodyMedium,
             items: [
               for (final goal in savingsGoals) DropdownMenuItem(value: goal.id, child: Text(goal.name)),
             ],
@@ -523,7 +530,8 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
             initialValue: pendingSplitParticipants.any((e) => e.installment.id == _splitParticipantKey)
                 ? _splitParticipantKey
                 : null,
-            decoration: InputDecoration(labelText: 'Which shared expense is this for?', errorText: _targetError),
+            decoration: _premiumDecoration(context, label: 'Which shared expense is this for?', errorText: _targetError),
+            style: Theme.of(context).textTheme.bodyMedium,
             items: [
               for (final entry in pendingSplitParticipants)
                 DropdownMenuItem(
@@ -544,5 +552,78 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
       case ReceiptTargetKind.none:
         return const [];
     }
+  }
+}
+
+/// The filled, borderless-until-focus field decoration every field on this
+/// sheet shares — same vocabulary as `SplitExpenseFormSheet`'s
+/// `_premiumDecoration`, so every "Add X" sheet in the app reads as one
+/// consistent premium language.
+InputDecoration _premiumDecoration(
+  BuildContext context, {
+  required String label,
+  String? errorText,
+}) {
+  final colors = Theme.of(context).colorScheme;
+  return InputDecoration(
+    labelText: label,
+    errorText: errorText,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    filled: true,
+    fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.primary, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.2),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.6),
+    ),
+  );
+}
+
+/// A filled icon+label tap button — the premium replacement for
+/// [OutlinedButton.icon], used for the date picker so it matches this
+/// sheet's filled-field language instead of standing out as an outlined
+/// control on its own.
+class _PremiumTapButton extends StatelessWidget {
+  const _PremiumTapButton({required this.onTap, required this.icon, required this.label});
+
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: AppSizes.iconSm, color: colors.primary),
+              const SizedBox(width: AppSizes.xs),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

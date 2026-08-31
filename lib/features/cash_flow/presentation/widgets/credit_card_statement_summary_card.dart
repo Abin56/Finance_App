@@ -6,8 +6,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../providers/cash_flow_providers.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
 
@@ -54,7 +54,7 @@ class _CardStatementTile extends StatelessWidget {
     final statement = summary.latestStatement;
     final displayName = card.lastFourDigits != null ? 'Card •••• ${card.lastFourDigits}' : 'Credit Card';
 
-    return AppCard(
+    return ClayCard(
       onTap: () => context.push('${AppRoutes.creditCards}/${card.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

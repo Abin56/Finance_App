@@ -21,7 +21,7 @@ class PaymentUrgencyBadge extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10, vertical: compact ? 2 : 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(compact ? 6 : 8),
+        borderRadius: BorderRadius.zero,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

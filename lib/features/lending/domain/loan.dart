@@ -5,6 +5,8 @@ import '../../../core/models/soft_deletable_entity.dart';
 import '../../../core/payment_schedule/domain/installment.dart';
 import '../../../core/payment_schedule/domain/installment_status.dart';
 import '../../../core/payment_schedule/domain/schedule_type.dart';
+import 'loan_category.dart';
+import 'loan_direction.dart';
 import 'loan_interest.dart';
 import 'loan_repayment_type.dart';
 import 'loan_status.dart';
@@ -17,12 +19,20 @@ import 'loan_status.dart';
 class Loan extends SoftDeletableEntity {
   Loan({
     required this.id,
-    required this.personId,
     required this.loanAmount,
     required this.loanDate,
     required this.repaymentType,
     required this.scheduleId,
     required this.createdAt,
+    this.personId,
+    this.direction = LoanDirection.given,
+    this.category = LoanCategory.personal,
+    this.institutionName,
+    this.loanType,
+    this.loanNumber,
+    this.accountNumber,
+    this.branch,
+    this.payerPersonId,
     this.name,
     this.interest,
     this.dueDate,
@@ -34,17 +44,55 @@ class Loan extends SoftDeletableEntity {
 
   @override
   final String id;
-  final String personId;
+
+  /// Required when [category] is [LoanCategory.personal]; null for
+  /// [LoanCategory.institutional] loans, enforced by
+  /// `LoanRepository.createLoan` rather than the type system (same posture
+  /// as [dueDate]/[installmentFrequency] being conditionally required by
+  /// [repaymentType]). Immutable after creation.
+  final String? personId;
+
+  /// Immutable after creation, like [repaymentType].
+  final LoanDirection direction;
+
+  /// Immutable after creation, like [repaymentType]/[direction].
+  final LoanCategory category;
+
+  /// The 5 fields below are only meaningful for [LoanCategory.institutional]
+  /// loans, but — like [notes] — stay freely editable post-creation via
+  /// `LoanRepository.editLoan` since they're descriptive reference data with
+  /// no schedule/math impact.
+  String? institutionName;
+  String? loanType;
+  String? loanNumber;
+  String? accountNumber;
+  String? branch;
+
+  /// The [Person] who actually pays this loan's installments, when that's
+  /// someone other than the account owner — e.g. an institutional loan you
+  /// took but a friend pays the EMIs for. Distinct from [personId] (the
+  /// lender/counterparty on a personal loan); freely editable post-creation
+  /// like [notes], since who's responsible for paying can change and has no
+  /// schedule/math impact. `null` means the account owner pays it
+  /// themselves (today's default, unchanged).
+  String? payerPersonId;
+
   String? name;
 
   /// Locked once any payment has been recorded — see `LoanRepository.editLoan`.
   double loanAmount;
 
-  /// Immutable after creation — drives the one-shot schedule/installment
-  /// generation in `LoanRepository.createLoan`, with no "regenerate" path.
-  final LoanInterest? interest;
+  /// Editable post-creation for installment loans via
+  /// `LoanRepository.editLoanTerms` (mirrors `Emi.interest`/`editEmiTerms`),
+  /// which re-amortizes only the unpaid tail of the schedule. One-time loans
+  /// never change this after creation — there's no "unpaid tail" to
+  /// regenerate on a single installment.
+  LoanInterest? interest;
 
-  final DateTime loanDate;
+  /// Editable for installment loans via `LoanRepository.editLoanDate`
+  /// (mirrors `Emi.startDate`/`editStartDate`) — only permitted before any
+  /// payment exists, since installment #1's due date is [loanDate] itself.
+  DateTime loanDate;
 
   /// Immutable after creation.
   final LoanRepaymentType repaymentType;
@@ -54,13 +102,15 @@ class Loan extends SoftDeletableEntity {
   final DateTime? dueDate;
 
   /// Required when [repaymentType] is [LoanRepaymentType.installment]; null
-  /// for one-time loans.
-  final ScheduleType? installmentFrequency;
+  /// for one-time loans. Editable post-creation via
+  /// `LoanRepository.editLoanTerms`.
+  ScheduleType? installmentFrequency;
 
   /// Required when [repaymentType] is [LoanRepaymentType.installment]; null
   /// (not 1) for one-time loans, so this field stays a faithful record of
-  /// what the user actually chose.
-  final int? installmentCount;
+  /// what the user actually chose. Editable post-creation via
+  /// `LoanRepository.editLoanTerms`.
+  int? installmentCount;
 
   String notes;
 
@@ -91,7 +141,15 @@ class Loan extends SoftDeletableEntity {
     final data = snapshot.data()!;
     return Loan(
       id: snapshot.id,
-      personId: data['personId'] as String,
+      personId: data['personId'] as String?,
+      direction: LoanDirectionX.fromName(data['direction'] as String?),
+      category: LoanCategoryX.fromName(data['category'] as String?),
+      institutionName: data['institutionName'] as String?,
+      loanType: data['loanType'] as String?,
+      loanNumber: data['loanNumber'] as String?,
+      accountNumber: data['accountNumber'] as String?,
+      branch: data['branch'] as String?,
+      payerPersonId: data['payerPersonId'] as String?,
       name: data['name'] as String?,
       loanAmount: (data['loanAmount'] as num).toDouble(),
       interest: data['interest'] == null ? null : LoanInterest.fromMap(data['interest'] as Map<String, dynamic>),
@@ -117,6 +175,14 @@ class Loan extends SoftDeletableEntity {
   Map<String, dynamic> toFirestore() {
     return {
       'personId': personId,
+      'direction': direction.name,
+      'category': category.name,
+      'institutionName': institutionName,
+      'loanType': loanType,
+      'loanNumber': loanNumber,
+      'accountNumber': accountNumber,
+      'branch': branch,
+      'payerPersonId': payerPersonId,
       'name': name,
       'loanAmount': loanAmount,
       'interest': interest?.toMap(),

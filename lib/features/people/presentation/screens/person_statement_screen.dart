@@ -28,6 +28,7 @@ import '../widgets/ledger_entry_form_sheet.dart';
 import '../widgets/person_cycle_summary_card.dart';
 import '../widgets/person_expense_stats_card.dart';
 import '../widgets/person_form_sheet.dart';
+import '../widgets/person_loans_summary_card.dart';
 import '../widgets/person_pending_breakdown.dart';
 import '../widgets/person_statement_groups_card.dart';
 import '../widgets/person_statement_header.dart';
@@ -149,7 +150,8 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
               onPressed: () => LedgerEntryFormSheet.show(context, person),
               child: const Icon(Icons.add),
             ),
-      body: person == null
+      body: SafeArea(
+        child: person == null
           ? const Center(child: CircularProgressIndicator())
           : CustomScrollView(
               slivers: [
@@ -192,6 +194,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                   ..._historyOrPaymentsSlivers(context, person, sortedAll, ledgerEntryById, cycleView),
               ],
             ),
+      ),
     );
   }
 
@@ -563,6 +566,8 @@ class _SummaryTab extends ConsumerWidget {
         PersonCycleSummaryCard(summary: ref.watch(personCycleSummaryProvider(personId))),
         const SizedBox(height: AppSizes.lg),
         PersonPendingBreakdown(entries: entries),
+        const SizedBox(height: AppSizes.lg),
+        PersonLoansSummaryCard(person: person),
         const SizedBox(height: AppSizes.lg),
         PersonStatementGroupsCard(groups: ref.watch(personStatementGroupsProvider(personId))),
       ],

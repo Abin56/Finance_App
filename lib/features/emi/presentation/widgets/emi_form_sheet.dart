@@ -9,7 +9,8 @@ import '../../../../core/payment_schedule/domain/schedule_type.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../credit_cards/domain/credit_card_profile.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -36,6 +37,7 @@ class EmiFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => EmiFormSheet(emi: emi),
     );
   }
@@ -417,22 +419,18 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final accountNameById = {for (final a in accounts) a.id: a.name};
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_isEditing ? 'Edit EMI' : 'Add EMI', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.lg),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: _isEditing ? 'Edit EMI' : 'Add EMI',
+        confirmLabel: _isEditing ? 'Save changes' : 'Add EMI',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              const SectionLabel('Loan Details'),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Loan name'),
@@ -479,7 +477,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                 ],
                 onChanged: (value) => setState(() => _categoryId = value),
               ),
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.lg),
+              const SectionLabel('Amount & Schedule'),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _amountController,
                 enabled: !hasPayments,
@@ -550,7 +550,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                   onChanged: (_) => setState(() {}),
                 ),
               ],
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.lg),
+              const SectionLabel('Interest'),
+              const SizedBox(height: AppSizes.xs),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Add interest'),
@@ -705,22 +707,16 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.lg),
+              const SectionLabel('Notes'),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _notesController,
                 decoration: const InputDecoration(labelText: 'Notes (optional)'),
                 maxLines: 3,
                 textInputAction: TextInputAction.done,
               ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: _isEditing ? 'Save changes' : 'Add EMI',
-                isLoading: _isSaving,
-                onPressed: _save,
-              ),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+          ],
         ),
       ),
     );

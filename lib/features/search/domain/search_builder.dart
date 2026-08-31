@@ -13,6 +13,7 @@ import '../../credit_cards/domain/credit_card_profile.dart';
 import '../../emi/domain/emi.dart';
 import '../../expense/domain/expense.dart';
 import '../../lending/domain/loan.dart';
+import '../../lending/domain/loan_category.dart';
 import '../../people/domain/person.dart';
 import '../../transactions/domain/transaction.dart';
 import '../../transactions/domain/transaction_type.dart';
@@ -272,14 +273,16 @@ abstract class SearchBuilder {
     for (final l in loans) {
       if (l.isDeleted) continue;
 
+      final isInstitutional = l.category == LoanCategory.institutional;
       final personName = personNameById[l.personId];
-      if (!q.matches([l.name, personName], amount: l.loanAmount)) continue;
+      final counterpartyName = isInstitutional ? l.institutionName : personName;
+      if (!q.matches([l.name, counterpartyName, if (isInstitutional) l.loanNumber], amount: l.loanAmount)) continue;
 
       yield SearchResult(
         id: 'loan-${l.id}',
         group: SearchResultGroup.loans,
-        title: l.name ?? personName ?? 'Loan',
-        subtitle: personName ?? 'Loan',
+        title: l.name ?? counterpartyName ?? 'Loan',
+        subtitle: counterpartyName ?? 'Loan',
         icon: Icons.handshake_outlined,
         kind: TransactionKind.loan,
         amount: l.loanAmount,

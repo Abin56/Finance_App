@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/utils/currency_formatter.dart';
 import '../../../../features/accounts/presentation/providers/account_providers.dart';
 import '../../../../features/transactions/domain/transaction.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
@@ -53,11 +53,12 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
     final netWorth = ref.watch(netWorthProvider);
     final transactions = ref.watch(calculableTransactionsProvider);
     final trend = _weeklyTrend(transactions);
+    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     return DashboardWidgetGradientCard(
       onTap: () => context.push(AppRoutes.accounts),
       child: Padding(
-        padding: const EdgeInsets.all(AppSizes.xl),
+        padding: const EdgeInsets.all(AppSizes.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -66,9 +67,22 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
               children: [
                 Row(
                   children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.account_balance_wallet_rounded, size: 15, color: Colors.white),
+                    ),
+                    const SizedBox(width: AppSizes.sm),
                     Text(
                       widget.config.title,
-                      style: context.textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(width: AppSizes.xs),
                     InkWell(
@@ -76,30 +90,37 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
                       borderRadius: BorderRadius.circular(AppSizes.radiusPill),
                       child: Icon(
                         _hidden ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                        size: AppSizes.iconSm,
+                        size: 14,
                         color: Colors.white.withValues(alpha: 0.85),
                       ),
                     ),
                   ],
                 ),
-                Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.85)),
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), shape: BoxShape.circle),
+                  child: const Icon(Icons.chevron_right_rounded, size: 16, color: Colors.white),
+                ),
               ],
             ),
-            const SizedBox(height: AppSizes.sm),
+            const SizedBox(height: AppSizes.md),
             _hidden
                 ? Text(
                     '••••••',
                     style: context.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
+                      letterSpacing: -0.5,
                     ),
                   )
                 : CountUpText(
                     value: netWorth,
-                    formatter: CurrencyFormatter.instance.format,
+                    formatter: format.format,
                     style: context.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
+                      letterSpacing: -0.5,
                     ),
                   ),
             const SizedBox(height: AppSizes.lg),

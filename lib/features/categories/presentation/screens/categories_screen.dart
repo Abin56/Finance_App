@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/theme/clay_theme.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../data/category_repository.dart';
@@ -36,6 +38,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with Single
     final categoriesAsync = ref.watch(categoriesStreamProvider);
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         title: const Text('Categories'),
         bottom: TabBar(
@@ -52,12 +55,12 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with Single
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: ClayFab(
         heroTag: 'categories_fab',
+        icon: Icons.add_rounded,
         onPressed: () => CategoryFormSheet.show(context),
-        child: const Icon(Icons.add),
       ),
-      body: categoriesAsync.when(
+      body: SafeArea(child: categoriesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (categories) {
@@ -87,7 +90,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with Single
             ],
           );
         },
-      ),
+      )),
     );
   }
 }
@@ -109,7 +112,7 @@ class _CategoryList extends StatelessWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(AppSizes.lg),
+      padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
       children: [
         for (final category in categories)
           Padding(

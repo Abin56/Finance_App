@@ -23,7 +23,7 @@ class DebtorsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('People I Need to Pay')),
-      body: peopleAsync.when(
+      body: SafeArea(child: peopleAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (_) {
@@ -67,7 +67,7 @@ class DebtorsScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
+      )),
     );
   }
 }

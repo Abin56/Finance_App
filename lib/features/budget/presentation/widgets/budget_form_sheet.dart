@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../domain/budget.dart';
 import '../../domain/budget_type.dart';
 import '../providers/budget_providers.dart';
@@ -36,6 +35,7 @@ class BudgetFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => BudgetFormSheet(
         type: type,
         categoryId: categoryId,
@@ -103,36 +103,19 @@ class _BudgetFormSheetState extends ConsumerState<BudgetFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSizes.lg),
-            TextFormField(
-              controller: _amountController,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: Validators.amount,
-            ),
-            const SizedBox(height: AppSizes.xl),
-            PrimaryButton(
-              label: _isEditing ? 'Save changes' : 'Set budget',
-              isLoading: _isSaving,
-              onPressed: _save,
-            ),
-            const SizedBox(height: AppSizes.sm),
-          ],
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: _title,
+        confirmLabel: _isEditing ? 'Save changes' : 'Set budget',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: TextFormField(
+          controller: _amountController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Amount'),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          validator: Validators.amount,
         ),
       ),
     );

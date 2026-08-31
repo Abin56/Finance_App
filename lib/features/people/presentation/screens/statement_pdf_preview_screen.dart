@@ -53,17 +53,19 @@ class StatementPdfPreviewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Statement PDF')),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSizes.md),
-        child: PdfPreview(
-          build: (format) async {
-            final doc = await StatementPdfBuilder.build(model);
-            return doc.save();
-          },
-          pdfFileName: '$_fileStem.pdf',
-          canChangeOrientation: false,
-          canChangePageFormat: false,
-          canDebug: false,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.md),
+          child: PdfPreview(
+            build: (format) async {
+              final doc = await StatementPdfBuilder.build(model);
+              return doc.save();
+            },
+            pdfFileName: '$_fileStem.pdf',
+            canChangeOrientation: false,
+            canChangePageFormat: false,
+            canDebug: false,
+          ),
         ),
       ),
     );

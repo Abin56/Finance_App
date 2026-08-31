@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
@@ -13,6 +12,8 @@ import '../../../../features/credit_cards/domain/statement.dart';
 import '../../../../features/credit_cards/domain/statement_status.dart';
 import '../../../../features/credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../domain/widget_configuration.dart';
+import '../../../theme/clay_theme.dart';
+import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.creditCards] — a usage summary per card:
@@ -75,11 +76,11 @@ class CreditCardsWidgetCard extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: _SummaryStat(label: 'Outstanding', amount: outstanding, color: AppColors.expense),
+                child: _SummaryStat(label: 'Outstanding', amount: outstanding, color: AppClay.expense),
               ),
               const SizedBox(width: AppSizes.md),
               Expanded(
-                child: _SummaryStat(label: 'Available Credit', amount: available, color: AppColors.income),
+                child: _SummaryStat(label: 'Available Credit', amount: available, color: AppClay.income),
               ),
             ],
           ),
@@ -105,22 +106,22 @@ class _SummaryStat extends StatelessWidget {
     final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
     return Container(
-      padding: const EdgeInsets.all(AppSizes.md),
+      padding: const EdgeInsets.all(AppSizes.sm),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppClay.radiusMd),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
-          const SizedBox(height: AppSizes.xs),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               format.format(amount),
-              style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+              style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: color),
             ),
           ),
         ],
@@ -158,10 +159,10 @@ class _CardUsageRow extends ConsumerWidget {
     final limit = standing.outstanding + standing.available;
     final utilization = limit <= 0 ? 0.0 : (standing.outstanding / limit).clamp(0.0, 1.0);
     final utilizationColor = utilization < 0.3
-        ? AppColors.success
+        ? AppClay.success
         : utilization < 0.75
-            ? AppColors.warning
-            : AppColors.error;
+            ? AppClay.warning
+            : AppClay.danger;
     final name = account?.name ?? 'Card';
     final last4 = card.lastFourDigits;
 
@@ -169,26 +170,18 @@ class _CardUsageRow extends ConsumerWidget {
       borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       onTap: () => context.push('/creditCards/${card.id}'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
+        padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: colors.onSurfaceVariant.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.credit_card_rounded, size: AppSizes.iconSm, color: colors.onSurfaceVariant),
-                ),
+                ClayIconChip(icon: Icons.credit_card_rounded, color: colors.onSurfaceVariant),
                 const SizedBox(width: AppSizes.sm),
                 Expanded(
                   child: Text(
                     last4 == null || last4.isEmpty ? name : '$name •••• $last4',
-                    style: textTheme.bodyMedium,
+                    style: textTheme.bodySmall,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -199,22 +192,14 @@ class _CardUsageRow extends ConsumerWidget {
                     alignment: Alignment.centerRight,
                     child: Text(
                       format.format(standing.outstanding),
-                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSizes.xs),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-              child: LinearProgressIndicator(
-                value: utilization,
-                minHeight: 4,
-                color: utilizationColor,
-                backgroundColor: utilizationColor.withValues(alpha: 0.15),
-              ),
-            ),
+            ClayProgressBar(value: utilization, height: 5, colors: [utilizationColor.withValues(alpha: 0.7), utilizationColor]),
             const SizedBox(height: AppSizes.xs),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -234,8 +219,8 @@ class _CardUsageRow extends ConsumerWidget {
                         : 'Due ${nextDue.dueDate.shortDate}',
                     style: textTheme.bodySmall?.copyWith(
                       color: switch (nextDue.status) {
-                        StatementStatus.overdue => AppColors.error,
-                        StatementStatus.dueSoon => AppColors.warning,
+                        StatementStatus.overdue => AppClay.danger,
+                        StatementStatus.dueSoon => AppClay.warning,
                         _ => colors.onSurfaceVariant,
                       },
                       fontWeight: FontWeight.w600,

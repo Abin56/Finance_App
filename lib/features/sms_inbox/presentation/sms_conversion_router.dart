@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +15,7 @@ import '../../transactions/domain/transaction_type.dart';
 import '../../transactions/presentation/screens/add_expense_screen.dart';
 import '../../transactions/presentation/screens/transfer_screen.dart';
 import '../../transactions/presentation/widgets/money_received_sheet.dart';
+import '../domain/account_card_matcher.dart';
 import '../domain/sms_conversion_target.dart';
 import '../domain/sms_inbox_item.dart';
 import '../domain/sms_prefill.dart';
@@ -150,34 +152,37 @@ class SmsConversionRouter {
       merchantOrSender: parsed?.merchantOrSender,
       suggestedCategoryId: suggestion?.categoryId,
       categorySuggestionSource: suggestion?.source,
-      suggestedAccountId: _matchAccountId(ref, parsed?.maskedAccountOrCard),
+      suggestedAccountId: _matchAccountId(ref, item),
       referenceNumber: parsed?.referenceNumber,
       note: _buildNote(item),
     );
   }
 
-  /// Resolves the account behind a masked last-4 the SMS exposed, checking
-  /// both credit cards and plain bank Accounts, but **only when exactly one**
-  /// match turns up across the two combined. Two cards, two accounts, or a
-  /// card and an account sharing a last-4 is uncommon but entirely real, and
-  /// there is nothing else in the SMS to break the tie — so per the feature
-  /// spec ("Never guess. If multiple could match, leave unselected") an
-  /// ambiguous match yields null and the user picks. Silently taking the
-  /// first match would put the spend on the wrong account's statement, which
-  /// is a wrong number rather than a missing one.
-  String? _matchAccountId(WidgetRef ref, String? maskedAccountOrCard) {
-    if (maskedAccountOrCard == null) return null;
+  /// Resolves the account [item] belongs to. Prefers the `TransactionCandidate`
+  /// already built for this SMS during the last scan (see
+  /// `TransactionCandidateBuilder`/`AccountCardMatcher`) — it's the same
+  /// match, already computed, already accounting for bank confirmation and
+  /// ambiguity. Falls back to running [AccountCardMatcher] directly only when
+  /// no candidate exists yet (e.g. converting an SMS before a scan has had a
+  /// chance to generate one for it), so this never becomes a second, ad hoc
+  /// matching heuristic living alongside the real one.
+  ///
+  /// Per the feature spec ("Never guess. If multiple could match, leave
+  /// unselected"), an ambiguous or absent match yields null and the user
+  /// picks — see [AccountCardMatcher]'s own doc for why.
+  String? _matchAccountId(WidgetRef ref, SmsInboxItem item) {
+    final candidates = ref.read(transactionCandidatesProvider).valueOrNull ?? const [];
+    final candidate = candidates.firstWhereOrNull((c) => c.smsItemId == item.id);
+    if (candidate != null) return candidate.matchedAccountId;
 
-    final cards = ref.read(creditCardsStreamProvider).value ?? const [];
-    final cardMatches = cards.where((card) => card.lastFourDigits == maskedAccountOrCard).map((c) => c.accountId);
+    final parsed = item.parsed;
+    if (parsed == null) return null;
 
-    final accounts = ref.read(accountsStreamProvider).value ?? const [];
-    final accountMatches = accounts
-        .where((account) => account.accountNumberLast4 == maskedAccountOrCard)
-        .map((a) => a.id);
-
-    final matches = {...cardMatches, ...accountMatches};
-    return matches.length == 1 ? matches.single : null;
+    final matcher = AccountCardMatcher(
+      accounts: ref.read(accountsStreamProvider).value ?? const [],
+      cards: ref.read(activeCreditCardsProvider),
+    );
+    return matcher.match(parsed).matchedAccountId;
   }
 
   String? _buildNote(SmsInboxItem item) {

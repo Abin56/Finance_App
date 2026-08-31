@@ -125,7 +125,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
         onPressed: () => BillFormSheet.show(context),
         child: const Icon(Icons.add),
       ),
-      body: billsAsync.when(
+      body: SafeArea(child: billsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (bills) {
@@ -228,7 +228,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
             },
           );
         },
-      ),
+      )),
     );
   }
 

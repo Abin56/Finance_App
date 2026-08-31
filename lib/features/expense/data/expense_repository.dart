@@ -252,6 +252,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     DateTime? dueDate,
     bool excludeFromCalculations = false,
     DateTime? accountingMonth,
+    String? source,
   }) async {
     if (description.trim().isEmpty) {
       throw const AppException('Expense description is required');
@@ -271,6 +272,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       notes: notes,
       excludeFromCalculations: excludeFromCalculations,
       accountingMonth: accountingMonth,
+      source: source,
     );
 
     final expenseId = IdGenerator.generate();
@@ -323,6 +325,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     DateTime? dueDate,
     bool excludeFromCalculations = false,
     DateTime? accountingMonth,
+    String? source,
   }) {
     return createExpense(
       description: description,
@@ -338,6 +341,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       dueDate: dueDate,
       excludeFromCalculations: excludeFromCalculations,
       accountingMonth: accountingMonth,
+      source: source,
     );
   }
 
@@ -919,6 +923,52 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     }
 
     await softDelete(expense);
+  }
+
+  /// Wipes [expense] and everything it posted — unlike [deleteExpense]
+  /// (soft-delete, reversible from Trash), this permanently removes the
+  /// linked [Transaction], the `PaymentSchedule` + every `Installment` on
+  /// it, and every person [LedgerEntry] this expense posted. For each
+  /// active ledger entry, reuses the existing [LedgerRepository.softDeleteEntry]
+  /// to reverse its balance effect correctly before removing it — the same
+  /// delta math [softDeleteEntry] already gets right, not reimplemented
+  /// here. Used by the account/credit-card permanent-delete cascade
+  /// (`account_deletion_service.dart`) for a split/assigned expense whose
+  /// account is being permanently deleted.
+  Future<void> permanentlyDeleteExpense(Expense expense) async {
+    for (final participant in expense.participants) {
+      if (participant.personId == null) continue;
+      final person = await personRepository.getByKey(participant.personId!);
+      if (person == null) continue;
+
+      final ledgerRepository = _ledgerRepositoryFor(person.id);
+      final activeEntries = await ledgerRepository.getByTransactionRef(expense.transactionId);
+      final trashedEntries = await ledgerRepository.getTrashByTransactionRef(expense.transactionId);
+      for (final entry in activeEntries) {
+        await ledgerRepository.softDeleteEntry(person, entry);
+        await ledgerRepository.permanentlyDeleteEntry(entry);
+      }
+      for (final entry in trashedEntries) {
+        await ledgerRepository.permanentlyDeleteEntry(entry);
+      }
+    }
+
+    final scheduleId = expense.scheduleId;
+    if (scheduleId != null) {
+      final installmentRepository = _installmentRepositoryFor(scheduleId);
+      final installments = [...await installmentRepository.getAll(), ...await installmentRepository.getTrash()];
+      for (final installment in installments) {
+        await installmentRepository.permanentlyDelete(installment);
+      }
+      await paymentScheduleRepository.collection.doc(scheduleId).delete();
+    }
+
+    final transaction = await transactionRepository.getByKey(expense.transactionId);
+    if (transaction != null) {
+      await transactionRepository.permanentlyDeleteTransaction(transaction);
+    }
+
+    await permanentlyDelete(expense);
   }
 
   /// Restores everything [deleteExpense] cascaded — the exact inverse, so a

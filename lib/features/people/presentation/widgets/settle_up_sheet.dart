@@ -7,7 +7,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/widgets/record_split_payment_sheet.dart';
 import '../../domain/person.dart';
@@ -39,6 +39,7 @@ class SettleUpSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => SettleUpSheet(person: person),
     );
   }
@@ -139,22 +140,17 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
         .where((p) => p.installment.remainingAmount > 0)
         .toList();
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Receive Money from ${person.name}', style: context.textTheme.titleLarge),
-              const SizedBox(height: AppSizes.lg),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Receive Money from ${person.name}',
+        confirmLabel: 'Save Payment',
+        isSaving: _isSaving,
+        showConfirm: person.currentBalance != 0 && _target != _PaymentTarget.specificExpense,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               if (person.currentBalance == 0)
                 Text(
                   'Nothing to receive — you\'re all paid up.',
@@ -240,17 +236,12 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
                   ),
                 ],
                 const SizedBox(height: AppSizes.lg),
-                if (_target != _PaymentTarget.specificExpense)
-                  PrimaryButton(label: 'Save Payment', isLoading: _isSaving, onPressed: _save),
-                const SizedBox(height: AppSizes.sm),
                 Text(
                   'After saving, ${person.name}\'s pending amount will be updated automatically.',
                   style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
                 ),
               ],
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+          ],
         ),
       ),
     );

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../domain/ledger_entry_type.dart';
 import '../../domain/person.dart';
 import '../providers/people_providers.dart';
@@ -21,6 +21,7 @@ class LedgerEntryFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => LedgerEntryFormSheet(person: person),
     );
   }
@@ -83,22 +84,16 @@ class _LedgerEntryFormSheetState extends ConsumerState<LedgerEntryFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Add entry for ${widget.person.name}', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.lg),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Add entry for ${widget.person.name}',
+        confirmLabel: 'Add entry',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               DropdownButtonFormField<LedgerEntryType>(
                 initialValue: _type,
                 isExpanded: true,
@@ -160,11 +155,7 @@ class _LedgerEntryFormSheetState extends ConsumerState<LedgerEntryFormSheet> {
                 maxLines: 2,
                 textInputAction: TextInputAction.done,
               ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(label: 'Add entry', isLoading: _isSaving, onPressed: _save),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+          ],
         ),
       ),
     );

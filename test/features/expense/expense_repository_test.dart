@@ -342,6 +342,37 @@ void main() {
       );
     });
 
+    test('carries source through to the created Transaction when supplied (SMS conversion)', () async {
+      final expense = await repository.createExpense(
+        description: 'Dinner',
+        totalAmount: 100,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.none,
+        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+        source: 'sms',
+      );
+
+      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
+      expect(txSnapshot.data()!['source'], 'sms');
+    });
+
+    test('source defaults to null for a normal (manual) create', () async {
+      final expense = await repository.createExpense(
+        description: 'Dinner',
+        totalAmount: 100,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        splitType: SplitType.none,
+        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+      );
+
+      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
+      expect(txSnapshot.data()!['source'], isNull);
+    });
+
     test('unsplit expense (SplitType.none) has no participants and no schedule', () async {
       final expense = await repository.createExpense(
         description: 'Solo lunch',
@@ -635,6 +666,24 @@ void main() {
 
       final refreshedAlice = await personRepository.getByKey(alice.id);
       expect(refreshedAlice!.currentBalance, 150);
+    });
+
+    test('forwards source through to the created Transaction when supplied (SMS conversion)', () async {
+      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+
+      final expense = await repository.assignToPerson(
+        description: 'Concert tickets',
+        totalAmount: 150,
+        date: DateTime(2026, 1, 1),
+        categoryId: categoryId,
+        accountId: accountId,
+        personId: alice.id,
+        personName: 'Alice',
+        source: 'sms',
+      );
+
+      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
+      expect(txSnapshot.data()!['source'], 'sms');
     });
   });
 

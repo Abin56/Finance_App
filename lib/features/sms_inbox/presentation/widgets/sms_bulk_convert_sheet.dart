@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,6 +48,7 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
   String? _categoryId;
   String? _accountId;
   bool _categoryTouched = false;
+  bool _accountTouched = false;
   String? _categoryError;
   String? _accountError;
 
@@ -105,6 +107,25 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
         ?.categoryId;
   }
 
+  /// Suggests the account every selected message's `TransactionCandidate`
+  /// agrees on — same "only when unanimous" caution as [_suggestedCategoryId]
+  /// above, since a wrong shared account here misfiles every converted
+  /// message's spend at once, not just one. A message with no candidate yet,
+  /// or candidates that disagree, yields no suggestion — the user picks.
+  String? _suggestedAccountId() {
+    // watch, not read: unlike the other seed-once suggestions in this sheet
+    // (category, dominant type), TransactionCandidate rows are the result of
+    // an async local DB read that may still be in flight on the sheet's
+    // first build — watching is what makes the suggestion actually land
+    // once it resolves, instead of only ever seeing whatever was cached at
+    // that first build.
+    final candidates = ref.watch(transactionCandidatesProvider).valueOrNull ?? const [];
+    final matchedIds = widget.items
+        .map((item) => candidates.firstWhereOrNull((c) => c.smsItemId == item.id)?.matchedAccountId)
+        .toSet();
+    return matchedIds.length == 1 ? matchedIds.first : null;
+  }
+
   @override
   void dispose() {
     _notesController.dispose();
@@ -142,6 +163,9 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
     // A category from the previous type won't exist in this type's list.
     if (_categoryId != null && !categories.any((category) => category.id == _categoryId)) {
       _categoryId = null;
+    }
+    if (!_accountTouched && _accountId == null) {
+      _accountId = _suggestedAccountId();
     }
 
     return SafeArea(
@@ -221,6 +245,7 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
                 ],
                 onChanged: (value) => setState(() {
                   _accountId = value;
+                  _accountTouched = true;
                   _accountError = null;
                 }),
               ),

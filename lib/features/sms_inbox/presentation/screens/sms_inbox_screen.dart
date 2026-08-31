@@ -13,7 +13,9 @@ import '../../domain/filter/sms_sort_order.dart';
 import '../../domain/sms_availability.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
+import '../../domain/sms_read_exception.dart';
 import '../../domain/sms_transaction_direction.dart';
+import '../../domain/transaction_candidate.dart';
 import '../providers/sms_inbox_providers.dart';
 import '../sms_bulk_converter.dart';
 import '../sms_conversion_router.dart';
@@ -124,7 +126,10 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
       ),
       body: availabilityAsync.when(
         loading: () => const SmsInboxSkeletonList(),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
+        error: (error, _) => _SmsErrorView(
+          error: error,
+          onRetry: () => ref.read(smsAvailabilityProvider.notifier).recheck(),
+        ),
         data: (availability) {
           if (availability != SmsAvailability.granted) {
             return SmsPermissionGateView(availability: availability);
@@ -183,10 +188,17 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
 
     return itemsAsync.when(
       loading: () => const SmsInboxSkeletonList(),
-      error: (error, _) => Center(child: Text('Something went wrong: $error')),
+      error: (error, _) => _SmsErrorView(
+        error: error,
+        onRetry: () => ref.read(smsInboxItemsProvider.notifier).scan(),
+      ),
       data: (_) {
         final visible = ref.watch(smsFilteredItemsProvider);
         final rows = _buildRows(visible);
+        final candidatesBySmsId = <String, TransactionCandidate>{
+          for (final candidate in ref.watch(transactionCandidatesProvider).valueOrNull ?? const [])
+            candidate.smsItemId: candidate,
+        };
 
         return RefreshIndicator(
           onRefresh: () => ref.read(smsInboxItemsProvider.notifier).scan(),
@@ -206,7 +218,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
               else
                 SliverList.builder(
                   itemCount: rows.length,
-                  itemBuilder: (context, index) => _buildRow(rows[index]),
+                  itemBuilder: (context, index) => _buildRow(rows[index], candidatesBySmsId),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: AppSizes.xxl)),
             ],
@@ -232,7 +244,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
     ];
   }
 
-  Widget _buildRow(_Row row) {
+  Widget _buildRow(_Row row, Map<String, TransactionCandidate> candidatesBySmsId) {
     final item = row.item;
     if (item == null) {
       return _SmsDateGroupHeader(date: row.date!, items: row.groupItems!);
@@ -246,6 +258,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
           SmsMessageTile(
             key: ValueKey(item.id),
             item: item,
+            candidate: candidatesBySmsId[item.id],
             selectionMode: _selectionMode,
             selected: _selectedIds.contains(item.id),
             onTap: () => _selectionMode ? _toggleSelected(item.id) : _openDetail(item),
@@ -546,6 +559,63 @@ class _SmsDateGroupHeader extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shown whenever a permission check or SMS scan fails outright — never a
+/// generic silent no-op. Always visible and always includes the raw
+/// exception (selectable, so it can be copied straight into a bug report)
+/// alongside a friendlier explanation when one is available, so a failure
+/// is diagnosable from a screenshot without needing device logcat access.
+class _SmsErrorView extends StatelessWidget {
+  const _SmsErrorView({required this.error, required this.onRetry});
+
+  final Object error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final friendlyMessage = error is SmsReadException ? (error as SmsReadException).message : null;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSizes.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: AppSizes.iconXl, color: context.colors.error),
+            const SizedBox(height: AppSizes.lg),
+            Text(
+              'SMS Inbox couldn\'t load',
+              style: context.textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSizes.sm),
+            if (friendlyMessage != null)
+              Text(
+                friendlyMessage,
+                style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                textAlign: TextAlign.center,
+              ),
+            const SizedBox(height: AppSizes.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSizes.md),
+              decoration: BoxDecoration(
+                color: context.colors.error.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+              ),
+              child: SelectableText(
+                '${error.runtimeType}: $error',
+                style: context.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+              ),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            OutlinedButton(onPressed: onRetry, child: const Text('Try again')),
+          ],
+        ),
       ),
     );
   }

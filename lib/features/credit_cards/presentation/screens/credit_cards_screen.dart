@@ -40,6 +40,12 @@ class CreditCardsScreen extends ConsumerStatefulWidget {
 /// or semantic color.
 const Color _addCardAccent = Color(0xFF6B3F8C);
 
+/// Fallback for a card whose linked account has no color yet — deliberately
+/// this file's own purple wallet accent rather than [ColorScheme.primary],
+/// which is a pale, washed-out blue in dark mode and lerps toward black into
+/// a flat, boring gray gradient instead of a rich card face.
+final int _defaultCardColorValue = _addCardAccent.toARGB32();
+
 class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
   int _frontIndex = 0;
 
@@ -345,8 +351,11 @@ class _HeroCarousel extends StatelessWidget {
   }) {
     if (depth >= maxPeeks) return const SizedBox.shrink();
     final card = cards[index];
-    final colorValue = accountColorById[card.accountId] ?? context.colors.primary.toARGB32();
-    final base = Color(colorValue);
+    final colorValue = accountColorById[card.accountId] ?? _defaultCardColorValue;
+    // The gradient's own highlight stop, not the raw stored color — a
+    // low-saturation pick (e.g. "Silver") would otherwise fade to a flat
+    // gray sliver instead of matching the richer face it peeks out from.
+    final base = cardFaceGradientColors(Color(colorValue)).first;
     // Each card behind the front one occupies its own fixed-width slot,
     // shifted further right the deeper it sits — rather than a single
     // widening block — so every card's own right edge stays visible as a
@@ -401,7 +410,7 @@ class _HeroCardFace extends StatelessWidget {
             children: [
               CreditCardVisual(
                 title: name,
-                colorValue: colorValue ?? context.colors.primary.toARGB32(),
+                colorValue: colorValue ?? _defaultCardColorValue,
                 bankId: bankId,
                 cardNetwork: card.cardNetwork,
                 lastFourDigits: card.lastFourDigits,
@@ -660,7 +669,8 @@ class _CardStandingSummaryCard extends ConsumerWidget {
     final memberCards = sharedLimit == null ? const <CreditCardProfile>[] : ref.watch(cardsUnderSharedLimitProvider(sharedLimit.id));
     final totalLimit = sharedLimit?.creditLimit ?? card.creditLimit;
     final ratio = totalLimit <= 0 ? 0.0 : (standing.outstanding / totalLimit).clampedProgress;
-    final base = Color(colorValue ?? context.colors.primary.toARGB32());
+    final base = Color(colorValue ?? _defaultCardColorValue);
+    final gradientColors = cardFaceGradientColors(base);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -671,7 +681,7 @@ class _CardStandingSummaryCard extends ConsumerWidget {
           available: standing.available,
           used: standing.outstanding,
           ratio: ratio,
-          gradientColors: [base, Color.lerp(base, Colors.black, 0.4)!],
+          gradientColors: gradientColors,
         ),
         if (sharedLimit != null) ...[
           const SizedBox(height: AppSizes.xs),
@@ -1060,7 +1070,7 @@ class _CardListTile extends ConsumerWidget {
                 width: 72,
                 height: 52,
                 child: _CardListThumbnail(
-                  colorValue: colorValue ?? context.colors.primary.toARGB32(),
+                  colorValue: colorValue ?? _defaultCardColorValue,
                   bankId: bankId,
                   lastFourDigits: card.lastFourDigits,
                 ),
@@ -1185,7 +1195,7 @@ class _CardListThumbnail extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [base, Color.lerp(base, Colors.black, 0.4)!],
+          colors: cardFaceGradientColors(base),
         ),
       ),
       child: Column(

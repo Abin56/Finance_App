@@ -43,7 +43,7 @@ class InsightsWidgetCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           if (insights.isEmpty)
             Text('Nothing to report yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
           else

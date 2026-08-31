@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/services/fiscal_year_controller.dart';
+import '../../../../core/theme/clay_theme.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/section_header.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -86,8 +87,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     final insights = ref.watch(generalInsightsProvider(insightArgs));
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(title: const Text('Reports')),
-      body: transactions.isEmpty && emis.isEmpty
+      body: SafeArea(child: transactions.isEmpty && emis.isEmpty
           ? const EmptyState(
               icon: Icons.pie_chart_outline_rounded,
               title: 'No reports yet',
@@ -181,7 +183,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 const SizedBox(height: AppSizes.lg),
                 FinancialHealthSection(range: range, previousRange: previousRange, period: _period),
               ],
-            ),
+            )),
     );
   }
 

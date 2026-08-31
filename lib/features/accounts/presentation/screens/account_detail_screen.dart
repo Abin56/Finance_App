@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/theme/clay_theme.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../transactions/presentation/screens/transactions_screen.dart';
 import '../../domain/account.dart';
 import '../../domain/account_stats.dart';
@@ -37,34 +37,34 @@ class AccountDetailScreen extends ConsumerWidget {
     final stats = ref.watch(accountStatsProvider(accountId));
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(
+        backgroundColor: AppClay.background(context),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: Row(
           children: [
             if (account.type == AccountType.bank || account.type == AccountType.card)
               BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 32)
             else
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Color(account.colorValue).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-                ),
-                child: Icon(account.type.icon, color: Color(account.colorValue), size: 18),
-              ),
+              ClayIconChip(icon: account.type.icon, color: Color(account.colorValue), size: 32, iconSize: 18),
             const SizedBox(width: AppSizes.sm),
             Flexible(child: Text(account.name, overflow: TextOverflow.ellipsis)),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit Account',
-            onPressed: () => AccountFormSheet.show(context, account: account),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSizes.sm),
+            child: ClayIconButton(
+              icon: Icons.edit_outlined,
+              tooltip: 'Edit Account',
+              onPressed: () => AccountFormSheet.show(context, account: account),
+            ),
           ),
         ],
       ),
-      body: ListView(
+      body: SafeArea(
+        child: ListView(
         padding: const EdgeInsets.all(AppSizes.lg),
         children: [
           _BalanceCard(account: account),
@@ -73,14 +73,24 @@ class AccountDetailScreen extends ConsumerWidget {
           const SizedBox(height: AppSizes.lg),
           _MonthlySpendingCard(currentMonthExpense: stats.currentMonthExpense),
           const SizedBox(height: AppSizes.lg),
-          FilledButton.tonalIcon(
-            onPressed: () => Navigator.of(context).push(
+          ClayCard(
+            onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => TransactionsScreen(initialAccountId: accountId)),
             ),
-            icon: const Icon(Icons.receipt_long_outlined),
-            label: const Text('View Full History'),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.receipt_long_outlined, color: AppClay.primary, size: AppSizes.iconSm),
+                const SizedBox(width: AppSizes.sm),
+                Text(
+                  'View Full History',
+                  style: context.textTheme.labelLarge?.copyWith(color: AppClay.primary, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -93,7 +103,7 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return ClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -119,7 +129,7 @@ class _StatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return ClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -133,7 +143,7 @@ class _StatsCard extends StatelessWidget {
                   icon: Icons.arrow_downward_rounded,
                   label: 'Income',
                   value: stats.income,
-                  color: AppColors.income,
+                  color: AppClay.income,
                 ),
               ),
               const SizedBox(width: AppSizes.sm),
@@ -142,7 +152,7 @@ class _StatsCard extends StatelessWidget {
                   icon: Icons.arrow_upward_rounded,
                   label: 'Expense',
                   value: stats.expense,
-                  color: AppColors.expense,
+                  color: AppClay.expense,
                 ),
               ),
             ],
@@ -156,7 +166,7 @@ class _StatsCard extends StatelessWidget {
                   icon: Icons.call_received_rounded,
                   label: 'Transfers In',
                   value: stats.transfersIn,
-                  color: AppColors.income,
+                  color: AppClay.income,
                 ),
               ),
               const SizedBox(width: AppSizes.sm),
@@ -165,7 +175,7 @@ class _StatsCard extends StatelessWidget {
                   icon: Icons.call_made_rounded,
                   label: 'Transfers Out',
                   value: stats.transfersOut,
-                  color: AppColors.expense,
+                  color: AppClay.expense,
                 ),
               ),
             ],
@@ -189,12 +199,7 @@ class _Stat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
-          child: Icon(icon, size: 14, color: color),
-        ),
+        ClayIconChip(icon: icon, color: color),
         const SizedBox(height: AppSizes.xs),
         Text(
           CurrencyFormatter.instance.formatCompact(value),
@@ -220,7 +225,7 @@ class _MonthlySpendingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return ClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -231,7 +236,7 @@ class _MonthlySpendingCard extends StatelessWidget {
           const SizedBox(height: AppSizes.xs),
           Text(
             CurrencyFormatter.instance.format(currentMonthExpense),
-            style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: AppColors.expense),
+            style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: AppClay.expense),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

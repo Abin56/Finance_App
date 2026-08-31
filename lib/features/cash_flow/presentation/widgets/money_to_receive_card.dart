@@ -6,8 +6,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/domain/payment_urgency.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../providers/cash_flow_providers.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
 
@@ -57,7 +57,7 @@ class MoneyToReceiveCard extends ConsumerWidget {
       );
     }
 
-    return AppCard(
+    return ClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

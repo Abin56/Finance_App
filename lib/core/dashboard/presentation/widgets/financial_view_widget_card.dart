@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
@@ -10,6 +9,8 @@ import '../../domain/date_range_strategy.dart';
 import '../../domain/financial_view_module.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/expense_calculator_provider.dart';
+import '../../../theme/clay_theme.dart';
+import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.financialView] — the widget users can add
@@ -52,52 +53,37 @@ class FinancialViewWidgetCard extends ConsumerWidget {
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                config.title,
-                style: textTheme.labelLarge?.copyWith(
-                  color: isHero ? Colors.white.withValues(alpha: 0.85) : null,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Flexible(
-              child: _DateStrategyChip(label: config.dateStrategy.label, isHero: isHero, onTap: onConfigure),
-            ),
-          ],
+        Text(
+          config.title,
+          style: textTheme.labelLarge?.copyWith(
+            color: isHero ? Colors.white.withValues(alpha: 0.85) : null,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: AppSizes.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _DateStrategyChip(label: config.dateStrategy.label, isHero: isHero, onTap: onConfigure),
         ),
         const SizedBox(height: AppSizes.md),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Flexible(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  format.format(result.amount),
-                  style: (isHero ? textTheme.headlineLarge : textTheme.headlineMedium)?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: isHero ? Colors.white : null,
-                  ),
-                ),
-              ),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            format.format(result.amount),
+            style: (isHero ? textTheme.headlineMedium : textTheme.titleLarge)?.copyWith(
+              fontWeight: isHero ? FontWeight.w800 : FontWeight.w700,
+              color: isHero ? Colors.white : null,
+              letterSpacing: isHero ? -0.5 : null,
             ),
-            if (percentChange != null) ...[
-              const SizedBox(width: AppSizes.sm),
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.xs),
-                  child: _ComparePill(percentChange: percentChange, increaseIsGood: increaseIsGood, isHero: isHero),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
+        if (percentChange != null) ...[
+          const SizedBox(height: AppSizes.xs),
+          _ComparePill(percentChange: percentChange, increaseIsGood: increaseIsGood, isHero: isHero),
+        ],
         const SizedBox(height: AppSizes.xs),
         if (cycleAnchorDay == null)
           Text(
@@ -121,7 +107,7 @@ class FinancialViewWidgetCard extends ConsumerWidget {
     return isHero
         ? DashboardWidgetGradientCard(
             onTap: onConfigure,
-            child: Padding(padding: const EdgeInsets.all(AppSizes.xl), child: content),
+            child: Padding(padding: const EdgeInsets.all(AppSizes.lg), child: content),
           )
         : DashboardWidgetCard(onTap: onConfigure, child: content);
   }
@@ -134,19 +120,19 @@ class FinancialViewWidgetCard extends ConsumerWidget {
 Color _breakdownColor(String label) {
   switch (label) {
     case 'My Expenses':
-      return AppColors.expense;
+      return AppClay.expense;
     case 'Shared Expenses':
-      return AppColors.pending;
+      return AppClay.warning;
     case 'Bills':
-      return AppColors.info;
+      return AppClay.accent;
     case 'EMIs':
-      return AppColors.savings;
+      return AppClay.secondary;
     case 'Loans':
-      return AppColors.warning;
+      return AppClay.warning;
     case 'Credit Card Payments':
-      return AppColors.primary;
+      return AppClay.primary;
     default:
-      return AppColors.expense;
+      return AppClay.expense;
   }
 }
 
@@ -169,8 +155,8 @@ class _BreakdownRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(color: _breakdownColor(label), shape: BoxShape.circle),
           ),
           const SizedBox(width: AppSizes.sm),
@@ -184,7 +170,7 @@ class _BreakdownRow extends StatelessWidget {
           const SizedBox(width: AppSizes.sm),
           Text(
             format.format(amount),
-            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
+            style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
           ),
         ],
       ),
@@ -275,14 +261,11 @@ class _BillingCycleIndicator extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSizes.sm),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 9,
-            color: isHero ? Colors.white : null,
-            backgroundColor: trackColor,
-          ),
+        ClayProgressBar(
+          value: progress,
+          height: 7,
+          trackColor: trackColor,
+          colors: isHero ? [Colors.white, Colors.white] : [AppClay.secondary, AppClay.primary],
         ),
         const SizedBox(height: AppSizes.xs),
         Row(
@@ -327,7 +310,7 @@ class _ComparePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final isIncrease = percentChange >= 0;
     final isGood = isIncrease == increaseIsGood;
-    final color = isHero ? Colors.white : (isGood ? AppColors.success : AppColors.error);
+    final color = isHero ? Colors.white : (isGood ? AppClay.success : AppClay.danger);
     final arrow = isIncrease ? '↑' : '↓';
 
     return Container(
@@ -337,7 +320,7 @@ class _ComparePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
       child: Text(
-        '$arrow ${percentChange.abs().toStringAsFixed(0)}% vs last pay period',
+        '$arrow ${percentChange.abs().toStringAsFixed(0)}% vs last cycle',
         style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,

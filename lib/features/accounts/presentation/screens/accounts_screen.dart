@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/clay_theme.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../providers/account_providers.dart';
@@ -25,24 +27,31 @@ class AccountsScreen extends ConsumerWidget {
     final netWorth = ref.watch(netWorthProvider);
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(
+        backgroundColor: AppClay.background(context),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: const Text('Accounts'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'Trash',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AccountsTrashScreen()),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSizes.sm),
+            child: ClayIconButton(
+              icon: Icons.delete_outline_rounded,
+              tooltip: 'Trash',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AccountsTrashScreen()),
+              ),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: ClayFab(
         heroTag: 'accounts_fab',
+        icon: Icons.add,
         onPressed: () => AccountFormSheet.show(context),
-        child: const Icon(Icons.add),
       ),
-      body: accountsAsync.when(
+      body: SafeArea(child: accountsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (accounts) {
@@ -63,20 +72,35 @@ class AccountsScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSizes.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Net worth',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                child: ClayCard(
+                  isHero: true,
+                  padding: const EdgeInsets.all(AppSizes.lg),
+                  gradient: const LinearGradient(
+                    colors: AppClay.primaryGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Net worth',
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    Text(
-                      CurrencyFormatter.instance.format(netWorth),
-                      style: context.textTheme.headlineMedium,
-                    ),
-                  ],
+                      const SizedBox(height: AppSizes.xs),
+                      Text(
+                        CurrencyFormatter.instance.format(netWorth),
+                        style: context.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               for (final account in accounts)
@@ -89,10 +113,10 @@ class AccountsScreen extends ConsumerWidget {
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
                       decoration: BoxDecoration(
-                        color: context.colors.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                        color: AppClay.danger.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppClay.radiusCard),
                       ),
-                      child: Icon(Icons.delete_outline_rounded, color: context.colors.error),
+                      child: const Icon(Icons.delete_outline_rounded, color: AppClay.danger),
                     ),
                     onDismissed: (_) async {
                       await repository.softDelete(account);
@@ -116,7 +140,7 @@ class AccountsScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
+      )),
     );
   }
 }

@@ -82,10 +82,10 @@ class ComingSoonWidgetCard extends StatelessWidget {
             'These will light up in a future update.',
             style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
           ),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           Wrap(
-            spacing: AppSizes.sm,
-            runSpacing: AppSizes.sm,
+            spacing: AppSizes.xs,
+            runSpacing: AppSizes.xs,
             children: [
               for (final type in types)
                 _ComingSoonTile(icon: _iconFor(type), label: type.defaultTitle),

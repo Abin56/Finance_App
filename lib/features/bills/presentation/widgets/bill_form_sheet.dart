@@ -5,7 +5,9 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/inputs/chip_selector.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -30,6 +32,7 @@ class BillFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => BillFormSheet(bill: bill),
     );
   }
@@ -138,133 +141,122 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isEditing ? 'Edit bill' : 'Add bill',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Bill name'),
-                validator: Validators.required,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _amountController,
-                focusNode: _amountFocusNode,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.md),
-              OutlinedButton.icon(
-                onPressed: _pickDueDate,
-                icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                label: Text('Due ${_dueDate.fullDate}'),
-              ),
-              const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<BillRecurrence>(
-                initialValue: _recurrence,
-                decoration: const InputDecoration(labelText: 'Repeat'),
-                items: [
-                  for (final recurrence in BillRecurrence.values)
-                    DropdownMenuItem(value: recurrence, child: Text(recurrence.label)),
-                ],
-                onChanged: (value) => setState(() => _recurrence = value ?? _recurrence),
-              ),
-              if (_recurrence == BillRecurrence.custom) ...[
-                const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _customDaysController,
-                  decoration: const InputDecoration(labelText: 'Repeat every N days'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    final parsed = int.tryParse(value?.trim() ?? '');
-                    if (parsed == null || parsed <= 0) return 'Enter a whole number of days';
-                    return null;
-                  },
-                ),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: _isEditing ? 'Edit bill' : 'Add bill',
+        confirmLabel: _isEditing ? 'Save changes' : 'Add bill',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionLabel('Details'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Bill name'),
+              validator: Validators.required,
+              textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _amountController,
+              focusNode: _amountFocusNode,
+              decoration: const InputDecoration(labelText: 'Amount'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: Validators.amount,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSizes.md),
+            OutlinedButton.icon(
+              onPressed: _pickDueDate,
+              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              label: Text('Due ${_dueDate.fullDate}'),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Repeat'),
+            const SizedBox(height: AppSizes.sm),
+            ChipSelector<BillRecurrence>(
+              options: [
+                for (final recurrence in BillRecurrence.values) ChipOption(value: recurrence, label: recurrence.label),
               ],
+              value: _recurrence,
+              onChanged: (value) => setState(() => _recurrence = value),
+            ),
+            if (_recurrence == BillRecurrence.custom) ...[
               const SizedBox(height: AppSizes.md),
-              accountsAsync.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (error, _) => Text('Could not load accounts: $error'),
-                data: (accounts) {
-                  final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
-                  return DropdownButtonFormField<String>(
-                    initialValue: validId,
-                    decoration: const InputDecoration(labelText: 'Account (optional)'),
-                    items: [
-                      for (final account in accounts)
-                        DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
-                    ],
-                    onChanged: (value) => setState(() => _accountId = value),
-                  );
+              TextFormField(
+                controller: _customDaysController,
+                decoration: const InputDecoration(labelText: 'Repeat every N days'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  final parsed = int.tryParse(value?.trim() ?? '');
+                  if (parsed == null || parsed <= 0) return 'Enter a whole number of days';
+                  return null;
                 },
               ),
-              const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<String>(
-                initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-                decoration: const InputDecoration(labelText: 'Category (optional)'),
-                items: [
-                  for (final category in categories)
-                    DropdownMenuItem(value: category.id, child: Text(category.name)),
-                ],
-                onChanged: (value) => setState(() => _categoryId = value),
-              ),
-              const SizedBox(height: AppSizes.md),
-              Text('Remind me', style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: AppSizes.xs),
-              Wrap(
-                spacing: AppSizes.sm,
-                children: [
-                  for (final offset in _reminderOffsetChoices)
-                    FilterChip(
-                      label: Text(offset == 0 ? 'Today' : offset == 1 ? 'Tomorrow' : '$offset days before'),
-                      selected: _reminderOffsets.contains(offset),
-                      onSelected: (selected) => setState(() {
-                        if (selected) {
-                          _reminderOffsets.add(offset);
-                        } else {
-                          _reminderOffsets.remove(offset);
-                        }
-                      }),
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notes (optional)'),
-                maxLines: 3,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: _isEditing ? 'Save changes' : 'Add bill',
-                isLoading: _isSaving,
-                onPressed: _save,
-              ),
-              const SizedBox(height: AppSizes.sm),
             ],
-          ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Account & Category'),
+            const SizedBox(height: AppSizes.sm),
+            accountsAsync.when(
+              loading: () => const LinearProgressIndicator(),
+              error: (error, _) => Text('Could not load accounts: $error'),
+              data: (accounts) {
+                final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
+                return DropdownButtonFormField<String>(
+                  initialValue: validId,
+                  decoration: const InputDecoration(labelText: 'Account (optional)'),
+                  items: [
+                    for (final account in accounts)
+                      DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
+                  ],
+                  onChanged: (value) => setState(() => _accountId = value),
+                );
+              },
+            ),
+            const SizedBox(height: AppSizes.md),
+            DropdownButtonFormField<String>(
+              initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
+              decoration: const InputDecoration(labelText: 'Category (optional)'),
+              items: [
+                for (final category in categories)
+                  DropdownMenuItem(value: category.id, child: Text(category.name)),
+              ],
+              onChanged: (value) => setState(() => _categoryId = value),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Reminders & Notes'),
+            const SizedBox(height: AppSizes.sm),
+            Text('Remind me', style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: AppSizes.xs),
+            Wrap(
+              spacing: AppSizes.sm,
+              children: [
+                for (final offset in _reminderOffsetChoices)
+                  FilterChip(
+                    label: Text(offset == 0 ? 'Today' : offset == 1 ? 'Tomorrow' : '$offset days before'),
+                    selected: _reminderOffsets.contains(offset),
+                    onSelected: (selected) => setState(() {
+                      if (selected) {
+                        _reminderOffsets.add(offset);
+                      } else {
+                        _reminderOffsets.remove(offset);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(labelText: 'Notes (optional)'),
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
         ),
       ),
     );

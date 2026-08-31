@@ -58,7 +58,7 @@ class SplitExpensesWidgetCard extends ConsumerWidget {
             ],
           ),
           if (total <= 0) ...[
-            const SizedBox(height: AppSizes.md),
+            const SizedBox(height: AppSizes.sm),
             Text(
               'No pending split expenses.',
               style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
@@ -70,7 +70,7 @@ class SplitExpensesWidgetCard extends ConsumerWidget {
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(format.format(total), style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text(format.format(total), style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             ),
             if (items.isNotEmpty) ...[
               const SizedBox(height: AppSizes.sm),

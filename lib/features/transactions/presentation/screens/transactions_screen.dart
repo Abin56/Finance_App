@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/clay_theme.dart';
 import '../../../../shared/widgets/dialogs/add_entry_menu.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
@@ -94,6 +95,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final peopleById = {for (final p in people) p.id: p};
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         title: _searching
             ? TextField(
@@ -275,7 +277,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(AppSizes.lg),
+          // Bottom padding clears the shell's floating "+" button, same
+          // convention as the Dashboard's scrollable body.
+          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
           itemCount: slots.length,
           itemBuilder: (context, index) {
             final slot = slots[index];
@@ -536,44 +540,44 @@ class _DropdownField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Material(
-      color: colors.surface,
-      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-          decoration: BoxDecoration(
-            border: Border.all(color: colors.outlineVariant),
-            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(color: colors.onSurface.withValues(alpha: 0.6)),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  Icon(icon, size: AppSizes.iconSm, color: colors.onSurface.withValues(alpha: 0.7)),
-                  const SizedBox(width: AppSizes.xs),
-                  Expanded(
-                    child: Text(
-                      value,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis,
+    // A soft floating well rather than a bordered box — matches the
+    // ClayCard-style surfaces the rest of this screen now uses instead of
+    // a flat Material outline.
+    return Container(
+      decoration: BoxDecoration(color: AppClay.card(context), boxShadow: AppClay.nested(context)),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: colors.onSurface.withValues(alpha: 0.6)),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(icon, size: AppSizes.iconSm, color: colors.onSurface.withValues(alpha: 0.7)),
+                    const SizedBox(width: AppSizes.xs),
+                    Expanded(
+                      child: Text(
+                        value,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  Icon(Icons.expand_more_rounded, size: AppSizes.iconSm, color: colors.onSurface.withValues(alpha: 0.5)),
-                ],
-              ),
-            ],
+                    Icon(Icons.expand_more_rounded, size: AppSizes.iconSm, color: colors.onSurface.withValues(alpha: 0.5)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

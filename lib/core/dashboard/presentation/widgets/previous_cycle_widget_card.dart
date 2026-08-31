@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../domain/date_range_strategy.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/upcoming_due_provider.dart';
+import '../../../theme/clay_theme.dart';
+import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.previousCycleCarryForward] — everything
@@ -40,11 +41,11 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
 
     if (carriedOver.isEmpty) {
       return DashboardWidgetCard(
-        backgroundColor: AppColors.success.withValues(alpha: 0.06),
+        backgroundColor: AppClay.success.withValues(alpha: 0.06),
         showHairline: false,
         child: Row(
           children: [
-            Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconMd, color: AppColors.success),
+            Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconSm, color: AppClay.success),
             const SizedBox(width: AppSizes.sm),
             Expanded(
               child: Text(
@@ -60,7 +61,7 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
     final total = carriedOver.fold(0.0, (sum, i) => sum + i.remaining);
 
     return DashboardWidgetCard(
-      backgroundColor: AppColors.warning.withValues(alpha: 0.08),
+      backgroundColor: AppClay.warning.withValues(alpha: 0.08),
       showHairline: false,
       onTap: () => context.go(AppRoutes.cashFlow),
       child: Column(
@@ -68,23 +69,24 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.16), shape: BoxShape.circle),
-                child: const Icon(Icons.history_toggle_off_rounded, color: AppColors.warning, size: AppSizes.iconMd),
+              ClayIconChip(
+                icon: Icons.history_toggle_off_rounded,
+                color: AppClay.warning,
+                size: 28,
+                iconSize: 15,
+                glow: true,
               ),
               const SizedBox(width: AppSizes.sm),
               Expanded(
                 child: Text(
                   config.title,
-                  style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: textTheme.labelLarge,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -94,7 +96,7 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     format.format(total),
-                    style: textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: AppColors.warning),
+                    style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: AppClay.warning),
                   ),
                 ),
               ),
@@ -126,7 +128,7 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
               Flexible(
                 child: Text(
                   'View Previous Cycle ›',
-                  style: textTheme.labelSmall?.copyWith(color: AppColors.warning, fontWeight: FontWeight.w700),
+                  style: textTheme.labelSmall?.copyWith(color: AppClay.warning, fontWeight: FontWeight.w700),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

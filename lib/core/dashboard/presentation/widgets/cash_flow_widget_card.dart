@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../features/cash_flow/presentation/providers/cash_flow_providers.dart';
 import '../../domain/widget_configuration.dart';
+import '../../../theme/clay_theme.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.cashFlow] — a dashboard-sized digest of the
@@ -45,12 +45,12 @@ class CashFlowWidgetCard extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           Row(
             children: [
-              Expanded(child: _FlowStat(label: 'Money In', value: cashFlow.moneyIn, color: AppColors.income)),
+              Expanded(child: _FlowStat(label: 'Money In', value: cashFlow.moneyIn, color: AppClay.income)),
               const SizedBox(width: AppSizes.md),
-              Expanded(child: _FlowStat(label: 'Money Out', value: cashFlow.moneyOut, color: AppColors.expense)),
+              Expanded(child: _FlowStat(label: 'Money Out', value: cashFlow.moneyOut, color: AppClay.expense)),
             ],
           ),
           const SizedBox(height: AppSizes.sm),
@@ -68,9 +68,9 @@ class CashFlowWidgetCard extends ConsumerWidget {
                   alignment: Alignment.centerRight,
                   child: Text(
                     format.format(cashFlow.net),
-                    style: textTheme.titleMedium?.copyWith(
+                    style: textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: cashFlow.net >= 0 ? AppColors.income : AppColors.expense,
+                      color: cashFlow.net >= 0 ? AppClay.income : AppClay.expense,
                     ),
                   ),
                 ),
@@ -94,10 +94,10 @@ class _FlowStat extends StatelessWidget {
   Widget build(BuildContext context) {
     final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
     return Container(
-      padding: const EdgeInsets.all(AppSizes.md),
+      padding: const EdgeInsets.all(AppSizes.sm),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        borderRadius: BorderRadius.circular(AppClay.radiusMd),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,13 +107,13 @@ class _FlowStat extends StatelessWidget {
             style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600),
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: AppSizes.xs),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               format.format(value),
-              style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+              style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: color),
             ),
           ),
         ],

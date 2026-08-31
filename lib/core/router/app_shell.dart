@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../shared/widgets/dialogs/add_entry_menu.dart';
-import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
+import '../theme/clay_theme.dart';
 import 'fab_visibility.dart';
 
 /// Bottom-navigation shell wrapping the five screen tabs (Dashboard,
@@ -109,18 +109,12 @@ class _GradientFab extends StatelessWidget {
         height: 64,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: AppColors.primaryGradient,
+            colors: AppClay.primaryGradient,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: AppClay.elevated(context),
         ),
         child: Material(
           color: Colors.transparent,

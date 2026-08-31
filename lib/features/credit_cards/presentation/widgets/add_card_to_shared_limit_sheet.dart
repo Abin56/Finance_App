@@ -7,7 +7,8 @@ import '../../../../core/data/bank_registry.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../accounts/domain/account_type.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../domain/card_network.dart';
@@ -44,6 +45,7 @@ class AddCardToSharedLimitSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => AddCardToSharedLimitSheet(sharedLimit: sharedLimit),
     );
   }
@@ -157,30 +159,20 @@ class _AddCardToSharedLimitSheetState extends ConsumerState<AddCardToSharedLimit
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Add Another Physical Card', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.xs),
-              Text(
-                'This card will use the same approved credit limit, but will keep its own '
-                'statement and transactions.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-              ),
-              const SizedBox(height: AppSizes.lg),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Add Another Physical Card',
+        description: 'This card will use the same approved credit limit, but will keep its own '
+            'statement and transactions.',
+        confirmLabel: 'Add card',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              const SectionLabel('Card Appearance'),
+              const SizedBox(height: AppSizes.sm),
               CreditCardVisual(
                 title: _displayTitle,
                 colorValue: _colorValue,
@@ -230,7 +222,9 @@ class _AddCardToSharedLimitSheetState extends ConsumerState<AddCardToSharedLimit
                   ],
                 ),
               ),
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.lg),
+              const SectionLabel('Card Details'),
+              const SizedBox(height: AppSizes.sm),
               InkWell(
                 borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                 onTap: _pickBank,
@@ -292,7 +286,9 @@ class _AddCardToSharedLimitSheetState extends ConsumerState<AddCardToSharedLimit
                 textCapitalization: TextCapitalization.characters,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.lg),
+              const SectionLabel('Billing Cycle'),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _statementDayController,
                 decoration: const InputDecoration(
@@ -314,11 +310,7 @@ class _AddCardToSharedLimitSheetState extends ConsumerState<AddCardToSharedLimit
                 keyboardType: TextInputType.number,
                 validator: _dayValidator,
               ),
-              const SizedBox(height: AppSizes.lg),
-              PrimaryButton(label: 'Add card', isLoading: _isSaving, onPressed: _save),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+          ],
         ),
       ),
     );

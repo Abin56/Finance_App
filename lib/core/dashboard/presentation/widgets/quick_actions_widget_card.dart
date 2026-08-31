@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
@@ -16,6 +14,7 @@ import '../../../../features/people/presentation/widgets/settle_up_sheet.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
 import '../../../../features/transactions/presentation/screens/add_expense_screen.dart';
 import '../../domain/widget_configuration.dart';
+import '../../../theme/clay_theme.dart';
 
 /// Renders [DashboardWidgetType.quickActions] — the dashboard's four
 /// highest-frequency actions as equal-width tiles: Add Expense, Settle Up,
@@ -52,7 +51,7 @@ class QuickActionsWidgetCard extends ConsumerWidget {
           child: _ActionTile(
             icon: Icons.remove_circle_outline_rounded,
             label: 'Add Expense',
-            color: AppColors.expense,
+            color: AppClay.expense,
             onTap: () => AddExpenseScreen.show(context, initialType: TransactionType.expense),
           ),
         ),
@@ -61,7 +60,7 @@ class QuickActionsWidgetCard extends ConsumerWidget {
           child: _ActionTile(
             icon: Icons.handshake_outlined,
             label: 'Settle Up',
-            color: AppColors.income,
+            color: AppClay.income,
             onTap: () => _settleUp(context, ref),
           ),
         ),
@@ -79,7 +78,7 @@ class QuickActionsWidgetCard extends ConsumerWidget {
           child: _ActionTile(
             icon: Icons.receipt_long_outlined,
             label: 'Statements',
-            color: AppColors.pending,
+            color: AppClay.warning,
             onTap: () => context.push(AppRoutes.creditCards),
           ),
         ),
@@ -100,28 +99,29 @@ class _ActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        boxShadow: AppShadows.soft(context),
+        color: AppClay.card(context),
+        borderRadius: BorderRadius.circular(AppClay.radiusMd),
+        boxShadow: AppClay.soft(context),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        borderRadius: BorderRadius.circular(AppClay.radiusMd),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSizes.md, horizontal: AppSizes.xs),
+            padding: const EdgeInsets.symmetric(vertical: AppSizes.sm, horizontal: AppSizes.xs),
             child: Column(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                    gradient: AppClay.iconChipGradient(color),
+                    borderRadius: BorderRadius.circular(AppClay.radiusSm),
+                    boxShadow: AppClay.glow(color),
                   ),
-                  child: Icon(icon, color: color),
+                  child: Icon(icon, color: color, size: AppSizes.iconSm),
                 ),
                 const SizedBox(height: AppSizes.xs),
                 Text(
@@ -185,7 +185,7 @@ class _SettleUpPersonSheet extends StatelessWidget {
                             ? 'You owe ${format.format(person.currentBalance.abs())}'
                             : 'Owes you ${format.format(person.currentBalance)}',
                         style: textTheme.bodySmall?.copyWith(
-                          color: person.isDebtor ? AppColors.expense : AppColors.income,
+                          color: person.isDebtor ? AppClay.expense : AppClay.income,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

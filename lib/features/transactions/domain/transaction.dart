@@ -23,6 +23,7 @@ class Transaction extends SoftDeletableEntity {
     this.accountingMonth,
     this.linkedPersonId,
     this.owesPersonToggle = false,
+    this.source,
   });
 
   @override
@@ -86,6 +87,14 @@ class Transaction extends SoftDeletableEntity {
 
   final DateTime createdAt;
 
+  /// Where this transaction came from — currently only ever `'sms'`, set
+  /// when created via `SmsBulkConverter` or `AddExpenseScreen` from an
+  /// [SmsPrefill], so the Web Transaction Studio can recognize a transaction
+  /// as already imported from SMS. Null for every manually-entered
+  /// transaction (the overwhelming majority) and for all transactions that
+  /// existed before this field was introduced.
+  final String? source;
+
   /// The signed delta this transaction applies to its account's balance —
   /// the single source of truth for balance math, so the repository never
   /// has to duplicate "income adds, expense subtracts" logic.
@@ -123,6 +132,7 @@ class Transaction extends SoftDeletableEntity {
       linkedPersonId: data['linkedPersonId'] as String?,
       owesPersonToggle: data['owesPersonToggle'] as bool? ?? false,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      source: data['source'] as String?,
     )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -147,6 +157,7 @@ class Transaction extends SoftDeletableEntity {
       'linkedPersonId': linkedPersonId,
       'owesPersonToggle': owesPersonToggle,
       'createdAt': Timestamp.fromDate(createdAt),
+      'source': source,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),

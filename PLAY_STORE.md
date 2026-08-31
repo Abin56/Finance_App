@@ -17,7 +17,7 @@ access that only the account owner has.
 | 1 | `applicationId` is `com.example.finance_app` | You + me | Play rejects all `com.example.*`. See [Renaming the application ID](#renaming-the-application-id). |
 | 2 | No keystore exists | You | `android/key.properties` and the `.jks` are absent. See [Keystore management](#keystore-management). |
 | 3 | No account-deletion path | You + me | Play requires it for any app with sign-in. See [Account deletion](#account-deletion-required). |
-| 4 | `READ_SMS` in the manifest | Handled | Stripped from release builds. See [SMS Inbox and the Play build](#sms-inbox-and-the-play-build). |
+| 4 | `READ_SMS` in the manifest | Handled | Removed for the `play` build flavor. See [SMS Inbox and the Play build](#sms-inbox-and-the-play-build). |
 
 Already compliant, verified:
 
@@ -114,7 +114,7 @@ them.** Copy them to a password manager or encrypted drive.
 
 ## SMS Inbox and the Play build
 
-**Release builds ship without `READ_SMS`, deliberately.**
+**The `play` build flavor ships without `READ_SMS`, deliberately.**
 
 Google Play restricts the SMS permission group to apps that are the user's
 **default SMS handler**. Parsing bank transaction texts in a finance app is not
@@ -128,23 +128,41 @@ use case can sink **the whole listing**.
 
 How it works:
 
-- [android/app/src/release/AndroidManifest.xml](android/app/src/release/AndroidManifest.xml)
-  applies `tools:node="remove"` to `READ_SMS` for `release` builds only.
-- This is a merge-time override rather than an edit to `src/main`, because
-  `flutter_sms_inbox` contributes `READ_SMS` from its **own library manifest**.
-  Deleting the line from `src/main` would not keep it out of the merged manifest;
-  the app manifest winning the merge is what does.
-- Stripping is the **default**, so forgetting a flag produces a compliant upload
-  rather than a rejected one.
+- SMS handling is controlled by an explicit Gradle product flavor
+  (`flavorDimensions += "distribution"` in
+  [android/app/build.gradle.kts](android/app/build.gradle.kts)), not an
+  environment variable. Flutter requires `--flavor <name>` on every build once
+  flavors are declared — there is no default to forget, and an unflavored
+  `flutter build` simply fails and lists `play`/`sideload` as the valid choices.
+- [android/app/src/play/AndroidManifest.xml](android/app/src/play/AndroidManifest.xml)
+  applies `tools:node="remove"` to `READ_SMS` for every build type of the `play`
+  flavor. This is a merge-time override rather than an edit to `src/main`,
+  because `flutter_sms_inbox` contributes `READ_SMS` from its **own library
+  manifest** — deleting the line from `src/main` would not keep it out of the
+  merged manifest; the app manifest winning the merge is what does.
+- [android/app/src/sideload/AndroidManifest.xml](android/app/src/sideload/AndroidManifest.xml)
+  is an empty overlay for the `sideload` flavor, so `READ_SMS` survives the
+  merge untouched.
+- A Gradle task (`verifySmsPermission<Variant>`, registered in
+  `build.gradle.kts` via the Variant API) reads each variant's actual **merged**
+  manifest after assembly and fails the build if `READ_SMS` isn't exactly what
+  that flavor expects. It runs automatically as part of `assemble<Variant>`, so
+  a build for either flavor is self-verifying — not just "correct by
+  construction."
 
 For a personal, sideloaded build that keeps SMS:
 
 ```
-FLOWFI_SMS=1 flutter build apk --release
+flutter build apk --release --flavor sideload
 ```
 
-That build is **not valid for Play upload**. The Gradle log prints a warning when
-the flag is active.
+For a Play-bound build:
+
+```
+flutter build appbundle --release --flavor play
+```
+
+The `sideload` flavor's output is **not valid for Play upload**.
 
 > Verify before every upload — see [Pre-submission checklist](#pre-submission-checklist).
 > The SMS Inbox UI must degrade gracefully when the permission is absent, since
@@ -172,17 +190,18 @@ are not atomic.
 
 ## Permissions inventory
 
-This is the **verified** list, read out of the merged release manifest
-(`build/app/intermediates/merged_manifest/release/.../AndroidManifest.xml`) — not
-just what `src/main` declares. Most of these are contributed by plugin library
-manifests and never appear in the project's own source.
+This is the **verified** list, read out of the `play` flavor's merged release
+manifest
+(`build/app/intermediates/merged_manifest/playRelease/.../AndroidManifest.xml`)
+— not just what `src/main` declares. Most of these are contributed by plugin
+library manifests and never appear in the project's own source.
 
 To regenerate this list after changing dependencies:
 
 ```
-cd android && ./gradlew :app:processReleaseMainManifest
+cd android && ./gradlew :app:processPlayReleaseMainManifest
 grep -o 'uses-permission[^>]*android:name="[^"]*"' \
-  ../build/app/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml
+  ../build/app/intermediates/merged_manifest/playRelease/processPlayReleaseMainManifest/AndroidManifest.xml
 ```
 
 `build/app/outputs/logs/manifest-merger-release-report.txt` attributes every
@@ -196,7 +215,7 @@ entry to the exact library that introduced it.
 | `POST_NOTIFICATIONS` | **Keep** | Bill/EMI reminders via `flutter_local_notifications`. Runtime-requested on API 33+. |
 | `RECEIVE_BOOT_COMPLETED` | **Keep** | Scheduled reminders do not survive reboot; the boot receiver re-arms them. |
 | `SCHEDULE_EXACT_ALARM` | **Review** | See [below](#schedule_exact_alarm-needs-a-decision). |
-| `READ_SMS` | **Removed from release** | Play policy. See [above](#sms-inbox-and-the-play-build). Verified absent from the merged release manifest. |
+| `READ_SMS` | **Removed for the `play` flavor** | Play policy. See [above](#sms-inbox-and-the-play-build). Verified absent from the merged `playRelease` manifest, and enforced automatically by the `verifySmsPermissionPlayRelease` Gradle task on every build. |
 
 ### Contributed by plugins
 
@@ -223,7 +242,7 @@ ads is a poor look for a finance app, and a form/behaviour mismatch is a common
 rejection cause.
 
 FlowFi has no ads and no attribution needs, so the permission buys nothing. To
-drop it, add to [android/app/src/release/AndroidManifest.xml](android/app/src/release/AndroidManifest.xml):
+drop it, add to [android/app/src/play/AndroidManifest.xml](android/app/src/play/AndroidManifest.xml):
 
 ```xml
 <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
@@ -397,12 +416,14 @@ Build and hygiene:
 
 - [ ] `dart analyze` → 0 issues
 - [ ] `flutter test` → all passing
-- [ ] `flutter build appbundle --release` succeeds
+- [ ] `flutter build appbundle --release --flavor play` succeeds (the
+      `verifySmsPermissionPlayRelease` Gradle task fails the build outright if
+      `READ_SMS` is present, so a successful build already confirms this)
 - [ ] Version bumped in [pubspec.yaml](pubspec.yaml) (see [RELEASE.md](RELEASE.md))
 - [ ] Release build launches, signs in, and syncs on a **real device**
 - [ ] **Confirm `READ_SMS` is absent from the uploaded artifact:**
       ```
-      unzip -p build/app/outputs/bundle/release/app-release.aab base/manifest/AndroidManifest.xml | strings | grep -i SMS
+      unzip -p build/app/outputs/bundle/playRelease/app-play-release.aab base/manifest/AndroidManifest.xml | strings | grep -i SMS
       ```
       (must print nothing; `bundletool dump manifest` is the rigorous check)
 

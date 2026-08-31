@@ -1,6 +1,9 @@
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/firestore_constants.dart';
+import '../../../../core/providers/firebase_providers.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../transactions/domain/transaction_type.dart';
@@ -11,6 +14,9 @@ import '../../data/sms_inbox_database.dart';
 import '../../data/sms_inbox_repository.dart';
 import '../../data/sms_permission_service.dart';
 import '../../data/sms_reader_adapter.dart';
+import '../../data/sms_transaction_candidate_repository.dart';
+import '../../data/transaction_candidate_dao.dart';
+import '../../domain/account_card_matcher.dart';
 import '../../domain/filter/sms_card_matcher.dart';
 import '../../domain/filter/sms_filter_criteria.dart';
 import '../../domain/merchant/merchant_category_suggester.dart';
@@ -18,7 +24,11 @@ import '../../domain/merchant/merchant_memory.dart';
 import '../../domain/sms_availability.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
+import '../../domain/sms_transaction_candidate_cloud.dart';
 import '../../domain/sms_transaction_category.dart';
+import '../../domain/transaction_candidate.dart';
+import '../../domain/transaction_candidate_builder.dart';
+import '../sms_candidate_cloud_sync.dart';
 
 final smsInboxDatabaseProvider = Provider<SmsInboxDatabase>((ref) => SmsInboxDatabase.instance);
 
@@ -30,6 +40,43 @@ final smsPermissionServiceProvider = Provider<SmsPermissionService>((ref) => con
 
 final smsInboxRepositoryProvider = Provider<SmsInboxRepository>((ref) {
   return SmsInboxRepository(ref.watch(smsInboxDaoProvider), ref.watch(smsReaderAdapterProvider));
+});
+
+final transactionCandidateDaoProvider = Provider<TransactionCandidateDao>((ref) {
+  return TransactionCandidateDao(ref.watch(smsInboxDatabaseProvider));
+});
+
+/// Cloud-facing repository for `SmsTransactionCandidateCloud` — same
+/// `users/{uid}/...` scoping pattern as every other feature's repository
+/// provider (e.g. `accountRepositoryProvider`).
+final smsTransactionCandidateRepositoryProvider = Provider<SmsTransactionCandidateRepository>((ref) {
+  final firestore = ref.watch(firestoreProvider);
+  final uid = ref.watch(currentUserIdProvider);
+  final collection = firestore
+      .collection(FirestoreCollections.users)
+      .doc(uid)
+      .collection(FirestoreCollections.smsTransactionCandidates)
+      .withConverter<SmsTransactionCandidateCloud>(
+        fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
+        toFirestore: (candidate, _) => candidate.toFirestore(),
+      );
+  return SmsTransactionCandidateRepository(collection);
+});
+
+final smsCandidateCloudSyncProvider = Provider<SmsCandidateCloudSync>((ref) {
+  return SmsCandidateCloudSync(
+    ref.watch(smsTransactionCandidateRepositoryProvider),
+    ref.watch(transactionCandidateDaoProvider),
+    ref.watch(smsInboxRepositoryProvider),
+  );
+});
+
+/// Every locally-built `TransactionCandidate` — sqflite has no native
+/// change-stream (same reason [SmsInboxItemsNotifier] reloads explicitly),
+/// so this is invalidated by [SmsInboxItemsNotifier._generateCandidatesForPending]
+/// right after it persists new rows, rather than polled.
+final transactionCandidatesProvider = FutureProvider<List<TransactionCandidate>>((ref) {
+  return ref.watch(transactionCandidateDaoProvider).getAll();
 });
 
 final merchantMemoryDaoProvider = Provider<MerchantMemoryDao>((ref) {
@@ -96,10 +143,59 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
     try {
       final newCount = await ref.read(smsInboxRepositoryProvider).scanInbox();
       await refresh();
+      await _generateCandidatesForPending();
+      await _syncCandidatesToCloud();
       return newCount;
     } catch (e, st) {
       state = AsyncError(e, st);
       return 0;
+    }
+  }
+
+  /// Builds and persists a `TransactionCandidate` for every parsed, pending
+  /// SMS that doesn't have one yet. Additive to the scan above and
+  /// deliberately isolated from its error handling: the SMS rows themselves
+  /// are already safely stored by the time this runs, so a failure here
+  /// (e.g. reading the account streams) must never turn an otherwise
+  /// successful scan into an `AsyncError` the user sees.
+  Future<void> _generateCandidatesForPending() async {
+    try {
+      final dao = ref.read(transactionCandidateDaoProvider);
+      final alreadyBuilt = await dao.existingSmsItemIds();
+
+      final pending = await ref.read(smsInboxRepositoryProvider).getByStatus(SmsImportStatus.pending);
+      final toBuild = pending.where((item) => item.parsed != null && !alreadyBuilt.contains(item.id));
+      if (toBuild.isEmpty) return;
+
+      final matcher = AccountCardMatcher(
+        accounts: ref.read(accountsStreamProvider).value ?? const [],
+        cards: ref.read(activeCreditCardsProvider),
+      );
+      final builder = TransactionCandidateBuilder(matcher);
+
+      for (final item in toBuild) {
+        final candidate = builder.build(item);
+        if (candidate != null) await dao.upsert(candidate);
+      }
+      ref.invalidate(transactionCandidatesProvider);
+    } catch (e, st) {
+      debugPrint('TransactionCandidate generation failed (SMS scan itself still succeeded): $e\n$st');
+    }
+  }
+
+  /// Mirrors `users/{uid}/smsTransactionCandidates` to whatever is still
+  /// pending/non-duplicate locally — see `SmsCandidateCloudSync`. Isolated
+  /// in its own try/catch for the same reason as
+  /// [_generateCandidatesForPending]: local scanning/candidate-generation
+  /// has already fully succeeded by the time this runs, and Firestore being
+  /// unreachable (offline, rules issue, etc.) must never be reported to the
+  /// user as a failed SMS scan, nor leave any local data touched — this
+  /// method only ever reads local storage, never writes it.
+  Future<void> _syncCandidatesToCloud() async {
+    try {
+      await ref.read(smsCandidateCloudSyncProvider).sync();
+    } catch (e, st) {
+      debugPrint('SMS candidate cloud sync failed (local SMS scan itself still succeeded): $e\n$st');
     }
   }
 
@@ -112,11 +208,13 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
   Future<void> markImported(String id, {required String linkedEntityId, String? linkedEntityRoute}) async {
     await ref.read(smsInboxRepositoryProvider).markImported(id, linkedEntityId: linkedEntityId, linkedEntityRoute: linkedEntityRoute);
     await refresh();
+    await _removeCloudCandidate(id);
   }
 
   Future<void> markIgnored(String id) async {
     await ref.read(smsInboxRepositoryProvider).markIgnored(id);
     await refresh();
+    await _removeCloudCandidate(id);
   }
 
   /// Ignores many in one batch, reloading the list once at the end — calling
@@ -126,6 +224,29 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
     if (ids.isEmpty) return;
     await ref.read(smsInboxRepositoryProvider).markIgnoredMany(ids);
     await refresh();
+    for (final id in ids) {
+      await _removeCloudCandidate(id);
+    }
+  }
+
+  /// Deletes [id]'s cloud candidate doc (if any) right away, so the web
+  /// Transaction Studio stops showing it the moment there's nothing left to
+  /// review — rather than waiting for the next [scan]'s full
+  /// [SmsCandidateCloudSync.sync] reconciliation, which still runs as the
+  /// safety net that catches anything missed here (e.g. a duplicate flagged
+  /// without ever going through markImported/markIgnored).
+  ///
+  /// Best-effort and isolated, same rationale as [_syncCandidatesToCloud]:
+  /// local state (the mark above) has already succeeded, so a missing
+  /// document, an offline device, or a Firestore error here must never be
+  /// surfaced as a failed conversion/ignore, nor retried — the next sync()
+  /// will clean it up.
+  Future<void> _removeCloudCandidate(String id) async {
+    try {
+      await ref.read(smsTransactionCandidateRepositoryProvider).deleteById(id);
+    } catch (e, st) {
+      debugPrint('SMS cloud candidate cleanup failed for $id (local state already updated): $e\n$st');
+    }
   }
 
   Future<void> restore(String id) async {
@@ -139,8 +260,15 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
     await refresh();
   }
 
+  /// Deletes the SMS rows, then their local `TransactionCandidate` rows (if
+  /// any) — see [TransactionCandidateDao.deleteBySmsItemIds]'s own doc: a
+  /// candidate must never outlive the message it was built from. Cloud
+  /// candidates aren't touched here; a hard-deleted SMS is no longer
+  /// `pending`, so the next [scan]'s [SmsCandidateCloudSync.sync] already
+  /// removes its cloud doc the same way it does for converted/ignored SMS.
   Future<void> deleteMany(List<String> ids) async {
     await ref.read(smsInboxRepositoryProvider).deleteMany(ids);
+    await ref.read(transactionCandidateDaoProvider).deleteBySmsItemIds(ids);
     await refresh();
   }
 }

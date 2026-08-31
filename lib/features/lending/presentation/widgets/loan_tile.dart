@@ -7,8 +7,11 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../people/domain/person.dart';
 import '../../../people/presentation/widgets/person_avatar.dart';
 import '../../domain/loan.dart';
+import '../../domain/loan_direction.dart';
 import '../../domain/loan_status.dart';
+import '../../domain/loan_title.dart';
 import '../providers/loan_providers.dart';
+import 'loan_direction_badge.dart';
 
 /// Row for a single loan — borrower avatar, loan name (or a "Loan to
 /// {person}" fallback), amount remaining, and status badge. Swipeable to
@@ -24,7 +27,7 @@ class LoanTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final status = ref.watch(loanStatusProvider(loan));
     final remaining = ref.watch(loanRemainingAmountProvider(loan));
-    final title = loan.name?.isNotEmpty == true ? loan.name! : 'Loan to ${person?.name ?? 'unknown'}';
+    final title = loanDisplayTitle(loan, person);
 
     return Material(
       color: context.colors.surface,
@@ -51,6 +54,8 @@ class LoanTile extends ConsumerWidget {
                           status.label,
                           style: context.textTheme.bodySmall?.copyWith(color: status.color),
                         ),
+                        const SizedBox(width: AppSizes.xs),
+                        LoanDirectionBadge(direction: loan.direction),
                       ],
                     ),
                   ],
@@ -64,7 +69,7 @@ class LoanTile extends ConsumerWidget {
                     style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   Text(
-                    'left to pay',
+                    loan.direction == LoanDirection.given ? 'left to receive' : 'left to pay',
                     style: context.textTheme.bodySmall?.copyWith(
                       color: context.colors.onSurface.withValues(alpha: 0.6),
                     ),

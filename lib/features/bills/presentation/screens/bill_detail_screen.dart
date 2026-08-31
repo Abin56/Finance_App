@@ -67,7 +67,8 @@ class BillDetailScreen extends ConsumerWidget {
               onPressed: () => PaymentFormSheet.show(context, bill, occurrence),
               child: const Icon(Icons.add),
             ),
-      body: bill == null || occurrence == null
+      body: SafeArea(
+        child: bill == null || occurrence == null
           ? const Center(child: CircularProgressIndicator())
           : paymentsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -115,6 +116,7 @@ class BillDetailScreen extends ConsumerWidget {
                 );
               },
             ),
+      ),
     );
   }
 

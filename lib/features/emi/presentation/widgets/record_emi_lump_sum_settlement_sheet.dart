@@ -11,7 +11,7 @@ import '../../../../core/services/payment_attribution_service.dart';
 import '../../../../core/services/providers/payment_attribution_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../domain/emi.dart';
@@ -34,6 +34,7 @@ class RecordEmiLumpSumSettlementSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => RecordEmiLumpSumSettlementSheet(emi: emi),
     );
   }
@@ -148,73 +149,59 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
   Widget build(BuildContext context) {
     final totalOutstanding = ref.watch(emiRemainingAmountProvider(widget.emi));
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Settle a lump sum for ${widget.emi.name}', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.sm),
-              Text(
-                'Enter one amount — it settles your oldest unpaid payments first, in order.',
-                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
-              ),
-              const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amountUpTo(totalOutstanding),
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-              ),
-              const SizedBox(height: AppSizes.md),
-              OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                label: Text('${_date.day}/${_date.month}/${_date.year}'),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-                maxLines: 2,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.lg),
-              PayerPicker(
-                isSomeoneElse: _someoneElsePaid,
-                onModeChanged: (value) => setState(() {
-                  _someoneElsePaid = value;
-                  if (!value) _selectedPersonId = null;
-                }),
-                selectedPersonId: _selectedPersonId,
-                onPersonChanged: (value) => setState(() => _selectedPersonId = value),
-              ),
-              const SizedBox(height: AppSizes.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Total outstanding', style: context.textTheme.titleMedium),
-                  Text(
-                    CurrencyFormatter.instance.format(totalOutstanding),
-                    style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(label: 'Settle payment', isLoading: _isSaving, onPressed: _save),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Settle a lump sum for ${widget.emi.name}',
+        description: 'Enter one amount — it settles your oldest unpaid payments first, in order.',
+        confirmLabel: 'Settle payment',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              controller: _amountController,
+              decoration: const InputDecoration(labelText: 'Amount'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: Validators.amountUpTo(totalOutstanding),
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+            ),
+            const SizedBox(height: AppSizes.md),
+            OutlinedButton.icon(
+              onPressed: _pickDate,
+              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              label: Text('${_date.day}/${_date.month}/${_date.year}'),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSizes.lg),
+            PayerPicker(
+              isSomeoneElse: _someoneElsePaid,
+              onModeChanged: (value) => setState(() {
+                _someoneElsePaid = value;
+                if (!value) _selectedPersonId = null;
+              }),
+              selectedPersonId: _selectedPersonId,
+              onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+            ),
+            const SizedBox(height: AppSizes.md),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Total outstanding', style: context.textTheme.titleMedium),
+                Text(
+                  CurrencyFormatter.instance.format(totalOutstanding),
+                  style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -25,7 +25,7 @@ class BillPaymentsTrashScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
-      body: trashAsync.when(
+      body: SafeArea(child: trashAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (trashed) {
@@ -74,7 +74,7 @@ class BillPaymentsTrashScreen extends ConsumerWidget {
             },
           );
         },
-      ),
+      )),
     );
   }
 

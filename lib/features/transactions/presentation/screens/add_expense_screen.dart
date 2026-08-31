@@ -12,6 +12,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_avatar.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/month_year_stepper.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../accounts/domain/account.dart';
 import '../../../accounts/domain/account_type.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
@@ -92,6 +93,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     text: widget.transaction?.description ?? widget.smsPrefill?.merchantOrSender ?? '',
   );
   final _descriptionFocusNode = FocusNode();
+  late final _notesController = TextEditingController(
+    text: widget.transaction?.notes ?? widget.smsPrefill?.note ?? '',
+  );
   late TransactionType _type = widget.transaction?.type ?? widget.initialType ?? TransactionType.expense;
   late DateTime _dateTime = widget.transaction?.dateTime ?? widget.smsPrefill?.dateTime ?? DateTime.now();
   late String? _accountId = widget.transaction?.accountId ?? widget.smsPrefill?.suggestedAccountId;
@@ -139,6 +143,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _amountController.dispose();
     _descriptionController.dispose();
     _descriptionFocusNode.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -215,6 +220,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       categoryId: _categoryId,
       accountId: _accountId,
       date: _dateTime,
+      notes: _notesController.text.trim(),
       excludeFromCalculations: _excludeFromCalculations,
       accountingMonth: _customAccountingMonth ? _accountingMonth : null,
     );
@@ -259,7 +265,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       date: _dateTime,
       categoryId: _categoryId!,
       accountId: _accountId!,
-      notes: transaction.notes,
+      notes: _notesController.text.trim(),
       personId: _linkedPersonId!,
       personName: person?.name ?? '',
     );
@@ -295,7 +301,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           date: _dateTime,
           categoryId: _categoryId,
           accountId: _accountId,
-          notes: transaction.notes,
+          notes: _notesController.text.trim(),
           splitType: SplitType.custom,
           participantInputs: [
             for (final p in expense.participants)
@@ -346,7 +352,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             accountId: _accountId,
             categoryId: _categoryId,
             description: description,
-            notes: transaction.notes,
+            notes: _notesController.text.trim(),
             excludeFromCalculations: _excludeFromCalculations,
             accountingMonth: accountingMonth,
             clearAccountingMonth: accountingMonth == null,
@@ -382,7 +388,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             accountId: _accountId,
             categoryId: _categoryId,
             description: description,
-            notes: transaction.notes,
+            notes: _notesController.text.trim(),
             excludeFromCalculations: _excludeFromCalculations,
             accountingMonth: accountingMonth,
             clearAccountingMonth: accountingMonth == null,
@@ -403,7 +409,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           accountId: _accountId!,
           personId: _linkedPersonId!,
           personName: person?.name ?? '',
-          notes: widget.smsPrefill?.note ?? '',
+          notes: _notesController.text.trim(),
           excludeFromCalculations: _excludeFromCalculations,
           accountingMonth: accountingMonth,
         );
@@ -431,10 +437,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           accountId: _accountId!,
           categoryId: _categoryId!,
           description: description,
-          notes: widget.smsPrefill?.note ?? '',
+          notes: _notesController.text.trim(),
           excludeFromCalculations: _excludeFromCalculations,
           accountingMonth: accountingMonth,
           linkedPersonId: _linkedPersonId,
+          source: widget.smsPrefill == null ? null : 'sms',
         );
 
         // Learn from the category the user actually settled on — which may
@@ -480,319 +487,576 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ),
         ],
       ),
+      // The scroll and the pinned save bar are siblings in one Column rather
+      // than the save button living at the bottom of the scroll — a
+      // persistent CTA doesn't require scrolling to find on this form's
+      // busiest state (every optional section expanded), and Scaffold's
+      // default resize-to-avoid-keyboard behavior keeps it pinned above the
+      // keyboard for free.
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: AppSizes.lg,
-            right: AppSizes.lg,
-            top: AppSizes.md,
-            bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SegmentedButton<TransactionType>(
-                style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                segments: [
-                  for (final type in TransactionType.values)
-                    ButtonSegment(value: type, label: Text(type.label), icon: Icon(type.icon)),
-                ],
-                selected: {_type},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _type = selection.first;
-                    if (_categoryId != null &&
-                        !categories.any((c) => c.id == _categoryId)) {
-                      _categoryId = null;
-                    }
-                  });
-                },
-              ),
-              const SizedBox(height: AppSizes.md),
-              Text('Amount', style: context.textTheme.titleSmall),
-              const SizedBox(height: AppSizes.xs),
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.currency_rupee_rounded),
-                  isDense: true,
-                ),
-                style: context.textTheme.titleLarge,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _descriptionFocusNode.requestFocus(),
-              ),
-              const SizedBox(height: AppSizes.md),
-              Text.rich(
-                TextSpan(
-                  text: 'Description',
-                  style: context.textTheme.titleSmall,
-                  children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
-                ),
-              ),
-              const SizedBox(height: AppSizes.xs),
-              TextFormField(
-                controller: _descriptionController,
-                focusNode: _descriptionFocusNode,
-                decoration: InputDecoration(
-                  prefixIcon: selectedCategory == null
-                      ? null
-                      : Padding(
-                          padding: const EdgeInsets.all(AppSizes.sm),
-                          child: CircleAvatar(
-                            backgroundColor: Color(selectedCategory.colorValue).withValues(alpha: 0.15),
-                            child: Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.sm, AppSizes.md, AppSizes.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionLabel('Transaction Details'),
+                          const SizedBox(height: AppSizes.sm),
+                          SegmentedButton<TransactionType>(
+                            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                            segments: [
+                              for (final type in TransactionType.values)
+                                ButtonSegment(value: type, label: Text(type.label), icon: Icon(type.icon)),
+                            ],
+                            selected: {_type},
+                            onSelectionChanged: (selection) {
+                              setState(() {
+                                _type = selection.first;
+                                if (_categoryId != null &&
+                                    !categories.any((c) => c.id == _categoryId)) {
+                                  _categoryId = null;
+                                }
+                              });
+                            },
                           ),
-                        ),
-                  suffixIcon: _descriptionController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.cancel, size: AppSizes.iconSm),
-                          onPressed: () => setState(_descriptionController.clear),
-                        ),
-                ),
-                maxLength: 100,
-                validator: Validators.required,
-                textInputAction: TextInputAction.next,
-                onChanged: (_) => setState(() {}),
-              ),
-              if (_type == TransactionType.expense) ...[
-                const SizedBox(height: AppSizes.sm),
-                Text('Person (optional)', style: context.textTheme.titleSmall),
-                const SizedBox(height: AppSizes.xs),
-                _PersonField(
-                  personId: _linkedPersonId,
-                  onTap: _pickPerson,
-                  onClear: _clearPerson,
-                ),
-                if (_linkedPersonId != null) ...[
-                  const SizedBox(height: AppSizes.xs),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('This person owes me this expense'),
-                    subtitle: const Text(
-                      "Adds this amount to what they owe you, so it shows up when you check their balance later.",
+                          const SizedBox(height: AppSizes.sm),
+                          Text('Amount', style: context.textTheme.labelMedium),
+                          const SizedBox(height: AppSizes.xs),
+                          TextFormField(
+                            controller: _amountController,
+                            decoration: _premiumDecoration(
+                              context,
+                              prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                            ),
+                            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            validator: Validators.amount,
+                            textInputAction: TextInputAction.next,
+                            onFieldSubmitted: (_) => _descriptionFocusNode.requestFocus(),
+                          ),
+                          const SizedBox(height: AppSizes.sm),
+                          Text.rich(
+                            TextSpan(
+                              text: 'Description',
+                              style: context.textTheme.labelMedium,
+                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+                            ),
+                          ),
+                          const SizedBox(height: AppSizes.xs),
+                          TextFormField(
+                            controller: _descriptionController,
+                            focusNode: _descriptionFocusNode,
+                            decoration: _premiumDecoration(
+                              context,
+                              prefixIcon: selectedCategory == null
+                                  ? null
+                                  : Padding(
+                                      padding: const EdgeInsets.all(AppSizes.sm),
+                                      child: CircleAvatar(
+                                        backgroundColor: Color(selectedCategory.colorValue).withValues(alpha: 0.15),
+                                        child: Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
+                                      ),
+                                    ),
+                              suffixIcon: _descriptionController.text.isEmpty
+                                  ? null
+                                  : IconButton(
+                                      icon: const Icon(Icons.cancel, size: AppSizes.iconSm),
+                                      onPressed: () => setState(_descriptionController.clear),
+                                    ),
+                            ),
+                            maxLength: 100,
+                            validator: Validators.required,
+                            textInputAction: TextInputAction.next,
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          const SizedBox(height: AppSizes.sm),
+                          Text('Notes (optional)', style: context.textTheme.labelMedium),
+                          const SizedBox(height: AppSizes.xs),
+                          TextFormField(
+                            controller: _notesController,
+                            decoration: _premiumDecoration(context),
+                            maxLines: 2,
+                            textInputAction: TextInputAction.done,
+                          ),
+                        ],
+                      ),
                     ),
-                    value: _owesPersonToggle,
-                    onChanged: (value) => setState(() => _owesPersonToggle = value),
-                  ),
-                ],
-              ],
-              const SizedBox(height: AppSizes.sm),
-              Text.rich(
-                TextSpan(
-                  text: 'Category',
-                  style: context.textTheme.titleSmall,
-                  children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
-                ),
-              ),
-              const SizedBox(height: AppSizes.xs),
-              InkWell(
-                onTap: () => _pickCategory(categories),
-                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                child: InputDecorator(
-                  decoration: InputDecoration(errorText: _categoryError, isDense: true),
-                  child: Row(
-                    children: [
-                      if (selectedCategory != null) ...[
-                        CircleAvatar(
-                          radius: 13,
-                          backgroundColor: Color(selectedCategory.colorValue).withValues(alpha: 0.15),
-                          child: Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
-                        ),
-                        const SizedBox(width: AppSizes.sm),
-                      ],
-                      Expanded(
-                        child: Text(
-                          selectedCategory?.name ?? 'Select a category',
-                          style: context.textTheme.bodyMedium,
+                    if (_type == TransactionType.expense) ...[
+                      const SizedBox(height: AppSizes.sm),
+                      _SectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SectionLabel('Assign to Person'),
+                            const SizedBox(height: AppSizes.sm),
+                            Text('Person (optional)', style: context.textTheme.labelMedium),
+                            const SizedBox(height: AppSizes.xs),
+                            _PersonField(
+                              personId: _linkedPersonId,
+                              onTap: _pickPerson,
+                              onClear: _clearPerson,
+                            ),
+                            if (_linkedPersonId != null) ...[
+                              const SizedBox(height: AppSizes.xs),
+                              Material(
+                                type: MaterialType.transparency,
+                                child: SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text('This person owes me this expense'),
+                                  subtitle: const Text(
+                                    "Adds this amount to what they owe you, so it shows up when you check their balance later.",
+                                  ),
+                                  value: _owesPersonToggle,
+                                  onChanged: (value) => setState(() => _owesPersonToggle = value),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      const Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd),
                     ],
-                  ),
-                ),
-              ),
-              if (_activeCategorySuggestion case final source?)
-                SmsSuggestionHint(source: source, merchant: widget.smsPrefill?.merchantOrSender),
-              const SizedBox(height: AppSizes.sm),
-              Text.rich(
-                TextSpan(
-                  text: 'Date & Time',
-                  style: context.textTheme.titleSmall,
-                  children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
-                ),
-              ),
-              const SizedBox(height: AppSizes.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(40),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      onPressed: _pickDate,
-                      icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                      label: Text(_dateTime.fullDate),
-                    ),
-                  ),
-                  const SizedBox(width: AppSizes.sm),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(40),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      onPressed: _pickTime,
-                      icon: const Icon(Icons.access_time_outlined, size: AppSizes.iconSm),
-                      label: Text(TimeOfDay.fromDateTime(_dateTime).format(context)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.sm),
-              Text.rich(
-                TextSpan(
-                  text: 'Payment Method',
-                  style: context.textTheme.titleSmall,
-                  children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
-                ),
-              ),
-              const SizedBox(height: AppSizes.xs),
-              accountsAsync.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (error, _) => Text('Could not load payment methods: $error'),
-                data: (accounts) {
-                  return Wrap(
-                    spacing: AppSizes.sm,
-                    runSpacing: AppSizes.sm,
-                    children: [
-                      for (final account in accounts)
-                        _PaymentMethodChip(
-                          account: account,
-                          creditCards: creditCards,
-                          selected: account.id == _accountId,
-                          onTap: () => setState(() {
-                            _accountId = account.id;
-                            _accountError = null;
-                          }),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              if (_accountError != null) ...[
-                const SizedBox(height: AppSizes.xs),
-                Text(_accountError!, style: TextStyle(color: context.colors.error, fontSize: 12)),
-              ],
-              if (!_isEditing && _type == TransactionType.expense) ...[
-                const SizedBox(height: AppSizes.md),
-                InkWell(
-                  onTap: () => _switchToSplitExpense(context),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(isDense: true),
-                    child: Row(
-                      children: [
-                        Icon(Icons.people_outline_rounded, color: context.colors.primary),
-                        const SizedBox(width: AppSizes.sm),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: AppSizes.sm),
+                    _SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionLabel('Category & Payment'),
+                          const SizedBox(height: AppSizes.sm),
+                          Text.rich(
+                            TextSpan(
+                              text: 'Category',
+                              style: context.textTheme.labelMedium,
+                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+                            ),
+                          ),
+                          const SizedBox(height: AppSizes.xs),
+                          _PremiumTapRow(
+                            onTap: () => _pickCategory(categories),
+                            errorText: _categoryError,
+                            child: Row(
+                              children: [
+                                if (selectedCategory != null) ...[
+                                  CircleAvatar(
+                                    radius: 11,
+                                    backgroundColor: Color(selectedCategory.colorValue).withValues(alpha: 0.15),
+                                    child: Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
+                                  ),
+                                  const SizedBox(width: AppSizes.sm),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    selectedCategory?.name ?? 'Select a category',
+                                    style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+                              ],
+                            ),
+                          ),
+                          if (_activeCategorySuggestion case final source?)
+                            Padding(
+                              padding: const EdgeInsets.only(top: AppSizes.xs),
+                              child: SmsSuggestionHint(source: source, merchant: widget.smsPrefill?.merchantOrSender),
+                            ),
+                          const SizedBox(height: AppSizes.sm),
+                          Text.rich(
+                            TextSpan(
+                              text: 'Date & Time',
+                              style: context.textTheme.labelMedium,
+                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+                            ),
+                          ),
+                          const SizedBox(height: AppSizes.xs),
+                          Row(
                             children: [
-                              const Text('Share Expense'),
-                              Text(
-                                'Share this with others',
-                                style: context.textTheme.bodySmall
-                                    ?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                              Expanded(
+                                child: _PremiumTapButton(
+                                  onTap: _pickDate,
+                                  icon: Icons.calendar_today_outlined,
+                                  label: _dateTime.fullDate,
+                                ),
+                              ),
+                              const SizedBox(width: AppSizes.sm),
+                              Expanded(
+                                child: _PremiumTapButton(
+                                  onTap: _pickTime,
+                                  icon: Icons.access_time_outlined,
+                                  label: TimeOfDay.fromDateTime(_dateTime).format(context),
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: AppSizes.md),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text("Don't count this in my totals"),
-                subtitle: const Text(
-                  "Still shows in your history — just won't affect your balance, budgets, or reports.",
-                ),
-                value: _excludeFromCalculations,
-                onChanged: (value) => setState(() => _excludeFromCalculations = value),
-              ),
-              const SizedBox(height: AppSizes.sm),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Count this in a different month?'),
-                subtitle: Text(
-                  _customAccountingMonth
-                      ? 'Choose which month it should count toward below.'
-                      : 'Right now: counted in ${_dateTime.monthYear} (same as the date above)',
-                ),
-                value: _customAccountingMonth,
-                onChanged: (value) => setState(() {
-                  _customAccountingMonth = value;
-                  if (!value) _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
-                }),
-              ),
-              if (_customAccountingMonth) ...[
-                const SizedBox(height: AppSizes.sm),
-                Text(
-                  'Which month should this count toward?',
-                  style: context.textTheme.labelLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSizes.xs),
-                MonthYearStepper(
-                  value: _accountingMonth,
-                  min: DateTime(_accountingMonthBounds.year - 5, _accountingMonthBounds.month),
-                  max: DateTime(_accountingMonthBounds.year + 2, _accountingMonthBounds.month),
-                  onChanged: (month) => setState(() => _accountingMonth = month),
-                ),
-                if (!_accountingMonth.isSameMonth(_dateTime)) ...[
-                  const SizedBox(height: AppSizes.sm),
-                  Container(
-                    padding: const EdgeInsets.all(AppSizes.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: AppSizes.iconSm),
-                        const SizedBox(width: AppSizes.sm),
-                        Expanded(
-                          child: Text(
-                            'This was made on ${_dateTime.fullDate}, but won\'t count in ${_dateTime.monthYear}\'s '
-                            'totals — instead it\'ll count in ${_accountingMonth.monthYear}\'s Budget, Cash Flow, '
-                            'Dashboard, and Reports.',
-                            style: context.textTheme.bodySmall,
+                          const SizedBox(height: AppSizes.sm),
+                          Text.rich(
+                            TextSpan(
+                              text: 'Payment Method',
+                              style: context.textTheme.labelMedium,
+                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: AppSizes.xs),
+                          accountsAsync.when(
+                            loading: () => const LinearProgressIndicator(),
+                            error: (error, _) => Text('Could not load payment methods: $error'),
+                            data: (accounts) {
+                              return Wrap(
+                                spacing: AppSizes.sm,
+                                runSpacing: AppSizes.sm,
+                                children: [
+                                  for (final account in accounts)
+                                    _PaymentMethodChip(
+                                      account: account,
+                                      creditCards: creditCards,
+                                      selected: account.id == _accountId,
+                                      onTap: () => setState(() {
+                                        _accountId = account.id;
+                                        _accountError = null;
+                                      }),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                          if (_accountError != null) ...[
+                            const SizedBox(height: AppSizes.xs),
+                            Text(_accountError!, style: TextStyle(color: context.colors.error, fontSize: 12)),
+                          ],
+                          if (!_isEditing && _type == TransactionType.expense) ...[
+                            const SizedBox(height: AppSizes.sm),
+                            _ShareExpenseRow(onTap: () => _switchToSplitExpense(context)),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ],
-              const SizedBox(height: AppSizes.lg),
-              PrimaryButton(
-                label: _isEditing ? 'Save changes' : 'Save Expense',
-                isLoading: _isSaving,
-                onPressed: _save,
+                    const SizedBox(height: AppSizes.sm),
+                    _SectionCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionLabel('Advanced Options'),
+                          const SizedBox(height: AppSizes.xs),
+                          Material(
+                            type: MaterialType.transparency,
+                            child: SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text("Don't count this in my totals"),
+                              subtitle: const Text(
+                                "Still shows in your history — just won't affect your balance, budgets, or reports.",
+                              ),
+                              value: _excludeFromCalculations,
+                              onChanged: (value) => setState(() => _excludeFromCalculations = value),
+                            ),
+                          ),
+                          Material(
+                            type: MaterialType.transparency,
+                            child: SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Count this in a different month?'),
+                              subtitle: Text(
+                                _customAccountingMonth
+                                    ? 'Choose which month it should count toward below.'
+                                    : 'Right now: counted in ${_dateTime.monthYear} (same as the date above)',
+                              ),
+                              value: _customAccountingMonth,
+                              onChanged: (value) => setState(() {
+                                _customAccountingMonth = value;
+                                if (!value) _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
+                              }),
+                            ),
+                          ),
+                          if (_customAccountingMonth) ...[
+                            const SizedBox(height: AppSizes.sm),
+                            Text(
+                              'Which month should this count toward?',
+                              style: context.textTheme.labelLarge,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: AppSizes.xs),
+                            MonthYearStepper(
+                              value: _accountingMonth,
+                              min: DateTime(_accountingMonthBounds.year - 5, _accountingMonthBounds.month),
+                              max: DateTime(_accountingMonthBounds.year + 2, _accountingMonthBounds.month),
+                              onChanged: (month) => setState(() => _accountingMonth = month),
+                            ),
+                            if (!_accountingMonth.isSameMonth(_dateTime)) ...[
+                              const SizedBox(height: AppSizes.sm),
+                              Container(
+                                padding: const EdgeInsets.all(AppSizes.md),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warning.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: AppSizes.iconSm),
+                                    const SizedBox(width: AppSizes.sm),
+                                    Expanded(
+                                      child: Text(
+                                        'This was made on ${_dateTime.fullDate}, but won\'t count in ${_dateTime.monthYear}\'s '
+                                        'totals — instead it\'ll count in ${_accountingMonth.monthYear}\'s Budget, Cash Flow, '
+                                        'Dashboard, and Reports.',
+                                        style: context.textTheme.bodySmall,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: AppSizes.xs),
+            ),
+            _BottomSaveBar(
+              label: _isEditing ? 'Save changes' : 'Save Expense',
+              isLoading: _isSaving,
+              onPressed: _save,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Soft-shadowed card wrapper grouping a set of related fields — the same
+/// `_SectionCard` vocabulary `CreditCardFormSheet` established (see
+/// `docs/ui-ux-design-system.md`), reused here rather than re-invented, so
+/// every "Add X" form in the app reads as one consistent premium language.
+class _SectionCard extends StatelessWidget {
+  const _SectionCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    // Flat tinted grouping rather than `CreditCardFormSheet`'s floating
+    // shadowed `_SectionCard` — that one shows 1-2 cards per wizard step, so
+    // a shadow reads as a single hero surface. Stacked four-deep on one
+    // continuous scroll (every section always visible, not paged), the same
+    // shadow on every card reads as a wall of floating panels rather than a
+    // calm grouped list — premium here means restrained, not heavier.
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSizes.sm),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// The filled, borderless-until-focus field decoration every [TextFormField]
+/// on this screen shares — same look as `CreditCardFormSheet`'s
+/// `_PremiumField`, applied directly to decorations here instead of through
+/// a wrapper widget so this screen's field-specific prefix/suffix widgets
+/// (the category avatar, the clear button) don't need a second API to
+/// thread them through.
+InputDecoration _premiumDecoration(
+  BuildContext context, {
+  Widget? prefixIcon,
+  Widget? suffixIcon,
+}) {
+  final colors = context.colors;
+  return InputDecoration(
+    prefixIcon: prefixIcon,
+    suffixIcon: suffixIcon,
+    isDense: true,
+    filled: true,
+    fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.primary, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.2),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.6),
+    ),
+  );
+}
+
+/// A filled, tappable row — the premium replacement for wrapping a plain
+/// [InkWell] around an [InputDecorator], used for every "tap to pick"
+/// field (Category, Person) so they share the same surface treatment as
+/// this screen's text fields instead of looking like a different control.
+class _PremiumTapRow extends StatelessWidget {
+  const _PremiumTapRow({required this.onTap, required this.child, this.errorText});
+
+  final VoidCallback onTap;
+  final Widget child;
+  final String? errorText;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Material(
+          color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+              decoration: errorText == null ? null : BoxDecoration(border: Border.all(color: colors.error)),
+              child: child,
+            ),
+          ),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: AppSizes.xs),
+            child: Text(errorText!, style: TextStyle(color: colors.error, fontSize: 12)),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// A filled icon+label tap button — the premium replacement for the plain
+/// [OutlinedButton.icon] previously used for the Date/Time pickers, matching
+/// the filled-surface language of every other control on this screen.
+class _PremiumTapButton extends StatelessWidget {
+  const _PremiumTapButton({required this.onTap, required this.icon, required this.label});
+
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: AppSizes.iconSm, color: colors.primary),
+              const SizedBox(width: AppSizes.xs),
+              Flexible(
+                child: Text(
+                  label,
+                  style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The "Share Expense" hand-off row — styled like `CreditCardFormSheet`'s
+/// gradient-icon-badge toggle card (see `_pairLimitToggleCard`) since this
+/// is the same kind of "opt into a bigger related flow" entry point, just
+/// navigating instead of toggling in place.
+class _ShareExpenseRow extends StatelessWidget {
+  const _ShareExpenseRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(AppSizes.sm),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: AppColors.primaryGradient),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                ),
+                child: const Icon(Icons.people_outline_rounded, color: Colors.white, size: AppSizes.iconSm),
+              ),
+              const SizedBox(width: AppSizes.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Share Expense', style: context.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 1),
+                    Text(
+                      'Share this with others',
+                      style: context.textTheme.bodySmall?.copyWith(color: colors.onSurface.withValues(alpha: 0.6)),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd, color: colors.onSurface.withValues(alpha: 0.4)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The persistent bottom action bar — a hairline-topped surface holding the
+/// full-width [PrimaryButton], pinned below the scroll instead of living at
+/// its end, so the primary action is always reachable without scrolling.
+class _BottomSaveBar extends StatelessWidget {
+  const _BottomSaveBar({required this.label, required this.isLoading, required this.onPressed});
+
+  final String label;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        border: Border(top: BorderSide(color: context.colors.outlineVariant.withValues(alpha: 0.6))),
+      ),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.lg, AppSizes.sm),
+        child: PrimaryButton(label: label, isLoading: isLoading, onPressed: onPressed),
       ),
     );
   }
@@ -917,33 +1181,29 @@ class _PersonField extends ConsumerWidget {
     final people = ref.watch(peopleStreamProvider).value ?? const [];
     final person = personId == null ? null : people.where((p) => p.id == personId).firstOrNull;
 
-    return InkWell(
+    return _PremiumTapRow(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-      child: InputDecorator(
-        decoration: const InputDecoration(isDense: true),
-        child: Row(
-          children: [
-            if (person != null) ...[
-              PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 13),
-              const SizedBox(width: AppSizes.sm),
-            ],
-            Expanded(
-              child: Text(
-                person?.name ?? 'Add a person (optional)',
-                style: context.textTheme.bodyMedium,
-              ),
-            ),
-            if (person != null)
-              IconButton(
-                icon: const Icon(Icons.cancel, size: AppSizes.iconSm),
-                onPressed: onClear,
-                tooltip: 'Remove person',
-              )
-            else
-              const Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd),
+      child: Row(
+        children: [
+          if (person != null) ...[
+            PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 11),
+            const SizedBox(width: AppSizes.sm),
           ],
-        ),
+          Expanded(
+            child: Text(
+              person?.name ?? 'Add a person (optional)',
+              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (person != null)
+            IconButton(
+              icon: const Icon(Icons.cancel, size: AppSizes.iconSm),
+              onPressed: onClear,
+              tooltip: 'Remove person',
+            )
+          else
+            Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd, color: context.colors.onSurface.withValues(alpha: 0.4)),
+        ],
       ),
     );
   }
@@ -964,15 +1224,37 @@ class _PaymentMethodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(accountPickerLabel(account, creditCards)),
-      avatar: account.type == AccountType.bank || account.type == AccountType.card
-          ? BankAvatar(bankId: account.bankId, fallbackName: account.name, size: AppSizes.iconSm + 2)
-          : Icon(account.type.icon, size: AppSizes.iconSm),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: context.colors.primary.withValues(alpha: 0.15),
-      side: BorderSide(color: selected ? context.colors.primary : context.colors.outline),
+    final colors = context.colors;
+    return Material(
+      color: selected ? colors.primary.withValues(alpha: 0.15) : colors.surfaceContainerHighest.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+            border: Border.all(color: selected ? colors.primary : colors.outlineVariant.withValues(alpha: 0.6)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              account.type == AccountType.bank || account.type == AccountType.card
+                  ? BankAvatar(bankId: account.bankId, fallbackName: account.name, size: AppSizes.iconSm)
+                  : Icon(account.type.icon, size: AppSizes.iconSm, color: selected ? colors.primary : colors.onSurface.withValues(alpha: 0.6)),
+              const SizedBox(width: 4),
+              Text(
+                accountPickerLabel(account, creditCards),
+                style: context.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: selected ? colors.primary : colors.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

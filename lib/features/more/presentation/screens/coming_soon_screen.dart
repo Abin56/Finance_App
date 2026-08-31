@@ -14,10 +14,12 @@ class ComingSoonScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: const EmptyState(
-        icon: Icons.hourglass_empty_rounded,
-        title: 'Coming soon',
-        subtitle: 'This feature is not available yet.',
+      body: const SafeArea(
+        child: EmptyState(
+          icon: Icons.hourglass_empty_rounded,
+          title: 'Coming soon',
+          subtitle: 'This feature is not available yet.',
+        ),
       ),
     );
   }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
+import 'sms_candidate_summary.dart';
 
 /// What the user chose in [SmsMessageDetailSheet]. The sheet itself performs
 /// no work — it returns an intent and the screen runs the same handlers the
@@ -12,7 +14,7 @@ import '../../domain/sms_inbox_item.dart';
 enum SmsRowAction { convert, ignore, restore, delete }
 
 /// Tapping a compact inbox row opens this — it carries the detail the row
-/// itself no longer has room for (full SMS body, parser confidence,
+/// itself no longer has room for (full SMS body, matched account/confidence,
 /// reference number) and exposes the row's actions as real buttons, so
 /// Convert stays discoverable for users who never try swiping.
 class SmsMessageDetailSheet {
@@ -28,24 +30,11 @@ class SmsMessageDetailSheet {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      item.parsed?.merchantOrSender ?? item.rawMessage.address,
-                      style: context.textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (item.parsed != null)
-                    Text(
-                      _confidenceLabel(item.parsed!.confidence),
-                      style: context.textTheme.labelSmall?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                ],
+              Text(
+                item.parsed?.merchantOrSender ?? item.rawMessage.address,
+                style: context.textTheme.titleMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: AppSizes.md),
               Container(
@@ -66,6 +55,9 @@ class SmsMessageDetailSheet {
                   ),
                 ),
               ],
+              // Only ever built once the sheet is on screen, and it renders
+              // nothing when no candidate exists yet — see its own class doc.
+              Consumer(builder: (context, ref, _) => SmsCandidateSummary(smsItemId: item.id)),
               const SizedBox(height: AppSizes.lg),
               _Actions(status: item.status, sheetContext: sheetContext),
             ],
@@ -73,11 +65,6 @@ class SmsMessageDetailSheet {
         ),
       ),
     );
-  }
-
-  static String _confidenceLabel(double confidence) {
-    if (confidence >= 0.8) return 'Clearly detected';
-    return confidence >= 0.6 ? 'Likely match' : 'Best guess';
   }
 }
 

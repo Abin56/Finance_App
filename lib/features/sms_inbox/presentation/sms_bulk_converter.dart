@@ -5,6 +5,7 @@ import '../../transactions/domain/transaction_type.dart';
 import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../data/merchant_memory_repository.dart';
 import '../data/sms_inbox_repository.dart';
+import '../data/sms_transaction_candidate_repository.dart';
 import '../domain/sms_inbox_item.dart';
 import 'providers/sms_inbox_providers.dart';
 import 'sms_import_completion.dart';
@@ -65,11 +66,16 @@ class SmsBulkConvertResult {
 /// Reloading the inbox afterwards is deliberately the caller's job — see
 /// [convert].
 class SmsBulkConverter {
-  const SmsBulkConverter(this._transactions, this._inbox, this._memories);
+  const SmsBulkConverter(this._transactions, this._inbox, this._memories, [this._cloudCandidates]);
 
   final TransactionRepository _transactions;
   final SmsInboxRepository _inbox;
   final MerchantMemoryRepository _memories;
+
+  /// Optional so existing tests that construct this with three args keep
+  /// working unchanged — see `linkSmsImportViaRepositories`'s own doc for
+  /// why cleanup stays best-effort when this is supplied.
+  final SmsTransactionCandidateRepository? _cloudCandidates;
 
   /// Writes are sequential rather than a `Future.wait`: they hit the same
   /// account balance, and firing hundreds of concurrent writes at Firestore
@@ -117,6 +123,7 @@ class SmsBulkConverter {
           categoryId: config.categoryId,
           description: merchant ?? '',
           notes: config.notes,
+          source: 'sms',
         );
 
         // The transaction above is real and saved — this row is a success
@@ -135,6 +142,7 @@ class SmsBulkConverter {
           merchant: merchant,
           learnCategoryType: config.type,
           learnCategoryId: config.categoryId,
+          cloudCandidateRepository: _cloudCandidates,
         );
       } catch (_) {
         failed++;
@@ -150,5 +158,6 @@ final smsBulkConverterProvider = Provider<SmsBulkConverter>((ref) {
     ref.watch(transactionRepositoryProvider),
     ref.watch(smsInboxRepositoryProvider),
     ref.watch(merchantMemoryRepositoryProvider),
+    ref.watch(smsTransactionCandidateRepositoryProvider),
   );
 });

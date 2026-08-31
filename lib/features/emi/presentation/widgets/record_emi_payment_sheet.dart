@@ -10,8 +10,9 @@ import '../../../../core/services/payment_attribution_service.dart';
 import '../../../../core/services/providers/payment_attribution_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
 import '../../../sms_inbox/presentation/sms_import_completion.dart';
@@ -46,6 +47,7 @@ class RecordEmiPaymentSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => RecordEmiPaymentSheet(emi: emi, installment: installment, smsPrefill: smsPrefill),
     );
   }
@@ -266,22 +268,19 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Record payment', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.lg),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Record payment',
+        confirmLabel: 'Record payment',
+        isSaving: _isSaving,
+        confirmEnabled: _isAmountValid,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              const SectionLabel('Payment'),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _principalController,
                 decoration: const InputDecoration(labelText: 'Principal paid'),
@@ -307,6 +306,8 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
                 trailing: const Icon(Icons.calendar_today_outlined),
                 onTap: _pickDate,
               ),
+              const SizedBox(height: AppSizes.lg),
+              const SectionLabel('Charges'),
               const SizedBox(height: AppSizes.sm),
               Theme(
                 data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -380,14 +381,16 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              const SizedBox(height: AppSizes.md),
+              const SizedBox(height: AppSizes.lg),
+              const SectionLabel('Note & Payer'),
+              const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _noteController,
                 decoration: const InputDecoration(labelText: 'Note (optional)'),
                 maxLines: 2,
                 textInputAction: TextInputAction.done,
               ),
-              const SizedBox(height: AppSizes.lg),
+              const SizedBox(height: AppSizes.md),
               PayerPicker(
                 isSomeoneElse: _someoneElsePaid,
                 onModeChanged: (value) => setState(() {
@@ -397,15 +400,7 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
                 selectedPersonId: _selectedPersonId,
                 onPersonChanged: (value) => setState(() => _selectedPersonId = value),
               ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: 'Record payment',
-                isLoading: _isSaving,
-                onPressed: _isAmountValid ? _save : null,
-              ),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+          ],
         ),
       ),
     );

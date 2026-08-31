@@ -17,6 +17,8 @@ import 'package:finance_app/features/sms_inbox/domain/sms_transaction_direction.
 import 'package:finance_app/features/sms_inbox/presentation/sms_bulk_converter.dart';
 import 'package:finance_app/features/sms_inbox/presentation/widgets/sms_bulk_convert_sheet.dart';
 import 'package:finance_app/features/sms_inbox/domain/merchant/merchant_memory.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_confidence_scorer.dart';
+import 'package:finance_app/features/sms_inbox/domain/transaction_candidate.dart';
 import 'package:finance_app/features/sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import 'package:finance_app/features/transactions/domain/transaction_type.dart';
 
@@ -88,10 +90,33 @@ void main() {
     );
   }
 
+  TransactionCandidate candidate({required String smsItemId, String? matchedAccountId}) {
+    return TransactionCandidate(
+      id: 'cand-$smsItemId',
+      smsItemId: smsItemId,
+      amount: 100,
+      direction: SmsTransactionDirection.debit,
+      eventType: SmsTransactionCategory.cardPurchase,
+      transactionDate: DateTime(2026, 7, 15, 12),
+      matchedAccountId: matchedAccountId,
+      confidenceLevel: matchedAccountId == null ? ConfidenceLevel.low : ConfidenceLevel.high,
+      confidenceScore: matchedAccountId == null ? 0.2 : 0.9,
+      needsReview: matchedAccountId == null,
+      createdAt: DateTime(2026, 7, 15, 12),
+    );
+  }
+
   Future<SmsBulkConvertConfig?> pumpSheet(
     WidgetTester tester,
     List<SmsInboxItem> items, {
     double width = 360,
+    List<TransactionCandidate> candidates = const [],
+    // Run after the sheet is open but before this returns, e.g. to tap
+    // Create — otherwise [config] is read (and returned) before any such
+    // interaction has had a chance to resolve `SmsBulkConvertSheet.show`'s
+    // future, since that assignment happens inside the button's onPressed
+    // closure below, not synchronously with this function's return.
+    Future<void> Function()? afterOpen,
   }) async {
     tester.view.physicalSize = Size(width, 900);
     tester.view.devicePixelRatio = 1.0;
@@ -106,6 +131,7 @@ void main() {
           categoriesStreamProvider.overrideWith((ref) => Stream.value(categories)),
           accountsStreamProvider.overrideWith((ref) => Stream.value(accounts)),
           merchantMemoriesProvider.overrideWith(_StubMemoriesNotifier.new),
+          transactionCandidatesProvider.overrideWith((ref) async => candidates),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -121,6 +147,10 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+    if (afterOpen != null) {
+      await afterOpen();
+      await tester.pumpAndSettle();
+    }
     return config;
   }
 
@@ -181,6 +211,33 @@ void main() {
     expect(find.textContaining('have no readable amount and will be'), findsOneWidget);
     // The button promises only what can actually be created.
     expect(find.text('Create 1 transaction'), findsOneWidget);
+  });
+
+  testWidgets('suggests a payment method when every message matched the same account', (tester) async {
+    final config = await pumpSheet(
+      tester,
+      [item(id: 'a'), item(id: 'b')],
+      candidates: [
+        candidate(smsItemId: 'a', matchedAccountId: 'acc-1'),
+        candidate(smsItemId: 'b', matchedAccountId: 'acc-1'),
+      ],
+      afterOpen: () => tester.tap(find.text('Create 2 transactions')),
+    );
+
+    expect(config?.accountId, 'acc-1');
+  });
+
+  testWidgets('suggests nothing when selected messages matched different accounts', (tester) async {
+    await pumpSheet(
+      tester,
+      [item(id: 'a'), item(id: 'b')],
+      candidates: [
+        candidate(smsItemId: 'a', matchedAccountId: 'acc-1'),
+        candidate(smsItemId: 'b', matchedAccountId: 'acc-2'),
+      ],
+    );
+
+    expect(find.text('Select a payment method'), findsOneWidget);
   });
 
   testWidgets('will not return a config without a payment method chosen', (tester) async {

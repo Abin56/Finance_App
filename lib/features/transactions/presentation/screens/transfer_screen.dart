@@ -106,6 +106,7 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
         destinationAccountId: _destinationAccountId!,
         categoryId: _categoryId!,
         notes: _noteController.text.trim(),
+        source: widget.smsPrefill == null ? null : 'sms',
       );
 
       await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: sourceLeg.id);
@@ -138,114 +139,213 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: AppSizes.lg,
-            right: AppSizes.lg,
-            top: AppSizes.md,
-            bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.sm, AppSizes.md, AppSizes.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Amount', style: context.textTheme.labelMedium),
+                    const SizedBox(height: AppSizes.xs),
+                    TextFormField(
+                      controller: _amountController,
+                      decoration: _premiumDecoration(context, prefixIcon: const Icon(Icons.currency_rupee_rounded)),
+                      style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: Validators.amount,
+                    ),
+                    const SizedBox(height: AppSizes.sm),
+                    accountsAsync.when(
+                      loading: () => const LinearProgressIndicator(),
+                      error: (error, _) => Text('Could not load accounts: $error'),
+                      data: (accounts) {
+                        final validSource = accounts.any((a) => a.id == _sourceAccountId) ? _sourceAccountId : null;
+                        final validDestination =
+                            accounts.any((a) => a.id == _destinationAccountId) ? _destinationAccountId : null;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            DropdownButtonFormField<String>(
+                              initialValue: validSource,
+                              decoration: _premiumDecoration(context, label: 'From account', errorText: _sourceError),
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              items: [
+                                for (final account in accounts)
+                                  DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
+                              ],
+                              onChanged: (value) => setState(() {
+                                _sourceAccountId = value;
+                                _sourceError = null;
+                              }),
+                            ),
+                            const SizedBox(height: AppSizes.sm),
+                            DropdownButtonFormField<String>(
+                              initialValue: validDestination,
+                              decoration: _premiumDecoration(context, label: 'To account', errorText: _destinationError),
+                              style: Theme.of(context).textTheme.bodyMedium,
+                              items: [
+                                for (final account in accounts)
+                                  DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
+                              ],
+                              onChanged: (value) => setState(() {
+                                _destinationAccountId = value;
+                                _destinationError = null;
+                              }),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSizes.sm),
+                    DropdownButtonFormField<String>(
+                      initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
+                      decoration: _premiumDecoration(context, label: 'Category', errorText: _categoryError),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      items: [
+                        for (final category in categories) DropdownMenuItem(value: category.id, child: Text(category.name)),
+                      ],
+                      onChanged: (value) => setState(() {
+                        _categoryId = value;
+                        _categoryError = null;
+                      }),
+                    ),
+                    const SizedBox(height: AppSizes.sm),
+                    Text('Date & Time', style: context.textTheme.labelMedium),
+                    const SizedBox(height: AppSizes.xs),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _PremiumTapButton(onTap: _pickDate, icon: Icons.calendar_today_outlined, label: _dateTime.fullDate),
+                        ),
+                        const SizedBox(width: AppSizes.sm),
+                        Expanded(
+                          child: _PremiumTapButton(
+                            onTap: _pickTime,
+                            icon: Icons.access_time_outlined,
+                            label: TimeOfDay.fromDateTime(_dateTime).format(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSizes.sm),
+                    TextFormField(
+                      controller: _noteController,
+                      decoration: _premiumDecoration(context, label: 'Note (optional)'),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      maxLines: 2,
+                      textInputAction: TextInputAction.done,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            _BottomSaveBar(label: 'Save Transfer', isLoading: _isSaving, onPressed: _save),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The filled, borderless-until-focus field decoration every field on this
+/// screen shares — same vocabulary as `AddExpenseScreen`'s
+/// `_premiumDecoration`. [label] is left null for the Amount field, which
+/// uses an external label above it (a large hero figure) instead of an
+/// internal floating one.
+InputDecoration _premiumDecoration(
+  BuildContext context, {
+  String? label,
+  String? errorText,
+  Widget? prefixIcon,
+}) {
+  final colors = context.colors;
+  return InputDecoration(
+    labelText: label,
+    errorText: errorText,
+    prefixIcon: prefixIcon,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    filled: true,
+    fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.primary, width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.2),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide(color: colors.error, width: 1.6),
+    ),
+  );
+}
+
+/// A filled icon+label tap button — the premium replacement for
+/// [OutlinedButton.icon], used for the Date/Time pickers.
+class _PremiumTapButton extends StatelessWidget {
+  const _PremiumTapButton({required this.onTap, required this.icon, required this.label});
+
+  final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Amount', style: context.textTheme.titleSmall),
-              const SizedBox(height: AppSizes.xs),
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(prefixIcon: Icon(Icons.currency_rupee_rounded), isDense: true),
-                style: context.textTheme.titleLarge,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
+              Icon(icon, size: AppSizes.iconSm, color: colors.primary),
+              const SizedBox(width: AppSizes.xs),
+              Flexible(
+                child: Text(
+                  label,
+                  style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const SizedBox(height: AppSizes.md),
-              accountsAsync.when(
-                loading: () => const LinearProgressIndicator(),
-                error: (error, _) => Text('Could not load accounts: $error'),
-                data: (accounts) {
-                  final validSource = accounts.any((a) => a.id == _sourceAccountId) ? _sourceAccountId : null;
-                  final validDestination =
-                      accounts.any((a) => a.id == _destinationAccountId) ? _destinationAccountId : null;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        initialValue: validSource,
-                        decoration: InputDecoration(labelText: 'From account', errorText: _sourceError),
-                        items: [
-                          for (final account in accounts)
-                            DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
-                        ],
-                        onChanged: (value) => setState(() {
-                          _sourceAccountId = value;
-                          _sourceError = null;
-                        }),
-                      ),
-                      const SizedBox(height: AppSizes.md),
-                      DropdownButtonFormField<String>(
-                        initialValue: validDestination,
-                        decoration: InputDecoration(labelText: 'To account', errorText: _destinationError),
-                        items: [
-                          for (final account in accounts)
-                            DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
-                        ],
-                        onChanged: (value) => setState(() {
-                          _destinationAccountId = value;
-                          _destinationError = null;
-                        }),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<String>(
-                initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-                decoration: InputDecoration(labelText: 'Category', errorText: _categoryError),
-                items: [
-                  for (final category in categories) DropdownMenuItem(value: category.id, child: Text(category.name)),
-                ],
-                onChanged: (value) => setState(() {
-                  _categoryId = value;
-                  _categoryError = null;
-                }),
-              ),
-              const SizedBox(height: AppSizes.md),
-              Text('Date & Time', style: context.textTheme.titleSmall),
-              const SizedBox(height: AppSizes.xs),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(40)),
-                      onPressed: _pickDate,
-                      icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                      label: Text(_dateTime.fullDate),
-                    ),
-                  ),
-                  const SizedBox(width: AppSizes.sm),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(40)),
-                      onPressed: _pickTime,
-                      icon: const Icon(Icons.access_time_outlined, size: AppSizes.iconSm),
-                      label: Text(TimeOfDay.fromDateTime(_dateTime).format(context)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-                maxLines: 2,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.lg),
-              PrimaryButton(label: 'Save Transfer', isLoading: _isSaving, onPressed: _save),
-              const SizedBox(height: AppSizes.xs),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The persistent bottom action bar — pinned below the scroll instead of
+/// living at its end, matching `AddExpenseScreen`'s `_BottomSaveBar`.
+class _BottomSaveBar extends StatelessWidget {
+  const _BottomSaveBar({required this.label, required this.isLoading, required this.onPressed});
+
+  final String label;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        border: Border(top: BorderSide(color: context.colors.outlineVariant.withValues(alpha: 0.6))),
+      ),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.lg, AppSizes.sm),
+        child: PrimaryButton(label: label, isLoading: isLoading, onPressed: onPressed),
       ),
     );
   }

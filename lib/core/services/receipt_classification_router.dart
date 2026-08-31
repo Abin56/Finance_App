@@ -3,6 +3,7 @@ import '../../features/expense/data/expense_repository.dart';
 import '../../features/expense/domain/expense.dart';
 import '../../features/expense/domain/expense_participant.dart';
 import '../../features/lending/domain/loan.dart';
+import '../../features/lending/domain/loan_category.dart';
 import '../../features/people/data/ledger_repository.dart';
 import '../../features/people/domain/ledger_entry_type.dart';
 import '../../features/people/domain/person.dart';
@@ -35,8 +36,10 @@ class ReceiptClassificationTarget {
     this.expenseRepository,
   });
 
-  /// Required for [ReceiptTargetKind.person] (and implicitly satisfied
-  /// whenever [loan] is supplied, since a loan always belongs to a person).
+  /// Required for [ReceiptTargetKind.person]. Also required alongside
+  /// [loan] when that loan is person-linked (`Loan.category ==
+  /// LoanCategory.personal`) — an institutional loan has no [Person], so
+  /// this stays null for it and the ledger-update step is skipped.
   final Person? person;
 
   /// Required for [ReceiptTargetKind.loanInstallment].
@@ -120,6 +123,7 @@ class ReceiptClassificationRouter {
     required String categoryId,
     ReceiptClassificationTarget target = const ReceiptClassificationTarget(),
     String note = '',
+    String? source,
   }) async {
     if (amount <= 0) {
       throw const AppException('Amount must be greater than 0');
@@ -134,6 +138,7 @@ class ReceiptClassificationRouter {
       categoryId: categoryId,
       notes: note.isEmpty ? purpose.label : note,
       receiptPurpose: purpose.name,
+      source: source,
     );
 
     switch (purpose.targetKind) {
@@ -148,7 +153,7 @@ class ReceiptClassificationRouter {
           date: date,
           note: note,
         );
-        if (target.loan != null) {
+        if (target.loan != null && target.person != null) {
           await _postLedgerEntry(target.person!, amount, date, note, transaction.id);
         }
 
@@ -200,7 +205,7 @@ class ReceiptClassificationRouter {
         if (target.loan == null || target.installment == null || target.installmentPaymentRepository == null) {
           throw AppException('${purpose.label} needs a loan and a payment to record it against');
         }
-        if (target.person == null) {
+        if (target.loan!.category == LoanCategory.personal && target.person == null) {
           throw AppException('${purpose.label} needs the loan\'s person to update their amount left');
         }
       case ReceiptTargetKind.emiInstallment:

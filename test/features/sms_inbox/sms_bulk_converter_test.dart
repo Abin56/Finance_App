@@ -8,11 +8,14 @@ import 'package:finance_app/features/sms_inbox/data/sms_inbox_dao.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_database.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_repository.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_reader_adapter.dart';
+import 'package:finance_app/features/sms_inbox/data/sms_transaction_candidate_repository.dart';
 import 'package:finance_app/features/sms_inbox/domain/parsed_sms_transaction.dart';
 import 'package:finance_app/features/sms_inbox/domain/raw_sms_message.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_confidence_scorer.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_duplicate_reason.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_import_status.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_inbox_item.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_transaction_candidate_cloud.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_category.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_direction.dart';
 import 'package:finance_app/features/sms_inbox/presentation/sms_bulk_converter.dart';
@@ -36,6 +39,17 @@ class _ThrowingMarkImportedRepository extends SmsInboxRepository {
   @override
   Future<void> markImported(String id, {required String linkedEntityId, String? linkedEntityRoute}) {
     throw Exception('simulated linking failure');
+  }
+}
+
+/// Throws on every [deleteById] — stands in for Firestore being unreachable
+/// at the exact moment of the post-convert cloud cleanup call.
+class _ThrowingDeleteRepository extends SmsTransactionCandidateRepository {
+  _ThrowingDeleteRepository(super.collection);
+
+  @override
+  Future<void> deleteById(String id) {
+    throw Exception('simulated Firestore outage');
   }
 }
 
@@ -144,6 +158,15 @@ void main() {
     final created = await transactionRepository.getAll();
     expect(created, hasLength(2));
     expect(created.map((t) => t.amount).toList()..sort(), [100, 250]);
+  });
+
+  test('tags every created transaction with source "sms"', () async {
+    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+
+    await converter.convert(items, config());
+
+    final created = await transactionRepository.getAll();
+    expect(created.every((t) => t.source == 'sms'), isTrue);
   });
 
   test('applies the shared answers to every transaction', () async {
@@ -279,5 +302,72 @@ void main() {
     final stored = await inboxRepository.getAll();
     expect(stored.single.status, SmsImportStatus.pending);
     expect(stored.single.linkedEntityId, isNull);
+  });
+
+  group('SmsBulkConverter — immediate cloud candidate cleanup', () {
+    SmsTransactionCandidateRepository cloudRepositoryFor(FakeFirebaseFirestore firestore) {
+      final collection = firestore.collection('smsTransactionCandidates').withConverter<SmsTransactionCandidateCloud>(
+            fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
+            toFirestore: (c, _) => c.toFirestore(),
+          );
+      return SmsTransactionCandidateRepository(collection);
+    }
+
+    SmsTransactionCandidateCloud buildCloudDoc(String smsItemId) {
+      return SmsTransactionCandidateCloud(
+        smsItemId: smsItemId,
+        amount: 100,
+        direction: SmsTransactionDirection.debit,
+        eventType: SmsTransactionCategory.cardPurchase,
+        transactionDate: DateTime(2026, 7, 15),
+        confidenceLevel: ConfidenceLevel.high,
+        confidenceScore: 0.9,
+        needsReview: false,
+        createdAt: DateTime.now(),
+      );
+    }
+
+    test('deletes the cloud candidate doc for every converted SMS when a cloud repository is supplied', () async {
+      final cloudFirestore = FakeFirebaseFirestore();
+      final cloudRepository = cloudRepositoryFor(cloudFirestore);
+      await cloudRepository.add('a', buildCloudDoc('a'));
+      await cloudRepository.add('b', buildCloudDoc('b'));
+
+      final converterWithCloud = SmsBulkConverter(
+        transactionRepository,
+        inboxRepository,
+        MerchantMemoryRepository(memoryDao),
+        cloudRepository,
+      );
+      final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+
+      await converterWithCloud.convert(items, config());
+
+      expect(await cloudRepository.getAll(), isEmpty);
+    });
+
+    test('a cloud cleanup failure never turns a converted row into a failed one', () async {
+      final cloudFirestore = FakeFirebaseFirestore();
+      final throwingCloudRepository = _ThrowingDeleteRepository(
+        cloudFirestore.collection('smsTransactionCandidates').withConverter<SmsTransactionCandidateCloud>(
+              fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
+              toFirestore: (c, _) => c.toFirestore(),
+            ),
+      );
+      final converterWithCloud = SmsBulkConverter(
+        transactionRepository,
+        inboxRepository,
+        MerchantMemoryRepository(memoryDao),
+        throwingCloudRepository,
+      );
+      final items = await seed([smsItem(id: 'a', amount: 100)]);
+
+      final result = await converterWithCloud.convert(items, config());
+
+      expect(result.converted, 1);
+      expect(result.failed, 0);
+      final stored = await inboxRepository.getAll();
+      expect(stored.single.status, SmsImportStatus.imported);
+    });
   });
 }

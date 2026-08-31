@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "ledger",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "deletedAt", "order": "ASCENDING" },
+        { "fieldPath": "transactionRef", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

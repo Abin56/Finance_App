@@ -5,6 +5,23 @@ import '../../../../core/data/bank_registry.dart';
 import '../../../../core/models/bank_info.dart';
 import '../../domain/card_network.dart';
 
+/// Builds the diagonal gradient stops for a card face from its single
+/// stored [base] color. A saturated color just blends toward black, but a
+/// low-saturation pick (like the "Silver" swatch) does that same blend into
+/// a flat, boring gray slab — so those get a cool bright highlight and a
+/// deep charcoal-navy shadow instead, reading as brushed metal rather than
+/// plain gray. Shared by every screen that paints a card face so a silver
+/// card always looks the same wherever it's shown.
+List<Color> cardFaceGradientColors(Color base) {
+  final hsl = HSLColor.fromColor(base);
+  if (hsl.saturation < 0.18) {
+    final highlight = HSLColor.fromAHSL(1, 208, 0.32, (hsl.lightness + 0.32).clamp(0.0, 0.88)).toColor();
+    final shadow = HSLColor.fromAHSL(1, 230, 0.42, (hsl.lightness - 0.30).clamp(0.05, 1.0)).toColor();
+    return [highlight, shadow];
+  }
+  return [base, Color.lerp(base, Colors.black, 0.4)!];
+}
+
 /// A bank-card-styled visual — gradient face, bank name / nickname, masked
 /// number, holder name, and a network wordmark — used as the live preview in
 /// the add/edit form and as the card's identity in lists. The gradient is
@@ -36,7 +53,7 @@ class CreditCardVisual extends StatelessWidget {
     final gradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [base, Color.lerp(base, Colors.black, 0.4)!],
+      colors: cardFaceGradientColors(base),
     );
     // The face is always a saturated/dark gradient, so text stays white
     // with a soft secondary tone regardless of theme.

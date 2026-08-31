@@ -8,31 +8,41 @@ import '../../../../core/payment_schedule/presentation/providers/payment_schedul
 import '../../../../core/services/payment_attribution_service.dart';
 import '../../../../core/services/providers/payment_attribution_providers.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
 import '../../../sms_inbox/presentation/sms_import_completion.dart';
+import '../../domain/loan.dart';
 
 /// Bottom sheet for recording a payment against a loan installment.
 /// Supports partial payments (amount less than what's remaining) and
 /// early/advance payments (any date) with no special handling — any
 /// positive amount and date is accepted.
 class RecordLoanPaymentSheet extends ConsumerStatefulWidget {
-  const RecordLoanPaymentSheet({super.key, required this.installment, this.smsPrefill});
+  const RecordLoanPaymentSheet({super.key, required this.installment, this.loan, this.smsPrefill});
 
   final Installment installment;
+
+  /// The loan this installment belongs to, when the caller has it on hand —
+  /// used only to default "Who Paid" to [Loan.payerPersonId] when set (the
+  /// person who actually pays this loan's EMIs). Optional since the SMS
+  /// Inbox conversion flow doesn't resolve a `Loan` object today; that path
+  /// simply falls back to the "I pay it myself" default, unchanged.
+  final Loan? loan;
 
   /// Set when opened from the SMS Inbox's "Loan Payment" option (after the
   /// user picked which loan/installment via the obligation picker) — seeds
   /// amount/date/note instead of the installment's full remaining amount/now.
   final SmsPrefill? smsPrefill;
 
-  static Future<void> show(BuildContext context, Installment installment, {SmsPrefill? smsPrefill}) {
+  static Future<void> show(BuildContext context, Installment installment, {Loan? loan, SmsPrefill? smsPrefill}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (_) => RecordLoanPaymentSheet(installment: installment, smsPrefill: smsPrefill),
+      showDragHandle: false,
+      builder: (_) => RecordLoanPaymentSheet(installment: installment, loan: loan, smsPrefill: smsPrefill),
     );
   }
 
@@ -48,8 +58,8 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
   late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
   late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   bool _isSaving = false;
-  bool _someoneElsePaid = false;
-  String? _selectedPersonId;
+  late bool _someoneElsePaid = widget.loan?.payerPersonId != null;
+  late String? _selectedPersonId = widget.loan?.payerPersonId;
 
   bool get _isAmountValid => Validators.amountUpTo(widget.installment.remainingAmount)(_amountController.text) == null;
 
@@ -137,64 +147,55 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Record payment', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amountUpTo(widget.installment.remainingAmount),
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSizes.md),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Date'),
-                subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
-                trailing: const Icon(Icons.calendar_today_outlined),
-                onTap: _pickDate,
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-                maxLines: 2,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.lg),
-              PayerPicker(
-                isSomeoneElse: _someoneElsePaid,
-                onModeChanged: (value) => setState(() {
-                  _someoneElsePaid = value;
-                  if (!value) _selectedPersonId = null;
-                }),
-                selectedPersonId: _selectedPersonId,
-                onPersonChanged: (value) => setState(() => _selectedPersonId = value),
-              ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: 'Record payment',
-                isLoading: _isSaving,
-                onPressed: _isAmountValid ? _save : null,
-              ),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Record payment',
+        confirmLabel: 'Record payment',
+        isSaving: _isSaving,
+        confirmEnabled: _isAmountValid,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionLabel('Payment Details'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _amountController,
+              decoration: const InputDecoration(labelText: 'Amount'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: Validators.amountUpTo(widget.installment.remainingAmount),
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppSizes.md),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Date'),
+              subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
+              trailing: const Icon(Icons.calendar_today_outlined),
+              onTap: _pickDate,
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Who Paid'),
+            const SizedBox(height: AppSizes.sm),
+            PayerPicker(
+              isSomeoneElse: _someoneElsePaid,
+              onModeChanged: (value) => setState(() {
+                _someoneElsePaid = value;
+                if (!value) _selectedPersonId = null;
+              }),
+              selectedPersonId: _selectedPersonId,
+              onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+            ),
+          ],
         ),
       ),
     );

@@ -7,7 +7,7 @@ import '../../../../core/models/payer_source.dart';
 import '../../../../core/services/payment_attribution_service.dart';
 import '../../../../core/services/providers/payment_attribution_providers.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
@@ -33,6 +33,7 @@ class PaymentFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => PaymentFormSheet(bill: bill, occurrence: occurrence, smsPrefill: smsPrefill),
     );
   }
@@ -131,62 +132,49 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Record payment for ${widget.bill.name}', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amountUpTo(widget.occurrence.remainingAmount),
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSizes.md),
-              OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                label: Text(_date.fullDate),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-                maxLines: 2,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.lg),
-              PayerPicker(
-                isSomeoneElse: _someoneElsePaid,
-                onModeChanged: (value) => setState(() {
-                  _someoneElsePaid = value;
-                  if (!value) _selectedPersonId = null;
-                }),
-                selectedPersonId: _selectedPersonId,
-                onPersonChanged: (value) => setState(() => _selectedPersonId = value),
-              ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: 'Record payment',
-                isLoading: _isSaving,
-                onPressed: _isAmountValid ? _save : null,
-              ),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Record payment for ${widget.bill.name}',
+        confirmLabel: 'Record payment',
+        isSaving: _isSaving,
+        confirmEnabled: _isAmountValid,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextFormField(
+              controller: _amountController,
+              decoration: const InputDecoration(labelText: 'Amount'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: Validators.amountUpTo(widget.occurrence.remainingAmount),
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppSizes.md),
+            OutlinedButton.icon(
+              onPressed: _pickDate,
+              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              label: Text(_date.fullDate),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSizes.lg),
+            PayerPicker(
+              isSomeoneElse: _someoneElsePaid,
+              onModeChanged: (value) => setState(() {
+                _someoneElsePaid = value;
+                if (!value) _selectedPersonId = null;
+              }),
+              selectedPersonId: _selectedPersonId,
+              onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+            ),
+          ],
         ),
       ),
     );

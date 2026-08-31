@@ -68,6 +68,35 @@ void main() {
       expect(updated!.currentBalance, 800);
     });
 
+    test('createTransaction defaults source to null for a normal (manual) create', () async {
+      final account = await seedAccount();
+
+      final created = await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 200,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: account.id,
+        categoryId: 'cat-1',
+      );
+
+      expect(created.source, isNull);
+    });
+
+    test('createTransaction sets source when explicitly passed', () async {
+      final account = await seedAccount();
+
+      final created = await transactionRepository.createTransaction(
+        type: TransactionType.expense,
+        amount: 200,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: account.id,
+        categoryId: 'cat-1',
+        source: 'sms',
+      );
+
+      expect(created.source, 'sms');
+    });
+
     test('editTransaction applies the net delta when the account is unchanged', () async {
       final account = await seedAccount();
       final transaction = await transactionRepository.createTransaction(
@@ -344,6 +373,39 @@ void main() {
         ),
         throwsA(isA<Exception>()),
       );
+    });
+
+    test('source defaults to null on both legs for a normal (manual) transfer', () async {
+      final source = await seedAccount(name: 'Source');
+      final destination = await seedAccount(name: 'Destination');
+
+      final (sourceLeg, destinationLeg) = await transactionRepository.createTransferPair(
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        sourceAccountId: source.id,
+        destinationAccountId: destination.id,
+        categoryId: 'cat-transfer',
+      );
+
+      expect(sourceLeg.source, isNull);
+      expect(destinationLeg.source, isNull);
+    });
+
+    test('carries source through to both legs when supplied (SMS conversion)', () async {
+      final source = await seedAccount(name: 'Source');
+      final destination = await seedAccount(name: 'Destination');
+
+      final (sourceLeg, destinationLeg) = await transactionRepository.createTransferPair(
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        sourceAccountId: source.id,
+        destinationAccountId: destination.id,
+        categoryId: 'cat-transfer',
+        source: 'sms',
+      );
+
+      expect(sourceLeg.source, 'sms');
+      expect(destinationLeg.source, 'sms');
     });
   });
 }

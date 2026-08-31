@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/extensions/context_extensions.dart';
-import 'app_card.dart';
+import '../../../core/theme/clay_widgets.dart';
 
 /// Shared empty-state shell used by any feature's dashboard-style section
 /// that has nothing to show yet — an icon, a title, a short message, and
@@ -15,7 +15,6 @@ class PlaceholderCard extends StatelessWidget {
     required this.message,
     this.onTap,
     this.actionLabel,
-    this.radius = AppSizes.radiusLg,
   });
 
   final IconData icon;
@@ -28,16 +27,10 @@ class PlaceholderCard extends StatelessWidget {
   /// empty card's only affordance is an invisible whole-card tap target.
   final String? actionLabel;
 
-  /// Corner radius override — dashboard callers pass [AppSizes.radiusCard]
-  /// to match their loaded-state siblings, since this wraps [AppCard]'s
-  /// default [AppSizes.radiusLg] otherwise.
-  final double radius;
-
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return ClayCard(
       onTap: onTap,
-      radius: radius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

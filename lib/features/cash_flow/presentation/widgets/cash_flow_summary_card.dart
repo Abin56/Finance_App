@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../providers/cash_flow_providers.dart';
 
 /// Section 5 of the Cash Flow Center — "This Month Cash Flow". Money In
@@ -18,7 +18,7 @@ class CashFlowSummaryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cashFlow = ref.watch(cashFlowThisMonthProvider);
 
-    return AppCard(
+    return ClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -56,9 +56,15 @@ class _FlowStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Tone-tinted stat tile — mirrors the web app's `StatCard` pattern
+    // (`bg-{tone}/8 border-{tone}/20`) instead of a flat neutral box, so
+    // Money In/Out read as green/red at a glance even before the figure.
     return Container(
       padding: const EdgeInsets.all(AppSizes.md),
-      decoration: BoxDecoration(color: context.colors.surface, borderRadius: BorderRadius.circular(AppSizes.radiusLg)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

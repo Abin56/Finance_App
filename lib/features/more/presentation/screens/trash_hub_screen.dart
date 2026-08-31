@@ -32,16 +32,18 @@ class TrashHubScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
-      body: ListView(
-        children: [
-          for (final item in _items)
-            ListTile(
-              leading: Icon(item.icon),
-              title: Text(item.label),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: item.builder)),
-            ),
-        ],
+      body: SafeArea(
+        child: ListView(
+          children: [
+            for (final item in _items)
+              ListTile(
+                leading: Icon(item.icon),
+                title: Text(item.label),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: item.builder)),
+              ),
+          ],
+        ),
       ),
     );
   }

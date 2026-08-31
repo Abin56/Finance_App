@@ -8,7 +8,11 @@ import '../../../../core/payment_schedule/presentation/providers/payment_schedul
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../domain/loan_category.dart';
+import '../../domain/loan_direction.dart';
 import '../providers/loan_providers.dart';
+import '../widgets/loan_category_badge.dart';
+import '../widgets/loan_direction_badge.dart';
 import '../widgets/loan_form_sheet.dart';
 import '../widgets/loan_installment_tile.dart';
 import '../widgets/record_loan_lump_sum_settlement_sheet.dart';
@@ -33,6 +37,9 @@ class LoanDetailScreen extends ConsumerWidget {
 
     final people = ref.watch(peopleStreamProvider).value ?? const [];
     final person = people.where((p) => p.id == loan.personId).firstOrNull;
+    final payer = loan.payerPersonId == null
+        ? null
+        : people.where((p) => p.id == loan.payerPersonId).firstOrNull;
     final installmentsAsync = ref.watch(installmentsStreamProvider(loan.scheduleId));
     final status = ref.watch(loanStatusProvider(loan));
     final remaining = ref.watch(loanRemainingAmountProvider(loan));
@@ -40,9 +47,14 @@ class LoanDetailScreen extends ConsumerWidget {
     final repository = ref.watch(loanRepositoryProvider);
     final cycleView = ref.watch(loanCycleViewRecordProvider(loan));
 
+    final isGiven = loan.direction == LoanDirection.given;
+    final isInstitutional = loan.category == LoanCategory.institutional;
+    final counterpartyName = isInstitutional ? (loan.institutionName ?? 'Institution') : (person?.name ?? 'unknown');
+    final defaultTitle = isGiven ? 'Loan to $counterpartyName' : 'Loan from $counterpartyName';
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(loan.name?.isNotEmpty == true ? loan.name! : 'Loan to ${person?.name ?? 'unknown'}'),
+        title: Text(loan.name?.isNotEmpty == true ? loan.name! : defaultTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.request_quote_outlined),
@@ -67,7 +79,7 @@ class LoanDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: installmentsAsync.when(
+      body: SafeArea(child: installmentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (installments) {
@@ -76,6 +88,14 @@ class LoanDetailScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSizes.lg),
             children: [
+              Row(
+                children: [
+                  LoanDirectionBadge(direction: loan.direction),
+                  const SizedBox(width: AppSizes.xs),
+                  LoanCategoryBadge(category: loan.category),
+                ],
+              ),
+              const SizedBox(height: AppSizes.sm),
               Container(
                 padding: const EdgeInsets.all(AppSizes.lg),
                 decoration: BoxDecoration(
@@ -85,8 +105,9 @@ class LoanDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (payer != null) _detailRow(context, 'Paid by', payer.name),
                     _statRow(context, 'Loan amount', loan.loanAmount),
-                    _statRow(context, 'Amount received', received),
+                    _statRow(context, isGiven ? 'Amount received' : 'Amount paid back', received),
                     _statRow(context, 'Amount left', remaining),
                     if (loan.interest != null) ...[
                       const Divider(height: AppSizes.xl),
@@ -96,6 +117,30 @@ class LoanDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (isInstitutional) ...[
+                const SizedBox(height: AppSizes.lg),
+                Text('Institution Details', style: context.textTheme.titleMedium),
+                const SizedBox(height: AppSizes.sm),
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.lg),
+                  decoration: BoxDecoration(
+                    color: context.colors.surface,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (loan.institutionName?.isNotEmpty == true)
+                        _detailRow(context, 'Institution', loan.institutionName!),
+                      if (loan.loanType?.isNotEmpty == true) _detailRow(context, 'Loan type', loan.loanType!),
+                      if (loan.loanNumber?.isNotEmpty == true) _detailRow(context, 'Loan number', loan.loanNumber!),
+                      if (loan.accountNumber?.isNotEmpty == true)
+                        _detailRow(context, 'Account number', loan.accountNumber!),
+                      if (loan.branch?.isNotEmpty == true) _detailRow(context, 'Branch', loan.branch!),
+                    ],
+                  ),
+                ),
+              ],
               if (cycleView.previousCyclePending.isNotEmpty) ...[
                 const SizedBox(height: AppSizes.lg),
                 Text('Previous Cycle Pending', style: context.textTheme.titleMedium),
@@ -107,7 +152,7 @@ class LoanDetailScreen extends ConsumerWidget {
                       installment: installment,
                       onTap: installment.remainingAmount <= 0
                           ? null
-                          : () => RecordLoanPaymentSheet.show(context, installment),
+                          : () => RecordLoanPaymentSheet.show(context, installment, loan: loan),
                     ),
                   ),
               ],
@@ -128,13 +173,13 @@ class LoanDetailScreen extends ConsumerWidget {
                       installment: installment,
                       onTap: installment.remainingAmount <= 0
                           ? null
-                          : () => RecordLoanPaymentSheet.show(context, installment),
+                          : () => RecordLoanPaymentSheet.show(context, installment, loan: loan),
                     ),
                   ),
             ],
           );
         },
-      ),
+      )),
     );
   }
 
@@ -157,6 +202,19 @@ class LoanDetailScreen extends ConsumerWidget {
       final paidTowardInterest = i.amountPaid.clamp(0, interestPortion);
       return sum + (interestPortion - paidTowardInterest);
     });
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.sm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6))),
+          Text(value, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
   }
 
   Widget _statRow(BuildContext context, String label, double value) {

@@ -155,7 +155,8 @@ class CreditCardDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
+      body: SafeArea(
+        child: ListView(
         padding: const EdgeInsets.all(AppSizes.lg),
         children: [
           if (!card.status.isActive) ...[
@@ -220,6 +221,7 @@ class CreditCardDetailScreen extends ConsumerWidget {
                 ),
               ),
         ],
+        ),
       ),
     );
   }

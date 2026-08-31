@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
 
 /// Net balance across every person — the sum of every "they owe you" minus
@@ -23,7 +23,10 @@ class OverallBalanceCard extends StatelessWidget {
         ? 'They Need to Pay Me'
         : 'I Need to Pay';
 
-    return AppCard(
+    // The People tab's one hero figure — stronger shadow than the person
+    // rows below it, mirroring the Net Worth hero card's treatment.
+    return ClayCard(
+      isHero: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

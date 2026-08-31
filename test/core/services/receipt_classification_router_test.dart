@@ -235,6 +235,33 @@ void main() {
     }
   });
 
+  group('ReceiptClassificationRouter.classify — source', () {
+    test('source defaults to null for a normal (manual) classify', () async {
+      final transaction = await router.classify(
+        purpose: ReceiptPurpose.gift,
+        amount: 250,
+        date: DateTime(2026, 1, 1),
+        accountId: accountId,
+        categoryId: categoryId,
+      );
+
+      expect(transaction.source, isNull);
+    });
+
+    test('carries source through to the created Transaction when supplied (SMS conversion)', () async {
+      final transaction = await router.classify(
+        purpose: ReceiptPurpose.gift,
+        amount: 250,
+        date: DateTime(2026, 1, 1),
+        accountId: accountId,
+        categoryId: categoryId,
+        source: 'sms',
+      );
+
+      expect(transaction.source, 'sms');
+    });
+  });
+
   group('ReceiptClassificationRouter.classify — friendReturnedMoney', () {
     test('posts a LedgerEntry reducing the person\'s pending balance', () async {
       final alice = await personRepository.createPerson(

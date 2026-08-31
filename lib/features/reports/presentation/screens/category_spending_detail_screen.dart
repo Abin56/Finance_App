@@ -46,10 +46,12 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
     if (category == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Spending by Category')),
-        body: const EmptyState(
-          icon: Icons.category_outlined,
-          title: 'Category not found',
-          subtitle: 'This category may have been deleted.',
+        body: const SafeArea(
+          child: EmptyState(
+            icon: Icons.category_outlined,
+            title: 'Category not found',
+            subtitle: 'This category may have been deleted.',
+          ),
         ),
       );
     }
@@ -94,7 +96,8 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
 
     return Scaffold(
       appBar: AppBar(title: const Text('Spending by Category')),
-      body: ListView(
+      body: SafeArea(
+        child: ListView(
         padding: const EdgeInsets.all(AppSizes.lg),
         children: [
           CategorySpendingHeader(category: category, total: categoryTotal, percentOfTotal: percentOfTotal),
@@ -135,6 +138,7 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
             highestSpendingAmount: highestAmount,
           ),
         ],
+        ),
       ),
     );
   }

@@ -37,7 +37,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Calendar')),
-      body: Column(
+      body: SafeArea(
+        child: Column(
         children: [
           TableCalendar<CalendarEvent>(
             firstDay: DateTime(2000),
@@ -82,6 +83,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -22,9 +22,8 @@ class CreditorsScreen extends ConsumerWidget {
     final peopleAsync = ref.watch(peopleStreamProvider);
 
     return Scaffold(
-      
       appBar: AppBar(title: const Text('People Who Need to Pay Me')),
-      body: peopleAsync.when(
+      body: SafeArea(child: peopleAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(child: Text('Something went wrong: $error')),
         data: (_) {
@@ -68,7 +67,7 @@ class CreditorsScreen extends ConsumerWidget {
             ],
           );
         },
-      ),
+      )),
     );
   }
 }

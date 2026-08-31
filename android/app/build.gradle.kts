@@ -1,4 +1,5 @@
 import java.util.Properties
+import com.android.build.api.artifact.SingleArtifact
 
 plugins {
     id("com.android.application")
@@ -19,25 +20,33 @@ if (hasKeystore) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
-// Personal sideloaded builds can keep the SMS Inbox feature; Play builds cannot.
-// See src/release/AndroidManifest.xml for why this is a manifest-merge override
-// rather than a plain edit to src/main.
-val keepSmsPermission = System.getenv("FLOWFI_SMS") == "1"
-if (keepSmsPermission) {
-    logger.lifecycle("FLOWFI_SMS=1: keeping READ_SMS — this build is NOT valid for a Play Store upload.")
-}
-
 android {
     namespace = "com.example.finance_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    // Play builds must not ship READ_SMS (see src/release/AndroidManifest.xml).
-    // Stripping is the default so that forgetting the flag yields a compliant
-    // upload rather than a rejected one; FLOWFI_SMS=1 opts a personal sideloaded
-    // build back in by swapping the overlay for an empty one.
-    if (keepSmsPermission) {
-        sourceSets.getByName("release").manifest.srcFile("src/releaseSms/AndroidManifest.xml")
+    // Distribution channel is an explicit build flavor, not an environment
+    // variable. `--flavor` must be passed to every `flutter build`/`flutter
+    // run` invocation once flavors are declared — Flutter refuses to guess
+    // and lists the valid flavors instead, so it is no longer possible to
+    // silently produce a build with the wrong SMS permission because a flag
+    // was forgotten. See src/play/AndroidManifest.xml and
+    // src/sideload/AndroidManifest.xml for what each flavor changes.
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") {
+            dimension = "distribution"
+            // Play Store artifact. READ_SMS is removed for every build type
+            // of this flavor via src/play/AndroidManifest.xml — Google Play
+            // restricts SMS permissions to default SMS handlers.
+        }
+        create("sideload") {
+            dimension = "distribution"
+            // Personal, non-Play artifact. Keeps READ_SMS (contributed by
+            // src/main and by flutter_sms_inbox's own library manifest) via
+            // the empty overlay at src/sideload/AndroidManifest.xml.
+            // Never upload this flavor's output to Play.
+        }
     }
 
     compileOptions {
@@ -97,6 +106,49 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+// Verifies the SMS build-configuration bug (READ_SMS silently missing from a
+// build meant to have it, because a flag was forgotten) cannot recur silently.
+// Reads each variant's actual MERGED manifest — the same file `aapt dump
+// permissions` reflects — rather than trusting the source manifests, since
+// the merge is exactly where the previous env-var mechanism went wrong.
+// Wired to run automatically as part of every `assemble<Variant>` task.
+androidComponents {
+    onVariants { variant ->
+        val expectReadSms = variant.flavorName == "sideload"
+        val variantNameCapitalized = variant.name.replaceFirstChar { it.uppercase() }
+        val manifestArtifact = variant.artifacts.get(SingleArtifact.MERGED_MANIFEST)
+
+        val verifyTask = tasks.register("verifySmsPermission$variantNameCapitalized") {
+            group = "verification"
+            description = "Checks that the $variantNameCapitalized merged manifest has READ_SMS " +
+                (if (expectReadSms) "present (sideload flavor)." else "absent (play flavor).")
+            val manifestFileProperty = manifestArtifact
+            inputs.file(manifestFileProperty)
+            doLast {
+                val manifestText = manifestFileProperty.get().asFile.readText()
+                val hasReadSms = Regex("""android\.permission\.READ_SMS""").containsMatchIn(manifestText)
+                if (hasReadSms != expectReadSms) {
+                    throw GradleException(
+                        "SMS permission check failed for variant '${variant.name}': expected " +
+                            "READ_SMS to be ${if (expectReadSms) "PRESENT" else "ABSENT"} in the merged " +
+                            "manifest, but it was ${if (hasReadSms) "present" else "absent"}. " +
+                            "See android/app/build.gradle.kts productFlavors and " +
+                            "src/play|sideload/AndroidManifest.xml."
+                    )
+                }
+                logger.lifecycle(
+                    "verifySmsPermission$variantNameCapitalized: READ_SMS is " +
+                        "${if (hasReadSms) "present" else "absent"} as expected."
+                )
+            }
+        }
+
+        tasks.matching { it.name == "assemble$variantNameCapitalized" }.configureEach {
+            finalizedBy(verifyTask)
+        }
     }
 }
 

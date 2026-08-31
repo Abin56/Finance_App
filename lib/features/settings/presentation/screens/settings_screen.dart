@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/services/fiscal_year_controller.dart';
 import '../../../../core/services/security/app_lock_controller.dart';
+import '../../../../core/theme/clay_theme.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/theme/theme_controller.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../security/presentation/pin_setup_sheet.dart';
 
@@ -62,8 +65,9 @@ class SettingsScreen extends ConsumerWidget {
     final fiscalYearStartMonth = ref.watch(fiscalYearStartMonthProvider);
 
     return Scaffold(
+      backgroundColor: AppClay.background(context),
       appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
+      body: SafeArea(child: ListView(
         padding: const EdgeInsets.all(AppSizes.lg),
         children: [
           if (user != null) ...[
@@ -73,6 +77,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
+                    radius: 22,
                     backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
                     child: user.photoUrl == null ? const Icon(Icons.person_outline_rounded) : null,
                   ),
@@ -81,7 +86,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.logout_rounded),
+                  leading: const ClayIconChip(icon: Icons.logout_rounded, color: AppColors.error, size: 40, iconSize: AppSizes.iconSm),
                   title: const Text('Log out'),
                   onTap: () => _confirmLogout(context, ref),
                 ),
@@ -94,7 +99,7 @@ class SettingsScreen extends ConsumerWidget {
             children: [
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.account_balance_wallet_outlined),
+                leading: const ClayIconChip(icon: Icons.account_balance_wallet_outlined, color: AppColors.info, size: 40, iconSize: AppSizes.iconSm),
                 title: const Text('Accounts'),
                 subtitle: const Text('Manage cash, bank, and card accounts'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -102,7 +107,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.category_outlined),
+                leading: const ClayIconChip(icon: Icons.category_outlined, color: AppColors.secondary, size: 40, iconSize: AppSizes.iconSm),
                 title: const Text('Categories'),
                 subtitle: const Text('Manage income and expense categories'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -110,7 +115,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.donut_large_rounded),
+                leading: const ClayIconChip(icon: Icons.donut_large_rounded, color: AppColors.purple, size: 40, iconSize: AppSizes.iconSm),
                 title: const Text('Budget'),
                 subtitle: const Text('Daily, monthly, and category budgets'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -118,7 +123,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.savings_outlined),
+                leading: const ClayIconChip(icon: Icons.savings_outlined, color: AppColors.savings, size: 40, iconSize: AppSizes.iconSm),
                 title: const Text('Savings'),
                 subtitle: const Text('Track progress toward your savings goals'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -126,7 +131,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.people_outline_rounded),
+                leading: const ClayIconChip(icon: Icons.people_outline_rounded, color: Color(0xFFE85D9A), size: 40, iconSize: AppSizes.iconSm),
                 title: const Text('People'),
                 subtitle: const Text('Track money given, borrowed, and repaid'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -140,7 +145,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.account_balance_outlined),
+                leading: const ClayIconChip(icon: Icons.account_balance_outlined, color: AppColors.warning, size: 40, iconSize: AppSizes.iconSm),
                 title: const Text('Loans'),
                 subtitle: const Text('Track money you\'ve lent, with or without interest'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -148,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.account_balance_wallet_outlined),
+                leading: const ClayIconChip(icon: Icons.account_balance_wallet_outlined, color: Color(0xFF40C4FF), size: 40, iconSize: AppSizes.iconSm),
                 title: const Text('EMIs'),
                 subtitle: const Text('Track your monthly EMI payments'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -268,7 +273,7 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
         ],
-      ),
+      )),
     );
   }
 }
@@ -286,9 +291,9 @@ class _SettingsSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: AppSizes.sm, left: AppSizes.xs),
-          child: Text(title, style: Theme.of(context).textTheme.labelLarge),
+          child: SectionLabel(title),
         ),
-        AppCard(
+        ClayCard(
           padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.sm),
           child: Column(children: children),
         ),

@@ -107,10 +107,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // Pick the account chip.
+    await tester.ensureVisible(find.text('Cash'));
     await tester.tap(find.text('Cash'));
     await tester.pumpAndSettle();
 
     // Pick the category via its sheet.
+    await tester.ensureVisible(find.text('Select a category'));
     await tester.tap(find.text('Select a category'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Food'));
@@ -118,6 +120,7 @@ void main() {
   }
 
   Future<void> linkPerson(WidgetTester tester) async {
+    await tester.ensureVisible(find.text('Add a person (optional)'));
     await tester.tap(find.text('Add a person (optional)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Rahul Sharma').last);

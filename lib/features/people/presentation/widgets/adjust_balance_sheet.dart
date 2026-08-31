@@ -5,7 +5,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/inputs/chip_selector.dart';
 import '../../domain/ledger_entry_type.dart';
 import '../../domain/person.dart';
 import '../providers/people_providers.dart';
@@ -28,6 +29,7 @@ class AdjustBalanceSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => AdjustBalanceSheet(person: person),
     );
   }
@@ -88,73 +90,48 @@ class _AdjustBalanceSheetState extends ConsumerState<AdjustBalanceSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Correct Balance', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: AppSizes.xs),
-              Text(
-                'Amount Left: ${CurrencyFormatter.instance.format(widget.person.currentBalance.abs())}'
-                '${widget.person.currentBalance == 0 ? '' : widget.person.currentBalance > 0 ? ' (they owe you)' : ' (you owe them)'}',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: AppSizes.lg),
-              SegmentedButton<_AdjustmentDirection>(
-                segments: const [
-                  ButtonSegment(
-                    value: _AdjustmentDirection.increase,
-                    label: Text('Add Amount'),
-                    icon: Icon(Icons.add_rounded),
-                  ),
-                  ButtonSegment(
-                    value: _AdjustmentDirection.decrease,
-                    label: Text('Reduce Amount'),
-                    icon: Icon(Icons.remove_rounded),
-                  ),
-                ],
-                selected: {_direction},
-                onSelectionChanged: (selection) => setState(() => _direction = selection.first),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _amountController,
-                decoration: const InputDecoration(labelText: 'Amount'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
-              ),
-              const SizedBox(height: AppSizes.md),
-              OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                label: Text(_date.fullDate),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _reasonController,
-                decoration: const InputDecoration(labelText: 'Reason'),
-                validator: Validators.required,
-                maxLines: 2,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(label: 'Save correction', isLoading: _isSaving, onPressed: _save),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: 'Correct Balance',
+        description: 'Amount Left: ${CurrencyFormatter.instance.format(widget.person.currentBalance.abs())}'
+            '${widget.person.currentBalance == 0 ? '' : widget.person.currentBalance > 0 ? ' (they owe you)' : ' (you owe them)'}',
+        confirmLabel: 'Save correction',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ChipSelector<_AdjustmentDirection>(
+              options: const [
+                ChipOption(value: _AdjustmentDirection.increase, label: 'Add Amount', icon: Icons.add_rounded),
+                ChipOption(value: _AdjustmentDirection.decrease, label: 'Reduce Amount', icon: Icons.remove_rounded),
+              ],
+              value: _direction,
+              onChanged: (value) => setState(() => _direction = value),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _amountController,
+              decoration: const InputDecoration(labelText: 'Amount'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: Validators.amount,
+            ),
+            const SizedBox(height: AppSizes.md),
+            OutlinedButton.icon(
+              onPressed: _pickDate,
+              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              label: Text(_date.fullDate),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _reasonController,
+              decoration: const InputDecoration(labelText: 'Reason'),
+              validator: Validators.required,
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
         ),
       ),
     );

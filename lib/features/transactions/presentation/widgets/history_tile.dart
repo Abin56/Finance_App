@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
 import '../../../../shared/widgets/states/transaction_flag_badge.dart';
@@ -29,98 +30,85 @@ class HistoryTile extends StatelessWidget {
     final sign = entry.isCredit ? '+' : '-';
     final splitDetail = entry.splitExpenseDetail;
 
-    return Material(
-      color: context.colors.surface,
-      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return ClayCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-                    child: Icon(entry.icon, color: color, size: AppSizes.iconSm),
-                  ),
-                  const SizedBox(width: AppSizes.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(entry.title, style: context.textTheme.titleMedium),
-                        const SizedBox(height: 2),
-                        TransactionKindBadge(kind: entry.kind, compact: true),
-                        if (splitDetail == null)
-                          Text(
-                            entry.subtitle.isNotEmpty ? '${entry.category.label} · ${entry.subtitle}' : entry.category.label,
-                            style: context.textTheme.bodyMedium?.copyWith(
-                              color: context.colors.onSurface.withValues(alpha: 0.6),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        if (entry.excludeFromCalculations || entry.accountingMonth != null) ...[
-                          const SizedBox(height: 2),
-                          TransactionFlagBadge(
-                            excludeFromCalculations: entry.excludeFromCalculations,
-                            date: entry.date,
-                            accountingMonth: entry.accountingMonth,
-                            compact: true,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Text(
-                    '$sign${CurrencyFormatter.instance.format(entry.amount)}',
-                    style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
-                  ),
-                ],
-              ),
-              if (splitDetail != null) ...[
-                const SizedBox(height: AppSizes.sm),
-                Wrap(
-                  spacing: AppSizes.xs,
-                  runSpacing: AppSizes.xs,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+              ClayIconChip(icon: entry.icon, color: color, size: 40, iconSize: AppSizes.iconSm),
+              const SizedBox(width: AppSizes.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Chip(
-                      icon: Icons.call_split_rounded,
-                      label: 'Total ${CurrencyFormatter.instance.format(entry.amount)}',
-                      color: context.colors.primary,
-                    ),
-                    _Chip(
-                      icon: Icons.person_rounded,
-                      label: splitDetail.shares
-                          .map((s) => '${s.name} ${CurrencyFormatter.instance.format(s.share)}')
-                          .join(' · '),
-                      color: context.colors.onSurface.withValues(alpha: 0.7),
-                    ),
-                    if (splitDetail.collected > 0)
-                      _Chip(
-                        icon: Icons.check_circle_outline_rounded,
-                        label: '${CurrencyFormatter.instance.format(splitDetail.collected)} collected',
-                        color: AppColors.success,
+                    Text(entry.title, style: context.textTheme.titleMedium),
+                    const SizedBox(height: 2),
+                    TransactionKindBadge(kind: entry.kind, compact: true),
+                    if (splitDetail == null)
+                      Text(
+                        entry.subtitle.isNotEmpty ? '${entry.category.label} · ${entry.subtitle}' : entry.category.label,
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: context.colors.onSurface.withValues(alpha: 0.6),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    if (splitDetail.amountToCollect > 0)
-                      _Chip(
-                        icon: Icons.hourglass_top_rounded,
-                        label: '${CurrencyFormatter.instance.format(splitDetail.amountToCollect)} to collect',
-                        color: AppColors.pending,
+                    if (entry.excludeFromCalculations || entry.accountingMonth != null) ...[
+                      const SizedBox(height: 2),
+                      TransactionFlagBadge(
+                        excludeFromCalculations: entry.excludeFromCalculations,
+                        date: entry.date,
+                        accountingMonth: entry.accountingMonth,
+                        compact: true,
                       ),
-                    MoneyDirectionBadge(direction: _directionFor(splitDetail.status), compact: true),
+                    ],
                   ],
                 ),
-              ],
+              ),
+              Text(
+                '$sign${CurrencyFormatter.instance.format(entry.amount)}',
+                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+              ),
             ],
           ),
-        ),
+          if (splitDetail != null) ...[
+            const SizedBox(height: AppSizes.sm),
+            Wrap(
+              spacing: AppSizes.xs,
+              runSpacing: AppSizes.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _Chip(
+                  icon: Icons.call_split_rounded,
+                  label: 'Total ${CurrencyFormatter.instance.format(entry.amount)}',
+                  color: context.colors.primary,
+                ),
+                _Chip(
+                  icon: Icons.person_rounded,
+                  label: splitDetail.shares
+                      .map((s) => '${s.name} ${CurrencyFormatter.instance.format(s.share)}')
+                      .join(' · '),
+                  color: context.colors.onSurface.withValues(alpha: 0.7),
+                ),
+                if (splitDetail.collected > 0)
+                  _Chip(
+                    icon: Icons.check_circle_outline_rounded,
+                    label: '${CurrencyFormatter.instance.format(splitDetail.collected)} collected',
+                    color: AppColors.success,
+                  ),
+                if (splitDetail.amountToCollect > 0)
+                  _Chip(
+                    icon: Icons.hourglass_top_rounded,
+                    label: '${CurrencyFormatter.instance.format(splitDetail.amountToCollect)} to collect',
+                    color: AppColors.pending,
+                  ),
+                MoneyDirectionBadge(direction: _directionFor(splitDetail.status), compact: true),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

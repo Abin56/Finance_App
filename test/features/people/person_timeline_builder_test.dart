@@ -3,6 +3,7 @@ import 'package:finance_app/core/payment_schedule/domain/installment_payment.dar
 import 'package:finance_app/core/payment_schedule/domain/installment_status.dart';
 import 'package:finance_app/core/payment_schedule/domain/owner_type.dart';
 import 'package:finance_app/features/lending/domain/loan.dart';
+import 'package:finance_app/features/lending/domain/loan_direction.dart';
 import 'package:finance_app/features/lending/domain/loan_repayment_type.dart';
 import 'package:finance_app/features/people/domain/ledger_entry.dart';
 import 'package:finance_app/features/people/domain/ledger_entry_type.dart';
@@ -17,6 +18,7 @@ Loan _loan({
   required double loanAmount,
   required DateTime loanDate,
   bool isClosed = false,
+  LoanDirection direction = LoanDirection.given,
 }) {
   return Loan(
     id: id,
@@ -28,6 +30,7 @@ Loan _loan({
     scheduleId: 'sched-$id',
     createdAt: loanDate,
     isClosed: isClosed,
+    direction: direction,
   );
 }
 
@@ -283,6 +286,45 @@ void main() {
       );
 
       expect(result.every((e) => e.category == PersonTimelineCategory.lending), isTrue);
+    });
+
+    test('a given loan posts a positive signed amount and a payment reduces it', () {
+      final loan = _loan(id: 'loan1', loanAmount: 200, loanDate: DateTime(2026, 1, 1));
+      final payment = _payment(id: 'pay1', scheduleId: loan.scheduleId, amount: 50, date: DateTime(2026, 1, 5));
+
+      final result = PersonTimelineBuilder.build(
+        ledgerEntries: const [],
+        loans: [LoanTimelineData(loan: loan, installments: const [], payments: [payment])],
+      );
+
+      final loanEntry = result.singleWhere((e) => e.id == 'loan-loan1');
+      final paymentEntry = result.singleWhere((e) => e.id == 'loan-payment-pay1');
+      expect(loanEntry.signedAmount, 200);
+      expect(paymentEntry.signedAmount, -50);
+      // Net effect after the payment: 150 still owed to the account owner.
+      expect(loanEntry.signedAmount + paymentEntry.signedAmount, 150);
+    });
+
+    test('a taken loan posts a negative signed amount and a payment reduces the debt (moves it toward zero)', () {
+      final loan = _loan(
+        id: 'loan2',
+        loanAmount: 200,
+        loanDate: DateTime(2026, 1, 1),
+        direction: LoanDirection.taken,
+      );
+      final payment = _payment(id: 'pay2', scheduleId: loan.scheduleId, amount: 50, date: DateTime(2026, 1, 5));
+
+      final result = PersonTimelineBuilder.build(
+        ledgerEntries: const [],
+        loans: [LoanTimelineData(loan: loan, installments: const [], payments: [payment])],
+      );
+
+      final loanEntry = result.singleWhere((e) => e.id == 'loan-loan2');
+      final paymentEntry = result.singleWhere((e) => e.id == 'loan-payment-pay2');
+      expect(loanEntry.signedAmount, -200);
+      expect(paymentEntry.signedAmount, 50);
+      // Net effect after the payment: still owe 150 to the person.
+      expect(loanEntry.signedAmount + paymentEntry.signedAmount, -150);
     });
   });
 

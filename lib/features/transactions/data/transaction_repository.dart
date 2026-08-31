@@ -29,6 +29,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     DateTime? accountingMonth,
     String? linkedPersonId,
     bool owesPersonToggle = false,
+    String? source,
   }) async {
     final transaction = Transaction(
       id: IdGenerator.generate(),
@@ -46,6 +47,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
       linkedPersonId: linkedPersonId,
       owesPersonToggle: owesPersonToggle,
       createdAt: DateTime.now(),
+      source: source,
     );
     await add(transaction.id, transaction);
 
@@ -73,6 +75,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     required String destinationAccountId,
     required String categoryId,
     String notes = '',
+    String? source,
   }) async {
     if (sourceAccountId == destinationAccountId) {
       throw const AppException('Choose two different accounts to transfer between');
@@ -88,6 +91,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
       categoryId: categoryId,
       notes: notes,
       transferId: transferId,
+      source: source,
     );
 
     try {
@@ -99,6 +103,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
         categoryId: categoryId,
         notes: notes,
         transferId: transferId,
+        source: source,
       );
       return (sourceLeg, destinationLeg);
     } catch (e) {
@@ -262,4 +267,29 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
   /// here — permanent delete is only reachable from the trash screen, and
   /// the balance was already reversed when the transaction was soft-deleted.
   Future<void> permanentlyDeleteTransaction(Transaction transaction) => permanentlyDelete(transaction);
+
+  /// Every transaction referencing [accountId], active and trashed alike —
+  /// the full set the account/credit-card permanent-delete cascade
+  /// (`account_deletion_service.dart`) needs to wipe alongside the account
+  /// itself, unlike a plain [getAll]/[getTrash] (which each only see one
+  /// side of `deletedAt`).
+  Future<List<Transaction>> getAllForAccountIncludingTrash(String accountId) async {
+    final snapshot = await collection.where('accountId', isEqualTo: accountId).get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
+  }
+
+  /// The other leg of [transaction]'s transfer pair (matched by
+  /// [Transaction.transferId]), if one still exists — active or trashed.
+  /// Null when [transaction] isn't a transfer leg, or no sibling document
+  /// exists (a desynced/orphaned legacy transfer predating this lookup).
+  Future<Transaction?> findTransferSibling(Transaction transaction) async {
+    final transferId = transaction.transferId;
+    if (transferId == null) return null;
+    final snapshot = await collection.where('transferId', isEqualTo: transferId).limit(4).get();
+    for (final doc in snapshot.docs) {
+      final candidate = doc.data();
+      if (candidate.id != transaction.id) return candidate;
+    }
+    return null;
+  }
 }

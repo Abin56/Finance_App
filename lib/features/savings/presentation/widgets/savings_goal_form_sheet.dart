@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
+import '../../../../shared/widgets/section_label.dart';
 import '../../domain/savings_goal.dart';
 import '../providers/savings_providers.dart';
 
@@ -20,6 +21,7 @@ class SavingsGoalFormSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => SavingsGoalFormSheet(goal: goal),
     );
   }
@@ -101,75 +103,62 @@ class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isEditing ? 'Edit savings goal' : 'Add savings goal',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: AppSizes.lg),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Goal name'),
-                validator: Validators.required,
-                textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _targetFocusNode.requestFocus(),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _targetController,
-                focusNode: _targetFocusNode,
-                decoration: const InputDecoration(labelText: 'Target amount'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.md),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickDueDate,
-                      icon: const Icon(Icons.event_outlined, size: AppSizes.iconSm),
-                      label: Text(_dueDate == null ? 'Due date (optional)' : _dueDate!.fullDate),
-                    ),
+    return Form(
+      key: _formKey,
+      child: SectionedFormSheet(
+        title: _isEditing ? 'Edit savings goal' : 'Add savings goal',
+        confirmLabel: _isEditing ? 'Save changes' : 'Add goal',
+        isSaving: _isSaving,
+        onConfirm: _save,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionLabel('Goal Details'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Goal name'),
+              validator: Validators.required,
+              textInputAction: TextInputAction.next,
+              onFieldSubmitted: (_) => _targetFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _targetController,
+              focusNode: _targetFocusNode,
+              decoration: const InputDecoration(labelText: 'Target amount'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: Validators.amount,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSizes.md),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickDueDate,
+                    icon: const Icon(Icons.event_outlined, size: AppSizes.iconSm),
+                    label: Text(_dueDate == null ? 'Due date (optional)' : _dueDate!.fullDate),
                   ),
-                  if (_dueDate != null)
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      tooltip: 'Clear due date',
-                      onPressed: () => setState(() => _dueDate = null),
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notes (optional)'),
-                maxLines: 3,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.xl),
-              PrimaryButton(
-                label: _isEditing ? 'Save changes' : 'Add goal',
-                isLoading: _isSaving,
-                onPressed: _save,
-              ),
-              const SizedBox(height: AppSizes.sm),
-            ],
-          ),
+                ),
+                if (_dueDate != null)
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    tooltip: 'Clear due date',
+                    onPressed: () => setState(() => _dueDate = null),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Notes'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(labelText: 'Notes (optional)'),
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
         ),
       ),
     );

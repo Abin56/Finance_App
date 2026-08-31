@@ -10,7 +10,7 @@ import '../../../../core/payment_schedule/presentation/providers/payment_schedul
 import '../../../../core/services/payment_attribution_service.dart';
 import '../../../../core/services/providers/payment_attribution_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../domain/emi.dart';
@@ -35,6 +35,7 @@ class RecordEmiMultiPaymentSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: false,
       builder: (_) => RecordEmiMultiPaymentSheet(emi: emi, installments: installments),
     );
   }
@@ -143,73 +144,59 @@ class _RecordEmiMultiPaymentSheetState extends ConsumerState<RecordEmiMultiPayme
   Widget build(BuildContext context) {
     final sorted = [...widget.installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: AppSizes.lg,
-        right: AppSizes.lg,
-        top: AppSizes.lg,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + AppSizes.lg,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Pay multiple payments together', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSizes.sm),
-            Text(
-              'Choose 2 or more payments to record as one payment.',
-              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
-            ),
-            const SizedBox(height: AppSizes.md),
-            for (final installment in sorted)
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _selectedIds.contains(installment.id),
-                title: Text('Payment ${installment.sequenceNumber}'),
-                subtitle: Text(CurrencyFormatter.instance.format(installment.remainingAmount)),
-                onChanged: (checked) => setState(() {
-                  if (checked == true) {
-                    _selectedIds.add(installment.id);
-                  } else {
-                    _selectedIds.remove(installment.id);
-                  }
-                }),
-              ),
-            const SizedBox(height: AppSizes.md),
-            ListTile(
+    return SectionedFormSheet(
+      title: 'Pay multiple payments together',
+      description: 'Choose 2 or more payments to record as one payment.',
+      confirmLabel: 'Record payment',
+      isSaving: _isSaving,
+      onConfirm: _save,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final installment in sorted)
+            CheckboxListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Date'),
-              subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap: _pickDate,
-            ),
-            const SizedBox(height: AppSizes.md),
-            PayerPicker(
-              isSomeoneElse: _someoneElsePaid,
-              onModeChanged: (value) => setState(() {
-                _someoneElsePaid = value;
-                if (!value) _selectedPersonId = null;
+              value: _selectedIds.contains(installment.id),
+              title: Text('Payment ${installment.sequenceNumber}'),
+              subtitle: Text(CurrencyFormatter.instance.format(installment.remainingAmount)),
+              onChanged: (checked) => setState(() {
+                if (checked == true) {
+                  _selectedIds.add(installment.id);
+                } else {
+                  _selectedIds.remove(installment.id);
+                }
               }),
-              selectedPersonId: _selectedPersonId,
-              onPersonChanged: (value) => setState(() => _selectedPersonId = value),
             ),
-            const SizedBox(height: AppSizes.md),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Total', style: context.textTheme.titleMedium),
-                Text(
-                  CurrencyFormatter.instance.format(_total),
-                  style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSizes.xl),
-            PrimaryButton(label: 'Record payment', isLoading: _isSaving, onPressed: _save),
-            const SizedBox(height: AppSizes.sm),
-          ],
-        ),
+          const SizedBox(height: AppSizes.md),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Date'),
+            subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
+            trailing: const Icon(Icons.calendar_today_outlined),
+            onTap: _pickDate,
+          ),
+          const SizedBox(height: AppSizes.md),
+          PayerPicker(
+            isSomeoneElse: _someoneElsePaid,
+            onModeChanged: (value) => setState(() {
+              _someoneElsePaid = value;
+              if (!value) _selectedPersonId = null;
+            }),
+            selectedPersonId: _selectedPersonId,
+            onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+          ),
+          const SizedBox(height: AppSizes.md),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total', style: context.textTheme.titleMedium),
+              Text(
+                CurrencyFormatter.instance.format(_total),
+                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
