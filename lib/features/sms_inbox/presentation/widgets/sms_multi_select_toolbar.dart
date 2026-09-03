@@ -39,7 +39,11 @@ class SmsMultiSelectToolbar extends StatelessWidget {
           height: 56,
           child: Row(
             children: [
-              IconButton(onPressed: onCancel, icon: const Icon(Icons.close_rounded), tooltip: 'Cancel'),
+              IconButton(
+                onPressed: onCancel,
+                icon: const Icon(Icons.close_rounded),
+                tooltip: 'Cancel',
+              ),
               Expanded(
                 child: Text(
                   '$selectedCount selected',

@@ -20,7 +20,11 @@ import 'sms_reader_adapter.dart';
 /// (`TransactionRepository`, `ExpenseRepository`, etc.) create a normal
 /// cloud record — see `SmsConversionRouter`.
 class SmsInboxRepository {
-  const SmsInboxRepository(this._dao, this._reader, {this.parserRegistry = const SmsParserRegistry()});
+  const SmsInboxRepository(
+    this._dao,
+    this._reader, {
+    this.parserRegistry = const SmsParserRegistry(),
+  });
 
   final SmsInboxDao _dao;
   final SmsReaderAdapter _reader;
@@ -60,14 +64,22 @@ class SmsInboxRepository {
     final originalIdByDedupKeyThisScan = <String, String>{};
 
     final candidateKeys = rawMessages.map(
-      (m) => SmsMessageKey.compute(sender: m.address, dateTime: m.date, body: m.body),
+      (m) => SmsMessageKey.compute(
+        sender: m.address,
+        dateTime: m.date,
+        body: m.body,
+      ),
     );
     final deletedKeys = await _dao.deletedMessageKeysAmong(candidateKeys);
 
     for (final message in rawMessages) {
       if (!SmsFinancialFilter.isFinancial(message)) continue;
 
-      final messageKey = SmsMessageKey.compute(sender: message.address, dateTime: message.date, body: message.body);
+      final messageKey = SmsMessageKey.compute(
+        sender: message.address,
+        dateTime: message.date,
+        body: message.body,
+      );
       // Previously deleted by the user — re-reading the same physical device
       // message must never resurrect it (see [SmsInboxDao.deleteByIds]).
       if (deletedKeys.contains(messageKey)) continue;
@@ -82,7 +94,8 @@ class SmsInboxRepository {
       );
 
       final storedOriginal = await _dao.findOriginalByDedupKey(dedupKey);
-      final originalId = storedOriginal?.id ?? originalIdByDedupKeyThisScan[dedupKey];
+      final originalId =
+          storedOriginal?.id ?? originalIdByDedupKeyThisScan[dedupKey];
 
       final item = SmsInboxItem(
         id: IdGenerator.generate(),
@@ -91,7 +104,9 @@ class SmsInboxRepository {
         parsed: parsed,
         dedupKey: dedupKey,
         duplicateOfId: originalId,
-        duplicateReason: originalId == null ? null : _reasonFor(parsed?.referenceNumber),
+        duplicateReason: originalId == null
+            ? null
+            : _reasonFor(parsed?.referenceNumber),
         status: SmsImportStatus.pending,
         createdAt: DateTime.now(),
       );
@@ -119,13 +134,18 @@ class SmsInboxRepository {
 
   Future<List<SmsInboxItem>> getAll() => _dao.getAll();
 
-  Future<List<SmsInboxItem>> getByStatus(SmsImportStatus status) => _dao.getByStatus(status);
+  Future<List<SmsInboxItem>> getByStatus(SmsImportStatus status) =>
+      _dao.getByStatus(status);
 
   /// Marks [id] as imported and links it to the FlowFi record it became.
   /// Callers must only invoke this *after* the target record's own save
   /// call has genuinely succeeded — never optimistically before — so a
   /// failed save never falsely marks an SMS as imported.
-  Future<void> markImported(String id, {required String linkedEntityId, String? linkedEntityRoute}) {
+  Future<void> markImported(
+    String id, {
+    required String linkedEntityId,
+    String? linkedEntityRoute,
+  }) {
     return _dao.updateStatus(
       id,
       status: SmsImportStatus.imported,
@@ -136,18 +156,30 @@ class SmsInboxRepository {
   }
 
   Future<void> markIgnored(String id) {
-    return _dao.updateStatus(id, status: SmsImportStatus.ignored, ignoredAt: DateTime.now());
+    return _dao.updateStatus(
+      id,
+      status: SmsImportStatus.ignored,
+      ignoredAt: DateTime.now(),
+    );
   }
 
   /// Batched equivalent of [markIgnored] for a multi-select "Ignore all".
   Future<void> markIgnoredMany(List<String> ids) {
-    return _dao.updateStatusMany(ids, status: SmsImportStatus.ignored, ignoredAt: DateTime.now());
+    return _dao.updateStatusMany(
+      ids,
+      status: SmsImportStatus.ignored,
+      ignoredAt: DateTime.now(),
+    );
   }
 
   /// Moves an ignored item back to pending review, clearing the stale
   /// `ignoredAt` timestamp from the earlier ignore rather than leaving it
   /// behind on a now-pending row.
-  Future<void> restore(String id) => _dao.updateStatus(id, status: SmsImportStatus.pending, clearIgnoredAt: true);
+  Future<void> restore(String id) => _dao.updateStatus(
+    id,
+    status: SmsImportStatus.pending,
+    clearIgnoredAt: true,
+  );
 
   /// Un-flags a message the duplicate rules got wrong, returning it to the
   /// normal inbox. Purely a visibility change — no financial record exists

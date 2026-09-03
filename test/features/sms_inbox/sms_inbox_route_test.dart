@@ -23,7 +23,8 @@ class _GatedPermissionService extends SmsPermissionService {
   const _GatedPermissionService();
 
   @override
-  Future<SmsAvailability> checkStatus() async => SmsAvailability.notRequestedYet;
+  Future<SmsAvailability> checkStatus() async =>
+      SmsAvailability.notRequestedYet;
 }
 
 /// Fixed uid so the per-account setup-wizard flag can be seeded.
@@ -44,10 +45,15 @@ void main() {
     return ProviderScope(
       overrides: [
         firebaseAuthProvider.overrideWithValue(
-          MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 'test@example.com')),
+          MockFirebaseAuth(
+            signedIn: true,
+            mockUser: MockUser(uid: _kUid, email: 'test@example.com'),
+          ),
         ),
         firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
-        smsPermissionServiceProvider.overrideWithValue(const _GatedPermissionService()),
+        smsPermissionServiceProvider.overrideWithValue(
+          const _GatedPermissionService(),
+        ),
       ],
       child: const _TestApp(),
     );
@@ -59,7 +65,9 @@ void main() {
   // overflow under flutter_test's fixed-width fallback font — an artifact of
   // the test font, not a real layout bug. The width matrix that matters lives
   // in test/core/router/fab_visibility_test.dart.
-  testWidgets('SMS Inbox opens clear of the shell FAB and nav bar', (tester) async {
+  testWidgets('SMS Inbox opens clear of the shell FAB and nav bar', (
+    tester,
+  ) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
 
@@ -68,7 +76,9 @@ void main() {
     expect(find.byIcon(Icons.add_rounded), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
 
-    GoRouter.of(tester.element(find.byType(NavigationBar))).push(AppRoutes.smsInbox);
+    GoRouter.of(
+      tester.element(find.byType(NavigationBar)),
+    ).push(AppRoutes.smsInbox);
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'SMS Inbox'), findsOneWidget);
@@ -77,12 +87,20 @@ void main() {
       findsNothing,
       reason: 'the shell FAB must not float over SMS Inbox or its sheets',
     );
-    expect(find.byType(NavigationBar), findsNothing, reason: 'SMS Inbox is a full-screen drill-in');
+    expect(
+      find.byType(NavigationBar),
+      findsNothing,
+      reason: 'SMS Inbox is a full-screen drill-in',
+    );
 
     // Its own back button still works, i.e. the drill-in is escapable.
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.add_rounded), findsOneWidget, reason: 'shell chrome returns on pop');
+    expect(
+      find.byIcon(Icons.add_rounded),
+      findsOneWidget,
+      reason: 'shell chrome returns on pop',
+    );
   });
 }
 

@@ -7,20 +7,25 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
+import '../../domain/financial_event/financial_event.dart';
+import '../../domain/financial_event/financial_event_type.dart';
 import '../../domain/sms_confidence_scorer.dart';
 import '../../domain/transaction_candidate.dart';
 import '../providers/sms_inbox_providers.dart';
 
-/// The account-match + confidence summary for one SMS's `TransactionCandidate`
-/// (built by `TransactionCandidateBuilder` during the existing manual scan) —
-/// shown in [SmsMessageDetailSheet] so the user can judge the suggestion
-/// before converting. Purely informational: nothing here is ever applied
+/// The account-match + confidence summary for one SMS — shown in
+/// [SmsMessageDetailSheet] so the user can judge the suggestion before
+/// converting. Purely informational: nothing here is ever applied
 /// automatically, it only explains what [SmsConversionRouter] will pre-fill
 /// if the user proceeds.
 ///
-/// Renders nothing when no candidate exists yet for this SMS (unparsed
-/// message, or a scan hasn't produced one yet) — the sheet's existing layout
-/// is unaffected, exactly as before this feature existed.
+/// Prefers the new AI-hybrid `FinancialEvent` (see
+/// `SmsInboxItemsNotifier._generateFinancialEventsForPending`) when one has
+/// been linked to this SMS, falling back to the older `TransactionCandidate`
+/// display for any SMS the new pipeline hasn't processed yet (e.g. one
+/// scanned before this feature existed). Renders nothing when neither
+/// exists — the sheet's existing layout is unaffected, exactly as before
+/// this feature existed.
 class SmsCandidateSummary extends ConsumerWidget {
   const SmsCandidateSummary({super.key, required this.smsItemId});
 
@@ -28,10 +33,100 @@ class SmsCandidateSummary extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final candidates = ref.watch(transactionCandidatesProvider).valueOrNull ?? const [];
-    final candidate = candidates.firstWhereOrNull((c) => c.smsItemId == smsItemId);
-    if (candidate == null) return const SizedBox.shrink();
+    final event = ref
+        .watch(financialEventForSmsItemProvider(smsItemId))
+        .valueOrNull;
+    if (event != null) return _buildForEvent(context, ref, event);
 
+    final candidates =
+        ref.watch(transactionCandidatesProvider).valueOrNull ?? const [];
+    final candidate = candidates.firstWhereOrNull(
+      (c) => c.smsItemId == smsItemId,
+    );
+    if (candidate == null) return const SizedBox.shrink();
+    return _buildForCandidate(context, ref, candidate);
+  }
+
+  Widget _buildForEvent(
+    BuildContext context,
+    WidgetRef ref,
+    FinancialEvent event,
+  ) {
+    return _Card(
+      accountLabel: _accountLabel(
+        ref,
+        event.accountMatch.value,
+        event.matchedCardId,
+      ),
+      confidenceLevel: event.confidenceLevel,
+      needsReview: event.needsReview,
+      reviewReasons: event.reviewReasons,
+      eventTypeLabel: event.eventType.label,
+      subcategory: event.subcategory,
+    );
+  }
+
+  Widget _buildForCandidate(
+    BuildContext context,
+    WidgetRef ref,
+    TransactionCandidate candidate,
+  ) {
+    return _Card(
+      accountLabel: _accountLabel(
+        ref,
+        candidate.matchedAccountId,
+        candidate.matchedCardId,
+      ),
+      confidenceLevel: candidate.confidenceLevel,
+      needsReview: candidate.needsReview,
+      reviewReasons: candidate.reviewReasons,
+    );
+  }
+
+  /// Resolves a matched account/card id pair into the same display name the
+  /// rest of the app already uses (e.g. `smsCardFilterOptionsProvider`'s
+  /// "Name •••• 1234"), rather than inventing a second naming convention.
+  String _accountLabel(WidgetRef ref, String? accountId, String? cardId) {
+    if (accountId == null) return 'Account needs review';
+
+    final accounts = ref.watch(accountsStreamProvider).value ?? const [];
+    final account = accounts.firstWhereOrNull((a) => a.id == accountId);
+    if (account == null) return 'Account needs review';
+
+    if (cardId != null) {
+      final cards = ref.watch(activeCreditCardsProvider);
+      final card = cards.firstWhereOrNull((c) => c.id == cardId);
+      if (card?.lastFourDigits != null)
+        return '${account.name} •••• ${card!.lastFourDigits}';
+    }
+    return account.name;
+  }
+}
+
+class _Card extends StatelessWidget {
+  const _Card({
+    required this.accountLabel,
+    required this.confidenceLevel,
+    required this.needsReview,
+    required this.reviewReasons,
+    this.eventTypeLabel,
+    this.subcategory,
+  });
+
+  final String accountLabel;
+  final ConfidenceLevel confidenceLevel;
+  final bool needsReview;
+  final List<String> reviewReasons;
+
+  /// Set only when this summary was built from a `FinancialEvent` — the
+  /// AI-hybrid engine's reconciled read of what kind of event this is (e.g.
+  /// "Payment", "Refund of an earlier charge"). Null for the older
+  /// `TransactionCandidate` fallback, which has no equivalent concept.
+  final String? eventTypeLabel;
+  final String? subcategory;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(top: AppSizes.sm),
@@ -48,44 +143,67 @@ class SmsCandidateSummary extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  _accountLabel(ref, candidate),
-                  style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  accountLabel,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: AppSizes.sm),
-              _ConfidenceBadge(level: candidate.confidenceLevel),
+              _ConfidenceBadge(level: confidenceLevel),
             ],
           ),
-          if (candidate.needsReview && candidate.reviewReasons.isNotEmpty) ...[
+          if (eventTypeLabel != null) ...[
             const SizedBox(height: AppSizes.xs),
-            for (final reason in candidate.reviewReasons) _ReviewReasonRow(reason: reason),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSizes.xs,
+              children: [
+                _EventTypeChip(label: eventTypeLabel!),
+                if (subcategory != null)
+                  Text(
+                    subcategory!,
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (needsReview && reviewReasons.isNotEmpty) ...[
+            const SizedBox(height: AppSizes.xs),
+            for (final reason in reviewReasons)
+              _ReviewReasonRow(reason: reason),
           ],
         ],
       ),
     );
   }
+}
 
-  /// Resolves [TransactionCandidate.matchedAccountId]/[matchedCardId] into
-  /// the same display name the rest of the app already uses for that
-  /// account/card (e.g. `smsCardFilterOptionsProvider`'s "Name •••• 1234"),
-  /// rather than inventing a second naming convention here.
-  String _accountLabel(WidgetRef ref, TransactionCandidate candidate) {
-    final accountId = candidate.matchedAccountId;
-    if (accountId == null) return 'Account needs review';
+class _EventTypeChip extends StatelessWidget {
+  const _EventTypeChip({required this.label});
 
-    final accounts = ref.watch(accountsStreamProvider).value ?? const [];
-    final account = accounts.firstWhereOrNull((a) => a.id == accountId);
-    if (account == null) return 'Account needs review';
+  final String label;
 
-    final cardId = candidate.matchedCardId;
-    if (cardId != null) {
-      final cards = ref.watch(activeCreditCardsProvider);
-      final card = cards.firstWhereOrNull((c) => c.id == cardId);
-      if (card?.lastFourDigits != null) return '${account.name} •••• ${card!.lastFourDigits}';
-    }
-    return account.name;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 3),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
+      child: Text(
+        label,
+        style: context.textTheme.labelSmall?.copyWith(
+          color: context.colors.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }
 
@@ -108,7 +226,13 @@ class _ConfidenceBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
-      child: Text(label, style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+      child: Text(
+        label,
+        style: context.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -125,10 +249,19 @@ class _ReviewReasonRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: context.colors.onSurfaceVariant),
+          Icon(
+            Icons.info_outline_rounded,
+            size: AppSizes.iconSm,
+            color: context.colors.onSurfaceVariant,
+          ),
           const SizedBox(width: AppSizes.xs),
           Expanded(
-            child: Text(reason, style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+            child: Text(
+              reason,
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
+            ),
           ),
         ],
       ),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/data/bank_registry.dart';
 import '../../core/models/bank_info.dart';
-import 'bank_avatar.dart';
+import 'bank_logo.dart';
 
 /// Searchable Indian bank picker. Returns the chosen [BankInfo.id]; `null`
 /// means the sheet was dismissed with no change. Picking "Other / Generic
@@ -82,7 +82,7 @@ class _BankPickerSheetState extends State<BankPickerSheet> {
                   children: [
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const BankAvatar(),
+                      leading: const BankLogo(),
                       title: const Text('Other / Generic Bank'),
                       subtitle: const Text('Clear bank selection'),
                       onTap: () => _select(BankRegistry.generic.id),
@@ -159,7 +159,7 @@ class _BankRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: BankAvatar(bankId: bank.id, size: 36),
+      leading: BankLogo(bankId: bank.id, size: 36),
       title: Text(bank.name),
       subtitle: Text(bank.shortCode),
       onTap: onTap,

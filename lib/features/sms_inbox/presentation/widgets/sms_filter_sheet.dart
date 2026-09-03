@@ -37,15 +37,22 @@ class SmsFilterSheet extends ConsumerStatefulWidget {
 
 class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
   late SmsFilterCriteria _draft = ref.read(smsFilterCriteriaProvider);
-  late final _minController = TextEditingController(text: _amountText(_draft.minAmount));
-  late final _maxController = TextEditingController(text: _amountText(_draft.maxAmount));
+  late final _minController = TextEditingController(
+    text: _amountText(_draft.minAmount),
+  );
+  late final _maxController = TextEditingController(
+    text: _amountText(_draft.maxAmount),
+  );
 
-  static String _amountText(double? amount) => amount == null ? '' : amount.toStringAsFixed(0);
+  static String _amountText(double? amount) =>
+      amount == null ? '' : amount.toStringAsFixed(0);
 
   /// True when both bounds are set and Min exceeds Max — a range that can
   /// never match anything, with no explanation otherwise.
   bool get _hasInvalidAmountRange =>
-      _draft.minAmount != null && _draft.maxAmount != null && _draft.minAmount! > _draft.maxAmount!;
+      _draft.minAmount != null &&
+      _draft.maxAmount != null &&
+      _draft.minAmount! > _draft.maxAmount!;
 
   @override
   void dispose() {
@@ -79,7 +86,13 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
           : null,
     );
     if (picked == null) return;
-    _update(_draft.copyWith(datePreset: SmsDatePreset.custom, customStart: picked.start, customEnd: picked.end));
+    _update(
+      _draft.copyWith(
+        datePreset: SmsDatePreset.custom,
+        customStart: picked.start,
+        customEnd: picked.end,
+      ),
+    );
   }
 
   @override
@@ -96,7 +109,10 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
       builder: (context, scrollController) {
         return Column(
           children: [
-            _Header(activeCount: _draft.activeCount, onClose: () => Navigator.of(context).pop()),
+            _Header(
+              activeCount: _draft.activeCount,
+              onClose: () => Navigator.of(context).pop(),
+            ),
             const Divider(height: 1),
             Expanded(
               child: ListView(
@@ -116,7 +132,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                 _draft.copyWith(
                                   categories: selected
                                       ? {..._draft.categories, category}
-                                      : _draft.categories.difference({category}),
+                                      : _draft.categories.difference({
+                                          category,
+                                        }),
                                 ),
                               ),
                             ),
@@ -132,7 +150,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                             label: direction.label,
                             icon: _directionIcon(direction),
                             selected: _draft.direction == direction,
-                            onSelected: (_) => _update(_draft.copyWith(direction: direction)),
+                            onSelected: (_) =>
+                                _update(_draft.copyWith(direction: direction)),
                           ),
                       ],
                     ),
@@ -143,7 +162,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                       children: [
                         for (final preset in SmsDatePreset.values)
                           _Chip(
-                            label: preset == SmsDatePreset.custom && _draft.customStart != null
+                            label:
+                                preset == SmsDatePreset.custom &&
+                                    _draft.customStart != null
                                 ? _customLabel()
                                 : preset.label,
                             selected: _draft.datePreset == preset,
@@ -152,7 +173,12 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                 _pickCustomRange();
                                 return;
                               }
-                              _update(_draft.copyWith(datePreset: preset, clearCustomRange: true));
+                              _update(
+                                _draft.copyWith(
+                                  datePreset: preset,
+                                  clearCustomRange: true,
+                                ),
+                              );
                             },
                           ),
                       ],
@@ -169,7 +195,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                               selected: _draft.banks.contains(bank),
                               onSelected: (selected) => _update(
                                 _draft.copyWith(
-                                  banks: selected ? {..._draft.banks, bank} : _draft.banks.difference({bank}),
+                                  banks: selected
+                                      ? {..._draft.banks, bank}
+                                      : _draft.banks.difference({bank}),
                                 ),
                               ),
                             ),
@@ -203,11 +231,16 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                       child: _ChipWrap(
                         children: [
                           _Chip(
-                            label: 'Review ${ref.watch(smsDuplicateCountProvider)} duplicates',
-                            selected: _draft.duplicates == SmsDuplicateVisibility.only,
+                            label:
+                                'Review ${ref.watch(smsDuplicateCountProvider)} duplicates',
+                            selected:
+                                _draft.duplicates ==
+                                SmsDuplicateVisibility.only,
                             onSelected: (selected) => _update(
                               _draft.copyWith(
-                                duplicates: selected ? SmsDuplicateVisibility.only : SmsDuplicateVisibility.hidden,
+                                duplicates: selected
+                                    ? SmsDuplicateVisibility.only
+                                    : SmsDuplicateVisibility.hidden,
                               ),
                             ),
                           ),
@@ -221,9 +254,15 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                       children: [
                         _ChipWrap(
                           children: [
-                            for (final threshold in const [500.0, 1000.0, 5000.0, 10000.0])
+                            for (final threshold in const [
+                              500.0,
+                              1000.0,
+                              5000.0,
+                              10000.0,
+                            ])
                               _Chip(
-                                label: 'Above ${CurrencyFormatter.instance.format(threshold)}',
+                                label:
+                                    'Above ${CurrencyFormatter.instance.format(threshold)}',
                                 selected: _draft.minAmount == threshold,
                                 onSelected: (selected) {
                                   final next = selected ? threshold : null;
@@ -246,7 +285,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                 label: 'Min',
                                 hasError: _hasInvalidAmountRange,
                                 onChanged: (value) => _update(
-                                  value == null ? _draft.copyWith(clearMinAmount: true) : _draft.copyWith(minAmount: value),
+                                  value == null
+                                      ? _draft.copyWith(clearMinAmount: true)
+                                      : _draft.copyWith(minAmount: value),
                                 ),
                               ),
                             ),
@@ -257,7 +298,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                 label: 'Max',
                                 hasError: _hasInvalidAmountRange,
                                 onChanged: (value) => _update(
-                                  value == null ? _draft.copyWith(clearMaxAmount: true) : _draft.copyWith(maxAmount: value),
+                                  value == null
+                                      ? _draft.copyWith(clearMaxAmount: true)
+                                      : _draft.copyWith(maxAmount: value),
                                 ),
                               ),
                             ),
@@ -267,7 +310,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                           const SizedBox(height: AppSizes.xs),
                           Text(
                             'Min must not be greater than Max.',
-                            style: context.textTheme.bodySmall?.copyWith(color: context.colors.error),
+                            style: context.textTheme.bodySmall?.copyWith(
+                              color: context.colors.error,
+                            ),
                           ),
                         ],
                       ],
@@ -330,19 +375,32 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.sm, AppSizes.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        AppSizes.sm,
+        AppSizes.sm,
+        AppSizes.sm,
+      ),
       child: Row(
         children: [
           const Icon(Icons.filter_list_rounded, size: AppSizes.iconMd),
           const SizedBox(width: AppSizes.sm),
-          Text('Filter SMS', style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            'Filter SMS',
+            style: context.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           if (activeCount > 0) ...[
             const SizedBox(width: AppSizes.sm),
             // Flexible so a two-digit count can never push the close button
             // off a 360dp sheet.
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.sm,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   color: context.colors.primaryContainer,
                   borderRadius: BorderRadius.circular(AppSizes.radiusPill),
@@ -350,13 +408,19 @@ class _Header extends StatelessWidget {
                 child: Text(
                   '$activeCount active',
                   overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.labelSmall?.copyWith(color: context.colors.onPrimaryContainer),
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: context.colors.onPrimaryContainer,
+                  ),
                 ),
               ),
             ),
           ],
           const Spacer(),
-          IconButton(icon: const Icon(Icons.close_rounded), tooltip: 'Close', onPressed: onClose),
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            tooltip: 'Close',
+            onPressed: onClose,
+          ),
         ],
       ),
     );
@@ -386,9 +450,19 @@ class _ActionBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: OutlinedButton(onPressed: onClearAll, child: const Text('Clear All'))),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onClearAll,
+              child: const Text('Clear All'),
+            ),
+          ),
           const SizedBox(width: AppSizes.sm),
-          Expanded(child: FilledButton(onPressed: onApply, child: const Text('Apply Filters'))),
+          Expanded(
+            child: FilledButton(
+              onPressed: onApply,
+              child: const Text('Apply Filters'),
+            ),
+          ),
         ],
       ),
     );
@@ -404,7 +478,12 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.lg, AppSizes.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        AppSizes.sm,
+        AppSizes.lg,
+        AppSizes.sm,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -432,12 +511,21 @@ class _ChipWrap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(spacing: AppSizes.xs, runSpacing: AppSizes.xs, children: children);
+    return Wrap(
+      spacing: AppSizes.xs,
+      runSpacing: AppSizes.xs,
+      children: children,
+    );
   }
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onSelected, this.icon});
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+    this.icon,
+  });
 
   final String label;
   final bool selected;
@@ -454,13 +542,20 @@ class _Chip extends StatelessWidget {
       onSelected: onSelected,
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
     );
   }
 }
 
 class _AmountField extends StatelessWidget {
-  const _AmountField({required this.controller, required this.label, required this.onChanged, this.hasError = false});
+  const _AmountField({
+    required this.controller,
+    required this.label,
+    required this.onChanged,
+    this.hasError = false,
+  });
 
   final TextEditingController controller;
   final String label;
@@ -481,8 +576,16 @@ class _AmountField extends StatelessWidget {
         isDense: true,
         labelText: label,
         border: const OutlineInputBorder(),
-        errorBorder: hasError ? OutlineInputBorder(borderSide: BorderSide(color: context.colors.error)) : null,
-        enabledBorder: hasError ? OutlineInputBorder(borderSide: BorderSide(color: context.colors.error)) : null,
+        errorBorder: hasError
+            ? OutlineInputBorder(
+                borderSide: BorderSide(color: context.colors.error),
+              )
+            : null,
+        enabledBorder: hasError
+            ? OutlineInputBorder(
+                borderSide: BorderSide(color: context.colors.error),
+              )
+            : null,
       ),
       // An unparseable or empty field clears the bound rather than pinning it
       // at 0, which would silently hide every row.

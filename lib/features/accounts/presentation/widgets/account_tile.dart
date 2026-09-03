@@ -4,7 +4,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../domain/account.dart';
 import '../../domain/account_type.dart';
 
@@ -26,7 +26,7 @@ class AccountTile extends StatelessWidget {
       child: Row(
         children: [
           if (account.type == AccountType.bank || account.type == AccountType.card)
-            BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 44)
+            BankLogo(bankId: account.bankId, fallbackName: account.name, size: 44)
           else
             ClayIconChip(icon: account.type.icon, color: color, size: 44, iconSize: 22),
           const SizedBox(width: AppSizes.md),

@@ -9,7 +9,8 @@ class IciciSmsParser extends SmsParser {
   const IciciSmsParser();
 
   @override
-  bool canParse(RawSmsMessage message) => BankSenderMatcher.bankNameFor(message.address) == 'ICICI Bank';
+  bool canParse(RawSmsMessage message) =>
+      BankSenderMatcher.bankNameFor(message.address) == 'ICICI Bank';
 
   @override
   ParsedSmsTransaction? parse(RawSmsMessage message) {

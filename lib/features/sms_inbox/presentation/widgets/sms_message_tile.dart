@@ -49,15 +49,22 @@ class SmsMessageTile extends StatelessWidget {
     // Only meaningful while the message is still awaiting a decision — once
     // converted or ignored, whether the original match needed review is no
     // longer actionable from this row.
-    final needsReview = item.status == SmsImportStatus.pending && (candidate?.needsReview ?? false);
+    final needsReview =
+        item.status == SmsImportStatus.pending &&
+        (candidate?.needsReview ?? false);
 
     return Material(
-      color: selected ? context.colors.primary.withValues(alpha: 0.08) : context.colors.surface,
+      color: selected
+          ? context.colors.primary.withValues(alpha: 0.08)
+          : context.colors.surface,
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.lg,
+            vertical: AppSizes.md,
+          ),
           child: Row(
             children: [
               _Leading(
@@ -113,8 +120,11 @@ class SmsMessageTile extends StatelessWidget {
   }
 
   Color _amountColor(BuildContext context, SmsTransactionDirection? direction) {
-    if (direction == null) return context.colors.onSurface.withValues(alpha: 0.55);
-    return direction == SmsTransactionDirection.credit ? AppColors.credit : AppColors.debit;
+    if (direction == null)
+      return context.colors.onSurface.withValues(alpha: 0.55);
+    return direction == SmsTransactionDirection.credit
+        ? AppColors.credit
+        : AppColors.debit;
   }
 
   /// Beginner-friendly wording over the raw debit/credit enum — "spent" and
@@ -122,7 +132,9 @@ class SmsMessageTile extends StatelessWidget {
   String _amountLabel(double? amount, SmsTransactionDirection? direction) {
     if (amount == null || direction == null) return 'Amount unclear';
     final formatted = CurrencyFormatter.instance.format(amount);
-    return direction == SmsTransactionDirection.credit ? '$formatted received' : '$formatted spent';
+    return direction == SmsTransactionDirection.credit
+        ? '$formatted received'
+        : '$formatted spent';
   }
 
   String _subtitle() {
@@ -130,7 +142,8 @@ class SmsMessageTile extends StatelessWidget {
     final parts = [
       parsed?.merchantOrSender ?? item.rawMessage.address,
       ?parsed?.bankName,
-      if (parsed?.maskedAccountOrCard != null) 'XX${parsed!.maskedAccountOrCard}',
+      if (parsed?.maskedAccountOrCard != null)
+        'XX${parsed!.maskedAccountOrCard}',
     ];
     return parts.join(' • ');
   }
@@ -181,13 +194,17 @@ class _Leading extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: selected ? context.colors.primary : context.colors.surfaceContainerHighest,
+          color: selected
+              ? context.colors.primary
+              : context.colors.surfaceContainerHighest,
           shape: BoxShape.circle,
         ),
         child: Icon(
           selected ? Icons.check_rounded : Icons.circle_outlined,
           size: AppSizes.iconMd,
-          color: selected ? context.colors.onPrimary : context.colors.onSurface.withValues(alpha: 0.4),
+          color: selected
+              ? context.colors.onPrimary
+              : context.colors.onSurface.withValues(alpha: 0.4),
         ),
       );
     }
@@ -195,8 +212,15 @@ class _Leading extends StatelessWidget {
     final avatar = Container(
       width: 40,
       height: 40,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-      child: Icon(_icon(item.parsed?.category), size: AppSizes.iconMd, color: color),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        _icon(item.parsed?.category),
+        size: AppSizes.iconMd,
+        color: color,
+      ),
     );
 
     if (!needsReview) return avatar;
@@ -260,7 +284,10 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         _shortLabel(status),
-        style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+        style: context.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

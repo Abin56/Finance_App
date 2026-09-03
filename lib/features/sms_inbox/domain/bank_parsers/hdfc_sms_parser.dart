@@ -12,7 +12,8 @@ class HdfcSmsParser extends SmsParser {
   const HdfcSmsParser();
 
   @override
-  bool canParse(RawSmsMessage message) => BankSenderMatcher.bankNameFor(message.address) == 'HDFC Bank';
+  bool canParse(RawSmsMessage message) =>
+      BankSenderMatcher.bankNameFor(message.address) == 'HDFC Bank';
 
   @override
   ParsedSmsTransaction? parse(RawSmsMessage message) {

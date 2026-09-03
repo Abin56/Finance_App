@@ -38,7 +38,8 @@ class SmsPermissionService {
 
   SmsAvailability _mapStatus(PermissionStatus status) {
     if (status.isGranted) return SmsAvailability.granted;
-    if (status.isPermanentlyDenied || status.isRestricted) return SmsAvailability.permanentlyDenied;
+    if (status.isPermanentlyDenied || status.isRestricted)
+      return SmsAvailability.permanentlyDenied;
     if (!hasRequestedBefore) return SmsAvailability.notRequestedYet;
     return SmsAvailability.denied;
   }

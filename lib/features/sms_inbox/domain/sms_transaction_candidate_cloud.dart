@@ -117,7 +117,10 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
   /// [TransactionCandidate] plus the one extra field it doesn't carry
   /// ([rawLastFour], sourced from the SMS parse directly) — see the class
   /// doc for why nothing else is added.
-  factory SmsTransactionCandidateCloud.fromLocal(TransactionCandidate candidate, {String? rawLastFour}) {
+  factory SmsTransactionCandidateCloud.fromLocal(
+    TransactionCandidate candidate, {
+    String? rawLastFour,
+  }) {
     return SmsTransactionCandidateCloud(
       smsItemId: candidate.smsItemId,
       amount: candidate.amount,
@@ -146,7 +149,9 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     final directionName = data['direction'] as String?;
     final direction = SmsTransactionDirectionX.fromName(directionName);
     if (direction == null) {
-      throw StateError('smsTransactionCandidates/${snapshot.id} has no valid direction');
+      throw StateError(
+        'smsTransactionCandidates/${snapshot.id} has no valid direction',
+      );
     }
 
     return SmsTransactionCandidateCloud(
@@ -161,10 +166,14 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
       accountId: data['accountId'] as String?,
       cardId: data['cardId'] as String?,
       referenceNumber: data['referenceNumber'] as String?,
-      confidenceLevel: ConfidenceLevel.values.byName(data['confidenceLevel'] as String? ?? ConfidenceLevel.low.name),
+      confidenceLevel: ConfidenceLevel.values.byName(
+        data['confidenceLevel'] as String? ?? ConfidenceLevel.low.name,
+      ),
       confidenceScore: (data['confidenceScore'] as num?)?.toDouble() ?? 0.0,
       needsReview: data['needsReview'] as bool? ?? true,
-      needsReviewReasons: (data['needsReviewReasons'] as List<dynamic>? ?? const []).cast<String>(),
+      needsReviewReasons:
+          (data['needsReviewReasons'] as List<dynamic>? ?? const [])
+              .cast<String>(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
     )..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate();
   }

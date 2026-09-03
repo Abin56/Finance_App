@@ -10,6 +10,7 @@ import '../../../../core/extensions/num_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/animations/count_up_text.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../transactions/presentation/screens/transactions_screen.dart';
@@ -1203,11 +1204,20 @@ class _CardListThumbnail extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (bankName != null)
-            Text(
-              bankName,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10, height: 1.15),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BankLogo(bankId: bankId, size: 14, shape: BankLogoShape.roundedSquare),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    bankName,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10, height: 1.15),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           Text(
             lastFourDigits != null && lastFourDigits!.isNotEmpty ? '•••• $lastFourDigits' : '',

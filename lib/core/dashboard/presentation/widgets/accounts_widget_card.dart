@@ -9,6 +9,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../features/accounts/presentation/providers/account_providers.dart';
 import '../../domain/widget_configuration.dart';
 import '../../../theme/clay_widgets.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.accounts] — every non-deleted [Account] and
@@ -62,10 +63,13 @@ class AccountsWidgetCard extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
                 child: Row(
                   children: [
-                    ClayIconChip(
-                      icon: Icons.account_balance_wallet_outlined,
-                      color: Color(account.colorValue),
-                    ),
+                    if (account.bankId != null)
+                      BankLogo(bankId: account.bankId, fallbackName: account.name, size: 26)
+                    else
+                      ClayIconChip(
+                        icon: Icons.account_balance_wallet_outlined,
+                        color: Color(account.colorValue),
+                      ),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
                       child: Text(account.name, style: textTheme.bodySmall, overflow: TextOverflow.ellipsis),

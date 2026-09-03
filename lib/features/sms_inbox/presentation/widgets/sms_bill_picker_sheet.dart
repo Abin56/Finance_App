@@ -47,7 +47,10 @@ class _SmsBillPickerSheetState extends ConsumerState<SmsBillPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Which bill is this for?', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Which bill is this for?',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: AppSizes.lg),
           DropdownButtonFormField<String>(
             initialValue: _billId,
@@ -66,7 +69,9 @@ class _SmsBillPickerSheetState extends ConsumerState<SmsBillPickerSheet> {
           const SizedBox(height: AppSizes.xl),
           PrimaryButton(
             label: 'Continue',
-            onPressed: selectedBill == null ? null : () => Navigator.of(context).pop(selectedBill),
+            onPressed: selectedBill == null
+                ? null
+                : () => Navigator.of(context).pop(selectedBill),
           ),
           const SizedBox(height: AppSizes.sm),
         ],

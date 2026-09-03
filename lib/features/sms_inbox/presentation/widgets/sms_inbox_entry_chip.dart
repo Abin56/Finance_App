@@ -20,11 +20,16 @@ class SmsInboxEntryChip extends ConsumerWidget {
       avatar: Badge(
         label: Text('$pendingCount'),
         isLabelVisible: pendingCount > 0,
-        child: const Icon(Icons.mark_email_unread_outlined, size: AppSizes.iconSm),
+        child: const Icon(
+          Icons.mark_email_unread_outlined,
+          size: AppSizes.iconSm,
+        ),
       ),
       label: const Text('SMS Inbox'),
       onPressed: () => SmsInboxScreen.show(context),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
     );
   }
 }

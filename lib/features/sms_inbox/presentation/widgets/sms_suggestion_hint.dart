@@ -29,13 +29,19 @@ class SmsSuggestionHint extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.auto_awesome_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+          Icon(
+            Icons.auto_awesome_rounded,
+            size: AppSizes.iconSm,
+            color: context.colors.primary,
+          ),
           const SizedBox(width: AppSizes.xs),
           // Long merchant names must wrap rather than overflow at 360dp.
           Expanded(
             child: Text(
               label,
-              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -49,11 +55,19 @@ class SmsSuggestionHint extends StatelessWidget {
 
     switch (source) {
       case SuggestionSource.userHistory:
-        return hasMerchant ? 'Suggested — you usually file $name here' : 'Suggested from your history';
+        return hasMerchant
+            ? 'Suggested — you usually file $name here'
+            : 'Suggested from your history';
       case SuggestionSource.knownMerchant:
-        return hasMerchant ? 'Suggested for $name — you can change it' : 'Suggested — you can change it';
+        return hasMerchant
+            ? 'Suggested for $name — you can change it'
+            : 'Suggested — you can change it';
       case SuggestionSource.smsType:
         return 'Suggested from this SMS — you can change it';
+      case SuggestionSource.aiInference:
+        return hasMerchant
+            ? 'AI-suggested for $name — you can change it'
+            : 'AI-suggested — you can change it';
     }
   }
 }

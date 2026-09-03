@@ -43,7 +43,11 @@ class SmsCandidateSyncResult {
 /// try/catch can swallow it without any risk to local data — see
 /// `SmsInboxItemsNotifier._syncCandidatesToCloud`.
 class SmsCandidateCloudSync {
-  const SmsCandidateCloudSync(this._cloudRepository, this._localDao, this._inboxRepository);
+  const SmsCandidateCloudSync(
+    this._cloudRepository,
+    this._localDao,
+    this._inboxRepository,
+  );
 
   final SmsTransactionCandidateRepository _cloudRepository;
   final TransactionCandidateDao _localDao;
@@ -56,7 +60,9 @@ class SmsCandidateCloudSync {
     final localCandidates = await _localDao.getAll();
     final targetCandidates = localCandidates.where((candidate) {
       final item = itemById[candidate.smsItemId];
-      return item != null && item.status == SmsImportStatus.pending && !item.isDuplicate;
+      return item != null &&
+          item.status == SmsImportStatus.pending &&
+          !item.isDuplicate;
     }).toList();
     final targetIds = targetCandidates.map((c) => c.smsItemId).toSet();
 
@@ -67,11 +73,18 @@ class SmsCandidateCloudSync {
     }
 
     for (final candidate in targetCandidates) {
-      final rawLastFour = itemById[candidate.smsItemId]!.parsed?.maskedAccountOrCard;
-      final cloudDoc = SmsTransactionCandidateCloud.fromLocal(candidate, rawLastFour: rawLastFour);
+      final rawLastFour =
+          itemById[candidate.smsItemId]!.parsed?.maskedAccountOrCard;
+      final cloudDoc = SmsTransactionCandidateCloud.fromLocal(
+        candidate,
+        rawLastFour: rawLastFour,
+      );
       await _cloudRepository.add(cloudDoc.id, cloudDoc);
     }
 
-    return SmsCandidateSyncResult(synced: targetCandidates.length, removed: toRemove.length);
+    return SmsCandidateSyncResult(
+      synced: targetCandidates.length,
+      removed: toRemove.length,
+    );
   }
 }

@@ -20,6 +20,10 @@ enum SmsTransactionCategory {
   loanEmiDebit,
   billPayment,
   autoDebit,
+  cashback,
+  interestCredit,
+  bankFee,
+  recharge,
   unknown,
 }
 
@@ -64,6 +68,14 @@ extension SmsTransactionCategoryX on SmsTransactionCategory {
         return 'Bill payment';
       case SmsTransactionCategory.autoDebit:
         return 'Auto debit';
+      case SmsTransactionCategory.cashback:
+        return 'Cashback';
+      case SmsTransactionCategory.interestCredit:
+        return 'Interest credit';
+      case SmsTransactionCategory.bankFee:
+        return 'Bank fee';
+      case SmsTransactionCategory.recharge:
+        return 'Recharge';
       case SmsTransactionCategory.unknown:
         return 'Transaction';
     }

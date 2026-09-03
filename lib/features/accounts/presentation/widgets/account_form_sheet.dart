@@ -6,7 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/chip_selector.dart';
@@ -185,7 +185,7 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                 onTap: _pickBank,
                 child: Row(
                   children: [
-                    BankAvatar(bankId: _bankId, fallbackName: _nameController.text, size: 28),
+                    BankLogo(bankId: _bankId, fallbackName: _nameController.text, size: 28),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
                       child: Text(

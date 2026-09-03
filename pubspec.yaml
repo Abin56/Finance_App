@@ -26,6 +26,7 @@ dependencies:
   firebase_storage: ^12.3.8
   firebase_crashlytics: ^4.2.0
   firebase_analytics: ^11.3.6
+  cloud_functions: ^5.2.4
   shared_preferences: ^2.3.5
 
   # Models / serialization
@@ -114,6 +115,7 @@ flutter:
     - assets/lottie/
     - assets/icons/
     - assets/fonts/
+    - assets/banks/logos/
 
   # Loaded once at PDF-generation time via `FontManager`/`pw.Font.ttf` (see
   # lib/core/pdf/font_manager.dart) — not registered as an app-wide Flutter

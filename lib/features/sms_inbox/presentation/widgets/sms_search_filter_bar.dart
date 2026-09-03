@@ -26,7 +26,12 @@ class SmsSearchFilterBar extends ConsumerWidget {
     return SizedBox(
       height: height,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.sm, 0),
+        padding: const EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          AppSizes.sm,
+          AppSizes.sm,
+          0,
+        ),
         child: Row(
           children: [
             Expanded(
@@ -36,8 +41,13 @@ class SmsSearchFilterBar extends ConsumerWidget {
                 decoration: InputDecoration(
                   isDense: true,
                   hintText: 'Search merchant, bank, amount…',
-                  prefixIcon: const Icon(Icons.search_rounded, size: AppSizes.iconMd),
-                  contentPadding: const EdgeInsets.symmetric(vertical: AppSizes.md),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: AppSizes.iconMd,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: AppSizes.md,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppSizes.radiusPill),
                     borderSide: BorderSide.none,
@@ -45,10 +55,14 @@ class SmsSearchFilterBar extends ConsumerWidget {
                   filled: true,
                   fillColor: context.colors.surfaceContainerHighest,
                 ),
-                onChanged: (value) => ref.read(smsSearchQueryProvider.notifier).state = value,
+                onChanged: (value) =>
+                    ref.read(smsSearchQueryProvider.notifier).state = value,
               ),
             ),
-            _FilterButton(activeCount: activeCount, onPressed: () => SmsFilterSheet.show(context)),
+            _FilterButton(
+              activeCount: activeCount,
+              onPressed: () => SmsFilterSheet.show(context),
+            ),
           ],
         ),
       ),
@@ -73,7 +87,9 @@ class _FilterButton extends StatelessWidget {
         isLabelVisible: activeCount > 0,
         label: Text('$activeCount'),
         child: Icon(
-          activeCount > 0 ? Icons.filter_list_rounded : Icons.filter_list_outlined,
+          activeCount > 0
+              ? Icons.filter_list_rounded
+              : Icons.filter_list_outlined,
           color: activeCount > 0 ? context.colors.primary : null,
         ),
       ),

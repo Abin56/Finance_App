@@ -18,7 +18,15 @@ class SmsInboxDatabase {
   static const String tableName = 'sms_inbox';
   static const String merchantMemoryTableName = 'sms_merchant_memory';
   static const String deletedMessageKeysTableName = 'sms_deleted_message_keys';
-  static const String transactionCandidatesTableName = 'sms_transaction_candidates';
+  static const String transactionCandidatesTableName =
+      'sms_transaction_candidates';
+  static const String financialEventsTableName = 'financial_events';
+  static const String smsFinancialEventLinksTableName =
+      'sms_financial_event_links';
+  static const String merchantLearningProfilesTableName =
+      'merchant_learning_profiles';
+  static const String merchantLearningCorrectionsTableName =
+      'merchant_learning_corrections';
 
   /// v3 — added `sms_deleted_message_keys`, a tombstone table recording the
   /// `message_key` of every row the user has ever deleted. Without it,
@@ -33,7 +41,41 @@ class SmsInboxDatabase {
   /// [tableName] row that `TransactionCandidateBuilder` was able to produce
   /// a candidate for (account/card match + confidence). No existing table,
   /// column, or row is touched by this upgrade.
-  static const int schemaVersion = 4;
+  ///
+  /// v5 — added `financial_events` and `sms_financial_event_links`, purely
+  /// additive, for the AI-hybrid `FinancialEvent` engine. This replaces the
+  /// old flat `duplicate_of_id` chain as the anchor for "multiple SMS
+  /// describing one real-world transaction": the event row is the anchor,
+  /// and every contributing SMS gets its own link row, so deleting any one
+  /// SMS (including what would have been the old chain's "original") only
+  /// removes its own link — it can no longer orphan the others or split one
+  /// duplicate chain into two (see `SmsInboxDao.findOriginalByDedupKey`'s
+  /// known-limitation comment, which this table pair structurally fixes for
+  /// events processed by the new pipeline; the legacy `duplicate_of_id`
+  /// columns are untouched and keep working for the physical-SMS duplicate
+  /// review flow).
+  ///
+  /// v6 — added `money_movement_*`/`transaction_status_*`/
+  /// `is_own_account_transfer` columns to `financial_events`, purely
+  /// additive (`ALTER TABLE ... ADD COLUMN`, nullable/defaulted so every
+  /// existing row stays valid). Backs the Phase 2 distinction between a
+  /// reminder/failed/pending message and money that actually moved — see
+  /// `FinancialEvent.moneyMovement`'s doc comment.
+  ///
+  /// v7 — added `payment_provider_*`/`merchant_type_*` columns to
+  /// `financial_events`, purely additive. Backs the Phase 3 distinction
+  /// between the merchant (who was paid) and the payment provider/app that
+  /// moved the money (PhonePe, Google Pay, ...) — see
+  /// `FinancialEvent.paymentProvider`'s doc comment.
+  ///
+  /// v8 — added `merchant_learning_profiles`/`merchant_learning_corrections`,
+  /// purely additive. Persists the in-memory `MerchantLearningStore`/
+  /// `MerchantCorrectionLog` (see `lib/features/sms_inbox/domain/learning/`)
+  /// so learned merchant fields survive an app restart. Only normalized
+  /// merchant identity + learning metadata is stored here — never raw SMS
+  /// body, OTP, account/card numbers, phone numbers, or AI prompts/responses;
+  /// see `MerchantLearningDao`'s doc comment for the full boundary.
+  static const int schemaVersion = 8;
 
   static SmsInboxDatabase? _instance;
 
@@ -90,6 +132,176 @@ class SmsInboxDatabase {
     await _createMerchantMemoryTable(db);
     await _createDeletedMessageKeysTable(db);
     await _createTransactionCandidatesTable(db);
+    await _createFinancialEventsTable(db);
+    await _createSmsFinancialEventLinksTable(db);
+    await _createMerchantLearningTables(db);
+  }
+
+  /// `merchant_learning_profiles` — one row per (user, merchant), one column
+  /// pair (`value`/`source`/`confirmations`/`corrections`/`last_updated_at`)
+  /// per `LearnedFieldType` — mirrors `MerchantLearningProfile` field for
+  /// field. `merchant_learning_corrections` is the append-only history
+  /// backing `MerchantCorrectionLog`. Neither table has a column capable of
+  /// holding raw SMS text, OTP/CVV/PIN/password, a full account/card number,
+  /// a phone number, or an AI prompt/response — only normalized merchant
+  /// keys, enum names, counters, and timestamps, matching
+  /// `MerchantLearningProfile`/`LearnedField`/`CorrectionEvent`'s own
+  /// privacy-safe shape exactly.
+  static Future<void> _createMerchantLearningTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE $merchantLearningProfilesTableName (
+        user_id TEXT NOT NULL,
+        merchant_key TEXT NOT NULL,
+        merchant_type_value TEXT,
+        merchant_type_source TEXT,
+        merchant_type_confirmations INTEGER NOT NULL DEFAULT 0,
+        merchant_type_corrections INTEGER NOT NULL DEFAULT 0,
+        merchant_type_last_updated_at INTEGER,
+        category_value TEXT,
+        category_source TEXT,
+        category_confirmations INTEGER NOT NULL DEFAULT 0,
+        category_corrections INTEGER NOT NULL DEFAULT 0,
+        category_last_updated_at INTEGER,
+        subcategory_value TEXT,
+        subcategory_source TEXT,
+        subcategory_confirmations INTEGER NOT NULL DEFAULT 0,
+        subcategory_corrections INTEGER NOT NULL DEFAULT 0,
+        subcategory_last_updated_at INTEGER,
+        payment_provider_value TEXT,
+        payment_provider_source TEXT,
+        payment_provider_confirmations INTEGER NOT NULL DEFAULT 0,
+        payment_provider_corrections INTEGER NOT NULL DEFAULT 0,
+        payment_provider_last_updated_at INTEGER,
+        payment_method_value TEXT,
+        payment_method_source TEXT,
+        payment_method_confirmations INTEGER NOT NULL DEFAULT 0,
+        payment_method_corrections INTEGER NOT NULL DEFAULT 0,
+        payment_method_last_updated_at INTEGER,
+        PRIMARY KEY (user_id, merchant_key)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE $merchantLearningCorrectionsTableName (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        merchant_key TEXT NOT NULL,
+        field TEXT NOT NULL,
+        old_value TEXT,
+        new_value TEXT,
+        source TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_merchant_learning_corrections_lookup '
+      'ON $merchantLearningCorrectionsTableName(user_id, merchant_key, field)',
+    );
+  }
+
+  /// One row per real-world transaction the AI-hybrid engine has identified
+  /// — see `FinancialEvent`. Unlike [transactionCandidatesTableName], this
+  /// is not 1:1 with a single SMS: any number of [smsFinancialEventLinksTableName]
+  /// rows can point at one event.
+  static Future<void> _createFinancialEventsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $financialEventsTableName (
+        id TEXT PRIMARY KEY,
+        primary_sms_item_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        role TEXT NOT NULL,
+        status TEXT NOT NULL,
+        direction TEXT NOT NULL,
+        normalized_sender TEXT,
+        amount REAL,
+        amount_confidence REAL,
+        amount_source TEXT,
+        amount_ai_evidence TEXT,
+        amount_regex_evidence TEXT,
+        merchant TEXT,
+        merchant_confidence REAL,
+        merchant_source TEXT,
+        merchant_ai_evidence TEXT,
+        merchant_regex_evidence TEXT,
+        category_id TEXT,
+        category_confidence REAL,
+        category_source TEXT,
+        subcategory TEXT,
+        payment_method TEXT,
+        payment_method_confidence REAL,
+        payment_method_source TEXT,
+        matched_account_id TEXT,
+        matched_card_id TEXT,
+        account_confidence REAL,
+        account_source TEXT,
+        money_movement_value INTEGER,
+        money_movement_confidence REAL,
+        money_movement_source TEXT,
+        money_movement_regex_evidence TEXT,
+        transaction_status_value TEXT,
+        transaction_status_confidence REAL,
+        transaction_status_source TEXT,
+        is_own_account_transfer INTEGER NOT NULL DEFAULT 0,
+        payment_provider_value TEXT,
+        payment_provider_confidence REAL,
+        payment_provider_source TEXT,
+        merchant_type_value TEXT,
+        merchant_type_confidence REAL,
+        merchant_type_source TEXT,
+        merchant_type_evidence TEXT,
+        event_date INTEGER NOT NULL,
+        overall_confidence REAL NOT NULL,
+        confidence_level TEXT NOT NULL,
+        automation_action TEXT NOT NULL,
+        needs_review INTEGER NOT NULL,
+        review_reasons TEXT,
+        reference_number TEXT,
+        linked_transaction_id TEXT,
+        linked_event_id TEXT,
+        ai_raw_response TEXT,
+        ai_model_version TEXT,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_financial_events_status ON $financialEventsTableName(status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_financial_events_reference ON $financialEventsTableName(reference_number)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_financial_events_linked_event ON $financialEventsTableName(linked_event_id)',
+    );
+    // Backs TransactionMatcher's weak-signal "same sender + amount, no
+    // reference number to confirm" possible-duplicate check.
+    await db.execute(
+      'CREATE INDEX idx_financial_events_sender_amount ON $financialEventsTableName(normalized_sender, amount)',
+    );
+  }
+
+  /// One row per SMS contributing to a [financialEventsTableName] row — see
+  /// `FinancialEventEvidenceLink`. `sms_item_id` is `UNIQUE`: one SMS
+  /// describes exactly one event in practice, which keeps "does this SMS
+  /// already have an event?" an O(1) lookup. No FK/cascade at the SQL level
+  /// (same rationale as [transactionCandidatesTableName]'s doc comment —
+  /// sqflite's cascade support is inconsistent across platforms); deleting a
+  /// linked SMS or event is the DAO's explicit responsibility.
+  static Future<void> _createSmsFinancialEventLinksTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $smsFinancialEventLinksTableName (
+        id TEXT PRIMARY KEY,
+        financial_event_id TEXT NOT NULL,
+        sms_item_id TEXT NOT NULL,
+        link_type TEXT NOT NULL,
+        confidence REAL NOT NULL,
+        linked_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE UNIQUE INDEX idx_sms_fe_links_sms_item ON $smsFinancialEventLinksTableName(sms_item_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sms_fe_links_event ON $smsFinancialEventLinksTableName(financial_event_id)',
+    );
   }
 
   /// One row per [tableName] row a `TransactionCandidateBuilder` run
@@ -142,11 +354,17 @@ class SmsInboxDatabase {
 
   static Future<void> _createInboxIndexes(Database db) async {
     await db.execute('CREATE INDEX idx_sms_inbox_status ON $tableName(status)');
-    await db.execute('CREATE INDEX idx_sms_inbox_received_at ON $tableName(received_at)');
+    await db.execute(
+      'CREATE INDEX idx_sms_inbox_received_at ON $tableName(received_at)',
+    );
     // No longer UNIQUE, but still the lookup that finds an incoming message's
     // original when deciding whether it is a duplicate.
-    await db.execute('CREATE INDEX idx_sms_inbox_dedup_key ON $tableName(dedup_key)');
-    await db.execute('CREATE INDEX idx_sms_inbox_duplicate_of ON $tableName(duplicate_of_id)');
+    await db.execute(
+      'CREATE INDEX idx_sms_inbox_dedup_key ON $tableName(dedup_key)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sms_inbox_duplicate_of ON $tableName(duplicate_of_id)',
+    );
   }
 
   /// One row per (merchant, transaction type, category) the user has actually
@@ -173,7 +391,11 @@ class SmsInboxDatabase {
   /// preserved verbatim — including its id, so any `linked_entity_id` an
   /// already-converted SMS carries stays intact and no financial record is
   /// touched.
-  static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+  static Future<void> _onUpgrade(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE $tableName RENAME TO ${tableName}_v1');
       // Renaming a table in SQLite carries its indexes along *under their
@@ -215,6 +437,80 @@ class SmsInboxDatabase {
     if (oldVersion == 2 || oldVersion == 3) {
       await _createTransactionCandidatesTable(db);
     }
+    // v5's two new tables are purely additive, but — same guard rationale as
+    // the v2/v3-v4 blocks above — a v1 database already got them from the
+    // v1→v2 branch's full `_onCreate` rebuild (which includes every current
+    // table, financial_events included); only a v2/v3/v4 database, which
+    // never went through that rebuild, needs them created here. `oldVersion
+    // < 5` alone double-creates the table for a v1→v6 jump and crashes.
+    if (oldVersion >= 2 && oldVersion < 5) {
+      await _createFinancialEventsTable(db);
+      await _createSmsFinancialEventLinksTable(db);
+    }
+    // v6's columns are included directly in _createFinancialEventsTable
+    // above, so any database jumping from below v5 straight to v6 already
+    // has them from that fresh create — only a database already sitting at
+    // exactly v5 needs the ALTER TABLE additions here.
+    if (oldVersion == 5) {
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN money_movement_value INTEGER',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN money_movement_confidence REAL',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN money_movement_source TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN money_movement_regex_evidence TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN transaction_status_value TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN transaction_status_confidence REAL',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN transaction_status_source TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN is_own_account_transfer INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+    // v7's columns are included directly in _createFinancialEventsTable
+    // above, so a database jumping from below v5 straight to v7 already has
+    // them from that fresh create — only a database sitting at exactly v5
+    // or v6 needs the ALTER TABLE additions here.
+    if (oldVersion == 5 || oldVersion == 6) {
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN payment_provider_value TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN payment_provider_confidence REAL',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN payment_provider_source TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN merchant_type_value TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN merchant_type_confidence REAL',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN merchant_type_source TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE $financialEventsTableName ADD COLUMN merchant_type_evidence TEXT',
+      );
+    }
+    // v8's two new tables are purely additive, but — same guard rationale as
+    // every prior additive step above — a v1 database already got them from
+    // the v1→v2 branch's full `_onCreate` rebuild; only a v2..v7 database,
+    // which never went through that rebuild, needs them created here.
+    if (oldVersion >= 2 && oldVersion < 8) {
+      await _createMerchantLearningTables(db);
+    }
   }
 
   /// Computes the real [SmsMessageKey] for every migrated row. This must
@@ -223,16 +519,26 @@ class SmsInboxDatabase {
   /// row still holding a placeholder would fail to match and be re-inserted
   /// as a bogus duplicate of itself.
   static Future<void> _backfillMessageKeys(Database db) async {
-    final rows = await db.query(tableName, columns: ['id', 'sender', 'body', 'received_at']);
+    final rows = await db.query(
+      tableName,
+      columns: ['id', 'sender', 'body', 'received_at'],
+    );
 
     final batch = db.batch();
     for (final row in rows) {
       final messageKey = SmsMessageKey.compute(
         sender: row['sender']! as String,
-        dateTime: DateTime.fromMillisecondsSinceEpoch(row['received_at']! as int),
+        dateTime: DateTime.fromMillisecondsSinceEpoch(
+          row['received_at']! as int,
+        ),
         body: row['body']! as String,
       );
-      batch.update(tableName, {'message_key': messageKey}, where: 'id = ?', whereArgs: [row['id']]);
+      batch.update(
+        tableName,
+        {'message_key': messageKey},
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
     }
     await batch.commit(noResult: true);
   }
@@ -294,8 +600,12 @@ class SmsInboxDatabase {
               created_at INTEGER NOT NULL
             )
           ''');
-          await db.execute('CREATE INDEX idx_sms_inbox_status ON $tableName(status)');
-          await db.execute('CREATE INDEX idx_sms_inbox_received_at ON $tableName(received_at)');
+          await db.execute(
+            'CREATE INDEX idx_sms_inbox_status ON $tableName(status)',
+          );
+          await db.execute(
+            'CREATE INDEX idx_sms_inbox_received_at ON $tableName(received_at)',
+          );
         },
       ),
     );
@@ -342,6 +652,318 @@ class SmsInboxDatabase {
           await _createInboxIndexes(db);
           await _createMerchantMemoryTable(db);
           await _createDeletedMessageKeysTable(db);
+        },
+      ),
+    );
+  }
+
+  /// Test-only seam for the v4→v5 migration: creates the schema exactly as
+  /// it existed at v4 (before `financial_events`/`sms_financial_event_links`),
+  /// so a test can seed it and then reopen at [schemaVersion] to exercise
+  /// [_onUpgrade] against real rows — mirrors [openV3ForTest]'s role for the
+  /// v3→v4 step.
+  @visibleForTesting
+  static Future<Database> openV4ForTest(String path) {
+    return databaseFactory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 4,
+        singleInstance: false,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE $tableName (
+              id TEXT PRIMARY KEY,
+              message_key TEXT NOT NULL UNIQUE,
+              dedup_key TEXT NOT NULL,
+              duplicate_of_id TEXT,
+              duplicate_reason TEXT,
+              sender TEXT NOT NULL,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL,
+              direction TEXT,
+              amount REAL,
+              merchant TEXT,
+              bank_name TEXT,
+              masked_account TEXT,
+              reference_number TEXT,
+              category TEXT,
+              confidence REAL,
+              status TEXT NOT NULL DEFAULT 'pending',
+              linked_entity_id TEXT,
+              linked_entity_route TEXT,
+              imported_at INTEGER,
+              ignored_at INTEGER,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await _createInboxIndexes(db);
+          await _createMerchantMemoryTable(db);
+          await _createDeletedMessageKeysTable(db);
+          await _createTransactionCandidatesTable(db);
+        },
+      ),
+    );
+  }
+
+  /// Test-only seam for the v5→v6 migration: creates the schema exactly as
+  /// it existed at v5 (before the `money_movement_*`/`transaction_status_*`/
+  /// `is_own_account_transfer` columns on `financial_events`), so a test can
+  /// seed it and then reopen at [schemaVersion] to exercise [_onUpgrade]
+  /// against real rows — mirrors [openV4ForTest]'s role for the v4→v5 step.
+  @visibleForTesting
+  static Future<Database> openV5ForTest(String path) {
+    return databaseFactory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 5,
+        singleInstance: false,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE $tableName (
+              id TEXT PRIMARY KEY,
+              message_key TEXT NOT NULL UNIQUE,
+              dedup_key TEXT NOT NULL,
+              duplicate_of_id TEXT,
+              duplicate_reason TEXT,
+              sender TEXT NOT NULL,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL,
+              direction TEXT,
+              amount REAL,
+              merchant TEXT,
+              bank_name TEXT,
+              masked_account TEXT,
+              reference_number TEXT,
+              category TEXT,
+              confidence REAL,
+              status TEXT NOT NULL DEFAULT 'pending',
+              linked_entity_id TEXT,
+              linked_entity_route TEXT,
+              imported_at INTEGER,
+              ignored_at INTEGER,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await _createInboxIndexes(db);
+          await _createMerchantMemoryTable(db);
+          await _createDeletedMessageKeysTable(db);
+          await _createTransactionCandidatesTable(db);
+          await db.execute('''
+            CREATE TABLE $financialEventsTableName (
+              id TEXT PRIMARY KEY,
+              primary_sms_item_id TEXT NOT NULL,
+              event_type TEXT NOT NULL,
+              role TEXT NOT NULL,
+              status TEXT NOT NULL,
+              direction TEXT NOT NULL,
+              normalized_sender TEXT,
+              amount REAL,
+              amount_confidence REAL,
+              amount_source TEXT,
+              amount_ai_evidence TEXT,
+              amount_regex_evidence TEXT,
+              merchant TEXT,
+              merchant_confidence REAL,
+              merchant_source TEXT,
+              merchant_ai_evidence TEXT,
+              merchant_regex_evidence TEXT,
+              category_id TEXT,
+              category_confidence REAL,
+              category_source TEXT,
+              subcategory TEXT,
+              payment_method TEXT,
+              payment_method_confidence REAL,
+              payment_method_source TEXT,
+              matched_account_id TEXT,
+              matched_card_id TEXT,
+              account_confidence REAL,
+              account_source TEXT,
+              event_date INTEGER NOT NULL,
+              overall_confidence REAL NOT NULL,
+              confidence_level TEXT NOT NULL,
+              automation_action TEXT NOT NULL,
+              needs_review INTEGER NOT NULL,
+              review_reasons TEXT,
+              reference_number TEXT,
+              linked_transaction_id TEXT,
+              linked_event_id TEXT,
+              ai_raw_response TEXT,
+              ai_model_version TEXT,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE $smsFinancialEventLinksTableName (
+              id TEXT PRIMARY KEY,
+              financial_event_id TEXT NOT NULL,
+              sms_item_id TEXT NOT NULL,
+              link_type TEXT NOT NULL,
+              confidence REAL NOT NULL,
+              linked_at INTEGER NOT NULL
+            )
+          ''');
+        },
+      ),
+    );
+  }
+
+  /// Test-only seam for the v6→v7 migration: creates the schema exactly as
+  /// it existed at v6 (before the `payment_provider_*`/`merchant_type_*`
+  /// columns on `financial_events`), so a test can seed it and then reopen
+  /// at [schemaVersion] to exercise [_onUpgrade] against real rows —
+  /// mirrors [openV5ForTest]'s role for the v5→v6 step.
+  @visibleForTesting
+  static Future<Database> openV6ForTest(String path) {
+    return databaseFactory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 6,
+        singleInstance: false,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE $tableName (
+              id TEXT PRIMARY KEY,
+              message_key TEXT NOT NULL UNIQUE,
+              dedup_key TEXT NOT NULL,
+              duplicate_of_id TEXT,
+              duplicate_reason TEXT,
+              sender TEXT NOT NULL,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL,
+              direction TEXT,
+              amount REAL,
+              merchant TEXT,
+              bank_name TEXT,
+              masked_account TEXT,
+              reference_number TEXT,
+              category TEXT,
+              confidence REAL,
+              status TEXT NOT NULL DEFAULT 'pending',
+              linked_entity_id TEXT,
+              linked_entity_route TEXT,
+              imported_at INTEGER,
+              ignored_at INTEGER,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await _createInboxIndexes(db);
+          await _createMerchantMemoryTable(db);
+          await _createDeletedMessageKeysTable(db);
+          await _createTransactionCandidatesTable(db);
+          await db.execute('''
+            CREATE TABLE $financialEventsTableName (
+              id TEXT PRIMARY KEY,
+              primary_sms_item_id TEXT NOT NULL,
+              event_type TEXT NOT NULL,
+              role TEXT NOT NULL,
+              status TEXT NOT NULL,
+              direction TEXT NOT NULL,
+              normalized_sender TEXT,
+              amount REAL,
+              amount_confidence REAL,
+              amount_source TEXT,
+              amount_ai_evidence TEXT,
+              amount_regex_evidence TEXT,
+              merchant TEXT,
+              merchant_confidence REAL,
+              merchant_source TEXT,
+              merchant_ai_evidence TEXT,
+              merchant_regex_evidence TEXT,
+              category_id TEXT,
+              category_confidence REAL,
+              category_source TEXT,
+              subcategory TEXT,
+              payment_method TEXT,
+              payment_method_confidence REAL,
+              payment_method_source TEXT,
+              matched_account_id TEXT,
+              matched_card_id TEXT,
+              account_confidence REAL,
+              account_source TEXT,
+              money_movement_value INTEGER,
+              money_movement_confidence REAL,
+              money_movement_source TEXT,
+              money_movement_regex_evidence TEXT,
+              transaction_status_value TEXT,
+              transaction_status_confidence REAL,
+              transaction_status_source TEXT,
+              is_own_account_transfer INTEGER NOT NULL DEFAULT 0,
+              event_date INTEGER NOT NULL,
+              overall_confidence REAL NOT NULL,
+              confidence_level TEXT NOT NULL,
+              automation_action TEXT NOT NULL,
+              needs_review INTEGER NOT NULL,
+              review_reasons TEXT,
+              reference_number TEXT,
+              linked_transaction_id TEXT,
+              linked_event_id TEXT,
+              ai_raw_response TEXT,
+              ai_model_version TEXT,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE $smsFinancialEventLinksTableName (
+              id TEXT PRIMARY KEY,
+              financial_event_id TEXT NOT NULL,
+              sms_item_id TEXT NOT NULL,
+              link_type TEXT NOT NULL,
+              confidence REAL NOT NULL,
+              linked_at INTEGER NOT NULL
+            )
+          ''');
+        },
+      ),
+    );
+  }
+
+  /// Test-only seam for the v7→v8 migration: creates the schema exactly as
+  /// it existed at v7 (before `merchant_learning_profiles`/
+  /// `merchant_learning_corrections`), so a test can seed it and then reopen
+  /// at [schemaVersion] to exercise [_onUpgrade] against real rows — mirrors
+  /// [openV6ForTest]'s role for the v6→v7 step. `financial_events`'s shape at
+  /// v7 is identical to today's, so this reuses [_createFinancialEventsTable]
+  /// directly instead of duplicating its columns a fourth time.
+  @visibleForTesting
+  static Future<Database> openV7ForTest(String path) {
+    return databaseFactory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 7,
+        singleInstance: false,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE $tableName (
+              id TEXT PRIMARY KEY,
+              message_key TEXT NOT NULL UNIQUE,
+              dedup_key TEXT NOT NULL,
+              duplicate_of_id TEXT,
+              duplicate_reason TEXT,
+              sender TEXT NOT NULL,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL,
+              direction TEXT,
+              amount REAL,
+              merchant TEXT,
+              bank_name TEXT,
+              masked_account TEXT,
+              reference_number TEXT,
+              category TEXT,
+              confidence REAL,
+              status TEXT NOT NULL DEFAULT 'pending',
+              linked_entity_id TEXT,
+              linked_entity_route TEXT,
+              imported_at INTEGER,
+              ignored_at INTEGER,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await _createInboxIndexes(db);
+          await _createMerchantMemoryTable(db);
+          await _createDeletedMessageKeysTable(db);
+          await _createTransactionCandidatesTable(db);
+          await _createFinancialEventsTable(db);
+          await _createSmsFinancialEventLinksTable(db);
         },
       ),
     );

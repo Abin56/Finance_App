@@ -9,7 +9,7 @@ import '../../../../core/payment_schedule/domain/installment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/month_year_stepper.dart';
 import '../../../../shared/widgets/section_label.dart';
@@ -1241,7 +1241,7 @@ class _PaymentMethodChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               account.type == AccountType.bank || account.type == AccountType.card
-                  ? BankAvatar(bankId: account.bankId, fallbackName: account.name, size: AppSizes.iconSm)
+                  ? BankLogo(bankId: account.bankId, fallbackName: account.name, size: AppSizes.iconSm)
                   : Icon(account.type.icon, size: AppSizes.iconSm, color: selected ? colors.primary : colors.onSurface.withValues(alpha: 0.6)),
               const SizedBox(width: 4),
               Text(

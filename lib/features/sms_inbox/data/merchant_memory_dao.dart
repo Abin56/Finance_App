@@ -16,7 +16,9 @@ class MerchantMemoryDao {
   Database get _database => _db.database;
 
   Future<List<MerchantMemory>> getAll() async {
-    final rows = await _database.query(SmsInboxDatabase.merchantMemoryTableName);
+    final rows = await _database.query(
+      SmsInboxDatabase.merchantMemoryTableName,
+    );
     return rows.map(_fromRow).toList();
   }
 
@@ -39,17 +41,26 @@ class MerchantMemoryDao {
         times_used = times_used + 1,
         last_used_at = excluded.last_used_at
       ''',
-      [merchantKey, transactionType.name, categoryId, at.millisecondsSinceEpoch],
+      [
+        merchantKey,
+        transactionType.name,
+        categoryId,
+        at.millisecondsSinceEpoch,
+      ],
     );
   }
 
   MerchantMemory _fromRow(Map<String, Object?> row) {
     return MerchantMemory(
       merchantKey: row['merchant_key']! as String,
-      transactionType: TransactionTypeX.fromName(row['transaction_type']! as String),
+      transactionType: TransactionTypeX.fromName(
+        row['transaction_type']! as String,
+      ),
       categoryId: row['category_id']! as String,
       timesUsed: row['times_used']! as int,
-      lastUsedAt: DateTime.fromMillisecondsSinceEpoch(row['last_used_at']! as int),
+      lastUsedAt: DateTime.fromMillisecondsSinceEpoch(
+        row['last_used_at']! as int,
+      ),
     );
   }
 }

@@ -14,7 +14,8 @@ class SmsEmptyState extends StatelessWidget {
     return EmptyState(
       icon: Icons.mark_email_read_outlined,
       title: 'No SMS found',
-      subtitle: 'Nothing matches this filter yet. Pull down or refresh to scan for new financial SMS.',
+      subtitle:
+          'Nothing matches this filter yet. Pull down or refresh to scan for new financial SMS.',
       action: FilledButton.icon(
         onPressed: onRefresh,
         icon: const Icon(Icons.refresh_rounded),

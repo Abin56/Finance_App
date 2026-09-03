@@ -9,7 +9,8 @@ class AxisSmsParser extends SmsParser {
   const AxisSmsParser();
 
   @override
-  bool canParse(RawSmsMessage message) => BankSenderMatcher.bankNameFor(message.address) == 'Axis Bank';
+  bool canParse(RawSmsMessage message) =>
+      BankSenderMatcher.bankNameFor(message.address) == 'Axis Bank';
 
   @override
   ParsedSmsTransaction? parse(RawSmsMessage message) {

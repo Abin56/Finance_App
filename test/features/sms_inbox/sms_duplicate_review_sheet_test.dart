@@ -26,7 +26,11 @@ class _StubItemsNotifier extends SmsInboxItemsNotifier {
 /// reason and both messages are actually on screen, and the sheet survives a
 /// long bank body at 360dp without overflowing.
 void main() {
-  SmsInboxItem item({required String id, String? duplicateOf, String body = 'Rs.1250 debited'}) {
+  SmsInboxItem item({
+    required String id,
+    String? duplicateOf,
+    String body = 'Rs.1250 debited',
+  }) {
     final date = DateTime(2026, 7, 15, 16, 35);
     return SmsInboxItem(
       id: id,
@@ -34,7 +38,9 @@ void main() {
       rawMessage: RawSmsMessage(address: 'VM-HDFCBK', body: body, date: date),
       dedupKey: 'dedup',
       duplicateOfId: duplicateOf,
-      duplicateReason: duplicateOf == null ? null : SmsDuplicateReason.sameReferenceNumber,
+      duplicateReason: duplicateOf == null
+          ? null
+          : SmsDuplicateReason.sameReferenceNumber,
       status: SmsImportStatus.pending,
       createdAt: date,
       parsed: ParsedSmsTransaction(
@@ -69,7 +75,8 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () => SmsDuplicateReviewSheet.show(context, duplicate),
+                onPressed: () =>
+                    SmsDuplicateReviewSheet.show(context, duplicate),
                 child: const Text('open'),
               ),
             ),
@@ -82,18 +89,30 @@ void main() {
   }
 
   testWidgets('shows the detection reason and both messages', (tester) async {
-    final original = item(id: 'original', body: 'Rs.1250 debited to Swiggy. Ref 12345.');
-    final duplicate = item(id: 'copy', duplicateOf: 'original', body: 'Rs.1250 debited to Swiggy. Ref 12345. Offer!');
+    final original = item(
+      id: 'original',
+      body: 'Rs.1250 debited to Swiggy. Ref 12345.',
+    );
+    final duplicate = item(
+      id: 'copy',
+      duplicateOf: 'original',
+      body: 'Rs.1250 debited to Swiggy. Ref 12345. Offer!',
+    );
 
     await pumpSheet(tester, [original, duplicate], duplicate);
 
     expect(find.text('Possible duplicate'), findsOneWidget);
-    expect(find.text(SmsDuplicateReason.sameReferenceNumber.explanation), findsOneWidget);
+    expect(
+      find.text(SmsDuplicateReason.sameReferenceNumber.explanation),
+      findsOneWidget,
+    );
     expect(find.text('Original'), findsOneWidget);
     expect(find.text('This message'), findsOneWidget);
   });
 
-  testWidgets('offers every review action, including overruling the app', (tester) async {
+  testWidgets('offers every review action, including overruling the app', (
+    tester,
+  ) async {
     final original = item(id: 'original');
     final duplicate = item(id: 'copy', duplicateOf: 'original');
 
@@ -118,13 +137,16 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          smsInboxItemsProvider.overrideWith(() => _StubItemsNotifier([original, duplicate])),
+          smsInboxItemsProvider.overrideWith(
+            () => _StubItemsNotifier([original, duplicate]),
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () async => result = await SmsDuplicateReviewSheet.show(context, duplicate),
+                onPressed: () async => result =
+                    await SmsDuplicateReviewSheet.show(context, duplicate),
                 child: const Text('open'),
               ),
             ),
@@ -140,23 +162,35 @@ void main() {
     expect(result, SmsDuplicateAction.moveToInbox);
   });
 
-  testWidgets('says so when the original has since been deleted', (tester) async {
+  testWidgets('says so when the original has since been deleted', (
+    tester,
+  ) async {
     // Otherwise the sheet would show a lone message under a "duplicate"
     // heading it can no longer justify.
     final duplicate = item(id: 'copy', duplicateOf: 'gone');
 
     await pumpSheet(tester, [duplicate], duplicate);
 
-    expect(find.text('The original message has since been deleted.'), findsOneWidget);
+    expect(
+      find.text('The original message has since been deleted.'),
+      findsOneWidget,
+    );
     expect(find.text('Original'), findsNothing);
   });
 
   for (final width in [360.0, 390.0]) {
-    testWidgets('does not overflow at ${width.toInt()}dp with a long bank body', (tester) async {
-      final body = 'Rs.1,250.00 debited from a/c XX5623 on 15-07-26 to VPA swiggy@icici. '
+    testWidgets('does not overflow at ${width.toInt()}dp with a long bank body', (
+      tester,
+    ) async {
+      final body =
+          'Rs.1,250.00 debited from a/c XX5623 on 15-07-26 to VPA swiggy@icici. '
           'Ref No 123456789012. Not you? Call 18001234567 immediately to report this transaction.';
       final original = item(id: 'original', body: body);
-      final duplicate = item(id: 'copy', duplicateOf: 'original', body: '$body Download our app today!');
+      final duplicate = item(
+        id: 'copy',
+        duplicateOf: 'original',
+        body: '$body Download our app today!',
+      );
 
       await pumpSheet(tester, [original, duplicate], duplicate, width: width);
 

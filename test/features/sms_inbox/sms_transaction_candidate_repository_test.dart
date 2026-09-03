@@ -26,7 +26,9 @@ void main() {
 
   setUp(() {
     final firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('smsTransactionCandidates').withConverter<SmsTransactionCandidateCloud>(
+    final collection = firestore
+        .collection('smsTransactionCandidates')
+        .withConverter<SmsTransactionCandidateCloud>(
           fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
           toFirestore: (c, _) => c.toFirestore(),
         );
@@ -41,14 +43,17 @@ void main() {
     expect(stored?.accountId, 'acc-1');
   });
 
-  test('add again for the same id overwrites rather than duplicating', () async {
-    await repository.add('sms-1', candidate('sms-1', accountId: 'acc-1'));
-    await repository.add('sms-1', candidate('sms-1', accountId: 'acc-2'));
+  test(
+    'add again for the same id overwrites rather than duplicating',
+    () async {
+      await repository.add('sms-1', candidate('sms-1', accountId: 'acc-1'));
+      await repository.add('sms-1', candidate('sms-1', accountId: 'acc-2'));
 
-    final all = await repository.getAll();
-    expect(all, hasLength(1));
-    expect(all.single.accountId, 'acc-2');
-  });
+      final all = await repository.getAll();
+      expect(all, hasLength(1));
+      expect(all.single.accountId, 'acc-2');
+    },
+  );
 
   test('getAll returns every stored candidate', () async {
     await repository.add('sms-1', candidate('sms-1'));

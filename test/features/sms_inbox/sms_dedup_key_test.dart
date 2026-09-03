@@ -42,13 +42,28 @@ void main() {
     });
 
     test('different amount produces a different key', () {
-      final a = SmsDedupKey.compute(sender: 'VM-HDFCBK', dateTime: date, amount: 1250.0, body: 'x');
-      final b = SmsDedupKey.compute(sender: 'VM-HDFCBK', dateTime: date, amount: 1251.0, body: 'x');
+      final a = SmsDedupKey.compute(
+        sender: 'VM-HDFCBK',
+        dateTime: date,
+        amount: 1250.0,
+        body: 'x',
+      );
+      final b = SmsDedupKey.compute(
+        sender: 'VM-HDFCBK',
+        dateTime: date,
+        amount: 1251.0,
+        body: 'x',
+      );
       expect(a, isNot(equals(b)));
     });
 
     test('different timestamp produces a different key', () {
-      final a = SmsDedupKey.compute(sender: 'VM-HDFCBK', dateTime: date, amount: 1250.0, body: 'x');
+      final a = SmsDedupKey.compute(
+        sender: 'VM-HDFCBK',
+        dateTime: date,
+        amount: 1250.0,
+        body: 'x',
+      );
       final b = SmsDedupKey.compute(
         sender: 'VM-HDFCBK',
         dateTime: date.add(const Duration(minutes: 1)),
@@ -77,8 +92,18 @@ void main() {
     });
 
     test('falls back to body when no reference number is available', () {
-      final a = SmsDedupKey.compute(sender: 'VM-HDFCBK', dateTime: date, amount: 1250.0, body: 'body one');
-      final b = SmsDedupKey.compute(sender: 'VM-HDFCBK', dateTime: date, amount: 1250.0, body: 'body two');
+      final a = SmsDedupKey.compute(
+        sender: 'VM-HDFCBK',
+        dateTime: date,
+        amount: 1250.0,
+        body: 'body one',
+      );
+      final b = SmsDedupKey.compute(
+        sender: 'VM-HDFCBK',
+        dateTime: date,
+        amount: 1250.0,
+        body: 'body two',
+      );
       expect(a, isNot(equals(b)));
     });
   });

@@ -19,10 +19,7 @@ void main() {
     date: DateTime(2026, 7, 15, 10),
   );
 
-  SmsInboxItem item({
-    String id = 'sms-1',
-    ParsedSmsTransaction? parsed,
-  }) {
+  SmsInboxItem item({String id = 'sms-1', ParsedSmsTransaction? parsed}) {
     return SmsInboxItem(
       id: id,
       messageKey: 'key-$id',
@@ -76,7 +73,10 @@ void main() {
   });
 
   test('builds a High-confidence candidate when the card resolves cleanly', () {
-    final matcher = AccountCardMatcher(accounts: [hdfcAccount], cards: [hdfcCard]);
+    final matcher = AccountCardMatcher(
+      accounts: [hdfcAccount],
+      cards: [hdfcCard],
+    );
     final builder = TransactionCandidateBuilder(matcher);
 
     final candidate = builder.build(item(parsed: parsedTxn));

@@ -26,12 +26,23 @@ abstract class SmsRegexUtils {
   );
 
   static final RegExp _creditPattern = RegExp(
-    r'\b(credited|received|deposited|added)\b',
+    r'\b(credited|received|deposited|added|refunded|reversed)\b',
     caseSensitive: false,
   );
 
   static final RegExp _debitPattern = RegExp(
-    r'\b(debited|spent|paid|withdrawn|deducted|txn|transaction)\b',
+    r'\b(debited|spent|paid|withdrawn|deducted|txn|transaction|sent|charged|transferred)\b',
+    caseSensitive: false,
+  );
+
+  /// Status/completion wording with no explicit debit/credit keyword at all
+  /// ("payment successful", "transaction failed", "payment is pending") —
+  /// common in UPI-app-style confirmations and failure/reminder alerts that
+  /// never use the bank-SMS-standard "debited"/"credited" phrasing. Checked
+  /// only as [extractDirection]'s last resort, after the real credit/debit
+  /// keywords above have both come up empty.
+  static final RegExp _statusOnlyPattern = RegExp(
+    r'\b(successful|successfully|completed|processed|failed|declined|unsuccessful|pending|processing)\b',
     caseSensitive: false,
   );
 
@@ -45,7 +56,9 @@ abstract class SmsRegexUtils {
     caseSensitive: false,
   );
 
-  static final RegExp _upiVpaPattern = RegExp(r'\b([\w.\-]{2,}@[a-zA-Z]{2,})\b');
+  static final RegExp _upiVpaPattern = RegExp(
+    r'\b([\w.\-]{2,}@[a-zA-Z]{2,})\b',
+  );
 
   /// `trf to NAME`, `to NAME on`, `at MERCHANT` — a best-effort merchant/
   /// counterparty name, trimmed to a sane display length.
@@ -54,11 +67,76 @@ abstract class SmsRegexUtils {
     caseSensitive: false,
   );
 
+  /// `received from X`, `received payment from X`, `money received from X`,
+  /// `transfer received from X`, or bare `from X` — a credit-side
+  /// counterparty ("Rs.1000 received from Amazon") that [_merchantPattern]
+  /// doesn't cover at all (it only recognizes "to"/"at" phrasing). The
+  /// negative lookahead after "from" excludes a small set of generic
+  /// pronoun-shaped openers ("your", "a", "an", "the") so a phrase like
+  /// "payment received from your employer" is correctly left uncaptured
+  /// rather than turning "your employer" into a fake merchant name — see
+  /// [extractMerchant]'s doc comment for the same principle applied to
+  /// support-email addresses.
+  static final RegExp _merchantFromPattern = RegExp(
+    "\\b(?:received\\s+(?:payment\\s+|money\\s+)?from|transfer\\s+received\\s+from|from)\\s+"
+    "(?!your\\b|a\\b|an\\b|the\\b)"
+    "([A-Za-z0-9&.\\-'\\s]{2,30}?)(?:\\s+on\\b|\\s+for\\b|\\s+using\\b|\\s+via\\b|\\s+through\\b|\\.|,|\$)",
+    caseSensitive: false,
+  );
+
+  /// "Avl Bal", "Available Balance", "Bal" — text immediately before an
+  /// amount match that marks it as an account-balance figure, not the
+  /// amount actually transacted. Some messages state the balance *before*
+  /// the transacted amount (e.g. "Avl Bal Rs.45,230.00. Rs.500.00 debited
+  /// from a/c XX1234"), so [extractAmount] can't just take the first
+  /// currency-shaped match in the body — it has to skip balance-adjacent
+  /// ones first.
+  static final RegExp _balanceContextPattern = RegExp(
+    r'\b(avl\.?\s*bal|available\s*bal|bal(?:ance)?)\b',
+    caseSensitive: false,
+  );
+
+  /// Picks the transacted amount out of a message that may state more than
+  /// one currency figure (a balance, and the actual debit/credit amount).
+  /// Prefers the first match that isn't immediately preceded by balance-
+  /// context wording; falls back to the very first match if every candidate
+  /// looks balance-adjacent (a balance-only figure is still better than no
+  /// amount at all for a message that otherwise looks financial), which
+  /// also keeps single-amount messages behaving exactly as before.
   static double? extractAmount(String body) {
-    final match = _amountPattern.firstMatch(body) ?? _amountByPattern.firstMatch(body);
-    if (match == null) return null;
-    final raw = match.group(1)?.replaceAll(',', '');
+    final primaryMatches = _amountPattern.allMatches(body).toList();
+    final chosen =
+        _preferNonBalanceMatch(body, primaryMatches) ??
+        _amountByPattern.firstMatch(body);
+    if (chosen == null) return null;
+    final raw = chosen.group(1)?.replaceAll(',', '');
     return raw == null ? null : double.tryParse(raw);
+  }
+
+  static RegExpMatch? _preferNonBalanceMatch(
+    String body,
+    List<RegExpMatch> matches,
+  ) {
+    if (matches.isEmpty) return null;
+    // The lookback window is clamped to start no earlier than the previous
+    // match's own end — otherwise a 20-char window on a *later* amount can
+    // bleed backward across a sentence boundary into an *earlier* amount's
+    // own "Avl Bal" prefix and wrongly flag the later (real) amount as
+    // balance-adjacent too (e.g. "Avl Bal Rs.45,230.00. Rs.500.00 debited"
+    // — without this, the second match's window would still contain "Bal").
+    var previousEnd = 0;
+    for (final match in matches) {
+      final rawWindowStart = match.start - 20;
+      final windowStart =
+          (rawWindowStart > previousEnd ? rawWindowStart : previousEnd).clamp(
+            0,
+            body.length,
+          );
+      final context = body.substring(windowStart, match.start);
+      if (!_balanceContextPattern.hasMatch(context)) return match;
+      previousEnd = match.end;
+    }
+    return matches.first;
   }
 
   static SmsTransactionDirection? extractDirection(String body) {
@@ -70,8 +148,22 @@ abstract class SmsRegexUtils {
       // Both matched (rare) — trust whichever keyword appears first.
       final creditIndex = _creditPattern.firstMatch(body)!.start;
       final debitIndex = _debitPattern.firstMatch(body)!.start;
-      return creditIndex < debitIndex ? SmsTransactionDirection.credit : SmsTransactionDirection.debit;
+      return creditIndex < debitIndex
+          ? SmsTransactionDirection.credit
+          : SmsTransactionDirection.debit;
     }
+    // Last resort: no real debit/credit keyword at all, but the message
+    // still reads as transaction-status wording ("payment successful",
+    // "transaction failed", "payment is pending") — common in UPI-app-style
+    // confirmations that skip the bank-SMS-standard "debited"/"credited"
+    // phrasing entirely. Defaults to debit: the far more common case for a
+    // personal-expense message, and — for the failed/pending subset
+    // specifically — `TransactionStatusSignals`/`ReminderSignals` already
+    // ensure `FinancialEvent.moneyMovement` ends up false regardless, so an
+    // imperfect direction guess here has no practical consequence for those.
+    // Never invents a direction when there is no transaction-shaped
+    // language at all — a plain non-financial sentence still returns null.
+    if (_statusOnlyPattern.hasMatch(body)) return SmsTransactionDirection.debit;
     return null;
   }
 
@@ -90,31 +182,63 @@ abstract class SmsRegexUtils {
     // ("mail us at customercare@hdfcbank.com") that would otherwise be
     // mistaken for the merchant. Only trust it when the message is actually
     // UPI-related; otherwise fall through to the merchant-name pattern.
-    final looksLikeUpi = body.toLowerCase().contains('upi') || body.toLowerCase().contains('vpa');
+    final looksLikeUpi =
+        body.toLowerCase().contains('upi') ||
+        body.toLowerCase().contains('vpa');
     if (looksLikeUpi) {
       final vpaMatch = _upiVpaPattern.firstMatch(body);
       if (vpaMatch != null) return vpaMatch.group(1);
     }
     final merchantMatch = _merchantPattern.firstMatch(body);
-    return merchantMatch?.group(1)?.trim();
+    if (merchantMatch != null) return merchantMatch.group(1)?.trim();
+    final fromMatch = _merchantFromPattern.firstMatch(body);
+    return fromMatch?.group(1)?.trim();
   }
 
-  static SmsTransactionCategory guessCategory(String body, SmsTransactionDirection? direction) {
+  static SmsTransactionCategory guessCategory(
+    String body,
+    SmsTransactionDirection? direction,
+  ) {
     final lower = body.toLowerCase();
     // Specific-reason checks are all tried before the generic-rail checks
     // below (UPI/IMPS/NEFT/RTGS) — a salary/refund/bill credit often
     // *arrives via* UPI/NEFT/IMPS, and the more specific reason for the
     // money movement should win over the generic rail it travelled on.
     if (lower.contains('salary')) return SmsTransactionCategory.salaryCredit;
+    if (lower.contains('cashback')) return SmsTransactionCategory.cashback;
     if (lower.contains('refund')) return SmsTransactionCategory.refund;
-    if (lower.contains('cash deposit') || lower.contains('deposited cash')) return SmsTransactionCategory.cashDeposit;
-    if (lower.contains('bill payment') || lower.contains('bill paid')) return SmsTransactionCategory.billPayment;
-    if (lower.contains('atm') && lower.contains('withdraw')) return SmsTransactionCategory.atmWithdrawal;
+    if (RegExp(
+          r'\binterest\b.{0,20}\bcredit',
+          caseSensitive: false,
+        ).hasMatch(body) ||
+        RegExp(
+          r'\bcredited\b.{0,20}\binterest\b',
+          caseSensitive: false,
+        ).hasMatch(body)) {
+      return SmsTransactionCategory.interestCredit;
+    }
+    if (RegExp(
+      r'\b(annual fee|late fee|late payment charge|finance charge|maintenance charge|penal charge|gst charged|charges levied|processing fee)\b',
+      caseSensitive: false,
+    ).hasMatch(body)) {
+      return SmsTransactionCategory.bankFee;
+    }
+    if (lower.contains('cash deposit') || lower.contains('deposited cash'))
+      return SmsTransactionCategory.cashDeposit;
+    if (lower.contains('recharge')) return SmsTransactionCategory.recharge;
+    if (lower.contains('bill payment') || lower.contains('bill paid'))
+      return SmsTransactionCategory.billPayment;
+    if (lower.contains('atm') && lower.contains('withdraw'))
+      return SmsTransactionCategory.atmWithdrawal;
     if (lower.contains('emi')) return SmsTransactionCategory.loanEmiDebit;
-    if (lower.contains('credit card') || lower.contains('card ending') || lower.contains('cc ')) {
+    if (lower.contains('credit card') ||
+        lower.contains('card ending') ||
+        lower.contains('cc ')) {
       return SmsTransactionCategory.creditCardPurchase;
     }
-    if (lower.contains('auto debit') || lower.contains('autopay') || lower.contains('standing instruction')) {
+    if (lower.contains('auto debit') ||
+        lower.contains('autopay') ||
+        lower.contains('standing instruction')) {
       return SmsTransactionCategory.autoDebit;
     }
     if (lower.contains('upi')) {
@@ -126,11 +250,15 @@ abstract class SmsRegexUtils {
       return SmsTransactionCategory.impsNeftRtgs;
     }
     if (lower.contains('wallet')) return SmsTransactionCategory.walletPayment;
-    if (lower.contains('purchase') || lower.contains('spent') || lower.contains('card')) {
+    if (lower.contains('purchase') ||
+        lower.contains('spent') ||
+        lower.contains('card')) {
       return SmsTransactionCategory.cardPurchase;
     }
-    if (direction == SmsTransactionDirection.credit) return SmsTransactionCategory.bankCredit;
-    if (direction == SmsTransactionDirection.debit) return SmsTransactionCategory.bankDebit;
+    if (direction == SmsTransactionDirection.credit)
+      return SmsTransactionCategory.bankCredit;
+    if (direction == SmsTransactionDirection.debit)
+      return SmsTransactionCategory.bankDebit;
     return SmsTransactionCategory.unknown;
   }
 }

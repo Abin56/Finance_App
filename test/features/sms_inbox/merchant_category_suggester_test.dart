@@ -7,14 +7,18 @@ import 'package:finance_app/features/transactions/domain/transaction_type.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Category category(String id, String name, [CategoryType type = CategoryType.expense]) => Category(
-        id: id,
-        name: name,
-        type: type,
-        iconKey: 'shopping',
-        colorValue: 0xFF000000,
-        createdAt: DateTime(2026),
-      );
+  Category category(
+    String id,
+    String name, [
+    CategoryType type = CategoryType.expense,
+  ]) => Category(
+    id: id,
+    name: name,
+    type: type,
+    iconKey: 'shopping',
+    colorValue: 0xFF000000,
+    createdAt: DateTime(2026),
+  );
 
   final food = category('cat-food', 'Food & Dining');
   final shopping = category('cat-shopping', 'Shopping');
@@ -27,20 +31,21 @@ void main() {
     int timesUsed = 1,
     TransactionType type = TransactionType.expense,
     DateTime? lastUsedAt,
-  }) =>
-      MerchantMemory(
-        merchantKey: key,
-        transactionType: type,
-        categoryId: categoryId,
-        timesUsed: timesUsed,
-        lastUsedAt: lastUsedAt ?? DateTime(2026, 7, 1),
-      );
+  }) => MerchantMemory(
+    merchantKey: key,
+    transactionType: type,
+    categoryId: categoryId,
+    timesUsed: timesUsed,
+    lastUsedAt: lastUsedAt ?? DateTime(2026, 7, 1),
+  );
 
   group('user history', () {
     test('a remembered choice wins over the seed catalog', () {
       // Swiggy seeds to Food, but this user files it under Shopping. Their
       // own decision is evidence about them; the seed is a generalization.
-      final suggester = MerchantCategorySuggester([memory('swiggy', shopping.id)]);
+      final suggester = MerchantCategorySuggester([
+        memory('swiggy', shopping.id),
+      ]);
 
       final result = suggester.suggest(
         merchant: 'SWIGGY',
@@ -53,7 +58,9 @@ void main() {
     });
 
     test('recalls across the sender formatting variants of one merchant', () {
-      final suggester = MerchantCategorySuggester([memory('swiggy order', shopping.id)]);
+      final suggester = MerchantCategorySuggester([
+        memory('swiggy order', shopping.id),
+      ]);
 
       final result = suggester.suggest(
         merchant: 'UPI-SWIGGY*ORDER',
@@ -76,23 +83,40 @@ void main() {
         categories: expenseCategories,
       );
 
-      expect(result?.categoryId, shopping.id, reason: 'one stray mis-tap must not overturn a long history');
-    });
-
-    test('the most recent choice breaks a tie, so a changed mind converges', () {
-      final suggester = MerchantCategorySuggester([
-        memory('amazon', shopping.id, timesUsed: 3, lastUsedAt: DateTime(2026, 1, 1)),
-        memory('amazon', food.id, timesUsed: 3, lastUsedAt: DateTime(2026, 7, 1)),
-      ]);
-
-      final result = suggester.suggest(
-        merchant: 'Amazon',
-        transactionType: TransactionType.expense,
-        categories: expenseCategories,
+      expect(
+        result?.categoryId,
+        shopping.id,
+        reason: 'one stray mis-tap must not overturn a long history',
       );
-
-      expect(result?.categoryId, food.id);
     });
+
+    test(
+      'the most recent choice breaks a tie, so a changed mind converges',
+      () {
+        final suggester = MerchantCategorySuggester([
+          memory(
+            'amazon',
+            shopping.id,
+            timesUsed: 3,
+            lastUsedAt: DateTime(2026, 1, 1),
+          ),
+          memory(
+            'amazon',
+            food.id,
+            timesUsed: 3,
+            lastUsedAt: DateTime(2026, 7, 1),
+          ),
+        ]);
+
+        final result = suggester.suggest(
+          merchant: 'Amazon',
+          transactionType: TransactionType.expense,
+          categories: expenseCategories,
+        );
+
+        expect(result?.categoryId, food.id);
+      },
+    );
 
     test('a memory for the other transaction type is not recalled', () {
       // An Amazon refund (income) must not drag in the Amazon purchase
@@ -110,19 +134,24 @@ void main() {
       expect(result, isNull);
     });
 
-    test('a memory pointing at a deleted category is ignored, not suggested', () {
-      final suggester = MerchantCategorySuggester([memory('swiggy', 'cat-deleted')]);
+    test(
+      'a memory pointing at a deleted category is ignored, not suggested',
+      () {
+        final suggester = MerchantCategorySuggester([
+          memory('swiggy', 'cat-deleted'),
+        ]);
 
-      final result = suggester.suggest(
-        merchant: 'Swiggy',
-        transactionType: TransactionType.expense,
-        categories: expenseCategories,
-      );
+        final result = suggester.suggest(
+          merchant: 'Swiggy',
+          transactionType: TransactionType.expense,
+          categories: expenseCategories,
+        );
 
-      // Falls through to the seed rather than suggesting a stale id.
-      expect(result?.categoryId, food.id);
-      expect(result?.source, SuggestionSource.knownMerchant);
-    });
+        // Falls through to the seed rather than suggesting a stale id.
+        expect(result?.categoryId, food.id);
+        expect(result?.source, SuggestionSource.knownMerchant);
+      },
+    );
   });
 
   group('seed catalog', () {
@@ -181,7 +210,12 @@ void main() {
         smsCategory: SmsTransactionCategory.unknown,
       );
 
-      expect(result, isNull, reason: 'an unset picker is the honest outcome, exactly as a manual entry starts');
+      expect(
+        result,
+        isNull,
+        reason:
+            'an unset picker is the honest outcome, exactly as a manual entry starts',
+      );
     });
   });
 }

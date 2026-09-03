@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,7 +12,7 @@ import '../../../../core/payment_schedule/presentation/providers/payment_schedul
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
@@ -29,6 +30,7 @@ import '../../../transactions/domain/transaction_type.dart';
 import '../../data/expense_repository.dart';
 import '../../domain/expense.dart';
 import '../../domain/expense_participant.dart';
+import '../../domain/mixed_split.dart';
 import '../../domain/split_type.dart';
 import '../providers/expense_providers.dart';
 
@@ -99,6 +101,16 @@ class _ParticipantRow {
   String? personId;
   final TextEditingController nameController = TextEditingController();
   final TextEditingController valueController = TextEditingController();
+
+  /// [SplitType.custom] only: false = auto — this row shares whatever's left
+  /// of the total equally with the other unlocked rows; true = pinned to
+  /// [valueController]'s typed amount. Also used for [_meRow], since Me is
+  /// just another [_ParticipantRow] under the hood.
+  bool locked = false;
+
+  /// Stable identity for matching this row's resolved share back from
+  /// [resolveMixedSplit] — a tracked person's id, or the typed name.
+  String get mixedKey => personId ?? 'name:${nameController.text.trim()}';
 
   void dispose() {
     nameController.dispose();
@@ -268,8 +280,17 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   /// people am I sharing with" and "do I participate" are independent
   /// questions the UI never conflates).
   late bool _includeMe = widget.editing == null || widget.editing!.meParticipant != null;
+
+  /// A re-opened [SplitType.custom] expense had every amount hand-typed, so every row
+  /// starts locked in the mixed manual/auto engine — otherwise it would treat them all
+  /// as auto and silently flatten a previously uneven split down to equal shares the
+  /// moment this sheet opens. A re-opened equal split is genuinely all-equal, so auto
+  /// (unlocked) is correct there — see [_resolveMixed].
+  bool get _reopenedAsLocked => widget.editing?.splitType == SplitType.custom;
+
   late final _meRow = _ParticipantRow(initialName: 'Me')
-    ..valueController.text = widget.editing?.meParticipant?.share.toStringAsFixed(2) ?? '';
+    ..valueController.text = widget.editing?.meParticipant?.share.toStringAsFixed(2) ?? ''
+    ..locked = _reopenedAsLocked;
 
   /// The dynamic "share with" rows — ordinary participants only, Me is
   /// tracked separately via [_includeMe]/[_meRow]. [assignOnly] starts (and
@@ -287,7 +308,8 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
           for (final p in widget.editing!.participants.where((p) => !p.isMe))
             _ParticipantRow(initialName: p.name)
               ..personId = p.personId
-              ..valueController.text = p.share.toStringAsFixed(2),
+              ..valueController.text = p.share.toStringAsFixed(2)
+              ..locked = _reopenedAsLocked,
         ];
   bool _isSaving = false;
   String? _splitError;
@@ -367,7 +389,54 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
     });
   }
 
+  /// Every row currently participating — Me (if included) first, then any
+  /// participant row with a non-blank name. Shared by [_buildInputs],
+  /// [_resolveMixed], and the "Custom" mode UI (toggle buttons, live banner).
+  List<_ParticipantRow> get _includedRows => [
+        if (_includeMe) _meRow,
+        for (final row in _participants)
+          if (row.nameController.text.trim().isNotEmpty) row,
+      ];
+
+  /// [SplitType.custom] only: locked rows keep their typed amount, unlocked
+  /// rows auto-share whatever's left of [total] equally — see
+  /// [resolveMixedSplit]. Null for every other split type, or once there's
+  /// nobody to split between.
+  MixedSplitResult? _resolveMixed(double total) {
+    if (_splitType != SplitType.custom) return null;
+    final rows = _includedRows;
+    if (rows.isEmpty) return null;
+    return resolveMixedSplit(total, [
+      for (final row in rows)
+        MixedParticipantInput(
+          key: row.mixedKey,
+          locked: row.locked,
+          value: double.tryParse(row.valueController.text.trim()) ?? 0,
+        ),
+    ]);
+  }
+
   List<ExpenseParticipantInput> _buildInputs() {
+    if (_splitType == SplitType.custom) {
+      final total = double.tryParse(_amountController.text.trim()) ?? 0;
+      final mixed = _resolveMixed(total);
+      // Once the mixed split resolves cleanly, every row already has a concrete final
+      // amount (locked or auto) — feed those straight through so the exact-sum check
+      // inside `ExpenseRepository.resolveShares` always passes trivially. Mid-error
+      // (e.g. manual amounts already exceed the total), fall back to the raw typed
+      // values so the repository's own validation still catches it at save time.
+      return [
+        for (final row in _includedRows)
+          ExpenseParticipantInput(
+            personId: row.personId,
+            name: row == _meRow ? 'Me' : row.nameController.text.trim(),
+            isMe: row == _meRow,
+            value: mixed?.error == null
+                ? mixed?.shares.firstWhereOrNull((s) => s.key == row.mixedKey)?.share
+                : double.tryParse(row.valueController.text.trim()),
+          ),
+      ];
+    }
     return [
       if (_includeMe)
         ExpenseParticipantInput(
@@ -397,6 +466,30 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
         _preview = null;
       });
       return;
+    }
+    if (_splitType == SplitType.custom) {
+      final mixed = _resolveMixed(total);
+      if (mixed == null) {
+        setState(() {
+          _splitError = null;
+          _preview = null;
+        });
+        return;
+      }
+      if (mixed.error != null) {
+        setState(() {
+          _splitError = mixed.error;
+          _preview = null;
+        });
+        return;
+      }
+      // Every unlocked row's field always shows its live auto-computed share (not just
+      // internal state) — setting `.text` doesn't fire `onChanged`, so this can't loop.
+      for (final row in _includedRows) {
+        if (row.locked) continue;
+        final share = mixed.shares.firstWhereOrNull((s) => s.key == row.mixedKey)?.share;
+        if (share != null) row.valueController.text = share.toStringAsFixed(2);
+      }
     }
     final inputs = _buildInputs();
     if (inputs.isEmpty) {
@@ -610,7 +703,7 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 20),
+                                BankLogo(bankId: account.bankId, fallbackName: account.name, size: 20),
                                 const SizedBox(width: AppSizes.sm),
                                 Flexible(
                                   child: Text(
@@ -671,9 +764,21 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                 SegmentedButton<SplitType>(
                   style: const ButtonStyle(visualDensity: VisualDensity.compact),
                   segments: const [
-                    ButtonSegment(value: SplitType.equal, label: Text('Equal')),
-                    ButtonSegment(value: SplitType.custom, label: Text('Custom')),
-                    ButtonSegment(value: SplitType.percentage, label: Text('Percentage')),
+                    ButtonSegment(
+                      value: SplitType.equal,
+                      label: Text('Equal'),
+                      icon: Icon(Icons.balance_rounded, size: AppSizes.iconSm),
+                    ),
+                    ButtonSegment(
+                      value: SplitType.custom,
+                      label: Text('Custom'),
+                      icon: Icon(Icons.tune_rounded, size: AppSizes.iconSm),
+                    ),
+                    ButtonSegment(
+                      value: SplitType.percentage,
+                      label: Text('Percentage'),
+                      icon: Icon(Icons.percent_rounded, size: AppSizes.iconSm),
+                    ),
                   ],
                   selected: {_splitType},
                   onSelectionChanged: (selection) {
@@ -699,15 +804,35 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
               ),
               if (_includeMe && (_splitType == SplitType.custom || _splitType == SplitType.percentage)) ...[
                 const SizedBox(height: AppSizes.sm),
-                TextFormField(
-                  controller: _meRow.valueController,
-                  decoration: _premiumDecoration(
-                    context,
-                    label: 'My share (${_splitType == SplitType.percentage ? 'percent' : 'amount'})',
-                  ),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => _revalidateSplit(),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const _PersonAvatar(name: 'Me'),
+                    const SizedBox(width: AppSizes.sm),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _meRow.valueController,
+                        decoration: _premiumDecoration(
+                          context,
+                          label: 'My share (${_splitType == SplitType.percentage ? 'percent' : 'amount'})',
+                        ),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) {
+                          if (_splitType == SplitType.custom) _meRow.locked = true;
+                          _revalidateSplit();
+                        },
+                      ),
+                    ),
+                    if (_splitType == SplitType.custom)
+                      _LockToggle(
+                        locked: _meRow.locked,
+                        onTap: () {
+                          setState(() => _meRow.locked = !_meRow.locked);
+                          _revalidateSplit();
+                        },
+                      ),
+                  ],
                 ),
               ],
               const SizedBox(height: AppSizes.sm),
@@ -725,6 +850,15 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                     people: people,
                     showValueField: _splitType == SplitType.custom || _splitType == SplitType.percentage,
                     valueLabel: _splitType == SplitType.percentage ? 'Percent' : 'Amount',
+                    mixedMode: _splitType == SplitType.custom,
+                    onValueChanged: () {
+                      if (_splitType == SplitType.custom) _participants[i].locked = true;
+                      _revalidateSplit();
+                    },
+                    onToggleLock: () {
+                      setState(() => _participants[i].locked = !_participants[i].locked);
+                      _revalidateSplit();
+                    },
                     onChanged: _revalidateSplit,
                     onRemove: widget.assignOnly || _participants.length <= 1
                         ? null
@@ -732,6 +866,19 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                     onCreateNewPerson: _createNewPerson,
                   ),
                 ),
+              if (_splitType == SplitType.custom) ...[
+                Builder(
+                  builder: (context) {
+                    final total = double.tryParse(_amountController.text.trim());
+                    final mixed = total == null ? null : _resolveMixed(total);
+                    if (mixed == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: AppSizes.xs, bottom: AppSizes.sm),
+                      child: _MixedSplitSummary(total: total!, mixed: mixed),
+                    );
+                  },
+                ),
+              ],
               if (!widget.assignOnly)
                 TextButton.icon(
                   onPressed: _addParticipant,
@@ -960,6 +1107,164 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
+/// Compact per-row indicator for [SplitType.custom]'s mixed manual/auto
+/// split: an outlined "Equal" chip when auto, a filled "Manual" chip with a
+/// lock glyph once the user has typed an amount for that row — tapping
+/// either switches the row between the two.
+class _LockToggle extends StatelessWidget {
+  const _LockToggle({required this.locked, required this.onTap});
+
+  final bool locked;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(left: AppSizes.xs),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 8),
+            decoration: BoxDecoration(
+              color: locked ? colors.primary.withValues(alpha: 0.12) : colors.onSurface.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+              border: Border.all(color: locked ? colors.primary.withValues(alpha: 0.3) : Colors.transparent),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: locked
+                      ? Icon(Icons.lock_outline_rounded, key: const ValueKey('locked'), size: 12, color: colors.primary)
+                      : Icon(
+                          Icons.balance_rounded,
+                          key: const ValueKey('unlocked'),
+                          size: 12,
+                          color: colors.onSurface.withValues(alpha: 0.5),
+                        ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  locked ? 'Manual' : 'Equal',
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: locked ? colors.primary : colors.onSurface.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small circular initial badge giving each participant a scannable visual
+/// identity in the "Custom" split rows — color chosen deterministically from
+/// [AppColors.categoryPalette] by name, so the same person always gets the
+/// same color without any extra state to track.
+class _PersonAvatar extends StatelessWidget {
+  const _PersonAvatar({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = name.trim();
+    final initial = trimmed.isEmpty ? '?' : trimmed[0].toUpperCase();
+    final palette = AppColors.categoryPalette;
+    final color = palette[trimmed.isEmpty ? 0 : trimmed.codeUnitAt(0) % palette.length];
+    return Container(
+      width: 32,
+      height: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+      child: Text(
+        initial,
+        style: context.textTheme.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+}
+
+/// Live calculation banner for [SplitType.custom]'s mixed manual/auto split
+/// — expense total, how much has been manually assigned, what's left, and
+/// how that remainder is being shared out. Updates on every keystroke, add,
+/// remove, and Manual/Equal toggle via [SplitExpenseFormSheet._resolveMixed].
+class _MixedSplitSummary extends StatelessWidget {
+  const _MixedSplitSummary({required this.total, required this.mixed});
+
+  final double total;
+  final MixedSplitResult mixed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final lockedFraction = total > 0 ? (mixed.lockedTotal / total).clamp(0.0, 1.0) : 0.0;
+    return AppCard(
+      color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SummaryRow(label: 'Expense total', value: CurrencyFormatter.instance.format(total)),
+          if (mixed.lockedTotal > 0)
+            _SummaryRow(label: 'Manually assigned', value: CurrencyFormatter.instance.format(mixed.lockedTotal)),
+          const SizedBox(height: 2),
+          Text(
+            CurrencyFormatter.instance.format(mixed.remaining),
+            style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: AppColors.primary),
+          ),
+          Text(
+            'Remaining balance',
+            style: context.textTheme.bodySmall?.copyWith(color: colors.onSurface.withValues(alpha: 0.6)),
+          ),
+          const SizedBox(height: AppSizes.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: lockedFraction),
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                minHeight: 6,
+                backgroundColor: AppColors.success.withValues(alpha: 0.25),
+                valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSizes.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  mixed.autoCount > 0
+                      ? '${mixed.autoCount} ${mixed.autoCount == 1 ? 'person shares' : 'people share'} equally · '
+                          '${CurrencyFormatter.instance.format(mixed.remaining)} ÷ ${mixed.autoCount} = '
+                          '${CurrencyFormatter.instance.format(mixed.autoShare)} each'
+                      : 'All participants are manually assigned',
+                  style: context.textTheme.bodySmall?.copyWith(color: AppColors.success, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconSm, color: AppColors.success),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Sentinel dropdown value that opens [PersonFormSheet] instead of
 /// selecting a person — Task 1's "create new person" one-tap ask.
 const _newPersonSentinel = '__new_person__';
@@ -978,6 +1283,9 @@ class _ParticipantField extends StatefulWidget {
     required this.onChanged,
     required this.onRemove,
     required this.onCreateNewPerson,
+    this.mixedMode = false,
+    this.onValueChanged,
+    this.onToggleLock,
   });
 
   final _ParticipantRow row;
@@ -987,6 +1295,18 @@ class _ParticipantField extends StatefulWidget {
   final VoidCallback onChanged;
   final VoidCallback? onRemove;
   final VoidCallback onCreateNewPerson;
+
+  /// [SplitType.custom]'s mixed manual/auto split — when true, [row]'s value
+  /// field shows a lock toggle and displays its live auto-computed share
+  /// while unlocked, instead of always being a plain manual amount field.
+  final bool mixedMode;
+
+  /// Called instead of [onChanged] when the value field itself changes in
+  /// [mixedMode] — locks the row before re-solving everyone else's share.
+  final VoidCallback? onValueChanged;
+
+  /// [mixedMode] only: toggles [row.locked].
+  final VoidCallback? onToggleLock;
 
   @override
   State<_ParticipantField> createState() => _ParticipantFieldState();
@@ -1010,7 +1330,7 @@ class _ParticipantFieldState extends State<_ParticipantField> {
         ? widget.people
         : widget.people.where((p) => p.name.toLowerCase().contains(query)).toList();
 
-    return Row(
+    final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
@@ -1066,12 +1386,28 @@ class _ParticipantFieldState extends State<_ParticipantField> {
                 },
               ),
               const SizedBox(height: AppSizes.sm),
-              TextFormField(
-                controller: row.nameController,
-                decoration: _premiumDecoration(context, label: 'Name'),
-                style: Theme.of(context).textTheme.bodyMedium,
-                onChanged: (_) => widget.onChanged(),
-              ),
+              if (widget.mixedMode)
+                Row(
+                  children: [
+                    _PersonAvatar(name: row.nameController.text),
+                    const SizedBox(width: AppSizes.sm),
+                    Expanded(
+                      child: TextFormField(
+                        controller: row.nameController,
+                        decoration: _premiumDecoration(context, label: 'Name'),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                        onChanged: (_) => setState(() => widget.onChanged()),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                TextFormField(
+                  controller: row.nameController,
+                  decoration: _premiumDecoration(context, label: 'Name'),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  onChanged: (_) => widget.onChanged(),
+                ),
             ],
           ),
         ),
@@ -1084,9 +1420,10 @@ class _ParticipantFieldState extends State<_ParticipantField> {
               decoration: _premiumDecoration(context, label: widget.valueLabel),
               style: Theme.of(context).textTheme.bodyMedium,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => widget.onChanged(),
+              onChanged: (_) => widget.mixedMode ? widget.onValueChanged?.call() : widget.onChanged(),
             ),
           ),
+          if (widget.mixedMode) _LockToggle(locked: row.locked, onTap: widget.onToggleLock),
         ],
         if (widget.onRemove != null)
           IconButton(
@@ -1095,6 +1432,22 @@ class _ParticipantFieldState extends State<_ParticipantField> {
             onPressed: widget.onRemove,
           ),
       ],
+    );
+
+    if (!widget.mixedMode) return content;
+
+    // "Custom" split rows get a card boundary + accent left edge that lights up once the
+    // row is manually locked — a lightweight visual cue on top of the Manual/Equal chip.
+    final colors = context.colors;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: const EdgeInsets.all(AppSizes.sm),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+        border: Border(left: BorderSide(color: row.locked ? colors.primary : Colors.transparent, width: 3)),
+      ),
+      child: content,
     );
   }
 }

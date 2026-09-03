@@ -26,11 +26,14 @@ class SmsActiveFilterChips extends ConsumerWidget {
     if (!criteria.hasActiveFilters) return const SizedBox.shrink();
 
     final cardLabels = {
-      for (final option in ref.watch(smsCardFilterOptionsProvider)) option.id: option.label,
+      for (final option in ref.watch(smsCardFilterOptionsProvider))
+        option.id: option.label,
     };
 
     final chips = criteria.chips(
-      cardLabel: (id) => cardLabels[id] ?? (id == SmsCardMatcher.unknownCardId ? 'Unknown card' : 'Card'),
+      cardLabel: (id) =>
+          cardLabels[id] ??
+          (id == SmsCardMatcher.unknownCardId ? 'Unknown card' : 'Card'),
       formatAmount: CurrencyFormatter.instance.format,
     );
 
@@ -38,18 +41,27 @@ class SmsActiveFilterChips extends ConsumerWidget {
       height: height,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.sm),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.lg,
+          vertical: AppSizes.sm,
+        ),
         itemCount: chips.length + 1,
         separatorBuilder: (_, _) => const SizedBox(width: AppSizes.xs),
         itemBuilder: (context, index) {
           if (index == chips.length) {
             return ActionChip(
               label: const Text('Clear All'),
-              labelStyle: context.textTheme.labelSmall?.copyWith(color: context.colors.error),
+              labelStyle: context.textTheme.labelSmall?.copyWith(
+                color: context.colors.error,
+              ),
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
-              onPressed: () => ref.read(smsFilterCriteriaProvider.notifier).state = criteria.cleared(),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+              ),
+              onPressed: () =>
+                  ref.read(smsFilterCriteriaProvider.notifier).state = criteria
+                      .cleared(),
             );
           }
 
@@ -59,8 +71,12 @@ class SmsActiveFilterChips extends ConsumerWidget {
             labelStyle: context.textTheme.labelSmall,
             visualDensity: VisualDensity.compact,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
-            onDeleted: () => ref.read(smsFilterCriteriaProvider.notifier).state = chip.removed,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            ),
+            onDeleted: () =>
+                ref.read(smsFilterCriteriaProvider.notifier).state =
+                    chip.removed,
           );
         },
       ),

@@ -38,12 +38,18 @@ class TransactionCandidateDao {
   /// row — generation skips these rather than re-scoring every pending
   /// message on every scan.
   Future<Set<String>> existingSmsItemIds() async {
-    final rows = await _database.query(SmsInboxDatabase.transactionCandidatesTableName, columns: ['sms_item_id']);
+    final rows = await _database.query(
+      SmsInboxDatabase.transactionCandidatesTableName,
+      columns: ['sms_item_id'],
+    );
     return rows.map((row) => row['sms_item_id']! as String).toSet();
   }
 
   Future<List<TransactionCandidate>> getAll() async {
-    final rows = await _database.query(SmsInboxDatabase.transactionCandidatesTableName, orderBy: 'created_at DESC');
+    final rows = await _database.query(
+      SmsInboxDatabase.transactionCandidatesTableName,
+      orderBy: 'created_at DESC',
+    );
     return rows.map(_fromRow).toList();
   }
 
@@ -87,7 +93,9 @@ class TransactionCandidateDao {
       'confidence_level': candidate.confidenceLevel.name,
       'confidence_score': candidate.confidenceScore,
       'needs_review': candidate.needsReview ? 1 : 0,
-      'review_reasons': candidate.reviewReasons.isEmpty ? null : candidate.reviewReasons.join(_reasonSeparator),
+      'review_reasons': candidate.reviewReasons.isEmpty
+          ? null
+          : candidate.reviewReasons.join(_reasonSeparator),
       'created_at': candidate.createdAt.millisecondsSinceEpoch,
     };
   }
@@ -98,18 +106,26 @@ class TransactionCandidateDao {
       id: row['id']! as String,
       smsItemId: row['sms_item_id']! as String,
       amount: (row['amount']! as num).toDouble(),
-      direction: SmsTransactionDirectionX.fromName(row['direction'] as String?)!,
+      direction: SmsTransactionDirectionX.fromName(
+        row['direction'] as String?,
+      )!,
       eventType: SmsTransactionCategoryX.fromName(row['event_type'] as String?),
-      transactionDate: DateTime.fromMillisecondsSinceEpoch(row['transaction_date']! as int),
+      transactionDate: DateTime.fromMillisecondsSinceEpoch(
+        row['transaction_date']! as int,
+      ),
       merchant: row['merchant'] as String?,
       bankName: row['bank_name'] as String?,
       matchedAccountId: row['matched_account_id'] as String?,
       matchedCardId: row['matched_card_id'] as String?,
       referenceNumber: row['reference_number'] as String?,
-      confidenceLevel: ConfidenceLevel.values.byName(row['confidence_level']! as String),
+      confidenceLevel: ConfidenceLevel.values.byName(
+        row['confidence_level']! as String,
+      ),
       confidenceScore: (row['confidence_score']! as num).toDouble(),
       needsReview: (row['needs_review']! as int) == 1,
-      reviewReasons: reasonsRaw == null || reasonsRaw.isEmpty ? const [] : reasonsRaw.split(_reasonSeparator),
+      reviewReasons: reasonsRaw == null || reasonsRaw.isEmpty
+          ? const []
+          : reasonsRaw.split(_reasonSeparator),
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at']! as int),
     );
   }

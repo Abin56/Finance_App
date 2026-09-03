@@ -9,8 +9,8 @@ import '../../../core/constants/app_colors.dart';
 enum SmsImportStatus { pending, imported, ignored }
 
 extension SmsImportStatusX on SmsImportStatus {
-  static SmsImportStatus fromName(String name) =>
-      SmsImportStatus.values.firstWhere((s) => s.name == name, orElse: () => SmsImportStatus.pending);
+  static SmsImportStatus fromName(String name) => SmsImportStatus.values
+      .firstWhere((s) => s.name == name, orElse: () => SmsImportStatus.pending);
 
   String get label {
     switch (this) {

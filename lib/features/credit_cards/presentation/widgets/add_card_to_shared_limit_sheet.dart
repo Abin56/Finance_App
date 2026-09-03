@@ -5,7 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
 import '../../../../core/utils/account_display_name.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/section_label.dart';
@@ -232,7 +232,7 @@ class _AddCardToSharedLimitSheetState extends ConsumerState<AddCardToSharedLimit
                   decoration: const InputDecoration(labelText: 'Bank'),
                   child: Row(
                     children: [
-                      BankAvatar(bankId: _bankId, size: 28),
+                      BankLogo(bankId: _bankId, size: 28),
                       const SizedBox(width: AppSizes.sm),
                       Expanded(
                         child: Text(

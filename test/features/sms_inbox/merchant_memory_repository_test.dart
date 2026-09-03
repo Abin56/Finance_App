@@ -36,31 +36,57 @@ void main() {
     expect(memories.single.timesUsed, 1);
   });
 
-  test('repeating a choice bumps the count instead of duplicating the row', () async {
-    for (var i = 0; i < 3; i++) {
+  test(
+    'repeating a choice bumps the count instead of duplicating the row',
+    () async {
+      for (var i = 0; i < 3; i++) {
+        await repository.record(
+          merchant: 'Amazon',
+          transactionType: TransactionType.expense,
+          categoryId: 'cat-shopping',
+        );
+      }
+
+      final memories = await repository.getAll();
+      expect(memories, hasLength(1));
+      expect(memories.single.timesUsed, 3);
+    },
+  );
+
+  test(
+    'a different category for the same merchant is its own counted row',
+    () async {
       await repository.record(
         merchant: 'Amazon',
         transactionType: TransactionType.expense,
         categoryId: 'cat-shopping',
       );
-    }
+      await repository.record(
+        merchant: 'Amazon',
+        transactionType: TransactionType.expense,
+        categoryId: 'cat-food',
+      );
 
-    final memories = await repository.getAll();
-    expect(memories, hasLength(1));
-    expect(memories.single.timesUsed, 3);
-  });
-
-  test('a different category for the same merchant is its own counted row', () async {
-    await repository.record(merchant: 'Amazon', transactionType: TransactionType.expense, categoryId: 'cat-shopping');
-    await repository.record(merchant: 'Amazon', transactionType: TransactionType.expense, categoryId: 'cat-food');
-
-    final memories = await repository.getAll();
-    expect(memories, hasLength(2), reason: 'the suggester needs both to rank a changed mind');
-  });
+      final memories = await repository.getAll();
+      expect(
+        memories,
+        hasLength(2),
+        reason: 'the suggester needs both to rank a changed mind',
+      );
+    },
+  );
 
   test('the same merchant on each side of the ledger stays separate', () async {
-    await repository.record(merchant: 'Amazon', transactionType: TransactionType.expense, categoryId: 'cat-shopping');
-    await repository.record(merchant: 'Amazon', transactionType: TransactionType.income, categoryId: 'cat-refund');
+    await repository.record(
+      merchant: 'Amazon',
+      transactionType: TransactionType.expense,
+      categoryId: 'cat-shopping',
+    );
+    await repository.record(
+      merchant: 'Amazon',
+      transactionType: TransactionType.income,
+      categoryId: 'cat-refund',
+    );
 
     final memories = await repository.getAll();
     expect(memories, hasLength(2));
@@ -69,8 +95,16 @@ void main() {
   test('records nothing when the merchant normalizes to nothing', () async {
     // An empty key would collide every unidentifiable merchant into one
     // bucket that then recalls an unrelated category for all of them.
-    await repository.record(merchant: '  ', transactionType: TransactionType.expense, categoryId: 'cat-food');
-    await repository.record(merchant: null, transactionType: TransactionType.expense, categoryId: 'cat-food');
+    await repository.record(
+      merchant: '  ',
+      transactionType: TransactionType.expense,
+      categoryId: 'cat-food',
+    );
+    await repository.record(
+      merchant: null,
+      transactionType: TransactionType.expense,
+      categoryId: 'cat-food',
+    );
 
     expect(await repository.getAll(), isEmpty);
   });

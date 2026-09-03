@@ -55,7 +55,8 @@ class SmsInboxScreen extends ConsumerStatefulWidget {
   ConsumerState<SmsInboxScreen> createState() => _SmsInboxScreenState();
 }
 
-class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBindingObserver {
+class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
+    with WidgetsBindingObserver {
   final Set<String> _selectedIds = {};
   bool _hasAutoScanned = false;
 
@@ -170,7 +171,9 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
             for (final sort in SmsSortOrder.values)
               ListTile(
                 title: Text(sort.label),
-                trailing: sort == current ? const Icon(Icons.check_rounded) : null,
+                trailing: sort == current
+                    ? const Icon(Icons.check_rounded)
+                    : null,
                 onTap: () => Navigator.of(sheetContext).pop(sort),
               ),
           ],
@@ -196,7 +199,9 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
         final visible = ref.watch(smsFilteredItemsProvider);
         final rows = _buildRows(visible);
         final candidatesBySmsId = <String, TransactionCandidate>{
-          for (final candidate in ref.watch(transactionCandidatesProvider).valueOrNull ?? const [])
+          for (final candidate
+              in ref.watch(transactionCandidatesProvider).valueOrNull ??
+                  const [])
             candidate.smsItemId: candidate,
         };
 
@@ -207,18 +212,24 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _FilterHeaderDelegate(
-                  hasActiveFilters: ref.watch(smsFilterCriteriaProvider).hasActiveFilters,
+                  hasActiveFilters: ref
+                      .watch(smsFilterCriteriaProvider)
+                      .hasActiveFilters,
                 ),
               ),
               if (rows.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
-                  child: SmsEmptyState(onRefresh: () => ref.read(smsInboxItemsProvider.notifier).scan()),
+                  child: SmsEmptyState(
+                    onRefresh: () =>
+                        ref.read(smsInboxItemsProvider.notifier).scan(),
+                  ),
                 )
               else
                 SliverList.builder(
                   itemCount: rows.length,
-                  itemBuilder: (context, index) => _buildRow(rows[index], candidatesBySmsId),
+                  itemBuilder: (context, index) =>
+                      _buildRow(rows[index], candidatesBySmsId),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: AppSizes.xxl)),
             ],
@@ -233,7 +244,10 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
   /// `Column`s would build every row of every group up front, which is what
   /// makes a 3000-SMS inbox stutter.
   List<_Row> _buildRows(List<SmsInboxItem> items) {
-    final grouped = groupBy(items, (SmsInboxItem item) => item.rawMessage.date.dateOnly);
+    final grouped = groupBy(
+      items,
+      (SmsInboxItem item) => item.rawMessage.date.dateOnly,
+    );
     final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
     return [
@@ -244,7 +258,10 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
     ];
   }
 
-  Widget _buildRow(_Row row, Map<String, TransactionCandidate> candidatesBySmsId) {
+  Widget _buildRow(
+    _Row row,
+    Map<String, TransactionCandidate> candidatesBySmsId,
+  ) {
     final item = row.item;
     if (item == null) {
       return _SmsDateGroupHeader(date: row.date!, items: row.groupItems!);
@@ -261,7 +278,8 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
             candidate: candidatesBySmsId[item.id],
             selectionMode: _selectionMode,
             selected: _selectedIds.contains(item.id),
-            onTap: () => _selectionMode ? _toggleSelected(item.id) : _openDetail(item),
+            onTap: () =>
+                _selectionMode ? _toggleSelected(item.id) : _openDetail(item),
             onLongPress: () => setState(() => _selectedIds.add(item.id)),
           ),
           const Divider(height: 1, indent: 68),
@@ -375,7 +393,14 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
         children: [
           Icon(icon, color: color, size: AppSizes.iconMd),
           const SizedBox(width: AppSizes.xs),
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -386,7 +411,9 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
     try {
       final target = await SmsConvertSheet.show(context);
       if (target == null || !mounted) return;
-      await ref.read(smsConversionRouterProvider).route(context, ref, item, target);
+      await ref
+          .read(smsConversionRouterProvider)
+          .route(context, ref, item, target);
     } finally {
       _convertingIds.remove(item.id);
     }
@@ -403,7 +430,9 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
   /// Expense/Income.
   Future<void> _handleConvertSelected() async {
     final all = ref.read(smsInboxItemsProvider).value ?? const [];
-    final selected = all.where((item) => _selectedIds.contains(item.id)).toList();
+    final selected = all
+        .where((item) => _selectedIds.contains(item.id))
+        .toList();
     setState(_selectedIds.clear);
     if (selected.isEmpty) return;
 
@@ -423,7 +452,10 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
     //    inside the Duplicates filter would otherwise bulk-convert the very
     //    messages this feature exists to hold back.
     final convertible = selected
-        .where((item) => item.status != SmsImportStatus.imported && !item.isDuplicate)
+        .where(
+          (item) =>
+              item.status != SmsImportStatus.imported && !item.isDuplicate,
+        )
         .toList();
 
     if (convertible.isEmpty) {
@@ -439,7 +471,9 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
     if (config == null || !mounted) return;
 
     setState(() => _isBulkConverting = true);
-    final result = await ref.read(smsBulkConverterProvider).convert(convertible, config);
+    final result = await ref
+        .read(smsBulkConverterProvider)
+        .convert(convertible, config);
 
     // Reloaded once here rather than per message inside the loop — that's
     // what keeps a 500-message convert from doing 500 full reloads.
@@ -466,7 +500,9 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _handleIgnoreSelected() async {
@@ -484,9 +520,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen> with WidgetsBin
 
 /// One entry in the flattened feed — either a date header or an SMS row.
 class _Row {
-  const _Row.item(this.item)
-      : date = null,
-        groupItems = null;
+  const _Row.item(this.item) : date = null, groupItems = null;
   const _Row.header(this.date, this.groupItems) : item = null;
 
   final SmsInboxItem? item;
@@ -504,7 +538,9 @@ class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   /// Summed from the children's own declared heights rather than a literal,
   /// so the two can't drift apart the way they did when this was hardcoded.
-  double get _extent => SmsSearchFilterBar.height + (hasActiveFilters ? SmsActiveFilterChips.height : 0);
+  double get _extent =>
+      SmsSearchFilterBar.height +
+      (hasActiveFilters ? SmsActiveFilterChips.height : 0);
 
   @override
   double get minExtent => _extent;
@@ -513,7 +549,11 @@ class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _extent;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Material(
       color: context.colors.surface,
       elevation: overlapsContent || shrinkOffset > 0 ? 1 : 0,
@@ -527,7 +567,8 @@ class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_FilterHeaderDelegate oldDelegate) => oldDelegate.hasActiveFilters != hasActiveFilters;
+  bool shouldRebuild(_FilterHeaderDelegate oldDelegate) =>
+      oldDelegate.hasActiveFilters != hasActiveFilters;
 }
 
 class _SmsDateGroupHeader extends StatelessWidget {
@@ -541,16 +582,27 @@ class _SmsDateGroupHeader extends StatelessWidget {
     final netTotal = items.fold<double>(0.0, (total, item) {
       final parsed = item.parsed;
       if (parsed == null) return total;
-      return total + (parsed.direction == SmsTransactionDirection.credit ? parsed.amount : -parsed.amount);
+      return total +
+          (parsed.direction == SmsTransactionDirection.credit
+              ? parsed.amount
+              : -parsed.amount);
     });
 
     return Container(
       color: context.colors.surfaceContainerHighest.withValues(alpha: 0.4),
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.lg,
+        vertical: AppSizes.sm,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(date.sectionLabel, style: context.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            date.sectionLabel,
+            style: context.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           Text(
             '${netTotal >= 0 ? '+' : '-'}${CurrencyFormatter.instance.format(netTotal.abs())}',
             style: context.textTheme.labelSmall?.copyWith(
@@ -577,7 +629,9 @@ class _SmsErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final friendlyMessage = error is SmsReadException ? (error as SmsReadException).message : null;
+    final friendlyMessage = error is SmsReadException
+        ? (error as SmsReadException).message
+        : null;
 
     return Center(
       child: Padding(
@@ -585,7 +639,11 @@ class _SmsErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, size: AppSizes.iconXl, color: context.colors.error),
+            Icon(
+              Icons.error_outline_rounded,
+              size: AppSizes.iconXl,
+              color: context.colors.error,
+            ),
             const SizedBox(height: AppSizes.lg),
             Text(
               'SMS Inbox couldn\'t load',
@@ -596,7 +654,9 @@ class _SmsErrorView extends StatelessWidget {
             if (friendlyMessage != null)
               Text(
                 friendlyMessage,
-                style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.7),
+                ),
                 textAlign: TextAlign.center,
               ),
             const SizedBox(height: AppSizes.md),
@@ -609,7 +669,9 @@ class _SmsErrorView extends StatelessWidget {
               ),
               child: SelectableText(
                 '${error.runtimeType}: $error',
-                style: context.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
+                style: context.textTheme.bodySmall?.copyWith(
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
             const SizedBox(height: AppSizes.lg),

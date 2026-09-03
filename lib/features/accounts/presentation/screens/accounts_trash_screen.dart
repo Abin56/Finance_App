@@ -5,7 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/theme/clay_widgets.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/dialogs/destructive_delete_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../credit_cards/data/credit_card_deletion_service.dart';
@@ -58,7 +58,7 @@ class AccountsTrashScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     account.type == AccountType.bank || account.type == AccountType.card
-                        ? BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 36)
+                        ? BankLogo(bankId: account.bankId, fallbackName: account.name, size: 36)
                         : ClayIconChip(icon: account.type.icon, color: AppClay.primary, size: 36, iconSize: 18),
                     const SizedBox(width: AppSizes.md),
                     Expanded(

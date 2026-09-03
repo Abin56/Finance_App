@@ -24,7 +24,8 @@ void main() {
   setUp(() async {
     SmsInboxDatabase.debugReset();
     path = await databaseFactory.getDatabasesPath();
-    path = '$path/candidate_migration_test_${DateTime.now().microsecondsSinceEpoch}.db';
+    path =
+        '$path/candidate_migration_test_${DateTime.now().microsecondsSinceEpoch}.db';
   });
 
   Future<void> seedV3Row(String id) async {
@@ -54,44 +55,54 @@ void main() {
 
     expect(items, hasLength(1));
     expect(items.single.id, 'row-1');
-    expect(items.single.linkedEntityId, 'txn-99', reason: 'an already-converted SMS must keep its financial record link');
-  });
-
-  test('v3->v4 creates a usable, empty sms_transaction_candidates table', () async {
-    await seedV3Row('row-1');
-
-    final database = await SmsInboxDatabase.openUpgradedForTest(path);
-    final dao = TransactionCandidateDao(database);
-
-    expect(await dao.getAll(), isEmpty);
-
-    await dao.upsert(
-      TransactionCandidate(
-        id: 'cand-1',
-        smsItemId: 'row-1',
-        amount: 1250,
-        direction: SmsTransactionDirection.debit,
-        eventType: SmsTransactionCategory.bankDebit,
-        transactionDate: DateTime(2026, 7, 15),
-        confidenceLevel: ConfidenceLevel.high,
-        confidenceScore: 0.9,
-        needsReview: false,
-        createdAt: DateTime(2026, 7, 15),
-      ),
+    expect(
+      items.single.linkedEntityId,
+      'txn-99',
+      reason: 'an already-converted SMS must keep its financial record link',
     );
-
-    final all = await dao.getAll();
-    await database.database.close();
-
-    expect(all, hasLength(1));
-    expect(all.single.smsItemId, 'row-1');
   });
 
-  test('a fresh install (no prior database) also gets the candidates table', () async {
-    final database = await SmsInboxDatabase.openInMemoryForTest();
-    final dao = TransactionCandidateDao(database);
+  test(
+    'v3->v4 creates a usable, empty sms_transaction_candidates table',
+    () async {
+      await seedV3Row('row-1');
 
-    expect(await dao.getAll(), isEmpty);
-    await database.database.close();
-  });
+      final database = await SmsInboxDatabase.openUpgradedForTest(path);
+      final dao = TransactionCandidateDao(database);
+
+      expect(await dao.getAll(), isEmpty);
+
+      await dao.upsert(
+        TransactionCandidate(
+          id: 'cand-1',
+          smsItemId: 'row-1',
+          amount: 1250,
+          direction: SmsTransactionDirection.debit,
+          eventType: SmsTransactionCategory.bankDebit,
+          transactionDate: DateTime(2026, 7, 15),
+          confidenceLevel: ConfidenceLevel.high,
+          confidenceScore: 0.9,
+          needsReview: false,
+          createdAt: DateTime(2026, 7, 15),
+        ),
+      );
+
+      final all = await dao.getAll();
+      await database.database.close();
+
+      expect(all, hasLength(1));
+      expect(all.single.smsItemId, 'row-1');
+    },
+  );
+
+  test(
+    'a fresh install (no prior database) also gets the candidates table',
+    () async {
+      final database = await SmsInboxDatabase.openInMemoryForTest();
+      final dao = TransactionCandidateDao(database);
+
+      expect(await dao.getAll(), isEmpty);
+      await database.database.close();
+    },
+  );
 }

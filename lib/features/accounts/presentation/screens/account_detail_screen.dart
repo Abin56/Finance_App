@@ -7,7 +7,7 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../transactions/presentation/screens/transactions_screen.dart';
 import '../../domain/account.dart';
 import '../../domain/account_stats.dart';
@@ -45,7 +45,7 @@ class AccountDetailScreen extends ConsumerWidget {
         title: Row(
           children: [
             if (account.type == AccountType.bank || account.type == AccountType.card)
-              BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 32)
+              BankLogo(bankId: account.bankId, fallbackName: account.name, size: 32)
             else
               ClayIconChip(icon: account.type.icon, color: Color(account.colorValue), size: 32, iconSize: 18),
             const SizedBox(width: AppSizes.sm),

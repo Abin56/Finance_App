@@ -51,7 +51,11 @@ class SmsInboxDao {
 
     final batch = _database.batch();
     for (final item in items) {
-      batch.insert(SmsInboxDatabase.tableName, _toRow(item), conflictAlgorithm: ConflictAlgorithm.ignore);
+      batch.insert(
+        SmsInboxDatabase.tableName,
+        _toRow(item),
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
     // A conflict ignored via ConflictAlgorithm.ignore reports back as `0` on
     // some sqflite backends and `null` on others (observed with
@@ -78,14 +82,21 @@ class SmsInboxDao {
 
   /// Sets [status] on many rows in one batch — bulk Ignore over a large
   /// selection, without a round trip per id.
-  Future<void> updateStatusMany(List<String> ids, {required SmsImportStatus status, DateTime? ignoredAt}) async {
+  Future<void> updateStatusMany(
+    List<String> ids, {
+    required SmsImportStatus status,
+    DateTime? ignoredAt,
+  }) async {
     if (ids.isEmpty) return;
 
     final batch = _database.batch();
     for (final id in ids) {
       batch.update(
         SmsInboxDatabase.tableName,
-        {'status': status.name, 'ignored_at': ?ignoredAt?.millisecondsSinceEpoch},
+        {
+          'status': status.name,
+          'ignored_at': ?ignoredAt?.millisecondsSinceEpoch,
+        },
         where: 'id = ?',
         whereArgs: [id],
       );
@@ -114,7 +125,10 @@ class SmsInboxDao {
         // transition, but restoring an ignored item needs to actually clear
         // the stale timestamp, hence the explicit `null` here rather than
         // `?ignoredAt`.
-        if (clearIgnoredAt) 'ignored_at': null else 'ignored_at': ?ignoredAt?.millisecondsSinceEpoch,
+        if (clearIgnoredAt)
+          'ignored_at': null
+        else
+          'ignored_at': ?ignoredAt?.millisecondsSinceEpoch,
       },
       where: 'id = ?',
       whereArgs: [id],
@@ -122,7 +136,10 @@ class SmsInboxDao {
   }
 
   Future<List<SmsInboxItem>> getAll() async {
-    final rows = await _database.query(SmsInboxDatabase.tableName, orderBy: 'received_at DESC');
+    final rows = await _database.query(
+      SmsInboxDatabase.tableName,
+      orderBy: 'received_at DESC',
+    );
     return rows.map(_fromRow).toList();
   }
 
@@ -184,14 +201,20 @@ class SmsInboxDao {
         conflictAlgorithm: ConflictAlgorithm.ignore,
       );
     }
-    batch.delete(SmsInboxDatabase.tableName, where: 'id IN ($placeholders)', whereArgs: ids);
+    batch.delete(
+      SmsInboxDatabase.tableName,
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
     await batch.commit(noResult: true);
   }
 
   /// The `message_key`s in [messageKeys] that were previously deleted — a
   /// re-scan skips inserting any device message matching one of these,
   /// rather than treating the user's delete as if it never happened.
-  Future<Set<String>> deletedMessageKeysAmong(Iterable<String> messageKeys) async {
+  Future<Set<String>> deletedMessageKeysAmong(
+    Iterable<String> messageKeys,
+  ) async {
     final keys = messageKeys.toList();
     if (keys.isEmpty) return const {};
 
@@ -243,7 +266,9 @@ class SmsInboxDao {
       parsed = ParsedSmsTransaction(
         amount: amount,
         direction: direction,
-        dateTime: DateTime.fromMillisecondsSinceEpoch(row['received_at']! as int),
+        dateTime: DateTime.fromMillisecondsSinceEpoch(
+          row['received_at']! as int,
+        ),
         category: SmsTransactionCategoryX.fromName(row['category'] as String?),
         confidence: (row['confidence'] as num?)?.toDouble() ?? 0.0,
         rawBody: row['body']! as String,
@@ -274,8 +299,12 @@ class SmsInboxDao {
       createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at']! as int),
       linkedEntityId: row['linked_entity_id'] as String?,
       linkedEntityRoute: row['linked_entity_route'] as String?,
-      importedAt: row['imported_at'] == null ? null : DateTime.fromMillisecondsSinceEpoch(row['imported_at']! as int),
-      ignoredAt: row['ignored_at'] == null ? null : DateTime.fromMillisecondsSinceEpoch(row['ignored_at']! as int),
+      importedAt: row['imported_at'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row['imported_at']! as int),
+      ignoredAt: row['ignored_at'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(row['ignored_at']! as int),
     );
   }
 }

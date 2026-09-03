@@ -9,7 +9,7 @@ import '../../../../core/extensions/num_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/domain/payment_urgency.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
@@ -138,7 +138,7 @@ class CreditCardDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Row(
           children: [
-            BankAvatar(bankId: account?.bankId, fallbackName: account?.name, size: 32),
+            BankLogo(bankId: account?.bankId, fallbackName: account?.name, size: 32),
             const SizedBox(width: AppSizes.sm),
             Flexible(child: Text(account?.name ?? 'Credit Card', overflow: TextOverflow.ellipsis)),
             if (!card.status.isActive) ...[

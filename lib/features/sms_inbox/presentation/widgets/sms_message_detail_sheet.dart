@@ -25,7 +25,12 @@ class SmsMessageDetailSheet {
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.lg),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            0,
+            AppSizes.lg,
+            AppSizes.lg,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,7 +49,10 @@ class SmsMessageDetailSheet {
                   color: context.colors.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                 ),
-                child: Text(item.rawMessage.body, style: context.textTheme.bodySmall),
+                child: Text(
+                  item.rawMessage.body,
+                  style: context.textTheme.bodySmall,
+                ),
               ),
               if (item.parsed?.referenceNumber != null) ...[
                 const SizedBox(height: AppSizes.sm),
@@ -57,7 +65,10 @@ class SmsMessageDetailSheet {
               ],
               // Only ever built once the sheet is on screen, and it renders
               // nothing when no candidate exists yet — see its own class doc.
-              Consumer(builder: (context, ref, _) => SmsCandidateSummary(smsItemId: item.id)),
+              Consumer(
+                builder: (context, ref, _) =>
+                    SmsCandidateSummary(smsItemId: item.id),
+              ),
               const SizedBox(height: AppSizes.lg),
               _Actions(status: item.status, sheetContext: sheetContext),
             ],
@@ -90,12 +101,14 @@ class _Actions extends StatelessWidget {
             delete,
             const Spacer(),
             TextButton(
-              onPressed: () => Navigator.of(sheetContext).pop(SmsRowAction.ignore),
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(SmsRowAction.ignore),
               child: const Text('Ignore'),
             ),
             const SizedBox(width: AppSizes.sm),
             FilledButton(
-              onPressed: () => Navigator.of(sheetContext).pop(SmsRowAction.convert),
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(SmsRowAction.convert),
               child: const Text('Convert'),
             ),
           ],
@@ -106,7 +119,8 @@ class _Actions extends StatelessWidget {
             delete,
             const Spacer(),
             FilledButton(
-              onPressed: () => Navigator.of(sheetContext).pop(SmsRowAction.restore),
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(SmsRowAction.restore),
               child: const Text('Restore'),
             ),
           ],
@@ -116,11 +130,18 @@ class _Actions extends StatelessWidget {
           children: [
             delete,
             const Spacer(),
-            Icon(Icons.check_circle_rounded, size: AppSizes.iconSm, color: AppColors.success),
+            Icon(
+              Icons.check_circle_rounded,
+              size: AppSizes.iconSm,
+              color: AppColors.success,
+            ),
             const SizedBox(width: AppSizes.xs),
             Text(
               'Already imported',
-              style: context.textTheme.labelMedium?.copyWith(color: AppColors.success, fontWeight: FontWeight.w600),
+              style: context.textTheme.labelMedium?.copyWith(
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         );

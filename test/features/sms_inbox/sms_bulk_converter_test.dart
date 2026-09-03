@@ -37,7 +37,11 @@ class _ThrowingMarkImportedRepository extends SmsInboxRepository {
   _ThrowingMarkImportedRepository(super.dao, super.reader);
 
   @override
-  Future<void> markImported(String id, {required String linkedEntityId, String? linkedEntityRoute}) {
+  Future<void> markImported(
+    String id, {
+    required String linkedEntityId,
+    String? linkedEntityRoute,
+  }) {
     throw Exception('simulated linking failure');
   }
 }
@@ -75,12 +79,17 @@ void main() {
   setUp(() async {
     SmsInboxDatabase.debugReset();
     database = await SmsInboxDatabase.openInMemoryForTest();
-    inboxRepository = SmsInboxRepository(SmsInboxDao(database), _FakeSmsReaderAdapter());
+    inboxRepository = SmsInboxRepository(
+      SmsInboxDao(database),
+      _FakeSmsReaderAdapter(),
+    );
     memoryDao = MerchantMemoryDao(database);
 
     final firestore = FakeFirebaseFirestore();
 
-    final accountCollection = firestore.collection('accounts').withConverter<Account>(
+    final accountCollection = firestore
+        .collection('accounts')
+        .withConverter<Account>(
           fromFirestore: Account.fromFirestore,
           toFirestore: (a, _) => a.toFirestore(),
         );
@@ -94,13 +103,22 @@ void main() {
     );
     accountId = account.id;
 
-    final transactionCollection = firestore.collection('transactions').withConverter<Transaction>(
+    final transactionCollection = firestore
+        .collection('transactions')
+        .withConverter<Transaction>(
           fromFirestore: Transaction.fromFirestore,
           toFirestore: (t, _) => t.toFirestore(),
         );
-    transactionRepository = TransactionRepository(transactionCollection, accountRepository);
+    transactionRepository = TransactionRepository(
+      transactionCollection,
+      accountRepository,
+    );
 
-    converter = SmsBulkConverter(transactionRepository, inboxRepository, MerchantMemoryRepository(memoryDao));
+    converter = SmsBulkConverter(
+      transactionRepository,
+      inboxRepository,
+      MerchantMemoryRepository(memoryDao),
+    );
   });
 
   tearDown(() async => database.database.close());
@@ -115,10 +133,16 @@ void main() {
     return SmsInboxItem(
       id: id,
       messageKey: 'msg-$id',
-      rawMessage: RawSmsMessage(address: 'VM-HDFCBK', body: 'body $id', date: date),
+      rawMessage: RawSmsMessage(
+        address: 'VM-HDFCBK',
+        body: 'body $id',
+        date: date,
+      ),
       dedupKey: 'dedup-$id',
       duplicateOfId: duplicateOf,
-      duplicateReason: duplicateOf == null ? null : SmsDuplicateReason.sameReferenceNumber,
+      duplicateReason: duplicateOf == null
+          ? null
+          : SmsDuplicateReason.sameReferenceNumber,
       status: SmsImportStatus.pending,
       createdAt: date,
       parsed: amount == null
@@ -143,25 +167,36 @@ void main() {
     return items;
   }
 
-  SmsBulkConvertConfig config({TransactionType type = TransactionType.expense}) => SmsBulkConvertConfig(
-        type: type,
-        categoryId: 'cat-shopping',
-        accountId: accountId,
-      );
+  SmsBulkConvertConfig config({
+    TransactionType type = TransactionType.expense,
+  }) => SmsBulkConvertConfig(
+    type: type,
+    categoryId: 'cat-shopping',
+    accountId: accountId,
+  );
 
-  test('creates one independent transaction per SMS, never a merged lump sum', () async {
-    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+  test(
+    'creates one independent transaction per SMS, never a merged lump sum',
+    () async {
+      final items = await seed([
+        smsItem(id: 'a', amount: 100),
+        smsItem(id: 'b', amount: 250),
+      ]);
 
-    final result = await converter.convert(items, config());
+      final result = await converter.convert(items, config());
 
-    expect(result.converted, 2);
-    final created = await transactionRepository.getAll();
-    expect(created, hasLength(2));
-    expect(created.map((t) => t.amount).toList()..sort(), [100, 250]);
-  });
+      expect(result.converted, 2);
+      final created = await transactionRepository.getAll();
+      expect(created, hasLength(2));
+      expect(created.map((t) => t.amount).toList()..sort(), [100, 250]);
+    },
+  );
 
   test('tags every created transaction with source "sms"', () async {
-    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+    final items = await seed([
+      smsItem(id: 'a', amount: 100),
+      smsItem(id: 'b', amount: 250),
+    ]);
 
     await converter.convert(items, config());
 
@@ -170,7 +205,10 @@ void main() {
   });
 
   test('applies the shared answers to every transaction', () async {
-    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+    final items = await seed([
+      smsItem(id: 'a', amount: 100),
+      smsItem(id: 'b', amount: 250),
+    ]);
 
     await converter.convert(items, config());
 
@@ -183,7 +221,10 @@ void main() {
   });
 
   test('adjusts the account balance through the existing engine', () async {
-    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+    final items = await seed([
+      smsItem(id: 'a', amount: 100),
+      smsItem(id: 'b', amount: 250),
+    ]);
 
     await converter.convert(items, config());
 
@@ -202,34 +243,59 @@ void main() {
     expect(account?.currentBalance, 10500);
   });
 
-  test('marks every converted SMS imported and linked to its transaction', () async {
-    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+  test(
+    'marks every converted SMS imported and linked to its transaction',
+    () async {
+      final items = await seed([
+        smsItem(id: 'a', amount: 100),
+        smsItem(id: 'b', amount: 250),
+      ]);
 
-    await converter.convert(items, config());
+      await converter.convert(items, config());
 
-    final stored = await inboxRepository.getAll();
-    expect(stored.every((item) => item.status == SmsImportStatus.imported), isTrue);
-    expect(stored.every((item) => item.linkedEntityId != null), isTrue);
-  });
+      final stored = await inboxRepository.getAll();
+      expect(
+        stored.every((item) => item.status == SmsImportStatus.imported),
+        isTrue,
+      );
+      expect(stored.every((item) => item.linkedEntityId != null), isTrue);
+    },
+  );
 
-  test('skips an SMS with no readable amount instead of inventing one', () async {
-    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'no-amount')]);
+  test(
+    'skips an SMS with no readable amount instead of inventing one',
+    () async {
+      final items = await seed([
+        smsItem(id: 'a', amount: 100),
+        smsItem(id: 'no-amount'),
+      ]);
 
-    final result = await converter.convert(items, config());
+      final result = await converter.convert(items, config());
 
-    expect(result.converted, 1);
-    expect(result.skipped, 1);
+      expect(result.converted, 1);
+      expect(result.skipped, 1);
 
-    final created = await transactionRepository.getAll();
-    expect(created, hasLength(1), reason: 'a zero-amount transaction must never be written');
+      final created = await transactionRepository.getAll();
+      expect(
+        created,
+        hasLength(1),
+        reason: 'a zero-amount transaction must never be written',
+      );
 
-    // The skipped one stays pending so the user can handle it manually.
-    final stored = await inboxRepository.getAll();
-    expect(stored.firstWhere((item) => item.id == 'no-amount').status, SmsImportStatus.pending);
-  });
+      // The skipped one stays pending so the user can handle it manually.
+      final stored = await inboxRepository.getAll();
+      expect(
+        stored.firstWhere((item) => item.id == 'no-amount').status,
+        SmsImportStatus.pending,
+      );
+    },
+  );
 
   test('learns the shared category once per conversion', () async {
-    final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+    final items = await seed([
+      smsItem(id: 'a', amount: 100),
+      smsItem(id: 'b', amount: 250),
+    ]);
 
     await converter.convert(items, config());
 
@@ -237,28 +303,38 @@ void main() {
     expect(memories, hasLength(1));
     expect(memories.single.merchantKey, 'amazon');
     expect(memories.single.categoryId, 'cat-shopping');
-    expect(memories.single.timesUsed, 2, reason: 'both conversions are real, counted decisions');
+    expect(
+      memories.single.timesUsed,
+      2,
+      reason: 'both conversions are real, counted decisions',
+    );
   });
 
-  test('never bulk-converts a flagged duplicate, even if one is passed in', () async {
-    // Duplicates are only convertible one at a time from the review sheet.
-    // Converting one here would double-count a payment in real balances.
-    final items = await seed([
-      smsItem(id: 'a', amount: 100),
-      smsItem(id: 'dupe', amount: 100, duplicateOf: 'a'),
-    ]);
+  test(
+    'never bulk-converts a flagged duplicate, even if one is passed in',
+    () async {
+      // Duplicates are only convertible one at a time from the review sheet.
+      // Converting one here would double-count a payment in real balances.
+      final items = await seed([
+        smsItem(id: 'a', amount: 100),
+        smsItem(id: 'dupe', amount: 100, duplicateOf: 'a'),
+      ]);
 
-    final result = await converter.convert(items, config());
+      final result = await converter.convert(items, config());
 
-    expect(result.converted, 1);
-    expect(result.skipped, 1);
+      expect(result.converted, 1);
+      expect(result.skipped, 1);
 
-    final created = await transactionRepository.getAll();
-    expect(created, hasLength(1));
+      final created = await transactionRepository.getAll();
+      expect(created, hasLength(1));
 
-    final stored = await inboxRepository.getAll();
-    expect(stored.firstWhere((item) => item.id == 'dupe').status, SmsImportStatus.pending);
-  });
+      final stored = await inboxRepository.getAll();
+      expect(
+        stored.firstWhere((item) => item.id == 'dupe').status,
+        SmsImportStatus.pending,
+      );
+    },
+  );
 
   test(
     'a markImported failure after a successful create still counts as converted, not failed',
@@ -267,7 +343,10 @@ void main() {
       // try/catch as the create call, so a failure here (after the real
       // transaction already existed) was reported as `failed` — inviting a
       // retry that would create a second transaction for the same SMS.
-      final throwingInbox = _ThrowingMarkImportedRepository(SmsInboxDao(database), _FakeSmsReaderAdapter());
+      final throwingInbox = _ThrowingMarkImportedRepository(
+        SmsInboxDao(database),
+        _FakeSmsReaderAdapter(),
+      );
       final throwingConverter = SmsBulkConverter(
         transactionRepository,
         throwingInbox,
@@ -284,29 +363,36 @@ void main() {
     },
   );
 
-  test('a failed create leaves its SMS pending and does not stop the rest', () async {
-    // A transaction against a deleted account is the realistic failure: the
-    // create throws, and that message must stay convertible rather than be
-    // marked imported against a record that was never written.
-    final items = await seed([smsItem(id: 'a', amount: 100)]);
-    final badConfig = SmsBulkConvertConfig(
-      type: TransactionType.expense,
-      categoryId: 'cat-shopping',
-      accountId: 'account-that-does-not-exist',
-    );
+  test(
+    'a failed create leaves its SMS pending and does not stop the rest',
+    () async {
+      // A transaction against a deleted account is the realistic failure: the
+      // create throws, and that message must stay convertible rather than be
+      // marked imported against a record that was never written.
+      final items = await seed([smsItem(id: 'a', amount: 100)]);
+      final badConfig = SmsBulkConvertConfig(
+        type: TransactionType.expense,
+        categoryId: 'cat-shopping',
+        accountId: 'account-that-does-not-exist',
+      );
 
-    final result = await converter.convert(items, badConfig);
+      final result = await converter.convert(items, badConfig);
 
-    expect(result.failed, 1);
-    expect(result.converted, 0);
-    final stored = await inboxRepository.getAll();
-    expect(stored.single.status, SmsImportStatus.pending);
-    expect(stored.single.linkedEntityId, isNull);
-  });
+      expect(result.failed, 1);
+      expect(result.converted, 0);
+      final stored = await inboxRepository.getAll();
+      expect(stored.single.status, SmsImportStatus.pending);
+      expect(stored.single.linkedEntityId, isNull);
+    },
+  );
 
   group('SmsBulkConverter — immediate cloud candidate cleanup', () {
-    SmsTransactionCandidateRepository cloudRepositoryFor(FakeFirebaseFirestore firestore) {
-      final collection = firestore.collection('smsTransactionCandidates').withConverter<SmsTransactionCandidateCloud>(
+    SmsTransactionCandidateRepository cloudRepositoryFor(
+      FakeFirebaseFirestore firestore,
+    ) {
+      final collection = firestore
+          .collection('smsTransactionCandidates')
+          .withConverter<SmsTransactionCandidateCloud>(
             fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
             toFirestore: (c, _) => c.toFirestore(),
           );
@@ -327,47 +413,58 @@ void main() {
       );
     }
 
-    test('deletes the cloud candidate doc for every converted SMS when a cloud repository is supplied', () async {
-      final cloudFirestore = FakeFirebaseFirestore();
-      final cloudRepository = cloudRepositoryFor(cloudFirestore);
-      await cloudRepository.add('a', buildCloudDoc('a'));
-      await cloudRepository.add('b', buildCloudDoc('b'));
+    test(
+      'deletes the cloud candidate doc for every converted SMS when a cloud repository is supplied',
+      () async {
+        final cloudFirestore = FakeFirebaseFirestore();
+        final cloudRepository = cloudRepositoryFor(cloudFirestore);
+        await cloudRepository.add('a', buildCloudDoc('a'));
+        await cloudRepository.add('b', buildCloudDoc('b'));
 
-      final converterWithCloud = SmsBulkConverter(
-        transactionRepository,
-        inboxRepository,
-        MerchantMemoryRepository(memoryDao),
-        cloudRepository,
-      );
-      final items = await seed([smsItem(id: 'a', amount: 100), smsItem(id: 'b', amount: 250)]);
+        final converterWithCloud = SmsBulkConverter(
+          transactionRepository,
+          inboxRepository,
+          MerchantMemoryRepository(memoryDao),
+          cloudRepository,
+        );
+        final items = await seed([
+          smsItem(id: 'a', amount: 100),
+          smsItem(id: 'b', amount: 250),
+        ]);
 
-      await converterWithCloud.convert(items, config());
+        await converterWithCloud.convert(items, config());
 
-      expect(await cloudRepository.getAll(), isEmpty);
-    });
+        expect(await cloudRepository.getAll(), isEmpty);
+      },
+    );
 
-    test('a cloud cleanup failure never turns a converted row into a failed one', () async {
-      final cloudFirestore = FakeFirebaseFirestore();
-      final throwingCloudRepository = _ThrowingDeleteRepository(
-        cloudFirestore.collection('smsTransactionCandidates').withConverter<SmsTransactionCandidateCloud>(
-              fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
-              toFirestore: (c, _) => c.toFirestore(),
-            ),
-      );
-      final converterWithCloud = SmsBulkConverter(
-        transactionRepository,
-        inboxRepository,
-        MerchantMemoryRepository(memoryDao),
-        throwingCloudRepository,
-      );
-      final items = await seed([smsItem(id: 'a', amount: 100)]);
+    test(
+      'a cloud cleanup failure never turns a converted row into a failed one',
+      () async {
+        final cloudFirestore = FakeFirebaseFirestore();
+        final throwingCloudRepository = _ThrowingDeleteRepository(
+          cloudFirestore
+              .collection('smsTransactionCandidates')
+              .withConverter<SmsTransactionCandidateCloud>(
+                fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
+                toFirestore: (c, _) => c.toFirestore(),
+              ),
+        );
+        final converterWithCloud = SmsBulkConverter(
+          transactionRepository,
+          inboxRepository,
+          MerchantMemoryRepository(memoryDao),
+          throwingCloudRepository,
+        );
+        final items = await seed([smsItem(id: 'a', amount: 100)]);
 
-      final result = await converterWithCloud.convert(items, config());
+        final result = await converterWithCloud.convert(items, config());
 
-      expect(result.converted, 1);
-      expect(result.failed, 0);
-      final stored = await inboxRepository.getAll();
-      expect(stored.single.status, SmsImportStatus.imported);
-    });
+        expect(result.converted, 1);
+        expect(result.failed, 0);
+        final stored = await inboxRepository.getAll();
+        expect(stored.single.status, SmsImportStatus.imported);
+      },
+    );
   });
 }

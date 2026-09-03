@@ -8,7 +8,12 @@ import 'merchant_seed_catalog.dart';
 /// Where a suggested category came from. The UI shows this so a suggestion is
 /// always explainable ("Because you filed Swiggy under Food & Dining before")
 /// rather than an unattributed guess the user has to second-guess.
-enum SuggestionSource { userHistory, knownMerchant, smsType }
+///
+/// [aiInference] is added by `CategoryResolver` (`financial_event/category_resolver.dart`)
+/// as a fourth tier below [knownMerchant] — this enum stays the single
+/// source of truth for "why was this category suggested" rather than the
+/// AI engine growing a second, parallel explanation concept.
+enum SuggestionSource { userHistory, knownMerchant, smsType, aiInference }
 
 /// A suggested category plus why it was suggested. Never a decision — the
 /// receiving screen renders it as an editable initial value, exactly as
@@ -68,10 +73,21 @@ class MerchantCategorySuggester {
   /// the most recent choice breaking a tie — so someone who has genuinely
   /// changed their mind converges on the new category as it overtakes the
   /// old, without one stray mis-tap immediately overturning a long history.
-  CategorySuggestion? _fromHistory(String merchantKey, TransactionType type, List<Category> categories) {
+  CategorySuggestion? _fromHistory(
+    String merchantKey,
+    TransactionType type,
+    List<Category> categories,
+  ) {
     final candidates = memories
-        .where((memory) => memory.merchantKey == merchantKey && memory.transactionType == type)
-        .where((memory) => categories.any((category) => category.id == memory.categoryId))
+        .where(
+          (memory) =>
+              memory.merchantKey == merchantKey &&
+              memory.transactionType == type,
+        )
+        .where(
+          (memory) =>
+              categories.any((category) => category.id == memory.categoryId),
+        )
         .toList();
 
     if (candidates.isEmpty) return null;
@@ -81,39 +97,69 @@ class MerchantCategorySuggester {
       return byCount != 0 ? byCount : b.lastUsedAt.compareTo(a.lastUsedAt);
     });
 
-    return CategorySuggestion(categoryId: candidates.first.categoryId, source: SuggestionSource.userHistory);
+    return CategorySuggestion(
+      categoryId: candidates.first.categoryId,
+      source: SuggestionSource.userHistory,
+    );
   }
 
-  CategorySuggestion? _fromSeedCatalog(String merchantKey, List<Category> categories) {
-    final id = _resolveByName(MerchantSeedCatalog.categoryNamesFor(merchantKey), categories);
-    return id == null ? null : CategorySuggestion(categoryId: id, source: SuggestionSource.knownMerchant);
+  CategorySuggestion? _fromSeedCatalog(
+    String merchantKey,
+    List<Category> categories,
+  ) {
+    final id = _resolveByName(
+      MerchantSeedCatalog.categoryNamesFor(merchantKey),
+      categories,
+    );
+    return id == null
+        ? null
+        : CategorySuggestion(
+            categoryId: id,
+            source: SuggestionSource.knownMerchant,
+          );
   }
 
-  CategorySuggestion? _fromSmsCategory(SmsTransactionCategory? smsCategory, List<Category> categories) {
+  CategorySuggestion? _fromSmsCategory(
+    SmsTransactionCategory? smsCategory,
+    List<Category> categories,
+  ) {
     if (smsCategory == null) return null;
 
+    // Deliberately NO mapping from cardPurchase/creditCardPurchase/
+    // upiPayment here: those `SmsTransactionCategory` values mean "this
+    // transaction used a particular payment rail," not "this transaction
+    // was shopping" — the payment mechanism is not the expense category.
+    // Suggesting Shopping purely because a payment happened to go over UPI
+    // (or a card) is exactly the rail-implies-category anti-pattern this
+    // method must not fall into; those cases now correctly fall through to
+    // "no suggestion" (`unknown` in the corpus's terms) unless real
+    // merchant/category evidence resolved something above.
     final candidateNames = switch (smsCategory) {
       SmsTransactionCategory.salaryCredit => const ['Salary'],
-      SmsTransactionCategory.cardPurchase ||
-      SmsTransactionCategory.creditCardPurchase ||
-      SmsTransactionCategory.upiPayment => const ['Shopping'],
-      SmsTransactionCategory.billPayment ||
-      SmsTransactionCategory.autoDebit => const ['Bills & Utilities', 'Utilities'],
-      SmsTransactionCategory.refund || SmsTransactionCategory.atmWithdrawal => const ['Other'],
+      SmsTransactionCategory.billPayment || SmsTransactionCategory.autoDebit =>
+        const ['Bills & Utilities', 'Utilities'],
+      SmsTransactionCategory.refund ||
+      SmsTransactionCategory.atmWithdrawal => const ['Other'],
       _ => const <String>[],
     };
 
     final id = _resolveByName(candidateNames, categories);
-    return id == null ? null : CategorySuggestion(categoryId: id, source: SuggestionSource.smsType);
+    return id == null
+        ? null
+        : CategorySuggestion(categoryId: id, source: SuggestionSource.smsType);
   }
 
   /// Resolves the first candidate name that matches one of the user's real
   /// categories. Case-insensitive because a user who renamed "Food & Dining"
   /// to "food & dining" still means the same category.
-  String? _resolveByName(List<String> candidateNames, List<Category> categories) {
+  String? _resolveByName(
+    List<String> candidateNames,
+    List<Category> categories,
+  ) {
     for (final name in candidateNames) {
       for (final category in categories) {
-        if (category.name.toLowerCase() == name.toLowerCase()) return category.id;
+        if (category.name.toLowerCase() == name.toLowerCase())
+          return category.id;
       }
     }
     return null;

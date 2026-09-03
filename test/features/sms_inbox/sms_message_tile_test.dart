@@ -27,7 +27,11 @@ void main() {
     return SmsInboxItem(
       id: 'id-$merchant-$status',
       messageKey: 'msg-$merchant-$status',
-      rawMessage: RawSmsMessage(address: 'VM-SBIBNK', body: 'Rs.1250 debited', date: date),
+      rawMessage: RawSmsMessage(
+        address: 'VM-SBIBNK',
+        body: 'Rs.1250 debited',
+        date: date,
+      ),
       dedupKey: 'key-$merchant',
       status: status,
       createdAt: date,
@@ -47,7 +51,10 @@ void main() {
     );
   }
 
-  TransactionCandidate candidateFor(SmsInboxItem item, {bool needsReview = true}) {
+  TransactionCandidate candidateFor(
+    SmsInboxItem item, {
+    bool needsReview = true,
+  }) {
     return TransactionCandidate(
       id: 'cand-${item.id}',
       smsItemId: item.id,
@@ -80,7 +87,12 @@ void main() {
         data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
         child: MaterialApp(
           home: Scaffold(
-            body: SmsMessageTile(item: item, onTap: () {}, selectionMode: selectionMode, candidate: candidate),
+            body: SmsMessageTile(
+              item: item,
+              onTap: () {},
+              selectionMode: selectionMode,
+              candidate: candidate,
+            ),
           ),
         ),
       ),
@@ -96,7 +108,9 @@ void main() {
       expect(height, lessThanOrEqualTo(90));
     });
 
-    testWidgets('does not change between normal and selection mode', (tester) async {
+    testWidgets('does not change between normal and selection mode', (
+      tester,
+    ) async {
       await pumpTile(tester, itemWith());
       final normal = tester.getSize(find.byType(SmsMessageTile)).height;
 
@@ -107,7 +121,9 @@ void main() {
 
   group('no overflow', () {
     for (final width in [360.0, 390.0, 412.0]) {
-      testWidgets('renders a long merchant + bank at ${width.toInt()}dp', (tester) async {
+      testWidgets('renders a long merchant + bank at ${width.toInt()}dp', (
+        tester,
+      ) async {
         await pumpTile(
           tester,
           itemWith(
@@ -128,11 +144,16 @@ void main() {
   });
 
   group('content', () {
-    testWidgets('labels a debit as spent and a credit as received', (tester) async {
+    testWidgets('labels a debit as spent and a credit as received', (
+      tester,
+    ) async {
       await pumpTile(tester, itemWith());
       expect(find.textContaining('spent'), findsOneWidget);
 
-      await pumpTile(tester, itemWith(direction: SmsTransactionDirection.credit));
+      await pumpTile(
+        tester,
+        itemWith(direction: SmsTransactionDirection.credit),
+      );
       expect(find.textContaining('received'), findsOneWidget);
     });
 
@@ -147,7 +168,9 @@ void main() {
       expect(find.text('Ignored'), findsOneWidget);
     });
 
-    testWidgets('falls back to the sender when nothing could be parsed', (tester) async {
+    testWidgets('falls back to the sender when nothing could be parsed', (
+      tester,
+    ) async {
       await pumpTile(tester, itemWith(parsed: false));
 
       expect(find.text('Amount unclear'), findsOneWidget);
@@ -156,35 +179,70 @@ void main() {
   });
 
   group('needs-review indicator', () {
-    testWidgets('shows a badge on the avatar for a pending item needing review', (tester) async {
+    testWidgets(
+      'shows a badge on the avatar for a pending item needing review',
+      (tester) async {
+        final item = itemWith(status: SmsImportStatus.pending);
+        await pumpTile(
+          tester,
+          item,
+          candidate: candidateFor(item, needsReview: true),
+        );
+
+        expect(
+          find.byKey(const ValueKey('sms_tile_needs_review_badge')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('shows no badge when the candidate does not need review', (
+      tester,
+    ) async {
       final item = itemWith(status: SmsImportStatus.pending);
-      await pumpTile(tester, item, candidate: candidateFor(item, needsReview: true));
+      await pumpTile(
+        tester,
+        item,
+        candidate: candidateFor(item, needsReview: false),
+      );
 
-      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('sms_tile_needs_review_badge')),
+        findsNothing,
+      );
     });
 
-    testWidgets('shows no badge when the candidate does not need review', (tester) async {
-      final item = itemWith(status: SmsImportStatus.pending);
-      await pumpTile(tester, item, candidate: candidateFor(item, needsReview: false));
+    testWidgets(
+      'shows no badge once the item is no longer pending, even if flagged',
+      (tester) async {
+        final item = itemWith(status: SmsImportStatus.imported);
+        await pumpTile(
+          tester,
+          item,
+          candidate: candidateFor(item, needsReview: true),
+        );
 
-      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsNothing);
-    });
+        expect(
+          find.byKey(const ValueKey('sms_tile_needs_review_badge')),
+          findsNothing,
+        );
+      },
+    );
 
-    testWidgets('shows no badge once the item is no longer pending, even if flagged', (tester) async {
-      final item = itemWith(status: SmsImportStatus.imported);
-      await pumpTile(tester, item, candidate: candidateFor(item, needsReview: true));
+    testWidgets(
+      'shows no badge and does not change row height without a candidate',
+      (tester) async {
+        final item = itemWith();
+        await pumpTile(tester, item);
 
-      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsNothing);
-    });
-
-    testWidgets('shows no badge and does not change row height without a candidate', (tester) async {
-      final item = itemWith();
-      await pumpTile(tester, item);
-
-      expect(find.byKey(const ValueKey('sms_tile_needs_review_badge')), findsNothing);
-      final height = tester.getSize(find.byType(SmsMessageTile)).height;
-      expect(height, greaterThanOrEqualTo(70));
-      expect(height, lessThanOrEqualTo(90));
-    });
+        expect(
+          find.byKey(const ValueKey('sms_tile_needs_review_badge')),
+          findsNothing,
+        );
+        final height = tester.getSize(find.byType(SmsMessageTile)).height;
+        expect(height, greaterThanOrEqualTo(70));
+        expect(height, lessThanOrEqualTo(90));
+      },
+    );
   });
 }

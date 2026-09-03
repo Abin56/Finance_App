@@ -3,7 +3,12 @@
 /// type never leaks past `SmsReaderAdapter` — the rest of this feature (and
 /// every unit test) only ever depends on this shape.
 class RawSmsMessage {
-  const RawSmsMessage({required this.address, required this.body, required this.date, this.threadId});
+  const RawSmsMessage({
+    required this.address,
+    required this.body,
+    required this.date,
+    this.threadId,
+  });
 
   /// The sender id/number, e.g. `VM-HDFCBK` or `+919812345678`.
   final String address;

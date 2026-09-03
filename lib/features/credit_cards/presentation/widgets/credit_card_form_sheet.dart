@@ -8,7 +8,7 @@ import '../../../../core/data/bank_registry.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/domain/account_type.dart';
@@ -1082,7 +1082,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                   ),
                   child: Row(
                     children: [
-                      BankAvatar(bankId: _bankId, size: 30),
+                      BankLogo(bankId: _bankId, size: 30),
                       const SizedBox(width: AppSizes.sm),
                       Expanded(
                         child: Column(

@@ -2,7 +2,13 @@ import '../sms_inbox_item.dart';
 
 /// Sort orders for the SMS Inbox feed. Ordering is presentation-only — it
 /// never touches the stored rows or any converted record.
-enum SmsSortOrder { newestFirst, oldestFirst, highestAmount, lowestAmount, alphabetical }
+enum SmsSortOrder {
+  newestFirst,
+  oldestFirst,
+  highestAmount,
+  lowestAmount,
+  alphabetical,
+}
 
 extension SmsSortOrderX on SmsSortOrder {
   String get label {

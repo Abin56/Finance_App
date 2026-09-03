@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
-import '../../../../core/models/bank_info.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../domain/card_network.dart';
 
 /// Builds the diagonal gradient stops for a card face from its single
@@ -70,6 +70,10 @@ class CreditCardVisual extends StatelessWidget {
         ),
         child: Row(
           children: [
+            if (bankId != null) ...[
+              BankLogo(bankId: bankId, size: 22, shape: BankLogoShape.roundedSquare),
+              const SizedBox(width: AppSizes.sm),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +128,7 @@ class CreditCardVisual extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (bank != null) ...[
-                  _BankBadge(bank: bank),
+                  BankLogo(bankId: bank.id, size: 28, shape: BankLogoShape.roundedSquare),
                   const SizedBox(width: AppSizes.sm),
                 ],
                 Expanded(
@@ -159,32 +163,6 @@ class CreditCardVisual extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Small rounded-square badge standing in for a bank's logo mark — no logo
-/// assets are shipped, so the bank's [BankInfo.shortCode] on its own brand
-/// color is the closest visual match to the reference wallet-card look.
-class _BankBadge extends StatelessWidget {
-  const _BankBadge({required this.bank});
-
-  final BankInfo bank;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppSizes.radiusSm * 0.6),
-      ),
-      child: Text(
-        bank.shortCode[0],
-        style: TextStyle(color: bank.primaryColor, fontWeight: FontWeight.w900, fontSize: 14),
       ),
     );
   }

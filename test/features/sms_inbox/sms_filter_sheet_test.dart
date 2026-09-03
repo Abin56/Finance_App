@@ -80,7 +80,10 @@ void main() {
     container = ProviderContainer(
       overrides: [
         smsInboxItemsProvider.overrideWith(
-          () => _FakeItems([_item('a', bank: 'SBI'), _item('b', bank: 'HDFC', lastFour: '4589')]),
+          () => _FakeItems([
+            _item('a', bank: 'SBI'),
+            _item('b', bank: 'HDFC', lastFour: '4589'),
+          ]),
         ),
         accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
         creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
@@ -105,7 +108,9 @@ void main() {
 
   for (final width in _widths) {
     group('at ${width.toInt()}dp', () {
-      testWidgets('sheet lays out every section without overflow', (tester) async {
+      testWidgets('sheet lays out every section without overflow', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.reset);
@@ -128,9 +133,16 @@ void main() {
         // list to it. Card options are labelled from the linked account name
         // plus the last-4, matching how CreditCardsScreen names a card.
         final sheetList = find
-            .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
+            .descendant(
+              of: find.byType(DraggableScrollableSheet),
+              matching: find.byType(Scrollable),
+            )
             .first;
-        await tester.scrollUntilVisible(find.text('HDFC Millennia •••• 4589'), 200, scrollable: sheetList);
+        await tester.scrollUntilVisible(
+          find.text('HDFC Millennia •••• 4589'),
+          200,
+          scrollable: sheetList,
+        );
         expect(find.text('HDFC Millennia •••• 4589'), findsOneWidget);
         expect(find.text('Unknown card'), findsOneWidget);
       });
@@ -152,7 +164,10 @@ void main() {
 
         // Nothing lands until Apply, so a half-built filter never churns the
         // feed under the sheet.
-        expect(container.read(smsFilterCriteriaProvider).hasActiveFilters, isFalse);
+        expect(
+          container.read(smsFilterCriteriaProvider).hasActiveFilters,
+          isFalse,
+        );
 
         await tester.tap(find.text('Apply Filters'));
         await tester.pumpAndSettle();
@@ -163,40 +178,58 @@ void main() {
         expect(applied.activeCount, 2);
       });
 
-      testWidgets('an invalid Min/Max range shows an error and Apply does not take effect', (tester) async {
-        // Regression: Min/Max amount fields weren't cross-validated, so a
-        // range that can never match anything (Min > Max) silently applied
-        // with no explanation.
-        tester.view.physicalSize = Size(width, 900);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.reset);
+      testWidgets(
+        'an invalid Min/Max range shows an error and Apply does not take effect',
+        (tester) async {
+          // Regression: Min/Max amount fields weren't cross-validated, so a
+          // range that can never match anything (Min > Max) silently applied
+          // with no explanation.
+          tester.view.physicalSize = Size(width, 900);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.reset);
 
-        await tester.pumpWidget(harness());
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('open filters'));
-        await tester.pumpAndSettle();
+          await tester.pumpWidget(harness());
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('open filters'));
+          await tester.pumpAndSettle();
 
-        final minField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Min');
-        final maxField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Max');
-        final sheetList = find
-            .descendant(of: find.byType(DraggableScrollableSheet), matching: find.byType(Scrollable))
-            .first;
-        await tester.scrollUntilVisible(minField, 200, scrollable: sheetList);
+          final minField = find.byWidgetPredicate(
+            (w) => w is TextField && w.decoration?.labelText == 'Min',
+          );
+          final maxField = find.byWidgetPredicate(
+            (w) => w is TextField && w.decoration?.labelText == 'Max',
+          );
+          final sheetList = find
+              .descendant(
+                of: find.byType(DraggableScrollableSheet),
+                matching: find.byType(Scrollable),
+              )
+              .first;
+          await tester.scrollUntilVisible(minField, 200, scrollable: sheetList);
 
-        await tester.enterText(minField, '5000');
-        await tester.pumpAndSettle();
-        await tester.enterText(maxField, '100');
-        await tester.pumpAndSettle();
+          await tester.enterText(minField, '5000');
+          await tester.pumpAndSettle();
+          await tester.enterText(maxField, '100');
+          await tester.pumpAndSettle();
 
-        expect(find.text('Min must not be greater than Max.'), findsOneWidget);
+          expect(
+            find.text('Min must not be greater than Max.'),
+            findsOneWidget,
+          );
 
-        await tester.tap(find.text('Apply Filters'));
-        await tester.pumpAndSettle();
+          await tester.tap(find.text('Apply Filters'));
+          await tester.pumpAndSettle();
 
-        expect(container.read(smsFilterCriteriaProvider).hasActiveFilters, isFalse);
-      });
+          expect(
+            container.read(smsFilterCriteriaProvider).hasActiveFilters,
+            isFalse,
+          );
+        },
+      );
 
-      testWidgets('closing without applying discards the draft', (tester) async {
+      testWidgets('closing without applying discards the draft', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.reset);
@@ -211,7 +244,10 @@ void main() {
         await tester.tap(find.byTooltip('Close'));
         await tester.pumpAndSettle();
 
-        expect(container.read(smsFilterCriteriaProvider).hasActiveFilters, isFalse);
+        expect(
+          container.read(smsFilterCriteriaProvider).hasActiveFilters,
+          isFalse,
+        );
       });
     });
   }

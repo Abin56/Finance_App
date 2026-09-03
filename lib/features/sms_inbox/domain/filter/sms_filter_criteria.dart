@@ -113,13 +113,19 @@ class SmsFilterCriteria {
     // Checked first and unconditionally: a flagged duplicate must never
     // appear in the default feed no matter what other facets are set, and the
     // Duplicates review must never show anything else.
-    if ((duplicates == SmsDuplicateVisibility.only) != item.isDuplicate) return false;
+    if ((duplicates == SmsDuplicateVisibility.only) != item.isDuplicate)
+      return false;
 
-    if (categories.isNotEmpty && !categories.contains(parsed?.category)) return false;
+    if (categories.isNotEmpty && !categories.contains(parsed?.category))
+      return false;
     if (!direction.matches(parsed?.direction)) return false;
     if (statuses.isNotEmpty && !statuses.contains(item.status)) return false;
 
-    final window = datePreset.resolve(context.now, customStart: customStart, customEnd: customEnd);
+    final window = datePreset.resolve(
+      context.now,
+      customStart: customStart,
+      customEnd: customEnd,
+    );
     if (window != null && !window.contains(item.rawMessage.date)) return false;
 
     if (banks.isNotEmpty && !banks.contains(parsed?.bankName)) return false;
@@ -133,7 +139,9 @@ class SmsFilterCriteria {
       if (maxAmount != null && amount > maxAmount!) return false;
     }
 
-    if (cardIds.isNotEmpty && !cardIds.contains(context.cardMatcher.cardIdFor(item))) return false;
+    if (cardIds.isNotEmpty &&
+        !cardIds.contains(context.cardMatcher.cardIdFor(item)))
+      return false;
 
     return true;
   }
@@ -167,7 +175,10 @@ class SmsFilterCriteria {
 
   /// One removable chip per active value, each carrying the criteria that
   /// results from removing only itself.
-  List<SmsFilterChipData> chips({required String Function(String cardId) cardLabel, required String Function(double) formatAmount}) {
+  List<SmsFilterChipData> chips({
+    required String Function(String cardId) cardLabel,
+    required String Function(double) formatAmount,
+  }) {
     return [
       for (final category in categories)
         SmsFilterChipData(
@@ -175,22 +186,45 @@ class SmsFilterCriteria {
           removed: copyWith(categories: categories.difference({category})),
         ),
       if (direction != SmsMoneyDirection.any)
-        SmsFilterChipData(label: direction.label, removed: copyWith(direction: SmsMoneyDirection.any)),
+        SmsFilterChipData(
+          label: direction.label,
+          removed: copyWith(direction: SmsMoneyDirection.any),
+        ),
       if (datePreset != SmsDatePreset.any)
         SmsFilterChipData(
-          label: datePreset == SmsDatePreset.custom ? _customRangeLabel() : datePreset.label,
-          removed: copyWith(datePreset: SmsDatePreset.any, clearCustomRange: true),
+          label: datePreset == SmsDatePreset.custom
+              ? _customRangeLabel()
+              : datePreset.label,
+          removed: copyWith(
+            datePreset: SmsDatePreset.any,
+            clearCustomRange: true,
+          ),
         ),
       for (final bank in banks)
-        SmsFilterChipData(label: bank, removed: copyWith(banks: banks.difference({bank}))),
+        SmsFilterChipData(
+          label: bank,
+          removed: copyWith(banks: banks.difference({bank})),
+        ),
       for (final status in statuses)
-        SmsFilterChipData(label: status.label, removed: copyWith(statuses: statuses.difference({status}))),
+        SmsFilterChipData(
+          label: status.label,
+          removed: copyWith(statuses: statuses.difference({status})),
+        ),
       if (minAmount != null)
-        SmsFilterChipData(label: '${formatAmount(minAmount!)}+', removed: copyWith(clearMinAmount: true)),
+        SmsFilterChipData(
+          label: '${formatAmount(minAmount!)}+',
+          removed: copyWith(clearMinAmount: true),
+        ),
       if (maxAmount != null)
-        SmsFilterChipData(label: 'Up to ${formatAmount(maxAmount!)}', removed: copyWith(clearMaxAmount: true)),
+        SmsFilterChipData(
+          label: 'Up to ${formatAmount(maxAmount!)}',
+          removed: copyWith(clearMaxAmount: true),
+        ),
       for (final cardId in cardIds)
-        SmsFilterChipData(label: cardLabel(cardId), removed: copyWith(cardIds: cardIds.difference({cardId}))),
+        SmsFilterChipData(
+          label: cardLabel(cardId),
+          removed: copyWith(cardIds: cardIds.difference({cardId})),
+        ),
       if (duplicates == SmsDuplicateVisibility.only)
         SmsFilterChipData(
           label: 'Duplicates',
@@ -212,7 +246,8 @@ class SmsFilterCriteria {
   /// [duplicates] is likewise preserved: clearing filters while reviewing
   /// duplicates should widen what you see *within* the review, not eject you
   /// back to the main inbox mid-task.
-  SmsFilterCriteria cleared() => SmsFilterCriteria(sort: sort, duplicates: duplicates);
+  SmsFilterCriteria cleared() =>
+      SmsFilterCriteria(sort: sort, duplicates: duplicates);
 
   /// Explicit `clear*` flags because a plain `null` default can't distinguish
   /// "leave unchanged" from "set back to null".

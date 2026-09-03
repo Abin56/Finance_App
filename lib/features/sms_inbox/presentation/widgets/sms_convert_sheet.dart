@@ -22,18 +22,32 @@ class SmsConvertSheet {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Padding(
-                padding: EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.sm),
-                child: Text('What does this transaction represent?', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+                padding: EdgeInsets.fromLTRB(
+                  AppSizes.lg,
+                  AppSizes.lg,
+                  AppSizes.lg,
+                  AppSizes.sm,
+                ),
+                child: Text(
+                  'What does this transaction represent?',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+                ),
               ),
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.sm,
+                    vertical: AppSizes.sm,
+                  ),
                   children: [
                     for (final target in SmsConversionTarget.values)
                       ListTile(
                         leading: CircleAvatar(child: Icon(target.icon)),
-                        title: Text(target.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        title: Text(
+                          target.label,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         subtitle: Text(target.description),
                         onTap: () => Navigator.of(sheetContext).pop(target),
                       ),

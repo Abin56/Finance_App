@@ -24,7 +24,8 @@ abstract class SmsDedupKey {
     // otherwise-identical messages. Fall back to the trimmed body only
     // when no reference number was parseable.
     final referenceOrBody = referenceNumber ?? body.trim();
-    final raw = '$normalizedSender|${dateTime.millisecondsSinceEpoch}|${amount.toStringAsFixed(2)}|$referenceOrBody';
+    final raw =
+        '$normalizedSender|${dateTime.millisecondsSinceEpoch}|${amount.toStringAsFixed(2)}|$referenceOrBody';
     return sha256.convert(utf8.encode(raw)).toString();
   }
 }

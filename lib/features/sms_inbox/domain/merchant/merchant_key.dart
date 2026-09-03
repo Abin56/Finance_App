@@ -14,9 +14,31 @@ abstract class MerchantKey {
   /// no merchant identity, so leaving them in would key `UPI-SWIGGY` apart
   /// from `SWIGGY` and make the memory never recall.
   static const Set<String> _noiseTokens = {
-    'upi', 'pos', 'ach', 'neft', 'imps', 'rtgs', 'atm', 'ecom', 'inf', 'mmt',
-    'ltd', 'limited', 'pvt', 'private', 'inc', 'llp', 'co', 'india', 'in',
-    'payment', 'payments', 'paytm', 'bill', 'billdesk', 'razorpay',
+    'upi',
+    'pos',
+    'ach',
+    'neft',
+    'imps',
+    'rtgs',
+    'atm',
+    'ecom',
+    'inf',
+    'mmt',
+    'ltd',
+    'limited',
+    'pvt',
+    'private',
+    'inc',
+    'llp',
+    'co',
+    'india',
+    'in',
+    'payment',
+    'payments',
+    'paytm',
+    'bill',
+    'billdesk',
+    'razorpay',
   };
 
   /// Returns null when nothing identifying survives normalization — an empty

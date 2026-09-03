@@ -17,16 +17,17 @@ sealed class SmsReadException implements Exception {
 /// inbox: this means the read never happened at all.
 class SmsPermissionUnavailableException extends SmsReadException {
   const SmsPermissionUnavailableException()
-      : super(
-          'SMS access was denied by the operating system. Either the installed '
-          'app build does not include SMS permission, or it was revoked after '
-          'being granted — check Settings > Apps > FlowFi > Permissions, or '
-          'reinstall a build with SMS Inbox enabled.',
-        );
+    : super(
+        'SMS access was denied by the operating system. Either the installed '
+        'app build does not include SMS permission, or it was revoked after '
+        'being granted — check Settings > Apps > FlowFi > Permissions, or '
+        'reinstall a build with SMS Inbox enabled.',
+      );
 }
 
 /// The content-provider query itself failed for a non-permission reason
 /// (device/OEM restriction, malformed cursor, etc).
 class SmsQueryFailedException extends SmsReadException {
-  SmsQueryFailedException(String detail) : super('Could not read SMS messages: $detail');
+  SmsQueryFailedException(String detail)
+    : super('Could not read SMS messages: $detail');
 }

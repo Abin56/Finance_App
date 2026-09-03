@@ -53,7 +53,11 @@ void main() {
   }
 
   test('upsert then getAll round-trips every field', () async {
-    await dao.upsert(candidate(reasons: const ['Possible duplicate.', 'Low parser confidence.']));
+    await dao.upsert(
+      candidate(
+        reasons: const ['Possible duplicate.', 'Low parser confidence.'],
+      ),
+    );
 
     final all = await dao.getAll();
     expect(all, hasLength(1));
@@ -68,24 +72,33 @@ void main() {
     expect(row.matchedCardId, 'card-1');
     expect(row.referenceNumber, 'REF123');
     expect(row.confidenceLevel, ConfidenceLevel.high);
-    expect(row.reviewReasons, ['Possible duplicate.', 'Low parser confidence.']);
+    expect(row.reviewReasons, [
+      'Possible duplicate.',
+      'Low parser confidence.',
+    ]);
   });
 
-  test('a candidate with no review reasons round-trips as an empty list', () async {
-    await dao.upsert(candidate());
+  test(
+    'a candidate with no review reasons round-trips as an empty list',
+    () async {
+      await dao.upsert(candidate());
 
-    final row = (await dao.getAll()).single;
-    expect(row.reviewReasons, isEmpty);
-  });
+      final row = (await dao.getAll()).single;
+      expect(row.reviewReasons, isEmpty);
+    },
+  );
 
-  test('existingSmsItemIds reflects only smsItemIds that already have a candidate', () async {
-    await dao.upsert(candidate(id: 'cand-1', smsItemId: 'sms-1'));
-    await dao.upsert(candidate(id: 'cand-2', smsItemId: 'sms-2'));
+  test(
+    'existingSmsItemIds reflects only smsItemIds that already have a candidate',
+    () async {
+      await dao.upsert(candidate(id: 'cand-1', smsItemId: 'sms-1'));
+      await dao.upsert(candidate(id: 'cand-2', smsItemId: 'sms-2'));
 
-    final existing = await dao.existingSmsItemIds();
-    expect(existing, {'sms-1', 'sms-2'});
-    expect(existing.contains('sms-3'), isFalse);
-  });
+      final existing = await dao.existingSmsItemIds();
+      expect(existing, {'sms-1', 'sms-2'});
+      expect(existing.contains('sms-3'), isFalse);
+    },
+  );
 
   test('getBySmsItemId finds the right row, null when absent', () async {
     await dao.upsert(candidate(smsItemId: 'sms-1'));
@@ -94,15 +107,27 @@ void main() {
     expect(await dao.getBySmsItemId('sms-missing'), isNull);
   });
 
-  test('re-upserting for the same smsItemId replaces the previous candidate, not accumulates', () async {
-    await dao.upsert(candidate(id: 'cand-1', smsItemId: 'sms-1', needsReview: true));
-    await dao.upsert(candidate(id: 'cand-2', smsItemId: 'sms-1', needsReview: false));
+  test(
+    're-upserting for the same smsItemId replaces the previous candidate, not accumulates',
+    () async {
+      await dao.upsert(
+        candidate(id: 'cand-1', smsItemId: 'sms-1', needsReview: true),
+      );
+      await dao.upsert(
+        candidate(id: 'cand-2', smsItemId: 'sms-1', needsReview: false),
+      );
 
-    final all = await dao.getAll();
-    expect(all, hasLength(1), reason: 'sms_item_id is uniquely indexed — regenerating must not leave a stale row behind');
-    expect(all.single.id, 'cand-2');
-    expect(all.single.needsReview, isFalse);
-  });
+      final all = await dao.getAll();
+      expect(
+        all,
+        hasLength(1),
+        reason:
+            'sms_item_id is uniquely indexed — regenerating must not leave a stale row behind',
+      );
+      expect(all.single.id, 'cand-2');
+      expect(all.single.needsReview, isFalse);
+    },
+  );
 
   test('deleteBySmsItemIds removes only the matching candidates', () async {
     await dao.upsert(candidate(id: 'cand-1', smsItemId: 'sms-1'));
