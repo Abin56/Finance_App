@@ -27,22 +27,23 @@ class OverallBalanceCard extends StatelessWidget {
     // rows below it, mirroring the Net Worth hero card's treatment.
     return ClayCard(
       isHero: true,
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Overall Balance',
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
           ),
-          const SizedBox(height: AppSizes.xs),
+          const SizedBox(height: 2),
           Text(
             CurrencyFormatter.instance.format(netBalance.abs()),
-            style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
+            style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
           ),
-          const SizedBox(height: AppSizes.xs),
+          const SizedBox(height: 2),
           Text(
             statusLabel,
-            style: context.textTheme.bodyMedium?.copyWith(color: direction.color, fontWeight: FontWeight.w600),
+            style: context.textTheme.bodySmall?.copyWith(color: direction.color, fontWeight: FontWeight.w600),
           ),
         ],
       ),

@@ -33,9 +33,21 @@ final _loanPaymentsProvider = Provider.autoDispose.family<List<InstallmentPaymen
 /// expense participants — assigned/split expenses too) together with their
 /// [Loan]s and loan payments, via [PersonTimelineBuilder]. This is the one
 /// place all of a person's money-interaction sources are pulled together.
+///
+/// Sources loans the same two ways [PersonLoansSummaryCard] does: loans
+/// where this person is the lender/counterparty ([Loan.personId]) and loans
+/// this person actually pays on the account owner's behalf
+/// ([Loan.payerPersonId]), merged and de-duplicated by loan id — so a bank
+/// loan a friend pays the EMIs for shows its installments here too, not
+/// just in the summary card's totals.
 final personTimelineProvider = Provider.autoDispose.family<List<PersonTimelineEntry>, String>((ref, personId) {
   final ledgerEntries = ref.watch(ledgerStreamProvider(personId)).value ?? const [];
-  final loans = ref.watch(loansForPersonProvider(personId));
+  final asLender = ref.watch(loansForPersonProvider(personId));
+  final asPayer = ref.watch(loansPayableByPersonProvider(personId));
+  final loans = {
+    for (final loan in asLender) loan.id: loan,
+    for (final loan in asPayer) loan.id: loan,
+  }.values.toList();
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];
 
   final loanData = [

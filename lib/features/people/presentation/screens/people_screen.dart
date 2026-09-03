@@ -79,6 +79,9 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     return Scaffold(
       backgroundColor: AppClay.background(context),
       appBar: AppBar(
+        backgroundColor: AppClay.background(context),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: _searching
             ? TextField(
                 controller: _searchController,
@@ -88,22 +91,28 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               )
             : const Text('People'),
         actions: [
-          IconButton(
-            icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded),
-            tooltip: _searching ? 'Close search' : 'Search',
-            onPressed: () => setState(() {
-              _searching = !_searching;
-              if (!_searching) {
-                _query = '';
-                _searchController.clear();
-              }
-            }),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSizes.xs),
+            child: ClayIconButton(
+              icon: _searching ? Icons.close_rounded : Icons.search_rounded,
+              tooltip: _searching ? 'Close search' : 'Search',
+              onPressed: () => setState(() {
+                _searching = !_searching;
+                if (!_searching) {
+                  _query = '';
+                  _searchController.clear();
+                }
+              }),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'Trash',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PeopleTrashScreen()),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSizes.sm),
+            child: ClayIconButton(
+              icon: Icons.delete_outline_rounded,
+              tooltip: 'Trash',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PeopleTrashScreen()),
+              ),
             ),
           ),
         ],
@@ -170,7 +179,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 ),
               for (final person in visible)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                  padding: const EdgeInsets.only(bottom: AppSizes.xs),
                   child: Dismissible(
                     key: ValueKey(person.id),
                     direction: DismissDirection.endToStart,
@@ -205,8 +214,15 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 ),
               OutlinedButton.icon(
                 onPressed: () => PersonFormSheet.show(context),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add New Person'),
+                icon: Icon(Icons.add_rounded, color: AppClay.primaryAccent(context)),
+                label: Text(
+                  'Add New Person',
+                  style: TextStyle(color: AppClay.primaryAccent(context), fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  side: BorderSide(color: AppClay.primaryAccent(context).withValues(alpha: 0.4)),
+                ),
               ),
             ],
           );

@@ -64,6 +64,9 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
   late final _loanNumberController = TextEditingController(text: widget.loan?.loanNumber ?? '');
   late final _accountNumberController = TextEditingController(text: widget.loan?.accountNumber ?? '');
   late final _branchController = TextEditingController(text: widget.loan?.branch ?? '');
+  final _nameFocusNode = FocusNode();
+  final _institutionNameFocusNode = FocusNode();
+  final _amountFocusNode = FocusNode();
 
   late String? _personId = widget.loan?.personId;
   late String? _payerPersonId = widget.loan?.payerPersonId;
@@ -92,6 +95,9 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
     _loanNumberController.dispose();
     _accountNumberController.dispose();
     _branchController.dispose();
+    _nameFocusNode.dispose();
+    _institutionNameFocusNode.dispose();
+    _amountFocusNode.dispose();
     super.dispose();
   }
 
@@ -426,6 +432,8 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
                             children: [
                               TextFormField(
                                 controller: _institutionNameController,
+                                focusNode: _institutionNameFocusNode,
+                                autofocus: _category == LoanCategory.institutional,
                                 decoration: const InputDecoration(labelText: 'Bank / Institution name'),
                                 validator: (value) => _category == LoanCategory.institutional &&
                                         (value == null || value.trim().isEmpty)
@@ -477,11 +485,16 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
               const SizedBox(height: AppSizes.sm),
               TextFormField(
                 controller: _nameController,
+                focusNode: _nameFocusNode,
+                autofocus: _category == LoanCategory.personal,
                 decoration: const InputDecoration(labelText: 'Loan name (optional)'),
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
               ),
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _amountController,
+                focusNode: _amountFocusNode,
                 enabled: !hasPayments,
                 decoration: InputDecoration(
                   labelText: 'Loan amount',
