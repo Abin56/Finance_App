@@ -139,8 +139,38 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                 _searchController.clear();
               }),
             )
-          else if (person != null)
+          else if (person != null) ...[
+            if (_tab == _LedgerTab.history)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSizes.xs),
+                child: Center(
+                  child: Material(
+                    color: context.colors.primary,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => AddExpenseChooser.show(context, forPerson: person),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add_rounded, size: AppSizes.iconSm, color: context.colors.onPrimary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Add',
+                              style: context.textTheme.labelLarge
+                                  ?.copyWith(color: context.colors.onPrimary, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             _OverflowMenu(person: person, entries: sortedAll, onAction: _handleMenuAction),
+          ],
         ],
       ),
       floatingActionButton: person == null
@@ -177,16 +207,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                       ),
                       const SizedBox(height: AppSizes.lg),
                       if (_tab == _LedgerTab.summary)
-                        _SummaryTab(person: person, entries: sortedAll, personId: widget.personId)
-                      else if (_tab == _LedgerTab.history) ...[
-                        FilledButton.icon(
-                          onPressed: () => AddExpenseChooser.show(context, forPerson: person),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Expense'),
-                          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                        ),
-                        const SizedBox(height: AppSizes.lg),
-                      ],
+                        _SummaryTab(person: person, entries: sortedAll, personId: widget.personId),
                     ],
                   ),
                 ),
@@ -254,8 +275,19 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
               );
             }
             final entry = slot as PersonTimelineEntry;
+            if (entry.isSectionHeader) {
+              return Padding(
+                padding: const EdgeInsets.only(top: AppSizes.xs, bottom: AppSizes.xs),
+                child: Text(
+                  entry.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              );
+            }
             return Padding(
-              padding: const EdgeInsets.only(bottom: AppSizes.sm),
+              padding: const EdgeInsets.only(bottom: AppSizes.xs),
               child: _buildTile(
                 context,
                 person,
@@ -687,16 +719,16 @@ class _ContactLedgerTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(AppSizes.md),
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
             child: Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(color: amountColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
                   child: Icon(entry.icon, color: amountColor, size: AppSizes.iconSm),
                 ),
-                const SizedBox(width: AppSizes.md),
+                const SizedBox(width: AppSizes.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -718,7 +750,12 @@ class _ContactLedgerTile extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(_title, style: context.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              _title,
+                              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                           const SizedBox(width: AppSizes.sm),
                           Column(
@@ -726,7 +763,7 @@ class _ContactLedgerTile extends StatelessWidget {
                             children: [
                               Text(
                                 CurrencyFormatter.instance.format(entry.remainingDisplayAmount.abs()),
-                                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
+                                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
                               ),
                               if (_hasPartialPayment)
                                 Text(

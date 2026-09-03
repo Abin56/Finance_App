@@ -50,9 +50,12 @@ class LoanTile extends ConsumerWidget {
                       children: [
                         Icon(status.icon, size: AppSizes.iconSm, color: status.color),
                         const SizedBox(width: AppSizes.xs),
-                        Text(
-                          status.label,
-                          style: context.textTheme.bodySmall?.copyWith(color: status.color),
+                        Flexible(
+                          child: Text(
+                            status.label,
+                            style: context.textTheme.bodySmall?.copyWith(color: status.color),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         const SizedBox(width: AppSizes.xs),
                         LoanDirectionBadge(direction: loan.direction),

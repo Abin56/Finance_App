@@ -4,8 +4,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/theme/clay_theme.dart';
+import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
 import '../../domain/person.dart';
 import '../../domain/person_timeline_entry.dart';
@@ -60,14 +61,22 @@ class PersonStatementHeader extends StatelessWidget {
         ? null
         : entries.map((e) => e.date).reduce((a, b) => a.isAfter(b) ? a : b);
 
-    return AppCard(
+    return ClayCard(
+      isHero: true,
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 28),
-              const SizedBox(width: AppSizes.md),
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: AppClay.glow(Color(person.avatarColorValue)),
+                ),
+                child: PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 22),
+              ),
+              const SizedBox(width: AppSizes.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,7 +86,7 @@ class PersonStatementHeader extends StatelessWidget {
                         Flexible(
                           child: Text(
                             person.name,
-                            style: context.textTheme.titleLarge,
+                            style: context.textTheme.titleMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -87,7 +96,7 @@ class PersonStatementHeader extends StatelessWidget {
                     ),
                     Text(
                       'Joined ${person.createdAt.monthYear}',
-                      style: context.textTheme.bodyMedium?.copyWith(
+                      style: context.textTheme.bodySmall?.copyWith(
                         color: context.colors.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
@@ -96,19 +105,19 @@ class PersonStatementHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.lg),
+          const SizedBox(height: AppSizes.md),
           Text(
             'Amount Left',
-            style: context.textTheme.bodyMedium?.copyWith(
+            style: context.textTheme.bodySmall?.copyWith(
               color: context.colors.onSurface.withValues(alpha: 0.6),
             ),
           ),
-          const SizedBox(height: AppSizes.xs),
+          const SizedBox(height: 2),
           Text(
             CurrencyFormatter.instance.format(person.currentBalance.abs()),
-            style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
+            style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
           ),
-          const SizedBox(height: AppSizes.lg),
+          const SizedBox(height: AppSizes.md),
           Row(
             // From ~1.3x text scale "Total Paid Back" wraps in a third-width
             // column and the other two don't, so that column is taller;
@@ -121,26 +130,26 @@ class PersonStatementHeader extends StatelessWidget {
               Expanded(child: _StatColumn(label: 'You Borrowed', value: _youBorrowed, color: AppColors.error)),
             ],
           ),
-          const SizedBox(height: AppSizes.lg),
+          const SizedBox(height: AppSizes.md),
           _StatRow(label: 'Starting Amount Left', value: person.openingBalance),
           _StatRow(label: 'Total money given', value: _totalGiven),
           _StatRow(label: 'Total money received', value: _totalReceived),
           _StatRow(label: 'Total lending', value: _totalForCategory(PersonTimelineCategory.lending)),
           _StatRow(label: 'Total expenses this person will pay', value: _totalForCategory(PersonTimelineCategory.assignedExpense)),
           _StatRow(label: 'Total shared expenses', value: _totalForCategory(PersonTimelineCategory.splitExpense)),
-          const SizedBox(height: AppSizes.sm),
+          const SizedBox(height: AppSizes.xs),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Last transaction',
-                style: context.textTheme.bodyMedium?.copyWith(
+                style: context.textTheme.bodySmall?.copyWith(
                   color: context.colors.onSurface.withValues(alpha: 0.6),
                 ),
               ),
               Text(
                 lastTransactionDate == null ? 'None yet' : lastTransactionDate.shortDate,
-                style: context.textTheme.bodyMedium,
+                style: context.textTheme.bodySmall,
               ),
             ],
           ),
@@ -164,12 +173,12 @@ class _StatColumn extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.labelSmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
         ),
         const SizedBox(height: 2),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: color),
         ),
       ],
     );
@@ -185,7 +194,7 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -197,13 +206,13 @@ class _StatRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: context.textTheme.bodyMedium?.copyWith(
+              style: context.textTheme.bodySmall?.copyWith(
                 color: context.colors.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ),
           const SizedBox(width: AppSizes.md),
-          Text(CurrencyFormatter.instance.format(value), style: context.textTheme.bodyMedium),
+          Text(CurrencyFormatter.instance.format(value), style: context.textTheme.bodySmall),
         ],
       ),
     );

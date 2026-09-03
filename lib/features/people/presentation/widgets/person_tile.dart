@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
@@ -36,10 +37,14 @@ class PersonTile extends StatelessWidget {
 
     return ClayCard(
       onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
       child: Row(
         children: [
-          PersonAvatar(name: person.name, colorValue: person.avatarColorValue),
-          const SizedBox(width: AppSizes.md),
+          Container(
+            decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: AppClay.glow(Color(person.avatarColorValue))),
+            child: PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 18),
+          ),
+          const SizedBox(width: AppSizes.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -49,7 +54,7 @@ class PersonTile extends StatelessWidget {
                     Flexible(
                       child: Text(
                         person.name,
-                        style: context.textTheme.titleMedium,
+                        style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -59,7 +64,7 @@ class PersonTile extends StatelessWidget {
                 ),
                 Text(
                   subtitle,
-                  style: context.textTheme.bodyMedium?.copyWith(
+                  style: context.textTheme.bodySmall?.copyWith(
                     color: context.colors.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
@@ -68,10 +73,10 @@ class PersonTile extends StatelessWidget {
           ),
           Text(
             CurrencyFormatter.instance.format(person.currentBalance.abs()),
-            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
+            style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
           ),
-          const SizedBox(width: AppSizes.xs),
-          Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+          const SizedBox(width: 2),
+          Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.4)),
         ],
       ),
     );
@@ -87,11 +92,14 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.xs, vertical: 2),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusSm)),
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.xs, vertical: 1),
+      decoration: BoxDecoration(
+        gradient: AppClay.iconChipGradient(color),
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      ),
       child: Text(
         label,
-        style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+        style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600, fontSize: 10),
       ),
     );
   }

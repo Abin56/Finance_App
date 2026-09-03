@@ -6,6 +6,7 @@ import '../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../core/payment_schedule/domain/installment_status.dart';
 import '../../lending/domain/loan.dart';
 import '../../lending/domain/loan_direction.dart';
+import '../../lending/domain/loan_repayment_type.dart';
 import '../../lending/domain/loan_status.dart';
 import '../../transactions/domain/transaction.dart';
 import '../../transactions/domain/transaction_type.dart';
@@ -204,20 +205,68 @@ abstract class PersonTimelineBuilder {
 
     final loanStatus = loan.statusGiven(data.installments);
     final isGiven = loan.direction == LoanDirection.given;
+    final hasName = loan.name?.trim().isNotEmpty ?? false;
+    final isInstallment = loan.repaymentType == LoanRepaymentType.installment;
     final entries = <PersonTimelineEntry>[
       PersonTimelineEntry(
         id: 'loan-${loan.id}',
         date: loan.loanDate,
         icon: isGiven ? Icons.call_made_rounded : Icons.call_received_rounded,
-        title: isGiven ? 'Money lent' : 'Money borrowed',
+        // For an installment loan this row is the section header carrying
+        // the loan's own name/topic — the EMI bill entries below are what
+        // actually show the money — so it favors the loan's name over the
+        // generic "Money lent"/"Money borrowed" label a one-time loan uses.
+        // `signedAmount` is unchanged either way: the loan's principal must
+        // still count once toward running balance/totals, regardless of how
+        // this row renders.
+        title: isInstallment && hasName ? loan.name! : (isGiven ? 'Money lent' : 'Money borrowed'),
         signedAmount: isGiven ? loan.loanAmount : -loan.loanAmount,
         category: PersonTimelineCategory.lending,
         status: _statusForLoan(loanStatus),
         note: loan.name ?? loan.notes,
         isDeleted: loan.isDeleted,
         color: isGiven ? AppColors.debit : AppColors.credit,
+        isSectionHeader: isInstallment,
       ),
     ];
+
+    // EMI due bills — history (paid/partial/overdue/skipped) plus only the
+    // single next not-yet-due installment, never the whole remaining future
+    // schedule (lending entries aren't run through `CycleEngine`'s
+    // previous/current/future split like assignedExpense/splitExpense are,
+    // so without this filter every future month's EMI would show up here
+    // at once). Only for installment-repayment loans — a one-time loan's
+    // single due date is already the entry above.
+    // `signedAmount: 0` since the loan-total entry above and the payment
+    // entries below already carry the full balance effect; these are purely
+    // informational "here's the bill and its status" rows, mirroring how a
+    // [PersonTimelineCategory.reference] entry stays balance-neutral.
+    if (isInstallment) {
+      final sortedInstallments = [...data.installments]..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final nextUpcomingId =
+          sortedInstallments.where((i) => i.status == InstallmentStatus.upcoming).firstOrNull?.id;
+      for (final installment in sortedInstallments) {
+        if (!includeDeleted && installment.isDeleted) continue;
+        if (installment.status == InstallmentStatus.upcoming && installment.id != nextUpcomingId) continue;
+        entries.add(
+          PersonTimelineEntry(
+            id: 'loan-installment-${loan.id}-${installment.id}',
+            date: installment.dueDate,
+            icon: Icons.event_note_rounded,
+            title: 'EMI #${installment.sequenceNumber} due',
+            signedAmount: 0,
+            displayAmount: installment.amountDue,
+            category: PersonTimelineCategory.lending,
+            status: _statusForInstallment(installment),
+            note: loan.name ?? loan.notes,
+            isDeleted: loan.isDeleted || installment.isDeleted,
+            color: isGiven ? AppColors.debit : AppColors.credit,
+            totalAmount: installment.amountDue,
+            paidAmount: installment.amountPaid,
+          ),
+        );
+      }
+    }
 
     for (final payment in data.payments) {
       if (!includeDeleted && payment.isDeleted) continue;
@@ -238,6 +287,20 @@ abstract class PersonTimelineBuilder {
     }
 
     return entries;
+  }
+
+  static PersonTimelineStatus _statusForInstallment(Installment installment) {
+    switch (installment.status) {
+      case InstallmentStatus.paid:
+        return PersonTimelineStatus.completed;
+      case InstallmentStatus.partiallyPaid:
+        return PersonTimelineStatus.partial;
+      case InstallmentStatus.overdue:
+        return PersonTimelineStatus.overdue;
+      case InstallmentStatus.skipped:
+      case InstallmentStatus.upcoming:
+        return PersonTimelineStatus.pending;
+    }
   }
 
   static PersonTimelineStatus _statusForLoan(LoanStatus status) {

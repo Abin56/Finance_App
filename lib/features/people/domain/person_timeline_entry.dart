@@ -84,6 +84,7 @@ class PersonTimelineEntry {
     this.totalAmount,
     this.paidAmount,
     this.otherParticipantNames = const [],
+    this.isSectionHeader = false,
     double? displayAmount,
   }) : displayAmount = displayAmount ?? signedAmount;
 
@@ -120,6 +121,11 @@ class PersonTimelineEntry {
   /// own subject person and the payer ("Me"). Empty for every other category,
   /// and for a split expense with no other tracked participants.
   final List<String> otherParticipantNames;
+
+  /// True for a loan's name/title marker entry — rendered as a plain section
+  /// heading in the timeline list rather than a full amount/status row. Never
+  /// affects any balance (always paired with `signedAmount: 0`) or totals.
+  final bool isSectionHeader;
 
   /// The backing `Installment.amountDue` for an [PersonTimelineCategory.assignedExpense]/
   /// [PersonTimelineCategory.splitExpense] entry — null for every other
