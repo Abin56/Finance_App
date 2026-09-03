@@ -42,7 +42,6 @@ class ExpenseComparisonWidgetCard extends ConsumerWidget {
         .where(
           (t) =>
               t.type == TransactionType.expense &&
-              !t.isTransfer &&
               range.contains(isMonthGranular ? t.effectiveMonth : t.dateTime),
         )
         .toList();

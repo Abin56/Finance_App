@@ -37,7 +37,6 @@ void main() {
     TransactionKind.bill: HistoryCategory.bill,
     TransactionKind.emi: HistoryCategory.emi,
     TransactionKind.creditCard: HistoryCategory.statementGenerated,
-    TransactionKind.transfer: HistoryCategory.transaction,
   };
 
   for (final entry in cases.entries) {

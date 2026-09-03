@@ -51,7 +51,6 @@ Transaction _transaction({
   double amount = 100,
   DateTime? dateTime,
   String? receiptPurpose,
-  String? transferId,
 }) {
   return Transaction(
     id: id,
@@ -62,7 +61,6 @@ Transaction _transaction({
     categoryId: 'cat1',
     createdAt: dateTime ?? DateTime(2026, 1, 1),
     receiptPurpose: receiptPurpose,
-    transferId: transferId,
   );
 }
 
@@ -648,21 +646,6 @@ void main() {
       );
 
       expect(result.single.kind, TransactionKind.myIncome);
-    });
-
-    test('a transfer leg classifies as transfer, never myExpense/myIncome, even though it carries a type', () {
-      final expenseLeg = _transaction(id: 't1', type: TransactionType.expense, transferId: 'xfer1');
-      final incomeLeg = _transaction(id: 't2', type: TransactionType.income, transferId: 'xfer1');
-
-      final result = HistoryBuilder.build(
-        transactions: [expenseLeg, incomeLeg],
-        expenses: const [],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-      );
-
-      expect(result.every((e) => e.kind == TransactionKind.transfer), isTrue);
     });
 
     test('a transaction linked to a split Expense classifies as splitExpense, not myExpense', () {

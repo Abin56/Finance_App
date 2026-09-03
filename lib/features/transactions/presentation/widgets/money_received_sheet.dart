@@ -14,6 +14,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/section_label.dart';
+import '../../../accounts/domain/account_type.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -337,7 +338,8 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
               accountsAsync.when(
                 loading: () => const LinearProgressIndicator(),
                 error: (error, _) => Text('Could not load accounts: $error'),
-                data: (accounts) {
+                data: (allAccounts) {
+                  final accounts = allAccounts.where((a) => a.type != AccountType.card).toList();
                   final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
                   return DropdownButtonFormField<String>(
                     initialValue: validId,

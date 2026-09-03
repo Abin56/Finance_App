@@ -22,7 +22,6 @@ import '../../core/constants/app_colors.dart';
 enum TransactionKind {
   myExpense,
   myIncome,
-  transfer,
   splitExpense,
   people,
   bill,
@@ -42,8 +41,6 @@ extension TransactionKindX on TransactionKind {
         return 'My Expense';
       case TransactionKind.myIncome:
         return 'Income';
-      case TransactionKind.transfer:
-        return 'Transfer';
       case TransactionKind.splitExpense:
         return 'Split Expense';
       case TransactionKind.people:
@@ -73,8 +70,6 @@ extension TransactionKindX on TransactionKind {
         return Icons.arrow_upward_rounded;
       case TransactionKind.myIncome:
         return Icons.arrow_downward_rounded;
-      case TransactionKind.transfer:
-        return Icons.swap_horiz_rounded;
       case TransactionKind.splitExpense:
         return Icons.call_split_rounded;
       case TransactionKind.people:
@@ -104,8 +99,6 @@ extension TransactionKindX on TransactionKind {
         return AppColors.expense;
       case TransactionKind.myIncome:
         return AppColors.income;
-      case TransactionKind.transfer:
-        return AppColors.info;
       case TransactionKind.splitExpense:
         return AppColors.primary;
       case TransactionKind.people:
@@ -138,28 +131,26 @@ extension TransactionKindX on TransactionKind {
         return 0;
       case TransactionKind.myIncome:
         return 1;
-      case TransactionKind.transfer:
-        return 2;
       case TransactionKind.splitExpense:
-        return 3;
+        return 2;
       case TransactionKind.people:
-        return 4;
+        return 3;
       case TransactionKind.bill:
-        return 5;
+        return 4;
       case TransactionKind.creditCard:
-        return 6;
+        return 5;
       case TransactionKind.loan:
-        return 7;
+        return 6;
       case TransactionKind.emi:
-        return 8;
+        return 7;
       case TransactionKind.savings:
-        return 9;
+        return 8;
       case TransactionKind.investment:
-        return 10;
+        return 9;
       case TransactionKind.adjustment:
-        return 11;
+        return 10;
       case TransactionKind.system:
-        return 12;
+        return 11;
     }
   }
 

@@ -59,14 +59,12 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
     final now = DateTime.now();
     final range = _period.rangeFor(now);
 
-    // Transfers between the user's own accounts aren't real spending —
-    // excluded so a transfer's source leg doesn't inflate category totals.
     // Every figure/chart on this screen must filter/bucket via the same
     // `_period.reportDateFor`, not a re-derived date, so the header total,
     // the trend chart, and the highest-spending-day stat can never
     // silently disagree about which transactions are "in period".
     final periodExpenses = allTransactions
-        .where((t) => t.type == TransactionType.expense && range.contains(_period.reportDateFor(t)) && !t.isTransfer)
+        .where((t) => t.type == TransactionType.expense && range.contains(_period.reportDateFor(t)))
         .toList();
     final categoryTransactions = periodExpenses.where((t) => t.categoryId == category.id).toList()
       ..sort((a, b) => b.dateTime.compareTo(a.dateTime));

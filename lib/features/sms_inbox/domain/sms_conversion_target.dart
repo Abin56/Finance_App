@@ -14,7 +14,6 @@ enum SmsConversionTarget {
   emiPayment,
   billPayment,
   creditCardPurchase,
-  transferBetweenAccounts,
   ignore,
 }
 
@@ -39,8 +38,6 @@ extension SmsConversionTargetX on SmsConversionTarget {
         return 'Bill Payment';
       case SmsConversionTarget.creditCardPurchase:
         return 'Credit Card Purchase';
-      case SmsConversionTarget.transferBetweenAccounts:
-        return 'Transfer Between My Accounts';
       case SmsConversionTarget.ignore:
         return 'Ignore';
     }
@@ -66,8 +63,6 @@ extension SmsConversionTargetX on SmsConversionTarget {
         return 'A payment against a bill';
       case SmsConversionTarget.creditCardPurchase:
         return 'A purchase made on a credit card';
-      case SmsConversionTarget.transferBetweenAccounts:
-        return 'Money moved between my own accounts';
       case SmsConversionTarget.ignore:
         return 'Not a transaction I want to track';
     }
@@ -93,8 +88,6 @@ extension SmsConversionTargetX on SmsConversionTarget {
         return Icons.bolt_rounded;
       case SmsConversionTarget.creditCardPurchase:
         return Icons.credit_card_rounded;
-      case SmsConversionTarget.transferBetweenAccounts:
-        return Icons.swap_horiz_rounded;
       case SmsConversionTarget.ignore:
         return Icons.visibility_off_outlined;
     }

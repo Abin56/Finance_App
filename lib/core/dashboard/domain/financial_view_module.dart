@@ -8,7 +8,6 @@ enum FinancialViewModule {
   sharedExpenses,
   combinedExpenses,
   income,
-  transfers,
   netCashFlow,
 }
 
@@ -23,8 +22,6 @@ extension FinancialViewModuleX on FinancialViewModule {
         return 'Combined Expenses';
       case FinancialViewModule.income:
         return 'Income';
-      case FinancialViewModule.transfers:
-        return 'Transfers';
       case FinancialViewModule.netCashFlow:
         return 'Net Cash Flow';
     }

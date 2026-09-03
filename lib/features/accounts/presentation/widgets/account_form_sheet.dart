@@ -259,7 +259,9 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
             ),
 
             const SizedBox(height: AppSizes.md),
-            const SectionLabel('Additional Info (optional)'),
+            SectionLabel(
+              _type == AccountType.bank || _type == AccountType.card ? 'Additional Info' : 'Additional Info (optional)',
+            ),
             const SizedBox(height: AppSizes.sm),
             TextFormField(
               controller: _accountHolderNameController,
@@ -270,10 +272,17 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
             const SizedBox(height: AppSizes.sm),
             TextFormField(
               controller: _accountNumberLast4Controller,
-              decoration: _premiumDecoration(context, label: 'Account number (last 4 digits)', prefixText: '•••• '),
+              decoration: _premiumDecoration(
+                context,
+                label: _type == AccountType.bank || _type == AccountType.card
+                    ? 'Account number (last 4 digits)'
+                    : 'Account number (last 4 digits, optional)',
+                prefixText: '•••• ',
+              ),
               style: Theme.of(context).textTheme.bodyMedium,
               keyboardType: TextInputType.number,
               maxLength: 4,
+              validator: _type == AccountType.bank || _type == AccountType.card ? Validators.lastFourDigits : null,
             ),
             const SizedBox(height: AppSizes.sm),
             TextFormField(

@@ -20,7 +20,7 @@ final categorySpendingBreakdownProvider =
   final categoriesById = {for (final c in categories) c.id: c};
 
   final periodTransactions = transactions.where(
-    (t) => args.range.contains(args.period.reportDateFor(t)) && !t.isTransfer,
+    (t) => args.range.contains(args.period.reportDateFor(t)),
   );
 
   final expenses = periodTransactions

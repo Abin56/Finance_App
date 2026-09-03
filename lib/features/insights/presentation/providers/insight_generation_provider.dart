@@ -28,7 +28,7 @@ final insightInputsProvider = Provider.family<InsightInputs, InsightPeriod>((ref
   final transactions = ref.watch(calculableTransactionsProvider);
 
   double totalFor(DateRange range, TransactionType type) => transactions
-      .where((t) => type == t.type && !t.isTransfer && range.contains(args.period.reportDateFor(t)))
+      .where((t) => type == t.type && range.contains(args.period.reportDateFor(t)))
       .fold(0.0, (sum, t) => sum + t.amount);
 
   final income = totalFor(args.range, TransactionType.income);

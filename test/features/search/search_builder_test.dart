@@ -341,22 +341,6 @@ void main() {
       expect(results.single.kind, TransactionKind.myIncome);
     });
 
-    test('a transfer leg classifies as transfer, not myExpense/myIncome', () {
-      final transferLeg = Transaction(
-        id: 't-transfer',
-        type: TransactionType.expense,
-        amount: 500,
-        dateTime: _now,
-        accountId: 'a1',
-        categoryId: 'c1',
-        createdAt: _now,
-        description: 'Move to savings',
-        transferId: 'xfer1',
-      );
-      final results = _build('savings', transactions: [transferLeg]);
-      expect(results.single.kind, TransactionKind.transfer);
-    });
-
     test('a split expense classifies as splitExpense', () {
       final results = _build('dinner', expenses: [_splitExpense()]);
       expect(results.single.kind, TransactionKind.splitExpense);

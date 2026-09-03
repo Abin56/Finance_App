@@ -163,10 +163,6 @@ class AccountsTrashScreen extends ConsumerWidget {
     return [
       DestructiveDeleteImpactRow(label: '${impact.transactionCount} transaction(s)', count: impact.transactionCount),
       DestructiveDeleteImpactRow(
-        label: '${impact.transferSiblingCount} linked transfer(s) on other accounts',
-        count: impact.transferSiblingCount,
-      ),
-      DestructiveDeleteImpactRow(
         label: '${impact.expenseCount} shared/assigned expense(s)',
         count: impact.expenseCount,
       ),

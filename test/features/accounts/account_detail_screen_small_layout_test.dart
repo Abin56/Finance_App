@@ -50,8 +50,6 @@ void main() {
               const AccountStats(
                 income: 1234567.89,
                 expense: 987654.32,
-                transfersIn: 555555.55,
-                transfersOut: 444444.44,
                 currentMonthExpense: 123456.78,
               ),
             ),

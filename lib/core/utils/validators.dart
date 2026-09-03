@@ -47,6 +47,13 @@ abstract class Validators {
     return null;
   }
 
+  static String? lastFourDigits(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return 'Enter the last 4 digits';
+    if (trimmed.length != 4 || int.tryParse(trimmed) == null) return 'Enter exactly 4 digits';
+    return null;
+  }
+
   /// For fields that may legitimately be negative (e.g. a person's opening
   /// balance can start negative if you already owed them) — only rejects
   /// blank/non-numeric input, unlike [amount] which also requires > 0.

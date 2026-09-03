@@ -45,7 +45,6 @@ void main() {
     final expected = {
       TransactionKind.myExpense: 'My Expense',
       TransactionKind.myIncome: 'Income',
-      TransactionKind.transfer: 'Transfer',
       TransactionKind.splitExpense: 'Split Expense',
       TransactionKind.people: 'People',
       TransactionKind.bill: 'Bill',

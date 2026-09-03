@@ -31,7 +31,6 @@ final spendingTrendProvider =
       d: transactions
           .where((t) =>
               t.type == TransactionType.expense &&
-              !t.isTransfer &&
               args.period.reportDateFor(t).dateOnly == d)
           .fold(0.0, (sum, t) => sum + t.amount),
   };

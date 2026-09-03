@@ -389,16 +389,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   );
   late final _lastFourDigitsController = TextEditingController(text: widget.card?.lastFourDigits ?? '')
     ..addListener(() => setState(() {}));
-  late final _annualFeeController = TextEditingController(
-    text: widget.card == null || widget.card!.annualFee == 0 ? '' : widget.card!.annualFee.toStringAsFixed(2),
-  );
-  late final _joiningFeeController = TextEditingController(
-    text: widget.card == null || widget.card!.joiningFee == 0 ? '' : widget.card!.joiningFee.toStringAsFixed(2),
-  );
-  late final _interestRateController = TextEditingController(
-    text: widget.card?.interestRatePercent?.toString() ?? '',
-  );
-  late final _rewardNotesController = TextEditingController(text: widget.card?.rewardNotes ?? '');
   late final _autoDebitAccountController = TextEditingController(text: widget.card?.autoDebitAccount ?? '');
   late final _cardHolderNameController = TextEditingController(text: widget.card?.cardHolderName ?? '')
     ..addListener(() => setState(() {}));
@@ -489,10 +479,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
     _sharedLimitAmountController.dispose();
     _minimumDuePercentController.dispose();
     _lastFourDigitsController.dispose();
-    _annualFeeController.dispose();
-    _joiningFeeController.dispose();
-    _interestRateController.dispose();
-    _rewardNotesController.dispose();
     _autoDebitAccountController.dispose();
     _cardHolderNameController.dispose();
     _nicknameController.dispose();
@@ -532,12 +518,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         _sharedLimitNameController.text = bank?.name ?? '';
       }
     });
-  }
-
-  double? _parseOptionalAmount(String text) {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return null;
-    return double.tryParse(trimmed);
   }
 
   void _goToStep(int step) {
@@ -582,6 +562,10 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         (_isEditing && _limitSource == _LimitSource.newSharedLimit) || (!_isEditing && _addNewPairCard);
     final needsOwnCreditLimit =
         !needsSharedLimitAmount && !(_isEditing && _limitSource == _LimitSource.existingSharedLimit);
+    if (Validators.lastFourDigits(_lastFourDigitsController.text) != null) {
+      _showSaveError('Enter the last 4 digits of the card.');
+      return;
+    }
     if (statementDay == null || statementDay < 1 || statementDay > 31) {
       _showSaveError('Enter a valid statement day (1-31).');
       return;
@@ -604,6 +588,10 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         (int.tryParse(_pairStatementDayController.text.trim()) == null ||
             int.tryParse(_pairPaymentDueDayController.text.trim()) == null)) {
       _showSaveError('Enter valid statement and payment due days for the linked card.');
+      return;
+    }
+    if (addingLinkedCard && Validators.lastFourDigits(_pairLastFourDigitsController.text) != null) {
+      _showSaveError('Enter the last 4 digits of the linked card.');
       return;
     }
 
@@ -684,10 +672,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           status: _status,
           cardNetwork: _cardNetwork,
           lastFourDigits: lastFourDigits.isEmpty ? null : lastFourDigits,
-          annualFee: _parseOptionalAmount(_annualFeeController.text) ?? 0,
-          joiningFee: _parseOptionalAmount(_joiningFeeController.text) ?? 0,
-          interestRatePercent: _parseOptionalAmount(_interestRateController.text),
-          rewardNotes: _rewardNotesController.text.trim().isEmpty ? null : _rewardNotesController.text.trim(),
           autoDebitAccount: _autoPay && _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
@@ -724,10 +708,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           autoPay: _autoPay,
           cardNetwork: _cardNetwork,
           lastFourDigits: lastFourDigits.isEmpty ? null : lastFourDigits,
-          annualFee: _parseOptionalAmount(_annualFeeController.text) ?? 0,
-          joiningFee: _parseOptionalAmount(_joiningFeeController.text) ?? 0,
-          interestRatePercent: _parseOptionalAmount(_interestRateController.text),
-          rewardNotes: _rewardNotesController.text.trim().isEmpty ? null : _rewardNotesController.text.trim(),
           autoDebitAccount: _autoPay && _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
@@ -946,10 +926,11 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
           const SizedBox(height: AppSizes.sm),
           _PremiumField(
             controller: _pairLastFourDigitsController,
-            label: 'Last 4 digits (optional)',
+            label: 'Last 4 digits',
             prefixText: '•••• ',
             keyboardType: TextInputType.number,
             maxLength: 4,
+            validator: (v) => _addNewPairCard ? Validators.lastFourDigits(v) : null,
           ),
           const SizedBox(height: AppSizes.sm),
           Text(
@@ -1183,10 +1164,11 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
               _PremiumField(
                 controller: _lastFourDigitsController,
                 focusNode: _lastFourDigitsFocusNode,
-                label: 'Last 4 digits (optional)',
+                label: 'Last 4 digits',
                 prefixText: '•••• ',
                 keyboardType: TextInputType.number,
                 maxLength: 4,
+                validator: Validators.lastFourDigits,
               ),
             ],
           ),
@@ -1350,7 +1332,7 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
               Text('Fees & extras', style: context.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: AppSizes.sm),
               Text(
-                'Optional — annual fee, minimum due, rewards, and auto pay.',
+                'Optional — minimum due and auto pay.',
                 style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
               ),
               const SizedBox(height: AppSizes.md),
@@ -1361,32 +1343,6 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                 suffixText: '%',
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
-              const SizedBox(height: AppSizes.sm),
-              _PremiumField(
-                controller: _annualFeeController,
-                label: 'Annual fee (optional)',
-                prefixIcon: Icons.local_offer_outlined,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              ),
-              const SizedBox(height: AppSizes.sm),
-              _PremiumField(
-                controller: _joiningFeeController,
-                label: 'Joining fee (optional)',
-                prefixIcon: Icons.card_giftcard_outlined,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              ),
-              const SizedBox(height: AppSizes.sm),
-              _PremiumField(
-                controller: _interestRateController,
-                label: 'Interest rate (%)',
-                helperText: 'For your reference only — not used in any calculation.',
-                suffixText: '%',
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              ),
-              const SizedBox(height: AppSizes.sm),
-              _PremiumField(controller: _rewardNotesController, label: 'Reward / cashback notes (optional)'),
-              const SizedBox(height: AppSizes.sm),
-              _PremiumField(controller: _notesController, label: 'Notes (optional)'),
               const SizedBox(height: AppSizes.md),
               Material(
                 type: MaterialType.transparency,

@@ -23,6 +23,7 @@ import 'package:finance_app/features/people/domain/ledger_entry.dart';
 import 'package:finance_app/features/people/domain/person.dart';
 import 'package:finance_app/features/transactions/data/transaction_repository.dart';
 import 'package:finance_app/features/transactions/domain/transaction.dart';
+import 'package:finance_app/features/transactions/domain/transaction_type.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Covers the account permanent-delete cascade — the replacement for
@@ -152,21 +153,15 @@ void main() {
   }
 
   group('previewAccountDeletionImpact', () {
-    test('counts transactions, transfer siblings, expenses, affected people, and bills', () async {
+    test('counts transactions, expenses, affected people, and bills', () async {
       final account = await seedAccount();
-      final survivor = await accountRepository.createAccount(
-        name: 'Survivor',
-        type: AccountType.cash,
-        openingBalance: 500,
-        colorValue: 0xFF000000,
-      );
 
-      await transactionRepository.createTransferPair(
+      await transactionRepository.createTransaction(
+        type: TransactionType.expense,
         amount: 200,
         dateTime: DateTime(2026, 1, 5),
-        sourceAccountId: account.id,
-        destinationAccountId: survivor.id,
-        categoryId: 'cat-transfer',
+        accountId: account.id,
+        categoryId: 'cat-misc',
       );
 
       final person = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0, openingBalance: 0);
@@ -190,8 +185,7 @@ void main() {
 
       final impact = await previewAccountDeletionImpact(account.id, repos);
 
-      expect(impact.transactionCount, 2); // transfer-out leg + expense's own transaction
-      expect(impact.transferSiblingCount, 1);
+      expect(impact.transactionCount, 2); // plain expense + expense's own transaction
       expect(impact.expenseCount, 1);
       expect(impact.affectedPersonCount, 1);
       expect(impact.billCount, 1);
@@ -199,24 +193,16 @@ void main() {
   });
 
   group('permanentlyDeleteAccountHistory', () {
-    test('deletes every transaction on the account and reverses a transfer sibling on its surviving account', () async {
+    test('deletes every transaction on the account', () async {
       final account = await seedAccount();
-      final survivor = await accountRepository.createAccount(
-        name: 'Survivor',
-        type: AccountType.cash,
-        openingBalance: 500,
-        colorValue: 0xFF000000,
-      );
 
-      await transactionRepository.createTransferPair(
+      await transactionRepository.createTransaction(
+        type: TransactionType.expense,
         amount: 250,
         dateTime: DateTime(2026, 1, 5),
-        sourceAccountId: account.id,
-        destinationAccountId: survivor.id,
-        categoryId: 'cat-transfer',
+        accountId: account.id,
+        categoryId: 'cat-misc',
       );
-      final survivorAfterTransfer = await accountRepository.getByKey(survivor.id);
-      expect(survivorAfterTransfer!.currentBalance, 750); // +250 from the transfer-in leg
 
       await permanentlyDeleteAccountHistory(account.id, repos);
 
@@ -225,11 +211,6 @@ void main() {
         ...await transactionRepository.getTrash(),
       ];
       expect(remainingTransactions, isEmpty);
-
-      // The sibling leg's effect (+250 income) on the surviving account must be
-      // reversed now that leg is gone, back to the pre-transfer balance.
-      final survivorAfterDelete = await accountRepository.getByKey(survivor.id);
-      expect(survivorAfterDelete!.currentBalance, 500);
     });
 
     test('reverses and removes a split expense\'s ledger entries, its schedule/installments, and the expense itself', () async {

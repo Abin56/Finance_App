@@ -152,9 +152,7 @@ abstract class SearchBuilder {
         title: t.description.isNotEmpty ? t.description : t.type.label,
         subtitle: [category?.name, accountName].whereType<String>().join(' · '),
         icon: category != null ? CategoryIcons.iconFor(category.iconKey) : t.type.icon,
-        kind: t.isTransfer
-            ? TransactionKind.transfer
-            : (t.type == TransactionType.income ? TransactionKind.myIncome : TransactionKind.myExpense),
+        kind: t.type == TransactionType.income ? TransactionKind.myIncome : TransactionKind.myExpense,
         amount: t.amount,
         date: t.dateTime,
         routePath: '${AppRoutes.transactions}/${t.id}',

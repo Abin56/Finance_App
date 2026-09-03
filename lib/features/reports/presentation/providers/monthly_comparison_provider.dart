@@ -23,7 +23,6 @@ final monthlyComparisonProvider = Provider.family<AppBarChartData, int>((ref, mo
     return transactions
         .where((t) =>
             t.type == type &&
-            !t.isTransfer &&
             t.dateTime.year == month.year &&
             t.dateTime.month == month.month)
         .fold(0.0, (sum, t) => sum + t.amount);

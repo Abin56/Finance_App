@@ -41,14 +41,12 @@ class CashFlowChart extends StatelessWidget {
     }
     if (weeks.isEmpty) weeks.add(periodStart.startOfWeek);
 
-    // Transfers between the user's own accounts aren't real income/expense —
-    // excluded so a transfer's two legs don't inflate both bars.
     double totalFor(DateTime weekStart, TransactionType type) {
       final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
       return transactions
           .where((t) {
             final d = period.reportDateFor(t);
-            return t.type == type && !t.isTransfer && !d.isBefore(weekStart) && !d.isAfter(weekEnd);
+            return t.type == type && !d.isBefore(weekStart) && !d.isAfter(weekEnd);
           })
           .fold(0.0, (total, t) => total + t.amount);
     }

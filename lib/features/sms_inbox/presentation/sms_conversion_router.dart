@@ -13,7 +13,6 @@ import '../../expense/presentation/widgets/split_expense_form_sheet.dart';
 import '../../lending/presentation/widgets/record_loan_payment_sheet.dart';
 import '../../transactions/domain/transaction_type.dart';
 import '../../transactions/presentation/screens/add_expense_screen.dart';
-import '../../transactions/presentation/screens/transfer_screen.dart';
 import '../../transactions/presentation/widgets/money_received_sheet.dart';
 import '../domain/account_card_matcher.dart';
 import '../domain/sms_conversion_target.dart';
@@ -156,18 +155,6 @@ class SmsConversionRouter {
           ),
         );
         return;
-      case SmsConversionTarget.transferBetweenAccounts:
-        // Source account guessed from the masked number where possible;
-        // destination is always left for the user, since an SMS never states
-        // which of the user's own accounts it moved into.
-        await TransferScreen.show(
-          context,
-          smsPrefill: _buildPrefill(
-            ref,
-            item,
-            transactionType: TransactionType.expense,
-          ),
-        );
     }
   }
 

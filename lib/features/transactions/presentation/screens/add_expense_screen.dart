@@ -164,17 +164,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     });
   }
 
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_dateTime),
-    );
-    if (picked == null) return;
-    setState(() {
-      _dateTime = DateTime(_dateTime.year, _dateTime.month, _dateTime.day, picked.hour, picked.minute);
-    });
-  }
-
   Future<void> _pickPerson() async {
     final picked = await showPersonPickerSheet(context);
     if (picked == null) return;
@@ -328,7 +317,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     try {
       final repository = ref.read(transactionRepositoryProvider);
       final amount = double.parse(_amountController.text.trim());
-      final description = _descriptionController.text.trim();
+      final descriptionInput = _descriptionController.text.trim();
+      final categories = ref.read(categoriesForTypeProvider(_type));
+      final description = descriptionInput.isNotEmpty
+          ? descriptionInput
+          : categories.where((c) => c.id == _categoryId).firstOrNull?.name ?? (_type == TransactionType.income ? 'Income' : 'Expense');
 
       final accountingMonth = _customAccountingMonth ? _accountingMonth : null;
       final wasOwed = _initialOwesPersonToggle && _initialLinkedPersonId != null;
@@ -523,6 +516,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     !categories.any((c) => c.id == _categoryId)) {
                                   _categoryId = null;
                                 }
+                                if (_type == TransactionType.income) {
+                                  final accounts = accountsAsync.value ?? const [];
+                                  final selectedAccount = accounts.where((a) => a.id == _accountId).firstOrNull;
+                                  if (selectedAccount != null && selectedAccount.type == AccountType.card) {
+                                    _accountId = null;
+                                  }
+                                }
                               });
                             },
                           ),
@@ -542,13 +542,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             onFieldSubmitted: (_) => _descriptionFocusNode.requestFocus(),
                           ),
                           const SizedBox(height: AppSizes.sm),
-                          Text.rich(
-                            TextSpan(
-                              text: 'Description',
-                              style: context.textTheme.labelMedium,
-                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
-                            ),
-                          ),
+                          Text('Description (optional)', style: context.textTheme.labelMedium),
                           const SizedBox(height: AppSizes.xs),
                           TextFormField(
                             controller: _descriptionController,
@@ -572,18 +566,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                     ),
                             ),
                             maxLength: 100,
-                            validator: Validators.required,
-                            textInputAction: TextInputAction.next,
-                            onChanged: (_) => setState(() {}),
-                          ),
-                          const SizedBox(height: AppSizes.sm),
-                          Text('Notes (optional)', style: context.textTheme.labelMedium),
-                          const SizedBox(height: AppSizes.xs),
-                          TextFormField(
-                            controller: _notesController,
-                            decoration: _premiumDecoration(context),
-                            maxLines: 2,
                             textInputAction: TextInputAction.done,
+                            onChanged: (_) => setState(() {}),
                           ),
                         ],
                       ),
@@ -668,30 +652,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           const SizedBox(height: AppSizes.sm),
                           Text.rich(
                             TextSpan(
-                              text: 'Date & Time',
+                              text: 'Date',
                               style: context.textTheme.labelMedium,
                               children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
                             ),
                           ),
                           const SizedBox(height: AppSizes.xs),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _PremiumTapButton(
-                                  onTap: _pickDate,
-                                  icon: Icons.calendar_today_outlined,
-                                  label: _dateTime.fullDate,
-                                ),
-                              ),
-                              const SizedBox(width: AppSizes.sm),
-                              Expanded(
-                                child: _PremiumTapButton(
-                                  onTap: _pickTime,
-                                  icon: Icons.access_time_outlined,
-                                  label: TimeOfDay.fromDateTime(_dateTime).format(context),
-                                ),
-                              ),
-                            ],
+                          _PremiumTapButton(
+                            onTap: _pickDate,
+                            icon: Icons.calendar_today_outlined,
+                            label: _dateTime.fullDate,
                           ),
                           const SizedBox(height: AppSizes.sm),
                           Text.rich(
@@ -706,11 +676,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             loading: () => const LinearProgressIndicator(),
                             error: (error, _) => Text('Could not load payment methods: $error'),
                             data: (accounts) {
+                              final eligibleAccounts = _type == TransactionType.income
+                                  ? accounts.where((account) => account.type != AccountType.card).toList()
+                                  : accounts;
                               return Wrap(
                                 spacing: AppSizes.sm,
                                 runSpacing: AppSizes.sm,
                                 children: [
-                                  for (final account in accounts)
+                                  for (final account in eligibleAccounts)
                                     _PaymentMethodChip(
                                       account: account,
                                       creditCards: creditCards,

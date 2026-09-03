@@ -105,18 +105,11 @@ abstract class HistoryBuilder {
             : HistoryCategory.transaction;
     final isCredit = transaction.type == TransactionType.income;
 
-    // A transfer leg overrides every other classification — moving money
-    // between the user's own accounts is never "my expense"/"my income"
-    // even though it carries a TransactionType direction, and can't itself
-    // be a split expense (see `Expense.isSplit`'s own transaction, which is
-    // never a transfer leg).
-    final kind = transaction.isTransfer
-        ? TransactionKind.transfer
-        : splitExpense != null
-            ? TransactionKind.splitExpense
-            : isCredit
-                ? TransactionKind.myIncome
-                : TransactionKind.myExpense;
+    final kind = splitExpense != null
+        ? TransactionKind.splitExpense
+        : isCredit
+            ? TransactionKind.myIncome
+            : TransactionKind.myExpense;
 
     return HistoryEntry(
       id: 'txn-${transaction.id}',

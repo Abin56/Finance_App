@@ -5,6 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
 import '../../../../core/utils/account_display_name.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/bank_picker_sheet.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
@@ -269,11 +270,12 @@ class _AddCardToSharedLimitSheetState extends ConsumerState<AddCardToSharedLimit
               TextFormField(
                 controller: _lastFourDigitsController,
                 decoration: const InputDecoration(
-                  labelText: 'Last 4 digits (optional)',
+                  labelText: 'Last 4 digits',
                   prefixText: '•••• ',
                 ),
                 keyboardType: TextInputType.number,
                 maxLength: 4,
+                validator: Validators.lastFourDigits,
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSizes.md),

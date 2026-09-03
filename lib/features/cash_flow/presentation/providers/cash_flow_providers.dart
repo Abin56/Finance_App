@@ -389,10 +389,7 @@ final _billsPaidThisMonthProvider = Provider<double>((ref) {
 final cashFlowThisMonthProvider = Provider<CashFlowSummary>((ref) {
   final now = DateTime.now();
   final transactions = ref.watch(calculableTransactionsProvider);
-  // Transfers between the user's own accounts aren't real income/expense —
-  // excluded so a transfer's two legs don't inflate both Money In and
-  // Money Out.
-  final monthTransactions = transactions.where((t) => t.effectiveMonth.isSameMonth(now) && !t.isDeleted && !t.isTransfer);
+  final monthTransactions = transactions.where((t) => t.effectiveMonth.isSameMonth(now) && !t.isDeleted);
 
   final income = monthTransactions
       .where((t) => t.type == TransactionType.income)

@@ -157,29 +157,6 @@ class _StatsCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _Stat(
-                  icon: Icons.call_received_rounded,
-                  label: 'Transfers In',
-                  value: stats.transfersIn,
-                  color: AppClay.income,
-                ),
-              ),
-              const SizedBox(width: AppSizes.sm),
-              Expanded(
-                child: _Stat(
-                  icon: Icons.call_made_rounded,
-                  label: 'Transfers Out',
-                  value: stats.transfersOut,
-                  color: AppClay.expense,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );

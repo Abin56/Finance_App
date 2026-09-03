@@ -74,8 +74,6 @@ double _amountFor(Ref ref, FinancialViewModule module, DateRangeStrategy strateg
           _creditCardPaid(ref, range);
     case FinancialViewModule.income:
       return _income(ref, strategy, range);
-    case FinancialViewModule.transfers:
-      return _transfers(ref, strategy, range);
     case FinancialViewModule.netCashFlow:
       final moneyIn = _income(ref, strategy, range);
       final moneyOut = _myExpenses(ref, strategy, range) +
@@ -129,7 +127,7 @@ DateTime _bucketDateFor(DateRangeStrategy strategy, Transaction transaction) {
 List<Transaction> _expenseTransactionsInRange(Ref ref, DateRangeStrategy strategy, DateRange range) {
   final transactions = ref.watch(calculableTransactionsProvider);
   return transactions
-      .where((t) => t.type == TransactionType.expense && !t.isTransfer && range.contains(_bucketDateFor(strategy, t)))
+      .where((t) => t.type == TransactionType.expense && range.contains(_bucketDateFor(strategy, t)))
       .toList();
 }
 
@@ -152,26 +150,11 @@ double _sharedExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
   return ref.watch(othersShareForTransactionsProvider(transactions));
 }
 
-/// Real income transactions in [range] — transfers excluded since a
-/// transfer between the user's own accounts isn't real income, matching
-/// every other aggregation in the app ([Transaction.isTransfer]).
+/// Real income transactions in [range].
 double _income(Ref ref, DateRangeStrategy strategy, DateRange range) {
   final transactions = ref.watch(calculableTransactionsProvider);
   return transactions
-      .where((t) => t.type == TransactionType.income && !t.isTransfer && range.contains(_bucketDateFor(strategy, t)))
-      .fold(0.0, (sum, t) => sum + t.amount);
-}
-
-/// Sum of one leg of every transfer pair whose date falls in [range] — each
-/// transfer posts two transactions sharing a `transferId`, so this counts
-/// only the expense (outgoing) leg to avoid double-counting the same
-/// transfer twice.
-double _transfers(Ref ref, DateRangeStrategy strategy, DateRange range) {
-  final transactions = ref.watch(calculableTransactionsProvider);
-  return transactions
-      .where(
-        (t) => t.isTransfer && t.type == TransactionType.expense && range.contains(_bucketDateFor(strategy, t)),
-      )
+      .where((t) => t.type == TransactionType.income && range.contains(_bucketDateFor(strategy, t)))
       .fold(0.0, (sum, t) => sum + t.amount);
 }
 
