@@ -101,6 +101,7 @@ class _ParticipantRow {
   String? personId;
   final TextEditingController nameController = TextEditingController();
   final TextEditingController valueController = TextEditingController();
+  final FocusNode nameFocusNode = FocusNode();
 
   /// [SplitType.custom] only: false = auto — this row shares whatever's left
   /// of the total equally with the other unlocked rows; true = pinned to
@@ -115,6 +116,7 @@ class _ParticipantRow {
   void dispose() {
     nameController.dispose();
     valueController.dispose();
+    nameFocusNode.dispose();
   }
 }
 
@@ -1265,15 +1267,10 @@ class _MixedSplitSummary extends StatelessWidget {
   }
 }
 
-/// Sentinel dropdown value that opens [PersonFormSheet] instead of
-/// selecting a person — Task 1's "create new person" one-tap ask.
-const _newPersonSentinel = '__new_person__';
-
-/// One participant row: pick an existing person from a searchable dropdown,
-/// type a free-text name to add someone not tracked as a [Person], or
-/// create a brand-new person without leaving this sheet. Selecting a person
-/// fills the name field with their name and clears it if the dropdown
-/// selection is cleared.
+/// One participant row: a single name field that doubles as an autocomplete
+/// picker for existing [Person]s and a free-text entry for someone not
+/// tracked as a person. Selecting a suggestion links [_ParticipantRow.personId];
+/// editing the text away from the linked person's name unlinks it again.
 class _ParticipantField extends StatefulWidget {
   const _ParticipantField({
     required this.row,
@@ -1313,103 +1310,90 @@ class _ParticipantField extends StatefulWidget {
 }
 
 class _ParticipantFieldState extends State<_ParticipantField> {
-  final _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final row = widget.row;
-    final validPersonId = widget.people.any((p) => p.id == row.personId) ? row.personId : null;
-    final query = _searchController.text.trim().toLowerCase();
-    final filteredPeople = query.isEmpty
-        ? widget.people
-        : widget.people.where((p) => p.name.toLowerCase().contains(query)).toList();
+
+    // Clears the personId link once the typed name no longer matches the
+    // linked person — keeps a single field acting as both picker and
+    // free-text input without a second "Name" column.
+    void handleTextChanged(String text) {
+      if (row.personId != null) {
+        final linked = widget.people.where((p) => p.id == row.personId).firstOrNull;
+        if (linked == null || linked.name != text) row.personId = null;
+      }
+      widget.onChanged();
+    }
+
+    final nameField = RawAutocomplete<Person>(
+      textEditingController: row.nameController,
+      focusNode: row.nameFocusNode,
+      optionsBuilder: (value) {
+        final query = value.text.trim().toLowerCase();
+        if (query.isEmpty) return widget.people;
+        return widget.people.where((p) => p.name.toLowerCase().contains(query));
+      },
+      displayStringForOption: (person) => person.name,
+      onSelected: (person) {
+        row.personId = person.id;
+        row.nameController.text = person.name;
+        widget.onChanged();
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: _premiumDecoration(context, label: 'Name'),
+          style: Theme.of(context).textTheme.bodyMedium,
+          onChanged: (value) => setState(() => handleTextChanged(value)),
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 240),
+              child: ListView(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                children: [
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.person_add_alt_1_rounded, size: AppSizes.iconSm),
+                    title: const Text('Add new person'),
+                    onTap: widget.onCreateNewPerson,
+                  ),
+                  for (final person in options)
+                    ListTile(
+                      dense: true,
+                      title: Text(person.name, overflow: TextOverflow.ellipsis),
+                      onTap: () => onSelected(person),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
 
     final content = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
           flex: 3,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.people.length > 5)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: _premiumDecoration(
-                      context,
-                      label: 'Search people',
-                      prefixIcon: const Icon(Icons.search_rounded, size: AppSizes.iconSm),
-                    ),
-                    style: Theme.of(context).textTheme.bodyMedium,
-                    onChanged: (_) => setState(() {}),
-                  ),
-                ),
-              DropdownButtonFormField<String?>(
-                initialValue: validPersonId,
-                isExpanded: true,
-                decoration: _premiumDecoration(context, label: 'Person (optional)'),
-                style: Theme.of(context).textTheme.bodyMedium,
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('Type a name instead', overflow: TextOverflow.ellipsis),
-                  ),
-                  const DropdownMenuItem<String?>(
-                    value: _newPersonSentinel,
-                    child: Text('+ Add new person', overflow: TextOverflow.ellipsis),
-                  ),
-                  for (final person in filteredPeople)
-                    DropdownMenuItem<String?>(
-                      value: person.id,
-                      child: Text(person.name, overflow: TextOverflow.ellipsis),
-                    ),
-                ],
-                onChanged: (value) {
-                  if (value == _newPersonSentinel) {
-                    widget.onCreateNewPerson();
-                    return;
-                  }
-                  row.personId = value;
-                  if (value != null) {
-                    final person = widget.people.firstWhere((p) => p.id == value);
-                    row.nameController.text = person.name;
-                  }
-                  widget.onChanged();
-                },
-              ),
-              const SizedBox(height: AppSizes.sm),
-              if (widget.mixedMode)
-                Row(
+          child: widget.mixedMode
+              ? Row(
                   children: [
                     _PersonAvatar(name: row.nameController.text),
                     const SizedBox(width: AppSizes.sm),
-                    Expanded(
-                      child: TextFormField(
-                        controller: row.nameController,
-                        decoration: _premiumDecoration(context, label: 'Name'),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        onChanged: (_) => setState(() => widget.onChanged()),
-                      ),
-                    ),
+                    Expanded(child: nameField),
                   ],
                 )
-              else
-                TextFormField(
-                  controller: row.nameController,
-                  decoration: _premiumDecoration(context, label: 'Name'),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  onChanged: (_) => widget.onChanged(),
-                ),
-            ],
-          ),
+              : nameField,
         ),
         if (widget.showValueField) ...[
           const SizedBox(width: AppSizes.sm),

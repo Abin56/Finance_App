@@ -22,17 +22,18 @@ String cardDisplayName({BankInfo? bank, String? networkLabel, String? last4}) {
     if (networkLabel != null && networkLabel.isNotEmpty) networkLabel,
   ].join(' ');
   final label = prefix.isEmpty ? 'Credit Card' : prefix;
-  if (last4 != null && last4.isNotEmpty) return '$label • ****$last4';
+  if (last4 != null && last4.isNotEmpty) return '$label **$last4';
   return label;
 }
 
 /// Label for [account] in an account/card picker (dropdown, chip, etc.) —
-/// appends " •••• {lastFourDigits}" when [account] is a card-type account
-/// with a linked [CreditCardProfile] that has last-4 digits on file, so
-/// otherwise-identically-named cards (e.g. two accounts both named
-/// "Freedom") are distinguishable. Every other account (cash, bank, wallet,
-/// business, other — or a card with no digits set) falls back to the plain
-/// [Account.name], unchanged. Distinct from [cardDisplayName]/
+/// appends " **{lastFourDigits}" when [account] is a card-type account with
+/// a linked [CreditCardProfile] that has last-4 digits on file and the
+/// account name doesn't already include them, so otherwise-identically-named
+/// cards (e.g. two accounts both named "Freedom") are distinguishable.
+/// Every other account (cash, bank, wallet, business, other — or a card with
+/// no digits set, or whose name already ends with those digits) falls back
+/// to the plain [Account.name], unchanged. Distinct from [cardDisplayName]/
 /// [bankAccountDisplayName]: those compute a name once at account-creation
 /// time (baked into [Account.name]); this resolves live against the
 /// account's *current* linked [CreditCardProfile] every time a picker
@@ -43,5 +44,6 @@ String accountPickerLabel(Account account, List<CreditCardProfile> creditCards) 
   final card = creditCards.where((c) => c.accountId == account.id).firstOrNull;
   final last4 = card?.lastFourDigits;
   if (last4 == null || last4.isEmpty) return account.name;
-  return '${account.name} •••• $last4';
+  if (account.name.endsWith(last4)) return account.name;
+  return '${account.name} **$last4';
 }

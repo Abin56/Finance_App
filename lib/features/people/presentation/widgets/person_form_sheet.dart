@@ -36,14 +36,11 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.person?.name);
   late final _phoneController = TextEditingController(text: widget.person?.phone);
-  late final _emailController = TextEditingController(text: widget.person?.email);
-  late final _notesController = TextEditingController(text: widget.person?.notes ?? '');
   late final _openingBalanceController = TextEditingController(
     text: widget.person == null ? '0' : widget.person!.openingBalance.toStringAsFixed(2),
   );
   late int _avatarColorValue = widget.person?.avatarColorValue ?? AppColors.categoryPalette.first.toARGB32();
   final _phoneFocusNode = FocusNode();
-  final _emailFocusNode = FocusNode();
   bool _isSaving = false;
 
   bool get _isEditing => widget.person != null;
@@ -52,11 +49,8 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
-    _notesController.dispose();
     _openingBalanceController.dispose();
     _phoneFocusNode.dispose();
-    _emailFocusNode.dispose();
     super.dispose();
   }
 
@@ -67,23 +61,18 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
     try {
       final repository = ref.read(personRepositoryProvider);
       final phone = _phoneController.text.trim();
-      final email = _emailController.text.trim();
 
       if (_isEditing) {
         await repository.editPerson(
           widget.person!,
           name: _nameController.text.trim(),
           phone: phone.isEmpty ? null : phone,
-          email: email.isEmpty ? null : email,
-          notes: _notesController.text.trim(),
           avatarColorValue: _avatarColorValue,
         );
       } else {
         await repository.createPerson(
           name: _nameController.text.trim(),
           phone: phone.isEmpty ? null : phone,
-          email: email.isEmpty ? null : email,
-          notes: _notesController.text.trim(),
           avatarColorValue: _avatarColorValue,
           openingBalance: double.parse(_openingBalanceController.text.trim()),
         );
@@ -129,17 +118,6 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
               style: Theme.of(context).textTheme.bodyMedium,
               keyboardType: TextInputType.phone,
               validator: Validators.phone,
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
-            ),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
-              controller: _emailController,
-              focusNode: _emailFocusNode,
-              decoration: _premiumDecoration(context, label: 'Email (optional)'),
-              style: Theme.of(context).textTheme.bodyMedium,
-              keyboardType: TextInputType.emailAddress,
-              validator: Validators.email,
               textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: AppSizes.md),
@@ -165,16 +143,6 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
             ColorSwatchPicker(
               value: Color(_avatarColorValue),
               onChanged: (color) => setState(() => _avatarColorValue = color.toARGB32()),
-            ),
-            const SizedBox(height: AppSizes.md),
-            const SectionLabel('Notes'),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
-              controller: _notesController,
-              decoration: _premiumDecoration(context, label: 'Notes (optional)'),
-              style: Theme.of(context).textTheme.bodyMedium,
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
             ),
           ],
         ),

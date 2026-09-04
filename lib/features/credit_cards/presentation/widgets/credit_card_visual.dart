@@ -12,6 +12,11 @@ import '../../domain/card_network.dart';
 /// deep charcoal-navy shadow instead, reading as brushed metal rather than
 /// plain gray. Shared by every screen that paints a card face so a silver
 /// card always looks the same wherever it's shown.
+/// Corner radius for a bank-card face — deliberately rounder than the app's
+/// otherwise-flat, sharp-cornered [AppSizes] radii (all 0 except the pill),
+/// since a physical card reads wrong with square corners.
+const double cardFaceRadius = 20;
+
 List<Color> cardFaceGradientColors(Color base) {
   final hsl = HSLColor.fromColor(base);
   if (hsl.saturation < 0.18) {
@@ -66,7 +71,7 @@ class CreditCardVisual extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+          borderRadius: BorderRadius.circular(cardFaceRadius * 0.6),
         ),
         child: Row(
           children: [
@@ -118,7 +123,7 @@ class CreditCardVisual extends StatelessWidget {
         padding: const EdgeInsets.all(AppSizes.md),
         decoration: BoxDecoration(
           gradient: gradient,
-          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+          borderRadius: BorderRadius.circular(cardFaceRadius),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

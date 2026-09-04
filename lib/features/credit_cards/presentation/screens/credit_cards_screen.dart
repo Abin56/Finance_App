@@ -263,12 +263,12 @@ class _AddCardButton extends StatelessWidget {
   }
 }
 
-/// A fanned wallet-card deck — the front card sits flush left at full
-/// width, and every other card peeks out from behind its right edge as a
-/// thin colored sliver (narrower/more-covered the further back it sits),
-/// matching the reference design's stacked-deck look. Tapping a peeking
-/// sliver brings that card to the front; tapping the front card opens it.
-class _HeroCarousel extends StatelessWidget {
+/// A swipeable center-focused carousel — the current card sits front and
+/// center at full size, with its neighbors peeking in from the sides at a
+/// reduced scale/opacity, growing to full size as they're swiped to center.
+/// Tapping the centered card opens it; tapping a side neighbor swipes it to
+/// center.
+class _HeroCarousel extends StatefulWidget {
   const _HeroCarousel({
     required this.cards,
     required this.accountNameById,
@@ -286,97 +286,105 @@ class _HeroCarousel extends StatelessWidget {
   final ValueChanged<int> onFrontIndexChanged;
 
   @override
+  State<_HeroCarousel> createState() => _HeroCarouselState();
+}
+
+class _HeroCarouselState extends State<_HeroCarousel> {
+  // Fractional peek of each neighbor card, so the PageView reads as a
+  // center-focused carousel rather than one full-bleed page per card.
+  static const double _viewportFraction = 0.82;
+
+  late final PageController _controller = PageController(
+    viewportFraction: _viewportFraction,
+    initialPage: widget.frontIndex,
+  );
+
+  @override
+  void didUpdateWidget(covariant _HeroCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Keep the page in sync when the front index changes from outside this
+    // widget (e.g. the card list below jumping the carousel to a card).
+    if (widget.frontIndex != oldWidget.frontIndex && _controller.hasClients) {
+      final current = _controller.page?.round();
+      if (current != widget.frontIndex) {
+        _controller.animateToPage(
+          widget.frontIndex,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final count = cards.length;
-    // Every card after the front one peeks by this many pixels of its
-    // right edge, stacked in order so the deck reads back-to-front, left
-    // to right — the reference design's fanned wallet look.
-    const peekWidth = 26.0;
-    const maxPeeks = 4;
-    final behindCount = (count - 1).clamp(0, maxPeeks);
-
     return AspectRatio(
-      aspectRatio: 1.85,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final frontWidth = constraints.maxWidth - (peekWidth * behindCount);
-          // Deck order behind the front card, nearest-behind first.
-          final order = [
-            for (var offset = 1; offset < count; offset++) (frontIndex + offset) % count,
-          ];
-
-          return Stack(
-            children: [
-              // Painted back-to-front so nearer cards' slivers sit on top.
-              for (var i = order.length - 1; i >= 0; i--)
-                _buildPeekingCard(context, order[i], depth: i, peekWidth: peekWidth, maxPeeks: maxPeeks),
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: frontWidth,
+      aspectRatio: 1.62,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollEndNotification) {
+            final settled = _controller.page?.round();
+            if (settled != null && settled != widget.frontIndex) {
+              widget.onFrontIndexChanged(settled);
+            }
+          }
+          return false;
+        },
+        child: PageView.builder(
+          controller: _controller,
+          itemCount: widget.cards.length,
+          onPageChanged: widget.onFrontIndexChanged,
+          itemBuilder: (context, index) {
+            final card = widget.cards[index];
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                // Distance of this page from the currently-centered page,
+                // clamped to a full page so the shrink/fade never overshoots
+                // mid-swipe. Falls back to the static index delta before the
+                // controller is attached to a viewport.
+                final page = _controller.hasClients
+                    ? (_controller.page ?? widget.frontIndex.toDouble())
+                    : widget.frontIndex.toDouble();
+                final delta = (page - index).clamp(-1.0, 1.0).abs();
+                final scale = 1.0 - (delta * 0.16);
+                final opacity = 1.0 - (delta * 0.4);
+                return Transform.scale(
+                  scale: scale,
+                  child: Opacity(opacity: opacity, child: child),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
                 child: GestureDetector(
-                  onTap: () => _CardQuickDetailSheet.show(context, card: cards[frontIndex]),
-                  onHorizontalDragEnd: count > 1
-                      ? (details) {
-                          final velocity = details.primaryVelocity ?? 0;
-                          if (velocity < -100) {
-                            onFrontIndexChanged((frontIndex + 1) % count);
-                          } else if (velocity > 100) {
-                            onFrontIndexChanged((frontIndex - 1 + count) % count);
-                          }
-                        }
-                      : null,
+                  onTap: () {
+                    if (index == widget.frontIndex) {
+                      _CardQuickDetailSheet.show(context, card: card);
+                    } else {
+                      _controller.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
+                  },
                   child: _HeroCardFace(
-                    key: ValueKey(cards[frontIndex].id),
-                    card: cards[frontIndex],
-                    name: accountNameById[cards[frontIndex].accountId] ?? 'Card',
-                    bankId: accountBankIdById[cards[frontIndex].accountId],
-                    colorValue: accountColorById[cards[frontIndex].accountId],
+                    key: ValueKey(card.id),
+                    card: card,
+                    name: widget.accountNameById[card.accountId] ?? 'Card',
+                    bankId: widget.accountBankIdById[card.accountId],
+                    colorValue: widget.accountColorById[card.accountId],
                   ),
                 ),
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPeekingCard(
-    BuildContext context,
-    int index, {
-    required int depth,
-    required double peekWidth,
-    required int maxPeeks,
-  }) {
-    if (depth >= maxPeeks) return const SizedBox.shrink();
-    final card = cards[index];
-    final colorValue = accountColorById[card.accountId] ?? _defaultCardColorValue;
-    // The gradient's own highlight stop, not the raw stored color — a
-    // low-saturation pick (e.g. "Silver") would otherwise fade to a flat
-    // gray sliver instead of matching the richer face it peeks out from.
-    final base = cardFaceGradientColors(Color(colorValue)).first;
-    // Each card behind the front one occupies its own fixed-width slot,
-    // shifted further right the deeper it sits — rather than a single
-    // widening block — so every card's own right edge stays visible as a
-    // distinct sliver, each set slightly further back (smaller, darker),
-    // matching the reference design's fanned-deck look.
-    const gap = 3.0;
-    final inset = 6.0 * depth;
-
-    return Positioned(
-      right: peekWidth * depth,
-      top: inset,
-      bottom: inset,
-      width: peekWidth - gap,
-      child: GestureDetector(
-        onTap: () => onFrontIndexChanged(index),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Color.lerp(base, Colors.black, 0.15 + (depth * 0.15)),
-            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -395,7 +403,7 @@ class _HeroCardFace extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        borderRadius: BorderRadius.circular(cardFaceRadius),
         boxShadow: AppShadows.soft(context),
       ),
       // The hero slot's own AspectRatio (1.62, to leave room for the fanned
@@ -1198,6 +1206,7 @@ class _CardListThumbnail extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: cardFaceGradientColors(base),
         ),
+        borderRadius: BorderRadius.circular(cardFaceRadius * 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

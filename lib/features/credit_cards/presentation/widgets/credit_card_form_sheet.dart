@@ -402,6 +402,11 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   late CreditCardStatus _status = widget.card?.status ?? CreditCardStatus.active;
   late CardNetwork? _cardNetwork = widget.card?.cardNetwork;
 
+  /// Set once the user tries to leave step 1 without picking a network —
+  /// the chip row has no built-in [Form] validation, so this drives its
+  /// own inline error text.
+  bool _networkError = false;
+
   /// How this card's limit is sourced — see [_LimitSource]. Initialized once
   /// the current shared limit (if any) is known, in [initState]/[build].
   /// Only driven directly by the user in **edit** mode; in add mode, the
@@ -526,11 +531,23 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
   }
 
   void _next() {
+    if (_step == 0 && !_validateBasicsStep()) return;
     if (_step == _stepCount - 1) {
       _save();
       return;
     }
     _goToStep(_step + 1);
+  }
+
+  /// Step 1's fields build lazily per-[PageView] page, so the shared
+  /// [_formKey]'s `validate()` only reaches them while step 1 is the
+  /// visible page — this runs that check (plus the network chip row,
+  /// which has no [Form] tie-in of its own) before advancing.
+  bool _validateBasicsStep() {
+    final formValid = _formKey.currentState?.validate() ?? true;
+    final networkValid = _cardNetwork != null;
+    setState(() => _networkError = !networkValid);
+    return formValid && networkValid;
   }
 
   void _back() {
@@ -562,6 +579,15 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
         (_isEditing && _limitSource == _LimitSource.newSharedLimit) || (!_isEditing && _addNewPairCard);
     final needsOwnCreditLimit =
         !needsSharedLimitAmount && !(_isEditing && _limitSource == _LimitSource.existingSharedLimit);
+    if (Validators.required(_cardHolderNameController.text) != null) {
+      _showSaveError('Enter the card holder name.');
+      return;
+    }
+    if (_cardNetwork == null) {
+      setState(() => _networkError = true);
+      _showSaveError('Select a card network.');
+      return;
+    }
     if (Validators.lastFourDigits(_lastFourDigitsController.text) != null) {
       _showSaveError('Enter the last 4 digits of the card.');
       return;
@@ -1108,11 +1134,12 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
               _PremiumField(
                 controller: _cardHolderNameController,
                 focusNode: _cardHolderNameFocusNode,
-                label: 'Card holder name (optional)',
+                label: 'Card holder name',
                 helperText: 'Name printed on the card, e.g. ABIN JOHN',
                 textCapitalization: TextCapitalization.characters,
                 textInputAction: TextInputAction.next,
                 onFieldSubmitted: (_) => _lastFourDigitsFocusNode.requestFocus(),
+                validator: Validators.required,
               ),
               if (_isEditing) ...[
                 const SizedBox(height: AppSizes.md),
@@ -1156,10 +1183,20 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                     _NetworkChip(
                       network: network,
                       selected: _cardNetwork == network,
-                      onTap: () => setState(() => _cardNetwork = _cardNetwork == network ? null : network),
+                      onTap: () => setState(() {
+                        _cardNetwork = _cardNetwork == network ? null : network;
+                        _networkError = _cardNetwork == null;
+                      }),
                     ),
                 ],
               ),
+              if (_networkError) ...[
+                const SizedBox(height: AppSizes.xs),
+                Text(
+                  'Select a card network',
+                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.error),
+                ),
+              ],
               const SizedBox(height: AppSizes.md),
               _PremiumField(
                 controller: _lastFourDigitsController,
