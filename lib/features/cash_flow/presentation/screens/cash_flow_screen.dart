@@ -20,20 +20,49 @@ class CashFlowScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppClay.background(context),
-      appBar: AppBar(title: const Text('Cash Flow')),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: AppClay.primaryGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+              child: const Icon(Icons.account_balance_wallet_rounded, size: AppSizes.iconSm, color: Colors.white),
+            ),
+            const SizedBox(width: AppSizes.sm),
+            Text(
+              'Cash Flow',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           // Bottom padding clears the shell's floating "+" button.
           padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
           children: const [
             PaymentsDueCard(),
-            SizedBox(height: AppSizes.lg),
+            SizedBox(height: AppSizes.md),
             MoneyToReceiveCard(),
-            SizedBox(height: AppSizes.lg),
+            SizedBox(height: AppSizes.md),
             UpcomingPaymentsTimeline(),
-            SizedBox(height: AppSizes.lg),
+            SizedBox(height: AppSizes.md),
             CreditCardStatementSummaryCard(),
-            SizedBox(height: AppSizes.lg),
+            SizedBox(height: AppSizes.md),
             CashFlowSummaryCard(),
           ],
         ),

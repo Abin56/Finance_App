@@ -19,11 +19,12 @@ class CashFlowSummaryCard extends ConsumerWidget {
     final cashFlow = ref.watch(cashFlowThisMonthProvider);
 
     return ClayCard(
+      padding: const EdgeInsets.all(AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('This Month Cash Flow', style: context.textTheme.titleMedium),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           Row(
             children: [
               Expanded(

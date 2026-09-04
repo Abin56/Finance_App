@@ -33,19 +33,19 @@ extension HistoryFilterX on HistoryFilter {
       case HistoryFilter.all:
         return null;
       case HistoryFilter.splitExpenses:
-        return Icons.call_split_rounded;
+        return Icons.group_outlined;
       case HistoryFilter.transactions:
         return Icons.receipt_long_outlined;
       case HistoryFilter.loans:
         return Icons.handshake_outlined;
       case HistoryFilter.bills:
-        return Icons.bolt_rounded;
+        return Icons.receipt_outlined;
       case HistoryFilter.emi:
         return Icons.calendar_month_outlined;
       case HistoryFilter.moneyReceived:
-        return Icons.call_received_rounded;
+        return Icons.payments_outlined;
       case HistoryFilter.creditCardStatements:
-        return Icons.credit_card_rounded;
+        return Icons.credit_card_outlined;
     }
   }
 

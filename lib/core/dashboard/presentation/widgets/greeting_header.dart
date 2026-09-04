@@ -94,9 +94,9 @@ class _ClayIconButton extends StatelessWidget {
       ),
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(icon, color: AppClay.primaryAccent(context), size: AppSizes.iconMd),
+        icon: Icon(icon, color: AppClay.primaryAccent(context), size: AppSizes.iconSm),
         tooltip: tooltip,
-        style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
+        style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
       ),
     );
   }

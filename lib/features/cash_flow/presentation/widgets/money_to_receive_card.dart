@@ -58,11 +58,12 @@ class MoneyToReceiveCard extends ConsumerWidget {
     }
 
     return ClayCard(
+      padding: const EdgeInsets.all(AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Money To Receive', style: context.textTheme.titleMedium),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           Text(
             CurrencyFormatter.instance.format(total),
             style: context.textTheme.headlineSmall?.copyWith(

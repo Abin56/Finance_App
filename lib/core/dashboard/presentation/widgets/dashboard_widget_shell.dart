@@ -74,8 +74,8 @@ class _DashboardWidgetCardState extends State<DashboardWidgetCard> {
               ),
               padding: widget.padding ??
                   (widget.isHero
-                      ? const EdgeInsets.all(AppSizes.lg)
-                      : const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md)),
+                      ? const EdgeInsets.all(AppSizes.md)
+                      : const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm)),
               child: widget.child,
             ),
           ),

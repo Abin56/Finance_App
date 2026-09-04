@@ -43,11 +43,12 @@ class PaymentsDueCard extends ConsumerWidget {
     }
 
     return ClayCard(
+      padding: const EdgeInsets.all(AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Payments Due This Month', style: context.textTheme.titleMedium),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           Text(
             CurrencyFormatter.instance.format(total.due),
             style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),

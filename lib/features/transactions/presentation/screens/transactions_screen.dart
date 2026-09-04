@@ -9,6 +9,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/clay_theme.dart';
 import '../../../../shared/widgets/dialogs/add_entry_menu.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
+import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../accounts/domain/account.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
@@ -20,7 +21,6 @@ import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../../sms_inbox/presentation/screens/sms_inbox_screen.dart';
-import '../../../sms_inbox/presentation/widgets/sms_inbox_entry_chip.dart';
 import '../../data/transaction_repository.dart';
 import '../../domain/history_entry.dart';
 import '../../domain/transaction.dart' as domain;
@@ -71,6 +71,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     (f) => f.name == widget.initialFilterName,
     orElse: () => HistoryFilter.all,
   );
+  final _sortFieldKey = GlobalKey();
 
   @override
   void dispose() {
@@ -81,6 +82,23 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   Future<void> _openFilters() async {
     final result = await TransactionFilterSheet.show(context, _filter);
     if (result != null) setState(() => _filter = result);
+  }
+
+  /// The "Date Range" field's own direct picker — narrower than
+  /// [_openFilters] (type/account/category/date all at once), so a user who
+  /// only wants to change dates isn't dropped into the full filter sheet to
+  /// do it.
+  Future<void> _pickDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: _filter.startDate != null && _filter.endDate != null
+          ? DateTimeRange(start: _filter.startDate!, end: _filter.endDate!)
+          : null,
+    );
+    if (picked == null) return;
+    setState(() => _filter = _filter.copyWith(startDate: picked.start, endDate: picked.end));
   }
 
   @override
@@ -97,58 +115,123 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     return Scaffold(
       backgroundColor: AppClay.background(context),
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: AppClay.primaryGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: _searching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                cursorColor: Colors.white,
                 decoration: const InputDecoration(
                   hintText: 'Search notes, category, account…',
+                  hintStyle: TextStyle(color: Colors.white70),
                   border: InputBorder.none,
                 ),
                 onChanged: (value) => setState(() => _query = value),
               )
-            : const Text('History'),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.receipt_long_rounded, size: AppSizes.iconSm, color: Colors.white),
+                  ),
+                  const SizedBox(width: AppSizes.sm),
+                  Text(
+                    'History',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                  ),
+                ],
+              ),
         actions: [
-          IconButton(
-            icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded),
-            tooltip: _searching ? 'Close search' : 'Search',
-            onPressed: () => setState(() {
-              _searching = !_searching;
-              if (!_searching) {
+          if (_searching)
+            IconButton(
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              tooltip: 'Close search',
+              onPressed: () => setState(() {
+                _searching = false;
                 _query = '';
                 _searchController.clear();
-              }
-            }),
-          ),
-          IconButton(
-            icon: Icon(
-              _filter.isActive ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
-              color: _filter.isActive ? Theme.of(context).colorScheme.primary : null,
+              }),
+            )
+          else ...[
+            // Search and Filters are the two actions someone actually takes
+            // on this screen, so they stay directly visible — plain white
+            // "ghost" icons on the gradient rather than repeated solid white
+            // circles, which read as heavy/repetitive in a row of four.
+            IconButton(
+              icon: const Icon(Icons.manage_search_rounded, color: Colors.white),
+              tooltip: 'Search',
+              onPressed: () => setState(() => _searching = true),
             ),
-            tooltip: 'Filters',
-            onPressed: _openFilters,
-          ),
-          Builder(
-            builder: (context) {
-              final pendingCount = ref.watch(smsPendingCountProvider);
-              return IconButton(
-                icon: Badge(
-                  label: Text('$pendingCount'),
-                  isLabelVisible: pendingCount > 0,
-                  child: const Icon(Icons.mark_email_unread_outlined),
+            IconButton(
+              icon: Badge.count(
+                count: _filter.activeCount,
+                isLabelVisible: _filter.activeCount > 0,
+                backgroundColor: Colors.white,
+                textColor: AppClay.primary,
+                child: const Icon(Icons.tune_rounded, color: Colors.white),
+              ),
+              tooltip: 'Filters',
+              onPressed: _openFilters,
+            ),
+            // SMS Inbox stays directly visible (its unread count is
+            // information worth surfacing at a glance); Trash alone goes in
+            // the overflow menu since it's rarely used.
+            Builder(
+              builder: (context) {
+                final pendingCount = ref.watch(smsPendingCountProvider);
+                return IconButton(
+                  icon: Badge.count(
+                    count: pendingCount,
+                    isLabelVisible: pendingCount > 0,
+                    backgroundColor: Colors.white,
+                    textColor: AppClay.primary,
+                    child: const Icon(Icons.sms_outlined, color: Colors.white),
+                  ),
+                  tooltip: 'SMS Inbox',
+                  onPressed: () => SmsInboxScreen.show(context),
+                );
+              },
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'More',
+              icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'trash',
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline_rounded),
+                    title: Text('Trash'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
-                tooltip: 'SMS Inbox',
-                onPressed: () => SmsInboxScreen.show(context),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'Trash',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const TransactionsTrashScreen()),
+              ],
+              onSelected: (_) => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TransactionsTrashScreen()),
+              ),
             ),
-          ),
+            const SizedBox(width: AppSizes.xs),
+          ],
         ],
       ),
       body: Column(
@@ -162,12 +245,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     label: 'Date Range',
                     value: _dateRangeLabel(),
                     icon: Icons.calendar_today_outlined,
-                    onTap: _openFilters,
+                    onTap: _pickDateRange,
                   ),
                 ),
                 const SizedBox(width: AppSizes.md),
                 Expanded(
                   child: _DropdownField(
+                    key: _sortFieldKey,
                     label: 'Sort By',
                     value: _sort.label,
                     icon: Icons.swap_vert_rounded,
@@ -177,19 +261,24 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               ],
             ),
           ),
+          if (_filter.isActive)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.xs, AppSizes.lg, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _filter = TransactionFilter(accountId: widget.initialAccountId)),
+                  icon: const Icon(Icons.close_rounded, size: AppSizes.iconSm),
+                  label: Text('Clear ${_filter.activeCount} filter${_filter.activeCount == 1 ? '' : 's'}'),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: HistoryFilterChips(
-                    selected: _historyFilter,
-                    onChanged: (filter) => setState(() => _historyFilter = filter),
-                  ),
-                ),
-                const SizedBox(width: AppSizes.xs),
-                const SmsInboxEntryChip(),
-              ],
+            child: HistoryFilterChips(
+              selected: _historyFilter,
+              onChanged: (filter) => setState(() => _historyFilter = filter),
             ),
           ),
           Expanded(
@@ -203,26 +292,27 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   String _dateRangeLabel() {
-    if (_filter.startDate == null && _filter.endDate == null) return 'All Time';
-    return 'Custom range';
+    final start = _filter.startDate;
+    final end = _filter.endDate;
+    if (start == null && end == null) return 'All Time';
+    if (start != null && end != null) return '${start.shortDate} – ${end.shortDate}';
+    return (start ?? end)!.shortDate;
   }
 
   Future<void> _openSortMenu(BuildContext context) async {
-    final selected = await showModalBottomSheet<TransactionSort>(
+    final selected = await showAnchoredSortMenu<TransactionSort>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final sort in TransactionSort.values)
-              ListTile(
-                title: Text(sort.label),
-                trailing: sort == _sort ? const Icon(Icons.check_rounded) : null,
-                onTap: () => Navigator.of(sheetContext).pop(sort),
-              ),
-          ],
-        ),
-      ),
+      anchorKey: _sortFieldKey,
+      selectedValue: _sort,
+      options: [
+        for (final sort in TransactionSort.values)
+          SortMenuOption(
+            value: sort,
+            icon: _metricIconFor(sort),
+            trailingIcon: _directionIconFor(sort),
+            label: sort.label,
+          ),
+      ],
     );
     if (selected != null) setState(() => _sort = selected);
   }
@@ -524,13 +614,44 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 }
 
+/// The metric icon shown on a [TransactionSort] option's icon chip in the
+/// "Sort By" sheet — date sorts get a calendar, amount sorts get ₹.
+IconData _metricIconFor(TransactionSort sort) {
+  switch (sort) {
+    case TransactionSort.dateDesc:
+    case TransactionSort.dateAsc:
+      return Icons.calendar_month_outlined;
+    case TransactionSort.amountDesc:
+    case TransactionSort.amountAsc:
+      return Icons.currency_rupee_rounded;
+  }
+}
+
+/// The small up/down direction badge drawn on the corner of that icon chip.
+IconData _directionIconFor(TransactionSort sort) {
+  switch (sort) {
+    case TransactionSort.dateDesc:
+    case TransactionSort.amountDesc:
+      return Icons.arrow_downward_rounded;
+    case TransactionSort.dateAsc:
+    case TransactionSort.amountAsc:
+      return Icons.arrow_upward_rounded;
+  }
+}
+
 /// A labeled, tappable field styled like a dropdown — used for the History
 /// screen's "Date Range" / "Sort By" row. Opens whatever picker [onTap]
 /// wires up (a sheet, a filter dialog, …) rather than being a real
 /// [DropdownButton], since the underlying choices come from different
 /// pickers depending on the field.
 class _DropdownField extends StatelessWidget {
-  const _DropdownField({required this.label, required this.value, required this.icon, required this.onTap});
+  const _DropdownField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.onTap,
+  });
 
   final String label;
   final String value;

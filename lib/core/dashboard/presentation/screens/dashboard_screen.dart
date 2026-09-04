@@ -65,11 +65,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ],
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.lg, AppSizes.md, AppSizes.lg),
+              padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.md, AppSizes.md, AppSizes.md),
               child: Row(
                 children: [
                   const Expanded(child: GreetingHeader()),
-                  const SizedBox(width: AppSizes.sm),
+                  const SizedBox(width: AppSizes.xs),
                   Container(
                     decoration: BoxDecoration(
                       color: AppClay.card(context),
@@ -81,10 +81,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       icon: Icon(
                         _editMode ? Icons.check_rounded : Icons.edit_outlined,
                         color: AppClay.primaryAccent(context),
-                        size: AppSizes.iconMd,
+                        size: AppSizes.iconSm,
                       ),
                       tooltip: _editMode ? 'Done' : 'Edit Dashboard',
-                      style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
+                      style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
                     ),
                   ),
                 ],
@@ -129,7 +129,7 @@ class _ViewModeList extends ConsumerWidget {
     return ListView.separated(
       padding: padding,
       itemCount: built.length + (comingSoonTypes.isEmpty ? 0 : 1),
-      separatorBuilder: (_, _) => const SizedBox(height: AppSizes.lg),
+      separatorBuilder: (_, _) => const SizedBox(height: AppSizes.md),
       itemBuilder: (context, index) {
         if (index == built.length) {
           return ComingSoonWidgetCard(types: comingSoonTypes);
