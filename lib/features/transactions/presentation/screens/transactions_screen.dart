@@ -378,7 +378,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             }
             final transaction = slot as domain.Transaction;
             return Padding(
-              padding: const EdgeInsets.only(bottom: AppSizes.sm),
+              padding: const EdgeInsets.only(bottom: AppSizes.xs),
               child: Dismissible(
                 key: ValueKey(transaction.id),
                 direction: DismissDirection.endToStart,
@@ -452,7 +452,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         }
         final entry = slot as HistoryEntry;
         return Padding(
-          padding: const EdgeInsets.only(bottom: AppSizes.sm),
+          padding: const EdgeInsets.only(bottom: AppSizes.xs),
           child: HistoryTile(
             entry: entry,
             onTap: entry.routePath == null ? null : () => context.push(entry.routePath!),

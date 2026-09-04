@@ -32,18 +32,22 @@ class HistoryTile extends StatelessWidget {
 
     return ClayCard(
       onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              ClayIconChip(icon: entry.icon, color: color, size: 40, iconSize: AppSizes.iconSm),
-              const SizedBox(width: AppSizes.md),
+              ClayIconChip(icon: entry.icon, color: color, size: 34, iconSize: AppSizes.iconSm),
+              const SizedBox(width: AppSizes.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(entry.title, style: context.textTheme.titleMedium),
+                    Text(
+                      entry.title,
+                      style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 2),
                     TransactionKindBadge(kind: entry.kind, compact: true),
                     if (splitDetail == null)
@@ -69,7 +73,7 @@ class HistoryTile extends StatelessWidget {
               ),
               Text(
                 '$sign${CurrencyFormatter.instance.format(entry.amount)}',
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+                style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: color),
               ),
             ],
           ),
