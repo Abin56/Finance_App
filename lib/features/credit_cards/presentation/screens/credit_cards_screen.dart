@@ -73,7 +73,6 @@ class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
               slivers: [
                 _SliverHeader(hasCards: false),
                 SliverFillRemaining(
-                  hasScrollBody: false,
                   child: EmptyState(
                     icon: Icons.credit_card_outlined,
                     title: 'No credit cards yet',

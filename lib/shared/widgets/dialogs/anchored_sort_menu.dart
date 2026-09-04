@@ -5,7 +5,7 @@ import '../../../core/theme/clay_theme.dart';
 
 /// One choice in an [showAnchoredSortMenu] dropdown.
 class SortMenuOption<T> {
-  const SortMenuOption({required this.value, required this.icon, required this.label, this.trailingIcon});
+  const SortMenuOption({required this.value, required this.icon, required this.label, this.trailingIcon, this.color});
 
   final T value;
   final IconData icon;
@@ -14,6 +14,12 @@ class SortMenuOption<T> {
   /// A small secondary icon (e.g. an up/down direction arrow) drawn as a
   /// badge on the corner of [icon]'s chip — null when not needed.
   final IconData? trailingIcon;
+
+  /// Overrides the icon chip's own color (e.g. a category's own color) —
+  /// null falls back to [SortSheetOptionTile]'s default selected/unselected
+  /// tint, right for options with no inherent color of their own (sort
+  /// directions, transaction types).
+  final Color? color;
 }
 
 /// Opens a dropdown of [options] anchored directly beneath [anchorKey]'s
@@ -61,6 +67,7 @@ Future<T?> showAnchoredSortMenu<T>({
             trailingIcon: option.trailingIcon,
             label: option.label,
             selected: option.value == selectedValue,
+            color: option.color,
             // No onTap: PopupMenuItem itself owns tap handling and pops the
             // menu with `option.value` — see SortSheetOptionTile's doc.
           ),
@@ -81,6 +88,7 @@ class SortSheetOptionTile extends StatelessWidget {
     required this.selected,
     this.onTap,
     this.trailingIcon,
+    this.color,
   });
 
   final IconData icon;
@@ -97,10 +105,15 @@ class SortSheetOptionTile extends StatelessWidget {
   /// badge on the corner of [icon]'s chip — null when not needed.
   final IconData? trailingIcon;
 
+  /// Overrides the icon chip's color — e.g. a category's own color, shown
+  /// regardless of selection state. Null keeps the default
+  /// selected-primary/unselected-muted tint.
+  final Color? color;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final tint = selected ? colors.primary : colors.onSurface.withValues(alpha: 0.6);
+    final tint = color ?? (selected ? colors.primary : colors.onSurface.withValues(alpha: 0.6));
     final row = Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSizes.xs, horizontal: AppSizes.sm),
       child: Row(

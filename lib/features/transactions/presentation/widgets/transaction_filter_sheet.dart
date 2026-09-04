@@ -6,6 +6,7 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -41,6 +42,10 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
   late bool _includeExcluded = widget.initialFilter.includeExcluded;
   late bool _filterByAccountingMonth = widget.initialFilter.filterByAccountingMonth;
 
+  final _typeFieldKey = GlobalKey();
+  final _accountFieldKey = GlobalKey();
+  final _categoryFieldKey = GlobalKey();
+
   Future<void> _pickDateRange() async {
     final picked = await showDateRangePicker(
       context: context,
@@ -64,6 +69,8 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
     final categories = _type == null
         ? ref.watch(categoriesStreamProvider).value ?? const []
         : ref.watch(categoriesForTypeProvider(_type!));
+    final selectedCategory =
+        categories.any((c) => c.id == _categoryId) ? categories.firstWhere((c) => c.id == _categoryId) : null;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -128,73 +135,87 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
               ],
             ),
             const SizedBox(height: AppSizes.md),
-            _ClayDropdownShell(
+            _FilterPickerField(
+              fieldKey: _typeFieldKey,
               icon: Icons.swap_horiz_rounded,
-              child: DropdownButtonFormField<TransactionType?>(
-                initialValue: _type,
-                decoration: const InputDecoration(
-                  labelText: 'Type',
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                ),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('All')),
-                  for (final type in TransactionType.values)
-                    DropdownMenuItem(value: type, child: Text(type.label)),
-                ],
-                onChanged: (value) => setState(() {
-                  _type = value;
-                  if (_categoryId != null && !categories.any((c) => c.id == _categoryId)) {
-                    _categoryId = null;
-                  }
-                }),
-              ),
+              label: 'Type',
+              value: _type?.label ?? 'All',
+              onTap: () async {
+                final result = await showAnchoredSortMenu<({TransactionType? value})>(
+                  context: context,
+                  anchorKey: _typeFieldKey,
+                  selectedValue: (value: _type),
+                  options: [
+                    const SortMenuOption(value: (value: null), icon: Icons.apps_rounded, label: 'All'),
+                    for (final type in TransactionType.values)
+                      SortMenuOption(value: (value: type), icon: type.icon, label: type.label),
+                  ],
+                );
+                if (result != null) {
+                  setState(() {
+                    _type = result.value;
+                    if (_categoryId != null && !categories.any((c) => c.id == _categoryId)) {
+                      _categoryId = null;
+                    }
+                  });
+                }
+              },
             ),
             const SizedBox(height: AppSizes.md),
             accountsAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (error, _) => Text('Could not load accounts: $error'),
-              data: (accounts) => _ClayDropdownShell(
+              data: (accounts) => _FilterPickerField(
+                fieldKey: _accountFieldKey,
                 icon: Icons.account_balance_wallet_outlined,
-                child: DropdownButtonFormField<String?>(
-                  initialValue: accounts.any((a) => a.id == _accountId) ? _accountId : null,
-                  decoration: const InputDecoration(
-                    labelText: 'Account',
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                  ),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('All')),
-                    for (final account in accounts)
-                      DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
-                  ],
-                  onChanged: (value) => setState(() => _accountId = value),
-                ),
+                label: 'Account',
+                value: accounts.any((a) => a.id == _accountId)
+                    ? accountPickerLabel(accounts.firstWhere((a) => a.id == _accountId), creditCards)
+                    : 'All',
+                onTap: () async {
+                  final result = await showAnchoredSortMenu<({String? value})>(
+                    context: context,
+                    anchorKey: _accountFieldKey,
+                    selectedValue: (value: accounts.any((a) => a.id == _accountId) ? _accountId : null),
+                    options: [
+                      const SortMenuOption(value: (value: null), icon: Icons.apps_rounded, label: 'All'),
+                      for (final account in accounts)
+                        SortMenuOption(
+                          value: (value: account.id),
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: accountPickerLabel(account, creditCards),
+                        ),
+                    ],
+                  );
+                  if (result != null) setState(() => _accountId = result.value);
+                },
               ),
             ),
             const SizedBox(height: AppSizes.md),
-            _ClayDropdownShell(
-              icon: Icons.label_outline_rounded,
-              child: DropdownButtonFormField<String?>(
-                initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                ),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('All')),
-                  for (final category in categories)
-                    DropdownMenuItem(value: category.id, child: Text(category.name)),
-                ],
-                onChanged: (value) => setState(() => _categoryId = value),
-              ),
+            _FilterPickerField(
+              fieldKey: _categoryFieldKey,
+              icon: selectedCategory?.icon ?? Icons.label_outline_rounded,
+              iconColor: selectedCategory != null ? Color(selectedCategory.colorValue) : null,
+              label: 'Category',
+              value: selectedCategory?.name ?? 'All',
+              onTap: () async {
+                final result = await showAnchoredSortMenu<({String? value})>(
+                  context: context,
+                  anchorKey: _categoryFieldKey,
+                  selectedValue: (value: categories.any((c) => c.id == _categoryId) ? _categoryId : null),
+                  options: [
+                    const SortMenuOption(value: (value: null), icon: Icons.apps_rounded, label: 'All'),
+                    for (final category in categories)
+                      SortMenuOption(
+                        value: (value: category.id),
+                        icon: category.icon,
+                        label: category.name,
+                        color: Color(category.colorValue),
+                      ),
+                  ],
+                );
+                if (result != null) setState(() => _categoryId = result.value);
+              },
             ),
             const SizedBox(height: AppSizes.md),
             Container(
@@ -203,12 +224,16 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
                 borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                 boxShadow: AppClay.nested(context),
               ),
-              child: SwitchListTile(
-                title: const Text('Include Excluded Transactions'),
-                subtitle: const Text('Turn off to hide transactions marked "Exclude from Financial Calculations".'),
-                value: _includeExcluded,
-                onChanged: (value) => setState(() => _includeExcluded = value),
-                activeThumbColor: AppClay.primary,
+              clipBehavior: Clip.antiAlias,
+              child: Material(
+                color: Colors.transparent,
+                child: SwitchListTile(
+                  title: const Text('Include Excluded Transactions'),
+                  subtitle: const Text('Turn off to hide transactions marked "Exclude from Financial Calculations".'),
+                  value: _includeExcluded,
+                  onChanged: (value) => setState(() => _includeExcluded = value),
+                  activeThumbColor: AppClay.primary,
+                ),
               ),
             ),
             const SizedBox(height: AppSizes.md),
@@ -288,37 +313,83 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
   }
 }
 
-/// Wraps a dropdown field in the same soft floating-card look as the
-/// "Include Excluded Transactions" toggle and the date-range row below it,
-/// instead of the default Material filled-box input style — the dropdown's
-/// own `InputDecoration` is set `filled: false`/borderless by the caller so
-/// this shell's card is the only visible surface, not a box-within-a-box.
-class _ClayDropdownShell extends StatelessWidget {
-  const _ClayDropdownShell({required this.icon, required this.child});
+/// A tappable field styled like the "Include Excluded Transactions" toggle
+/// and the date-range row — icon chip, small label, current value, and a
+/// chevron — that opens a compact [showAnchoredSortMenu] dropdown anchored
+/// to itself instead of a full-size default `DropdownButtonFormField` popup
+/// (whose rows can't shrink below Material's accessibility-minimum height).
+class _FilterPickerField extends StatelessWidget {
+  const _FilterPickerField({
+    required this.fieldKey,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.iconColor,
+  });
 
+  final GlobalKey fieldKey;
   final IconData icon;
-  final Widget child;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  /// Overrides the icon chip's color — e.g. a selected category's own
+  /// color. Null falls back to the brand accent.
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final tint = iconColor ?? AppClay.primary;
     return Container(
+      key: fieldKey,
       decoration: BoxDecoration(
         color: AppClay.card(context),
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
         boxShadow: AppClay.nested(context),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(gradient: AppClay.iconChipGradient(AppClay.primary), shape: BoxShape.circle),
-            child: Icon(icon, size: AppSizes.iconSm, color: AppClay.primary),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(gradient: AppClay.iconChipGradient(tint), shape: BoxShape.circle),
+                  child: Icon(icon, size: AppSizes.iconSm, color: tint),
+                ),
+                const SizedBox(width: AppSizes.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: colors.onSurface.withValues(alpha: 0.6),
+                            ),
+                      ),
+                      Text(
+                        value,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.expand_more_rounded, color: colors.onSurface.withValues(alpha: 0.5)),
+              ],
+            ),
           ),
-          const SizedBox(width: AppSizes.xs),
-          Expanded(child: child),
-        ],
+        ),
       ),
     );
   }
