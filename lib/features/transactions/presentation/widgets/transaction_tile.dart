@@ -41,23 +41,27 @@ class TransactionTile extends StatelessWidget {
 
     return ClayCard(
       onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
       child: Row(
         children: [
           ClayIconChip(
             icon: category?.icon ?? Icons.category_outlined,
             color: color,
-            size: 44,
-            iconSize: AppSizes.iconMd,
+            size: 36,
+            iconSize: AppSizes.iconSm,
           ),
-          const SizedBox(width: AppSizes.md),
+          const SizedBox(width: AppSizes.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(category?.name ?? 'Uncategorized', style: context.textTheme.titleMedium),
+                Text(
+                  category?.name ?? 'Uncategorized',
+                  style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                ),
                 Text(
                   account?.name ?? 'Unknown account',
-                  style: context.textTheme.bodyMedium?.copyWith(
+                  style: context.textTheme.bodySmall?.copyWith(
                     color: context.colors.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
@@ -102,7 +106,7 @@ class TransactionTile extends StatelessWidget {
             children: [
               Text(
                 '$sign${CurrencyFormatter.instance.format(transaction.amount)}',
-                style: context.textTheme.titleMedium?.copyWith(
+                style: context.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: transaction.type.color,
                 ),

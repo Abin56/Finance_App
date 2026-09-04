@@ -19,7 +19,7 @@ class TransactionDateGroupHeader extends StatelessWidget {
     final color = netTotal >= 0 ? context.colors.primary : context.colors.error;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.xs, AppSizes.md, AppSizes.xs, AppSizes.sm),
+      padding: const EdgeInsets.fromLTRB(AppSizes.xs, AppSizes.sm, AppSizes.xs, AppSizes.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [

@@ -155,6 +155,8 @@ abstract class AppTheme {
         backgroundColor: colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
+        dragHandleColor: colorScheme.primary.withValues(alpha: 0.55),
+        dragHandleSize: const Size(48, 5),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusXl)),
         ),
@@ -212,6 +214,22 @@ abstract class AppTheme {
         color: colorScheme.primary,
         linearTrackColor: colorScheme.surfaceContainerHighest,
         circularTrackColor: colorScheme.surfaceContainerHighest,
+      ),
+
+      // Brings `showDatePicker`/`showDateRangePicker` (e.g. History's "Date
+      // Range" field) in line with the rest of the app's flat, brand-blue
+      // design instead of Material 3's stock rounded/purple-leaning default.
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        headerBackgroundColor: colorScheme.primary,
+        headerForegroundColor: colorScheme.onPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLg)),
+        dayShape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm))),
+        todayBorder: BorderSide(color: colorScheme.primary, width: 1.5),
+        rangePickerBackgroundColor: colorScheme.surface,
+        rangeSelectionBackgroundColor: colorScheme.primary.withValues(alpha: 0.15),
+        yearShape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusSm))),
       ),
     );
   }

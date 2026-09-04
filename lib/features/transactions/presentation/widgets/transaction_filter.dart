@@ -58,6 +58,20 @@ class TransactionFilter {
       !includeExcluded ||
       filterByAccountingMonth;
 
+  /// How many independent filter choices are currently set — powers the
+  /// small count badge on the History screen's Filters button. A start/end
+  /// date pair counts as one choice ("date range"), not two.
+  int get activeCount {
+    var count = 0;
+    if (type != null) count++;
+    if (accountId != null) count++;
+    if (categoryId != null) count++;
+    if (startDate != null || endDate != null) count++;
+    if (!includeExcluded) count++;
+    if (filterByAccountingMonth) count++;
+    return count;
+  }
+
   TransactionFilter copyWith({
     TransactionType? type,
     bool clearType = false,

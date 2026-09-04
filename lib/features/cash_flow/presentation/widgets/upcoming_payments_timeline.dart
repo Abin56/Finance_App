@@ -32,15 +32,15 @@ class UpcomingPaymentsTimeline extends ConsumerWidget {
     }
 
     return ClayCard(
-      padding: const EdgeInsets.symmetric(vertical: AppSizes.sm),
+      padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
             child: Text('Upcoming Payments', style: context.textTheme.titleMedium),
           ),
-          const SizedBox(height: AppSizes.sm),
+          const SizedBox(height: AppSizes.xs),
           for (final item in items) _TimelineRow(item: item, onTap: () => _onTap(context, item)),
         ],
       ),
@@ -72,7 +72,7 @@ class _TimelineRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.sm),
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.xs),
         child: Row(
           children: [
             Container(

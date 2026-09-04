@@ -9,6 +9,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/router/app_routes.dart';
+import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
@@ -144,25 +145,39 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
               Padding(
                 padding: const EdgeInsets.only(right: AppSizes.xs),
                 child: Center(
-                  child: Material(
-                    color: context.colors.primary,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => AddExpenseChooser.show(context, forPerson: person),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add_rounded, size: AppSizes.iconSm, color: context.colors.onPrimary),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Add',
-                              style: context.textTheme.labelLarge
-                                  ?.copyWith(color: context.colors.onPrimary, fontWeight: FontWeight.w700),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                      boxShadow: AppClay.glow(AppClay.primary),
+                    ),
+                    child: Material(
+                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                      clipBehavior: Clip.antiAlias,
+                      child: Ink(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: AppClay.primaryGradient,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: InkWell(
+                          onTap: () => AddExpenseChooser.show(context, forPerson: person),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.add_rounded, size: AppSizes.iconSm, color: Colors.white),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Add',
+                                  style: context.textTheme.labelLarge
+                                      ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -204,6 +219,10 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                         ],
                         selected: {_tab},
                         onSelectionChanged: (selection) => setState(() => _tab = selection.first),
+                        style: SegmentedButton.styleFrom(
+                          selectedBackgroundColor: AppClay.primaryAccent(context),
+                          selectedForegroundColor: Colors.white,
+                        ),
                       ),
                       const SizedBox(height: AppSizes.lg),
                       if (_tab == _LedgerTab.summary)

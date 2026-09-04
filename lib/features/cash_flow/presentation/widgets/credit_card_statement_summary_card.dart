@@ -56,11 +56,12 @@ class _CardStatementTile extends StatelessWidget {
 
     return ClayCard(
       onTap: () => context.push('${AppRoutes.creditCards}/${card.id}'),
+      padding: const EdgeInsets.all(AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(displayName, style: context.textTheme.titleMedium),
-          const SizedBox(height: AppSizes.md),
+          const SizedBox(height: AppSizes.sm),
           if (statement == null)
             Text(
               'No statement yet',

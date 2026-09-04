@@ -7,6 +7,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
+import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/person.dart';
 import '../providers/people_providers.dart';
@@ -33,6 +34,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
   String _query = '';
   PeopleFilter _filter = PeopleFilter.all;
   PeopleSort _sort = PeopleSort.name;
+  final _sortFieldKey = GlobalKey();
 
   @override
   void dispose() {
@@ -52,23 +54,27 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
   }
 
   Future<void> _openSortMenu(BuildContext context) async {
-    final selected = await showModalBottomSheet<PeopleSort>(
+    final selected = await showAnchoredSortMenu<PeopleSort>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final sort in PeopleSort.values)
-              ListTile(
-                title: Text(sort.label),
-                trailing: sort == _sort ? const Icon(Icons.check_rounded) : null,
-                onTap: () => Navigator.of(sheetContext).pop(sort),
-              ),
-          ],
-        ),
-      ),
+      anchorKey: _sortFieldKey,
+      selectedValue: _sort,
+      options: [
+        for (final sort in PeopleSort.values)
+          SortMenuOption(value: sort, icon: _iconFor(sort), label: sort.label),
+      ],
     );
     if (selected != null) setState(() => _sort = selected);
+  }
+
+  IconData _iconFor(PeopleSort sort) {
+    switch (sort) {
+      case PeopleSort.name:
+        return Icons.sort_by_alpha_rounded;
+      case PeopleSort.balanceDesc:
+        return Icons.currency_rupee_rounded;
+      case PeopleSort.recentlyAdded:
+        return Icons.schedule_rounded;
+    }
   }
 
   @override
@@ -79,42 +85,77 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     return Scaffold(
       backgroundColor: AppClay.background(context),
       appBar: AppBar(
-        backgroundColor: AppClay.background(context),
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: AppClay.primaryGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: _searching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(hintText: 'Search people…', border: InputBorder.none),
+                style: const TextStyle(color: Colors.white),
+                cursorColor: Colors.white,
+                decoration: const InputDecoration(
+                  hintText: 'Search people…',
+                  hintStyle: TextStyle(color: Colors.white70),
+                  border: InputBorder.none,
+                ),
                 onChanged: (value) => setState(() => _query = value),
               )
-            : const Text('People'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSizes.xs),
-            child: ClayIconButton(
-              icon: _searching ? Icons.close_rounded : Icons.search_rounded,
-              tooltip: _searching ? 'Close search' : 'Search',
-              onPressed: () => setState(() {
-                _searching = !_searching;
-                if (!_searching) {
-                  _query = '';
-                  _searchController.clear();
-                }
-              }),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: AppSizes.sm),
-            child: ClayIconButton(
-              icon: Icons.delete_outline_rounded,
-              tooltip: 'Trash',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PeopleTrashScreen()),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+                    child: const Icon(Icons.people_alt_rounded, size: AppSizes.iconSm, color: Colors.white),
+                  ),
+                  const SizedBox(width: AppSizes.sm),
+                  Text(
+                    'People',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                ],
               ),
+        actions: [
+          IconButton(
+            icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded, color: Colors.white),
+            tooltip: _searching ? 'Close search' : 'Search',
+            onPressed: () => setState(() {
+              _searching = !_searching;
+              if (!_searching) {
+                _query = '';
+                _searchController.clear();
+              }
+            }),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'trash',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline_rounded),
+                  title: Text('Trash'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+            onSelected: (_) => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PeopleTrashScreen()),
             ),
           ),
+          const SizedBox(width: AppSizes.xs),
         ],
       ),
       floatingActionButton: ClayFab(
@@ -156,6 +197,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 children: [
                   Text('People (${visible.length})', style: Theme.of(context).textTheme.titleMedium),
                   InkWell(
+                    key: _sortFieldKey,
                     onTap: () => _openSortMenu(context),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -231,3 +273,4 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     );
   }
 }
+
