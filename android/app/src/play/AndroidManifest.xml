@@ -25,4 +25,15 @@
         android:name="android.permission.READ_SMS"
         tools:node="remove" />
 
+    <!-- Same policy rationale as READ_SMS above, applied to the notification-
+         listener service declared in src/main/AndroidManifest.xml: Play
+         scrutinizes BIND_NOTIFICATION_LISTENER_SERVICE the same way it
+         scrutinizes SMS access for an app that isn't the default handler.
+         See PLAY_STORE.md > "SMS Inbox and the Play build". -->
+    <application>
+        <service
+            android:name="com.example.finance_app.NotificationCaptureListenerService"
+            tools:node="remove" />
+    </application>
+
 </manifest>

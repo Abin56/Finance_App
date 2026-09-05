@@ -75,7 +75,14 @@ class SmsInboxDatabase {
   /// merchant identity + learning metadata is stored here — never raw SMS
   /// body, OTP, account/card numbers, phone numbers, or AI prompts/responses;
   /// see `MerchantLearningDao`'s doc comment for the full boundary.
-  static const int schemaVersion = 8;
+  ///
+  /// v9 — added `source` to [tableName] (`'deviceSms'`/`'notification'`,
+  /// defaulted so every existing row is correctly backfilled as
+  /// `'deviceSms'` — every row before this version came from the device SMS
+  /// provider). Backs the notification-listener capture path (see
+  /// `NotificationCaptureListenerService`) that lets RCS-only bank alerts —
+  /// which never reach `content://sms` — be scanned alongside real SMS.
+  static const int schemaVersion = 9;
 
   static SmsInboxDatabase? _instance;
 
@@ -112,6 +119,7 @@ class SmsInboxDatabase {
         sender TEXT NOT NULL,
         body TEXT NOT NULL,
         received_at INTEGER NOT NULL,
+        source TEXT NOT NULL DEFAULT 'deviceSms',
         direction TEXT,
         amount REAL,
         merchant TEXT,
@@ -510,6 +518,17 @@ class SmsInboxDatabase {
     // which never went through that rebuild, needs them created here.
     if (oldVersion >= 2 && oldVersion < 8) {
       await _createMerchantLearningTables(db);
+    }
+    // v9's column is included directly in the CREATE TABLE above, so a
+    // database jumping from v1 straight to v9 already has it from the
+    // v1→v2 branch's full rebuild; every other pre-v9 database needs the
+    // ALTER TABLE here. DEFAULT 'deviceSms' backfills every existing row
+    // correctly — nothing before this version could have come from anywhere
+    // but the device SMS provider.
+    if (oldVersion >= 2 && oldVersion < 9) {
+      await db.execute(
+        "ALTER TABLE $tableName ADD COLUMN source TEXT NOT NULL DEFAULT 'deviceSms'",
+      );
     }
   }
 

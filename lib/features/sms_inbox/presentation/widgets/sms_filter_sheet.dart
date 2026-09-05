@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../domain/filter/sms_date_range_filter.dart';
 import '../../domain/filter/sms_filter_criteria.dart';
@@ -122,6 +123,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (categories.isNotEmpty)
                     _Section(
                       title: 'Transaction type',
+                      icon: Icons.category_outlined,
+                      hint: 'Select any that apply',
                       child: _ChipWrap(
                         children: [
                           for (final category in categories)
@@ -143,14 +146,16 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                     ),
                   _Section(
                     title: 'Money direction',
+                    icon: Icons.swap_vert_rounded,
+                    hint: 'Choose one',
                     child: _ChipWrap(
                       children: [
                         for (final direction in SmsMoneyDirection.values)
-                          _Chip(
+                          _SingleChoiceChip(
                             label: direction.label,
                             icon: _directionIcon(direction),
                             selected: _draft.direction == direction,
-                            onSelected: (_) =>
+                            onSelected: () =>
                                 _update(_draft.copyWith(direction: direction)),
                           ),
                       ],
@@ -158,17 +163,19 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   ),
                   _Section(
                     title: 'Date & time',
+                    icon: Icons.calendar_month_outlined,
+                    hint: 'Choose one',
                     child: _ChipWrap(
                       children: [
                         for (final preset in SmsDatePreset.values)
-                          _Chip(
+                          _SingleChoiceChip(
                             label:
                                 preset == SmsDatePreset.custom &&
                                     _draft.customStart != null
                                 ? _customLabel()
                                 : preset.label,
                             selected: _draft.datePreset == preset,
-                            onSelected: (_) {
+                            onSelected: () {
                               if (preset == SmsDatePreset.custom) {
                                 _pickCustomRange();
                                 return;
@@ -187,6 +194,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (banks.isNotEmpty)
                     _Section(
                       title: 'Bank',
+                      icon: Icons.account_balance_outlined,
+                      hint: 'Select any that apply',
                       child: _ChipWrap(
                         children: [
                           for (final bank in banks)
@@ -206,6 +215,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                     ),
                   _Section(
                     title: 'Conversion status',
+                    icon: Icons.fact_check_outlined,
+                    hint: 'Select any that apply',
                     child: _ChipWrap(
                       children: [
                         for (final status in SmsImportStatus.values)
@@ -228,6 +239,7 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (ref.watch(smsDuplicateCountProvider) > 0)
                     _Section(
                       title: 'Duplicates',
+                      icon: Icons.content_copy_rounded,
                       child: _ChipWrap(
                         children: [
                           _Chip(
@@ -249,6 +261,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                     ),
                   _Section(
                     title: 'Amount',
+                    icon: Icons.currency_rupee_rounded,
+                    hint: 'Quick pick sets Min below, or enter your own range',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -260,11 +274,12 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                               5000.0,
                               10000.0,
                             ])
-                              _Chip(
+                              _SingleChoiceChip(
                                 label:
                                     'Above ${CurrencyFormatter.instance.format(threshold)}',
                                 selected: _draft.minAmount == threshold,
-                                onSelected: (selected) {
+                                onSelected: () {
+                                  final selected = _draft.minAmount != threshold;
                                   final next = selected ? threshold : null;
                                   _minController.text = _amountText(next);
                                   _update(
@@ -321,6 +336,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (cardOptions.isNotEmpty)
                     _Section(
                       title: 'Credit card',
+                      icon: Icons.credit_card_outlined,
+                      hint: 'Select any that apply',
                       child: _ChipWrap(
                         children: [
                           for (final option in cardOptions)
@@ -383,39 +400,45 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.filter_list_rounded, size: AppSizes.iconMd),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: AppClay.primaryGradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: AppClay.glow(AppClay.primary),
+            ),
+            child: const Icon(Icons.tune_rounded, size: AppSizes.iconSm, color: Colors.white),
+          ),
           const SizedBox(width: AppSizes.sm),
-          Text(
-            'Filter SMS',
-            style: context.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Filter SMS',
+                  style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                if (activeCount > 0)
+                  Text(
+                    '$activeCount active',
+                    style: context.textTheme.bodySmall?.copyWith(color: AppClay.primaryAccent(context)),
+                  )
+                else
+                  Text(
+                    'Narrow down your inbox',
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (activeCount > 0) ...[
-            const SizedBox(width: AppSizes.sm),
-            // Flexible so a two-digit count can never push the close button
-            // off a 360dp sheet.
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSizes.sm,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: context.colors.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-                ),
-                child: Text(
-                  '$activeCount active',
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.labelSmall?.copyWith(
-                    color: context.colors.onPrimaryContainer,
-                  ),
-                ),
-              ),
-            ),
-          ],
-          const Spacer(),
           IconButton(
             icon: const Icon(Icons.close_rounded),
             tooltip: 'Close',
@@ -453,14 +476,44 @@ class _ActionBar extends StatelessWidget {
           Expanded(
             child: OutlinedButton(
               onPressed: onClearAll,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppClay.primaryAccent(context),
+                side: BorderSide(color: AppClay.primaryAccent(context).withValues(alpha: 0.4)),
+              ),
               child: const Text('Clear All'),
             ),
           ),
           const SizedBox(width: AppSizes.sm),
           Expanded(
-            child: FilledButton(
-              onPressed: onApply,
-              child: const Text('Apply Filters'),
+            flex: 2,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                boxShadow: AppClay.glow(AppClay.primary),
+              ),
+              child: FilledButton(
+                onPressed: onApply,
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  padding: EdgeInsets.zero,
+                ),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: AppClay.primaryGradient,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  ),
+                  child: Container(
+                    alignment: Alignment.center,
+                    height: AppSizes.buttonHeight,
+                    child: const Text('Apply Filters', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -469,32 +522,72 @@ class _ActionBar extends StatelessWidget {
   }
 }
 
+/// One filter group. [hint] states, in plain words, whether the chips below
+/// behave as a checkbox group ("Select any that apply" — tapping one never
+/// affects another) or a radio group ("Choose one" — tapping one switches
+/// off whatever was picked before). Without this, both groups look and feel
+/// identical (the same pill chip), which is exactly what made it unclear
+/// which behavior to expect from any given section.
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
+  const _Section({required this.title, required this.child, this.icon, this.hint});
 
   final String title;
+  final IconData? icon;
+  final String? hint;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return Container(
       padding: const EdgeInsets.fromLTRB(
         AppSizes.lg,
         AppSizes.sm,
         AppSizes.lg,
-        AppSizes.sm,
+        AppSizes.md,
+      ),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppClay.primary.withValues(alpha: 0.06))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: context.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: context.colors.onSurfaceVariant,
-            ),
+          Row(
+            children: [
+              if (icon != null) ...[
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    gradient: AppClay.iconChipGradient(AppClay.primary),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 13, color: AppClay.primary),
+                ),
+                const SizedBox(width: AppSizes.xs),
+              ],
+              Text(
+                title,
+                style: context.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+              if (hint != null) ...[
+                const SizedBox(width: AppSizes.xs),
+                Expanded(
+                  child: Text(
+                    hint!,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.45),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: AppSizes.xs),
+          const SizedBox(height: AppSizes.sm),
           child,
         ],
       ),
@@ -519,8 +612,48 @@ class _ChipWrap extends StatelessWidget {
   }
 }
 
+/// A multi-select chip — [FilterChip], which shows a checkmark on selection
+/// per Material convention. Used for every facet backed by a `Set` (tapping
+/// one never touches another): Transaction type, Bank, Conversion status,
+/// Credit card, Duplicates.
 class _Chip extends StatelessWidget {
   const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final ValueChanged<bool> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilterChip(
+      label: Text(label),
+      labelStyle: context.textTheme.labelSmall,
+      selected: selected,
+      onSelected: onSelected,
+      showCheckmark: true,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
+    );
+  }
+}
+
+/// A single-select chip — [ChoiceChip], which fills solid on selection with
+/// no checkmark, the Material convention for "picking this replaces
+/// whatever else was picked" (radio-button behavior). Used for every facet
+/// backed by a plain enum/value rather than a `Set`: Money direction, Date
+/// & time, and the Amount section's quick-pick thresholds. Deliberately a
+/// distinct widget from [_Chip] rather than a `showCheckmark: false` flag on
+/// the same one — the visual difference is the whole point, so it shouldn't
+/// be one easy-to-miss parameter away from looking identical again.
+class _SingleChoiceChip extends StatelessWidget {
+  const _SingleChoiceChip({
     required this.label,
     required this.selected,
     required this.onSelected,
@@ -529,17 +662,18 @@ class _Chip extends StatelessWidget {
 
   final String label;
   final bool selected;
-  final ValueChanged<bool> onSelected;
+  final VoidCallback onSelected;
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    return FilterChip(
+    return ChoiceChip(
       label: Text(label),
       avatar: icon == null ? null : Icon(icon, size: AppSizes.iconSm),
       labelStyle: context.textTheme.labelSmall,
       selected: selected,
-      onSelected: onSelected,
+      onSelected: (_) => onSelected(),
+      showCheckmark: false,
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       shape: RoundedRectangleBorder(

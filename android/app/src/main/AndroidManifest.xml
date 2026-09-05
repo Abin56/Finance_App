@@ -53,6 +53,24 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
+        <!-- SMS Inbox feature: captures notification text from the device's
+             default SMS/RCS app so RCS Business Messaging alerts (which never
+             reach content://sms — see NotificationCaptureListenerService's
+             doc comment) can still be scanned. Removed for the `play` flavor
+             via src/play/AndroidManifest.xml, same rationale as READ_SMS
+             above: Google Play's Restricted Permissions policy treats
+             notification-listener access the same way it treats SMS access
+             for a non-default-handler app. See PLAY_STORE.md > "SMS Inbox
+             and the Play build". -->
+        <service
+            android:name=".NotificationCaptureListenerService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

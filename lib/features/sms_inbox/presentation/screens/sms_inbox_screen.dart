@@ -8,7 +8,9 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
+import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../domain/filter/sms_sort_order.dart';
 import '../../domain/sms_availability.dart';
 import '../../domain/sms_import_status.dart';
@@ -27,6 +29,7 @@ import '../widgets/sms_empty_state.dart';
 import '../widgets/sms_inbox_skeleton_list.dart';
 import '../widgets/sms_message_detail_sheet.dart';
 import '../widgets/sms_message_tile.dart';
+import '../widgets/notification_capture_banner.dart';
 import '../widgets/sms_multi_select_toolbar.dart';
 import '../widgets/sms_permission_gate_view.dart';
 import '../widgets/sms_search_filter_bar.dart';
@@ -59,6 +62,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
     with WidgetsBindingObserver {
   final Set<String> _selectedIds = {};
   bool _hasAutoScanned = false;
+  final _sortFieldKey = GlobalKey();
 
   /// Guards the toolbar while a bulk conversion is mid-flight: a second tap
   /// would run the loop again over messages the first pass hasn't finished
@@ -93,6 +97,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(smsAvailabilityProvider.notifier).recheck();
+      ref.read(notificationAccessAvailabilityProvider.notifier).recheck();
     }
   }
 
@@ -109,16 +114,45 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SMS Inbox'),
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: AppClay.primaryGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        foregroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
+              child: const Icon(Icons.sms_rounded, size: AppSizes.iconSm, color: Colors.white),
+            ),
+            const SizedBox(width: AppSizes.sm),
+            Text(
+              'SMS Inbox',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+          ],
+        ),
         actions: [
           if (!_selectionMode) ...[
             IconButton(
-              icon: const Icon(Icons.swap_vert_rounded),
+              key: _sortFieldKey,
+              icon: const Icon(Icons.swap_vert_rounded, color: Colors.white),
               tooltip: 'Sort',
               onPressed: () => _openSortMenu(context),
             ),
             IconButton(
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
               tooltip: 'Refresh',
               onPressed: () => ref.read(smsInboxItemsProvider.notifier).scan(),
             ),
@@ -162,28 +196,50 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
   /// Clear. Mirrors `TransactionsScreen`'s sort menu.
   Future<void> _openSortMenu(BuildContext context) async {
     final current = ref.read(smsFilterCriteriaProvider).sort;
-    final selected = await showModalBottomSheet<SmsSortOrder>(
+    final selected = await showAnchoredSortMenu<SmsSortOrder>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final sort in SmsSortOrder.values)
-              ListTile(
-                title: Text(sort.label),
-                trailing: sort == current
-                    ? const Icon(Icons.check_rounded)
-                    : null,
-                onTap: () => Navigator.of(sheetContext).pop(sort),
-              ),
-          ],
-        ),
-      ),
+      anchorKey: _sortFieldKey,
+      selectedValue: current,
+      options: [
+        for (final sort in SmsSortOrder.values)
+          SortMenuOption(
+            value: sort,
+            icon: _metricIconFor(sort),
+            trailingIcon: _directionIconFor(sort),
+            label: sort.label,
+          ),
+      ],
     );
     if (selected == null) return;
 
     final notifier = ref.read(smsFilterCriteriaProvider.notifier);
     notifier.state = notifier.state.copyWith(sort: selected);
+  }
+
+  IconData _metricIconFor(SmsSortOrder sort) {
+    switch (sort) {
+      case SmsSortOrder.newestFirst:
+      case SmsSortOrder.oldestFirst:
+        return Icons.calendar_month_outlined;
+      case SmsSortOrder.highestAmount:
+      case SmsSortOrder.lowestAmount:
+        return Icons.currency_rupee_rounded;
+      case SmsSortOrder.alphabetical:
+        return Icons.sort_by_alpha_rounded;
+    }
+  }
+
+  IconData? _directionIconFor(SmsSortOrder sort) {
+    switch (sort) {
+      case SmsSortOrder.newestFirst:
+      case SmsSortOrder.highestAmount:
+        return Icons.arrow_downward_rounded;
+      case SmsSortOrder.oldestFirst:
+      case SmsSortOrder.lowestAmount:
+        return Icons.arrow_upward_rounded;
+      case SmsSortOrder.alphabetical:
+        return null;
+    }
   }
 
   Widget _buildInboxBody(BuildContext context) {
@@ -217,6 +273,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
                       .hasActiveFilters,
                 ),
               ),
+              const SliverToBoxAdapter(child: NotificationCaptureBanner()),
               if (rows.isEmpty)
                 SliverFillRemaining(
                   hasScrollBody: false,
@@ -250,10 +307,11 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
     );
     final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
+    var index = 0;
     return [
       for (final date in sortedDates) ...[
         _Row.header(date, grouped[date]!),
-        for (final item in grouped[date]!) _Row.item(item),
+        for (final item in grouped[date]!) _Row.item(item, ++index),
       ],
     ];
   }
@@ -275,6 +333,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
           SmsMessageTile(
             key: ValueKey(item.id),
             item: item,
+            index: row.index!,
             candidate: candidatesBySmsId[item.id],
             selectionMode: _selectionMode,
             selected: _selectedIds.contains(item.id),
@@ -282,7 +341,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
                 _selectionMode ? _toggleSelected(item.id) : _openDetail(item),
             onLongPress: () => setState(() => _selectedIds.add(item.id)),
           ),
-          const Divider(height: 1, indent: 68),
+          Divider(height: 1, indent: 80, color: AppClay.primary.withValues(alpha: 0.08)),
         ],
       ),
     );
@@ -520,10 +579,13 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
 
 /// One entry in the flattened feed — either a date header or an SMS row.
 class _Row {
-  const _Row.item(this.item) : date = null, groupItems = null;
-  const _Row.header(this.date, this.groupItems) : item = null;
+  const _Row.item(this.item, this.index) : date = null, groupItems = null;
+  const _Row.header(this.date, this.groupItems) : item = null, index = null;
 
   final SmsInboxItem? item;
+
+  /// 1-based position among item rows only — null for a header row.
+  final int? index;
   final DateTime? date;
   final List<SmsInboxItem>? groupItems;
 }

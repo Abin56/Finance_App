@@ -1,18 +1,23 @@
 import '../../../core/utils/id_generator.dart';
+import '../domain/bank_sender_matcher.dart';
 import '../domain/sms_dedup_key.dart';
 import '../domain/sms_duplicate_reason.dart';
 import '../domain/sms_import_status.dart';
 import '../domain/sms_inbox_item.dart';
 import '../domain/sms_message_key.dart';
+import '../domain/sms_message_source.dart';
 import '../domain/sms_parser.dart';
 import '../domain/sms_parser_registry.dart';
+import 'notification_capture_adapter.dart';
 import 'sms_inbox_dao.dart';
 import 'sms_reader_adapter.dart';
 
 /// The SMS Inbox feature's real API surface. This class — and only this
-/// class — is allowed to read the device SMS inbox and persist SMS
-/// metadata; it depends solely on [SmsInboxDao] (local sqflite) and
-/// [SmsReaderAdapter] (device SMS), and deliberately imports nothing
+/// class — is allowed to read the device SMS inbox/notifications and persist
+/// SMS metadata; it depends solely on [SmsInboxDao] (local sqflite),
+/// [SmsReaderAdapter] (device SMS) and [NotificationCaptureAdapter]
+/// (notification-sourced captures, for messages like RCS alerts that never
+/// reach `content://sms` at all), and deliberately imports nothing
 /// Firestore-related. That is what structurally guarantees the feature's
 /// privacy requirement: pending/ignored SMS data can never reach the cloud,
 /// because nothing in this class has a path to Firestore. Only once the
@@ -24,11 +29,17 @@ class SmsInboxRepository {
     this._dao,
     this._reader, {
     this.parserRegistry = const SmsParserRegistry(),
+    this.notificationReader = const NotificationCaptureAdapter(),
   });
 
   final SmsInboxDao _dao;
   final SmsReaderAdapter _reader;
   final SmsParserRegistry parserRegistry;
+
+  /// Supplementary source alongside [_reader] — captures notification text
+  /// for RCS/other bank alerts that never reach `content://sms` at all. See
+  /// [NotificationCaptureAdapter]'s doc comment.
+  final NotificationCaptureAdapter notificationReader;
 
   /// Reads the device inbox, drops anything non-financial (OTP/promo/spam/
   /// delivery/recharge), parses the rest, and stores every genuinely new
@@ -52,7 +63,10 @@ class SmsInboxRepository {
   /// balance unless the user explicitly converts one from the Duplicates
   /// review.
   Future<int> scanInbox() async {
-    final rawMessages = await _reader.readInbox();
+    final rawMessages = [
+      ...await _reader.readInbox(),
+      ...await notificationReader.readCaptured(),
+    ];
     final items = <SmsInboxItem>[];
 
     // Tracks the dedup-key → original-item-id assignments made *within this
@@ -62,6 +76,18 @@ class SmsInboxRepository {
     // free from each insert being visible to the next iteration's DB query
     // before batching replaced it (see [SmsInboxDao.insertManyIfNew]).
     final originalIdByDedupKeyThisScan = <String, String>{};
+
+    // Same rationale as [originalIdByDedupKeyThisScan], for the fuzzy
+    // cross-source check below: a device-SMS message and its notification
+    // counterpart typically arrive in the very same scan (the first scan
+    // ever, or right after both land within moments of each other), and the
+    // device-SMS row isn't committed to the DB until [SmsInboxDao.insertManyIfNew]
+    // runs at the very end of this method — so a DB-only lookup would never
+    // find it. [_reader]'s messages are always ordered before
+    // [notificationReader]'s in [rawMessages], so every device-SMS item is
+    // already in this list by the time a notification-sourced item is
+    // processed.
+    final deviceSmsRecordsThisScan = <_ScannedDeviceSms>[];
 
     final candidateKeys = rawMessages.map(
       (m) => SmsMessageKey.compute(
@@ -93,9 +119,49 @@ class SmsInboxRepository {
         body: message.body,
       );
 
-      final storedOriginal = await _dao.findOriginalByDedupKey(dedupKey);
-      final originalId =
-          storedOriginal?.id ?? originalIdByDedupKeyThisScan[dedupKey];
+      String? originalId;
+      SmsDuplicateReason? duplicateReason;
+
+      // A notification-sourced message (RCS, or a real SMS Google Messages
+      // also notified for) doesn't share a clock with the device SMS
+      // provider, so it can't rely on SmsDedupKey's exact-millisecond match
+      // to find an existing device-SMS row describing the same payment —
+      // see SmsInboxDao.findLikelyOriginalByFuzzyMatch's doc comment. Tried
+      // first, and only for notification-sourced items: this never changes
+      // behavior for device-SMS-vs-device-SMS comparisons, which still go
+      // through the exact-hash path below exactly as before.
+      if (message.source == SmsMessageSource.notification && parsed != null) {
+        final normalizedSender = BankSenderMatcher.normalize(message.address);
+        const fuzzyWindow = Duration(minutes: 5);
+
+        for (final record in deviceSmsRecordsThisScan) {
+          if (record.normalizedSender == normalizedSender &&
+              record.amount == parsed.amount &&
+              record.date.difference(message.date).abs() <= fuzzyWindow) {
+            originalId = record.id;
+            break;
+          }
+        }
+
+        originalId ??= (await _dao.findLikelyOriginalByFuzzyMatch(
+          normalizedSender: normalizedSender,
+          amount: parsed.amount,
+          around: message.date,
+          windowMinutes: 5,
+        ))?.id;
+
+        if (originalId != null) {
+          duplicateReason = SmsDuplicateReason.sameSenderAmountAndTime;
+        }
+      }
+
+      if (originalId == null) {
+        final storedOriginal = await _dao.findOriginalByDedupKey(dedupKey);
+        originalId = storedOriginal?.id ?? originalIdByDedupKeyThisScan[dedupKey];
+        if (originalId != null) {
+          duplicateReason = _reasonFor(parsed?.referenceNumber);
+        }
+      }
 
       final item = SmsInboxItem(
         id: IdGenerator.generate(),
@@ -104,9 +170,7 @@ class SmsInboxRepository {
         parsed: parsed,
         dedupKey: dedupKey,
         duplicateOfId: originalId,
-        duplicateReason: originalId == null
-            ? null
-            : _reasonFor(parsed?.referenceNumber),
+        duplicateReason: duplicateReason,
         status: SmsImportStatus.pending,
         createdAt: DateTime.now(),
       );
@@ -117,6 +181,16 @@ class SmsInboxRepository {
       // scan — mirrors findOriginalByDedupKey's own earliest-wins rule.
       if (originalId == null) {
         originalIdByDedupKeyThisScan[dedupKey] = item.id;
+        if (message.source == SmsMessageSource.deviceSms && parsed != null) {
+          deviceSmsRecordsThisScan.add(
+            _ScannedDeviceSms(
+              normalizedSender: BankSenderMatcher.normalize(message.address),
+              amount: parsed.amount,
+              date: message.date,
+              id: item.id,
+            ),
+          );
+        }
       }
     }
 
@@ -187,4 +261,22 @@ class SmsInboxRepository {
   Future<void> clearDuplicateFlag(String id) => _dao.clearDuplicateFlag(id);
 
   Future<void> deleteMany(List<String> ids) => _dao.deleteByIds(ids);
+}
+
+/// An in-progress scan's own record of one non-duplicate device-SMS item,
+/// kept purely so a notification-sourced item processed later in the *same*
+/// scan can still find it as a fuzzy-match candidate — see
+/// [SmsInboxRepository.scanInbox]'s `deviceSmsRecordsThisScan` doc comment.
+class _ScannedDeviceSms {
+  const _ScannedDeviceSms({
+    required this.normalizedSender,
+    required this.amount,
+    required this.date,
+    required this.id,
+  });
+
+  final String normalizedSender;
+  final double amount;
+  final DateTime date;
+  final String id;
 }

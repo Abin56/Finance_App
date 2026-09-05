@@ -15,6 +15,8 @@ import '../../data/cloud_function_financial_event_ai_provider.dart';
 import '../../data/financial_event_dao.dart';
 import '../../data/merchant_memory_dao.dart';
 import '../../data/merchant_memory_repository.dart';
+import '../../data/notification_access_service.dart';
+import '../../data/notification_capture_adapter.dart';
 import '../../data/sms_inbox_dao.dart';
 import '../../data/sms_inbox_database.dart';
 import '../../data/sms_inbox_repository.dart';
@@ -40,6 +42,7 @@ import '../../domain/financial_event/financial_event_type.dart';
 import '../../domain/financial_event/transaction_matcher.dart';
 import '../../domain/merchant/merchant_category_suggester.dart';
 import '../../domain/merchant/merchant_memory.dart';
+import '../../domain/notification_access_availability.dart';
 import '../../domain/sms_availability.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
@@ -66,10 +69,19 @@ final smsPermissionServiceProvider = Provider<SmsPermissionService>(
   (ref) => const SmsPermissionService(),
 );
 
+final notificationCaptureAdapterProvider = Provider<NotificationCaptureAdapter>(
+  (ref) => const NotificationCaptureAdapter(),
+);
+
+final notificationAccessServiceProvider = Provider<NotificationAccessService>(
+  (ref) => const NotificationAccessService(),
+);
+
 final smsInboxRepositoryProvider = Provider<SmsInboxRepository>((ref) {
   return SmsInboxRepository(
     ref.watch(smsInboxDaoProvider),
     ref.watch(smsReaderAdapterProvider),
+    notificationReader: ref.watch(notificationCaptureAdapterProvider),
   );
 });
 
@@ -695,6 +707,31 @@ final smsAvailabilityProvider =
     AsyncNotifierProvider<SmsAvailabilityNotifier, SmsAvailability>(
       SmsAvailabilityNotifier.new,
     );
+
+/// Mirrors [SmsAvailabilityNotifier], but there is no OS dialog to trigger —
+/// [openSettings] deep-links to system Settings and the user toggles access
+/// there, so [recheck] (called on app resume, same as SMS's) is what
+/// actually observes a change.
+class NotificationAccessAvailabilityNotifier
+    extends AsyncNotifier<NotificationAccessAvailability> {
+  @override
+  Future<NotificationAccessAvailability> build() =>
+      ref.watch(notificationAccessServiceProvider).checkStatus();
+
+  Future<void> recheck() async {
+    state = await AsyncValue.guard(
+      () => ref.read(notificationAccessServiceProvider).checkStatus(),
+    );
+  }
+
+  Future<void> openSettings() =>
+      ref.read(notificationAccessServiceProvider).openSettings();
+}
+
+final notificationAccessAvailabilityProvider = AsyncNotifierProvider<
+    NotificationAccessAvailabilityNotifier, NotificationAccessAvailability>(
+  NotificationAccessAvailabilityNotifier.new,
+);
 
 /// Live search, kept separate from [smsFilterCriteriaProvider]: typing
 /// narrows the feed as you go, whereas the sheet's facets only land on Apply.

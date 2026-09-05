@@ -146,8 +146,43 @@ androidComponents {
             }
         }
 
+        // Same guardrail as verifySmsPermission above, for the notification
+        // listener service that backs the SMS Inbox feature's RCS-capture
+        // path (see NotificationCaptureListenerService) — it carries the
+        // same Play-policy risk as READ_SMS, so it must be excluded from the
+        // play flavor's merged manifest just as reliably.
+        val expectNotificationListener = variant.flavorName == "sideload"
+        val verifyNotificationListenerTask =
+            tasks.register("verifyNotificationListener$variantNameCapitalized") {
+                group = "verification"
+                description = "Checks that the $variantNameCapitalized merged manifest has the " +
+                    "notification listener service " +
+                    (if (expectNotificationListener) "present (sideload flavor)." else "absent (play flavor).")
+                val manifestFileProperty = manifestArtifact
+                inputs.file(manifestFileProperty)
+                doLast {
+                    val manifestText = manifestFileProperty.get().asFile.readText()
+                    val hasService = Regex("""NotificationCaptureListenerService""")
+                        .containsMatchIn(manifestText)
+                    if (hasService != expectNotificationListener) {
+                        throw GradleException(
+                            "Notification listener check failed for variant '${variant.name}': " +
+                                "expected NotificationCaptureListenerService to be " +
+                                "${if (expectNotificationListener) "PRESENT" else "ABSENT"} in the merged " +
+                                "manifest, but it was ${if (hasService) "present" else "absent"}. " +
+                                "See android/app/build.gradle.kts productFlavors and " +
+                                "src/play|sideload/AndroidManifest.xml."
+                        )
+                    }
+                    logger.lifecycle(
+                        "verifyNotificationListener$variantNameCapitalized: service is " +
+                            "${if (hasService) "present" else "absent"} as expected."
+                    )
+                }
+            }
+
         tasks.matching { it.name == "assemble$variantNameCapitalized" }.configureEach {
-            finalizedBy(verifyTask)
+            finalizedBy(verifyTask, verifyNotificationListenerTask)
         }
     }
 }

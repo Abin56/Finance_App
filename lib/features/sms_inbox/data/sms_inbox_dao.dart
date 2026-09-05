@@ -1,10 +1,12 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../domain/bank_sender_matcher.dart';
 import '../domain/parsed_sms_transaction.dart';
 import '../domain/raw_sms_message.dart';
 import '../domain/sms_duplicate_reason.dart';
 import '../domain/sms_import_status.dart';
 import '../domain/sms_inbox_item.dart';
+import '../domain/sms_message_source.dart';
 import '../domain/sms_transaction_category.dart';
 import '../domain/sms_transaction_direction.dart';
 import 'sms_inbox_database.dart';
@@ -78,6 +80,46 @@ class SmsInboxDao {
     );
     if (rows.isEmpty) return null;
     return _fromRow(rows.first);
+  }
+
+  /// A notification-sourced item's best-effort cross-source duplicate check:
+  /// an existing device-SMS row from the same (normalized) sender and amount,
+  /// within [windowMinutes] of [around]. Device-SMS and notification postTime
+  /// come from different clocks, so this is deliberately a time *window*
+  /// rather than [SmsDedupKey]'s exact-millisecond match — see
+  /// `SmsInboxRepository.scanInbox()`'s doc comment for why this exists
+  /// alongside (not instead of) the exact-hash dedup path, and
+  /// [SmsMessageSource]'s doc comment for why the two clocks can't be
+  /// compared exactly. Sender normalization isn't its own column, so this
+  /// narrows by amount/time/source in SQL first (already a small result set)
+  /// and compares normalized senders in Dart.
+  Future<SmsInboxItem?> findLikelyOriginalByFuzzyMatch({
+    required String normalizedSender,
+    required double amount,
+    required DateTime around,
+    required int windowMinutes,
+  }) async {
+    final windowMillis = windowMinutes * 60 * 1000;
+    final rows = await _database.query(
+      SmsInboxDatabase.tableName,
+      where:
+          'source = ? AND amount = ? AND received_at BETWEEN ? AND ? AND duplicate_of_id IS NULL',
+      whereArgs: [
+        SmsMessageSource.deviceSms.name,
+        amount,
+        around.millisecondsSinceEpoch - windowMillis,
+        around.millisecondsSinceEpoch + windowMillis,
+      ],
+      orderBy: 'received_at ASC',
+    );
+
+    for (final row in rows) {
+      final sender = row['sender']! as String;
+      if (BankSenderMatcher.normalize(sender) == normalizedSender) {
+        return _fromRow(row);
+      }
+    }
+    return null;
   }
 
   /// Sets [status] on many rows in one batch — bulk Ignore over a large
@@ -239,6 +281,7 @@ class SmsInboxDao {
       'sender': item.rawMessage.address,
       'body': item.rawMessage.body,
       'received_at': item.rawMessage.date.millisecondsSinceEpoch,
+      'source': item.rawMessage.source.name,
       'direction': parsed?.direction.name,
       'amount': parsed?.amount,
       'merchant': parsed?.merchantOrSender,
@@ -288,6 +331,7 @@ class SmsInboxDao {
         address: row['sender']! as String,
         body: row['body']! as String,
         date: DateTime.fromMillisecondsSinceEpoch(row['received_at']! as int),
+        source: SmsMessageSourceX.fromName(row['source'] as String?),
       ),
       parsed: parsed,
       dedupKey: row['dedup_key']! as String,

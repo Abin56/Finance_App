@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 
 import '../domain/raw_sms_message.dart';
+import '../domain/sms_message_source.dart';
 import '../domain/sms_read_exception.dart';
 
 /// Wraps `flutter_sms_inbox` behind the feature's own [RawSmsMessage] type
@@ -45,6 +46,7 @@ class SmsReaderAdapter {
             address: m.address!,
             body: m.body!,
             date: m.date!,
+            source: SmsMessageSource.deviceSms,
             threadId: m.threadId,
           ),
         )

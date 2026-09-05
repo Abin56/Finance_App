@@ -1,3 +1,4 @@
+import 'package:finance_app/features/sms_inbox/data/notification_capture_adapter.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_dao.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_database.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_repository.dart';
@@ -5,6 +6,7 @@ import 'package:finance_app/features/sms_inbox/data/sms_reader_adapter.dart';
 import 'package:finance_app/features/sms_inbox/domain/raw_sms_message.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_duplicate_reason.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_import_status.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_message_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -15,6 +17,15 @@ class _FakeSmsReaderAdapter extends SmsReaderAdapter {
 
   @override
   Future<List<RawSmsMessage>> readInbox() async => messages;
+}
+
+class _FakeNotificationCaptureAdapter extends NotificationCaptureAdapter {
+  _FakeNotificationCaptureAdapter(this.messages);
+
+  final List<RawSmsMessage> messages;
+
+  @override
+  Future<List<RawSmsMessage>> readCaptured() async => messages;
 }
 
 void main() {
@@ -389,6 +400,95 @@ void main() {
         final newCount = await repository.scanInbox();
         expect(newCount, 0);
         expect(await repository.getAll(), isEmpty);
+      },
+    );
+  });
+
+  group('notification-sourced messages', () {
+    test(
+      'an RCS-only message (no device-SMS counterpart) imports cleanly as a new item',
+      () async {
+        final rcsOnly = RawSmsMessage(
+          address: 'SBI Cards and Payments',
+          body:
+              'Rs.180.00 spent on your SBI Credit Card ending with 0282 at '
+              'KMAFRESHFISHTRVLA on 03-09-26 via UPI (Ref No. 661296324356).',
+          date: DateTime(2026, 9, 3, 13, 30),
+          source: SmsMessageSource.notification,
+        );
+        final repository = SmsInboxRepository(
+          dao,
+          _FakeSmsReaderAdapter([]),
+          notificationReader: _FakeNotificationCaptureAdapter([rcsOnly]),
+        );
+
+        expect(await repository.scanInbox(), 1);
+        final all = await repository.getAll();
+        expect(all, hasLength(1));
+        expect(all.single.isDuplicate, isFalse);
+        expect(all.single.parsed?.amount, 180.0);
+      },
+    );
+
+    test(
+      'a notification capture of the same payment as an existing device-SMS row is flagged as its duplicate',
+      () async {
+        // A bank that sends a real SMS *and* whose Google Messages
+        // notification shows the raw sender id as its title — the
+        // notification's postTime is a different clock than the SMS
+        // provider's own `date` column, so this can only be caught by
+        // findLikelyOriginalByFuzzyMatch's time window, not the exact-hash
+        // SmsDedupKey path.
+        final notificationCopy = RawSmsMessage(
+          address: 'VM-HDFCBK',
+          body: financialSms.body,
+          date: financialSms.date.add(const Duration(seconds: 45)),
+          source: SmsMessageSource.notification,
+        );
+        final repository = SmsInboxRepository(
+          dao,
+          _FakeSmsReaderAdapter([financialSms]),
+          notificationReader: _FakeNotificationCaptureAdapter([
+            notificationCopy,
+          ]),
+        );
+
+        await repository.scanInbox();
+
+        final all = await repository.getAll();
+        expect(all, hasLength(2));
+        final original = all.firstWhere((item) => !item.isDuplicate);
+        final duplicate = all.firstWhere((item) => item.isDuplicate);
+        expect(duplicate.duplicateOfId, original.id);
+        expect(
+          duplicate.duplicateReason,
+          SmsDuplicateReason.sameSenderAmountAndTime,
+        );
+      },
+    );
+
+    test(
+      'a notification capture with a genuinely different sender/amount is not flagged as a duplicate',
+      () async {
+        final unrelated = RawSmsMessage(
+          address: 'SBI Cards and Payments',
+          body:
+              'Rs.348.43 spent on your SBI Credit Card ending 0282 at '
+              'KERALASTATEBEVERAGES on 04-09-26. Ref No 624714245140.',
+          date: financialSms.date.add(const Duration(seconds: 45)),
+          source: SmsMessageSource.notification,
+        );
+        final repository = SmsInboxRepository(
+          dao,
+          _FakeSmsReaderAdapter([financialSms]),
+          notificationReader: _FakeNotificationCaptureAdapter([unrelated]),
+        );
+
+        await repository.scanInbox();
+
+        final all = await repository.getAll();
+        expect(all, hasLength(2));
+        expect(all.where((item) => item.isDuplicate), isEmpty);
       },
     );
   });
