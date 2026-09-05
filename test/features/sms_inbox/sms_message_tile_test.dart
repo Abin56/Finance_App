@@ -76,6 +76,7 @@ void main() {
     double textScale = 1.0,
     bool selectionMode = false,
     TransactionCandidate? candidate,
+    int index = 1,
   }) async {
     tester.view.physicalSize = Size(width, 800);
     tester.view.devicePixelRatio = 1.0;
@@ -89,6 +90,7 @@ void main() {
           home: Scaffold(
             body: SmsMessageTile(
               item: item,
+              index: index,
               onTap: () {},
               selectionMode: selectionMode,
               candidate: candidate,

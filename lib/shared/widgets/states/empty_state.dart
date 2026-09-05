@@ -30,7 +30,9 @@ class EmptyState extends StatelessWidget {
       builder: (context, constraints) {
         return SingleChildScrollView(
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            constraints: BoxConstraints(
+              minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
+            ),
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSizes.xxl),

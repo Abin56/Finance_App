@@ -11,6 +11,7 @@ import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../transactions/domain/transaction_type.dart';
+import '../../data/battery_optimization_service.dart';
 import '../../data/cloud_function_financial_event_ai_provider.dart';
 import '../../data/financial_event_dao.dart';
 import '../../data/merchant_memory_dao.dart';
@@ -25,6 +26,7 @@ import '../../data/sms_reader_adapter.dart';
 import '../../data/sms_transaction_candidate_repository.dart';
 import '../../data/transaction_candidate_dao.dart';
 import '../../domain/account_card_matcher.dart';
+import '../../domain/battery_optimization_availability.dart';
 import '../../domain/filter/sms_card_matcher.dart';
 import '../../domain/filter/sms_filter_criteria.dart';
 import '../../domain/financial_event/automation_action.dart';
@@ -75,6 +77,11 @@ final notificationCaptureAdapterProvider = Provider<NotificationCaptureAdapter>(
 
 final notificationAccessServiceProvider = Provider<NotificationAccessService>(
   (ref) => const NotificationAccessService(),
+);
+
+final batteryOptimizationServiceProvider =
+    Provider<BatteryOptimizationService>(
+  (ref) => const BatteryOptimizationService(),
 );
 
 final smsInboxRepositoryProvider = Provider<SmsInboxRepository>((ref) {
@@ -731,6 +738,32 @@ class NotificationAccessAvailabilityNotifier
 final notificationAccessAvailabilityProvider = AsyncNotifierProvider<
     NotificationAccessAvailabilityNotifier, NotificationAccessAvailability>(
   NotificationAccessAvailabilityNotifier.new,
+);
+
+/// Same "no OS dialog, deep-link + recheck-on-resume" shape as
+/// [NotificationAccessAvailabilityNotifier] — notification access alone
+/// doesn't guarantee RCS capture actually runs if the OS is free to freeze
+/// the app in the background, so this is checked and surfaced as its own,
+/// independent step (see [NotificationCaptureBanner]).
+class BatteryOptimizationAvailabilityNotifier
+    extends AsyncNotifier<BatteryOptimizationAvailability> {
+  @override
+  Future<BatteryOptimizationAvailability> build() =>
+      ref.watch(batteryOptimizationServiceProvider).checkStatus();
+
+  Future<void> recheck() async {
+    state = await AsyncValue.guard(
+      () => ref.read(batteryOptimizationServiceProvider).checkStatus(),
+    );
+  }
+
+  Future<void> requestUnrestricted() =>
+      ref.read(batteryOptimizationServiceProvider).requestUnrestricted();
+}
+
+final batteryOptimizationAvailabilityProvider = AsyncNotifierProvider<
+    BatteryOptimizationAvailabilityNotifier, BatteryOptimizationAvailability>(
+  BatteryOptimizationAvailabilityNotifier.new,
 );
 
 /// Live search, kept separate from [smsFilterCriteriaProvider]: typing

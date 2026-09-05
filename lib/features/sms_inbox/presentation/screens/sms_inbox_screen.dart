@@ -98,6 +98,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
     if (state == AppLifecycleState.resumed) {
       ref.read(smsAvailabilityProvider.notifier).recheck();
       ref.read(notificationAccessAvailabilityProvider.notifier).recheck();
+      ref.read(batteryOptimizationAvailabilityProvider.notifier).recheck();
     }
   }
 
@@ -276,7 +277,6 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
               const SliverToBoxAdapter(child: NotificationCaptureBanner()),
               if (rows.isEmpty)
                 SliverFillRemaining(
-                  hasScrollBody: false,
                   child: SmsEmptyState(
                     onRefresh: () =>
                         ref.read(smsInboxItemsProvider.notifier).scan(),

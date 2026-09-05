@@ -8,6 +8,15 @@
          is no background/live SMS listener, only an explicit user-triggered
          scan (see lib/features/sms_inbox/data/sms_inbox_repository.dart). -->
     <uses-permission android:name="android.permission.READ_SMS"/>
+    <!-- SMS Inbox feature: lets the app prompt the user to exempt itself from
+         Doze/App Standby battery restrictions. Needed because OEM background-
+         freezing (e.g. Samsung's "Optimised" battery mode) silently prevents
+         NotificationCaptureListenerService's callback from ever running, even
+         though the listener stays registered — see MainActivity's
+         requestBatteryUnrestricted handler. Removed for the `play` flavor,
+         same rationale as READ_SMS and the notification listener service
+         above. See PLAY_STORE.md > "SMS Inbox and the Play build". -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <application
         android:label="FlowFi"
         android:name="${applicationName}"

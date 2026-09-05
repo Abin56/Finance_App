@@ -25,6 +25,14 @@
         android:name="android.permission.READ_SMS"
         tools:node="remove" />
 
+    <!-- Same policy rationale as READ_SMS above: Play requires a declared,
+         approved core use case for REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, and
+         "keep a personal-finance SMS reader alive in the background" is not
+         one. See PLAY_STORE.md > "SMS Inbox and the Play build". -->
+    <uses-permission
+        android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+        tools:node="remove" />
+
     <!-- Same policy rationale as READ_SMS above, applied to the notification-
          listener service declared in src/main/AndroidManifest.xml: Play
          scrutinizes BIND_NOTIFICATION_LISTENER_SERVICE the same way it
