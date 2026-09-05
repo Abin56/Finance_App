@@ -34,6 +34,12 @@ class CreditCardStatementSummaryCard extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text('Credit Card Statement Summary', style: context.textTheme.titleMedium),
+        Text(
+          'Always shows the current/most recent statement, regardless of the selected period',
+          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+        ),
+        const SizedBox(height: AppSizes.sm),
         for (final summary in summaries) ...[
           _CardStatementTile(summary: summary),
           if (summary != summaries.last) const SizedBox(height: AppSizes.sm),

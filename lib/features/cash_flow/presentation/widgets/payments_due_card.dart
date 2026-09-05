@@ -48,6 +48,10 @@ class PaymentsDueCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Payments Due This Month', style: context.textTheme.titleMedium),
+          Text(
+            'Always shows what\'s currently due, regardless of the selected period',
+            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+          ),
           const SizedBox(height: AppSizes.sm),
           Text(
             CurrencyFormatter.instance.format(total.due),

@@ -77,7 +77,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     final myExpenseBreakdown = ref.watch(myExpenseBreakdownForTransactionsProvider(periodTransactions));
     final moneyToReceive = ref.watch(totalPendingSplitAmountProvider);
-    final moneyReceived = ref.watch(moneyReceivedForRangeProvider((start: range.start, end: range.end)));
+    final moneyReceived = ref.watch(
+      moneyReceivedForRangeProvider((start: range.start, end: range.end, monthGranular: _period.isMonthGranular)),
+    );
 
     final categoryEntries = ref.watch(categorySpendingBreakdownProvider((range: range, period: _period)));
     final insightArgs = (range: range, previousRange: previousRange, period: _period);
@@ -123,6 +125,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   periodEnd: range.end,
                   income: income,
                   expenses: expenses,
+                  monthGranular: _period.isMonthGranular,
                 ),
                 const SizedBox(height: AppSizes.lg),
                 const SectionHeader(title: 'My Expense'),
