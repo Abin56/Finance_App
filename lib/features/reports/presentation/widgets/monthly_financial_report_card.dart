@@ -27,12 +27,21 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
     required this.periodEnd,
     required this.income,
     required this.expenses,
+    this.monthGranular = true,
   });
 
   final DateTime periodStart;
   final DateTime periodEnd;
   final double income;
   final double expenses;
+
+  /// Whether [periodStart]..[periodEnd] is a whole calendar month — passed
+  /// through to [moneyReceivedForRangeProvider] so it buckets by
+  /// `Transaction.effectiveMonth` (respecting `accountingMonth`) only when
+  /// that's a sound bucketing key; a day-precision period must bucket by
+  /// the transaction's real date instead. Defaults to `true` since every
+  /// caller before this field existed only ever passed a full-month range.
+  final bool monthGranular;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -49,7 +58,9 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
     final pendingEmi = ref.watch(totalRemainingEmiBalanceProvider);
     final pendingLoans = ref.watch(totalAmountToReceiveProvider);
     final moneyToReceive = ref.watch(totalMoneyToReceiveProvider);
-    final moneyCollected = ref.watch(moneyReceivedForRangeProvider(range));
+    final moneyCollected = ref.watch(
+      moneyReceivedForRangeProvider((start: periodStart, end: periodEnd, monthGranular: monthGranular)),
+    );
     final ccOutstanding = ref.watch(totalCreditCardOutstandingProvider);
     final utilization = ref.watch(creditUtilizationPercentProvider);
     final interestPaid = ref.watch(interestChargedForRangeProvider(range));

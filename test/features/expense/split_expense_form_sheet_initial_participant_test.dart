@@ -43,12 +43,12 @@ void main() {
   testWidgets('with initialParticipant set, the first share-with row is pre-selected to that person', (tester) async {
     await pump(tester, initialParticipant: person);
 
-    expect(find.widgetWithText(DropdownButtonFormField<String?>, 'Jane Doe'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Jane Doe'), findsOneWidget);
   });
 
   testWidgets('with no initialParticipant, the first row starts blank', (tester) async {
     await pump(tester);
 
-    expect(find.widgetWithText(DropdownButtonFormField<String?>, 'Jane Doe'), findsNothing);
+    expect(find.widgetWithText(TextFormField, 'Jane Doe'), findsNothing);
   });
 }

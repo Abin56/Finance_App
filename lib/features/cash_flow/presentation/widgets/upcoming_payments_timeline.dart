@@ -38,7 +38,16 @@ class UpcomingPaymentsTimeline extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
-            child: Text('Upcoming Payments', style: context.textTheme.titleMedium),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Upcoming Payments', style: context.textTheme.titleMedium),
+                Text(
+                  'Always shows what\'s currently due, regardless of the selected period',
+                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: AppSizes.xs),
           for (final item in items) _TimelineRow(item: item, onTap: () => _onTap(context, item)),

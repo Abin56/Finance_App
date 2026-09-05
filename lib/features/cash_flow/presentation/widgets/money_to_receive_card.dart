@@ -63,6 +63,10 @@ class MoneyToReceiveCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Money To Receive', style: context.textTheme.titleMedium),
+          Text(
+            'Currently outstanding — not scoped to the selected period',
+            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+          ),
           const SizedBox(height: AppSizes.sm),
           Text(
             CurrencyFormatter.instance.format(total),

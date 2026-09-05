@@ -16,8 +16,13 @@ import '../../../emi/presentation/providers/emi_providers.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../lending/presentation/providers/loan_providers.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../../accounts/presentation/providers/account_providers.dart';
+import '../../../categories/presentation/providers/category_providers.dart';
+import '../../../reports/domain/reports_period.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
+import '../../domain/cash_flow_period.dart';
+import '../../domain/money_flow_line.dart';
 
 /// Aggregation providers for the Dashboard's "Cash Flow Center" sections.
 /// Every provider below strictly composes existing providers/model getters
@@ -348,62 +353,368 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
 /// Section 5's Money In/Out/Net figures.
 typedef CashFlowSummary = ({double moneyIn, double moneyOut, double net});
 
-/// Sum of this-month (calendar-month, not carry-over-merged) installment
-/// `amountPaid` across every active Loan — kept separate from
-/// [loanDueThisMonthBreakdownProvider] so [cashFlowThisMonthProvider] isn't
-/// affected by Section 1's overdue-carry-over merge; paying off an old
-/// installment this month is real Money Out, but it belongs to the month it
-/// was paid in, not counted again via a due-date-based lookup.
-final _loanPaidThisMonthProvider = Provider<double>((ref) {
-  final loans = ref.watch(activeLoansProvider);
-  var paid = 0.0;
-  for (final loan in loans) {
-    final thisMonth = ref.watch(thisMonthInstallmentsProvider(loan.scheduleId));
-    paid += thisMonth.fold(0.0, (s, i) => s + i.amountPaid);
-  }
-  return paid;
+/// The Dashboard's "this calendar month" cash flow — evaluates the exact
+/// same [moneyInLinesForRangeFamilyProvider]/[moneyOutLinesForRangeFamilyProvider]
+/// the Cash Flow screen uses, just with a fixed This-Month period instead of
+/// the user-selected [cashFlowDateRangeProvider], rather than keeping a
+/// second, independently-maintained calculation. Money In/Out here can
+/// never silently diverge from the Cash Flow screen's own This-Month
+/// figures, and no account type (bank, credit card, cash, wallet, ...) is
+/// ever filtered by either — see [moneyOutLinesForRangeFamilyProvider]'s doc
+/// comment for why a credit-card purchase is included on equal footing with
+/// any other account's expense.
+final cashFlowThisMonthProvider = Provider<CashFlowSummary>((ref) {
+  final now = DateTime.now();
+  const period = CashFlowPeriod.preset(CashFlowPreset.thisMonth);
+  final range = period.rangeFor(now);
+  final key = (period: period, range: range);
+  final moneyIn = ref.watch(moneyInLinesForRangeFamilyProvider(key)).fold(0.0, (s, l) => s + l.amount);
+  final moneyOut = ref.watch(moneyOutLinesForRangeFamilyProvider(key)).fold(0.0, (s, l) => s + l.amount);
+  return (moneyIn: moneyIn, moneyOut: moneyOut, net: moneyIn - moneyOut);
 });
 
-/// Sum of this-month (calendar-month) bill `amountPaid` — see
-/// [_loanPaidThisMonthProvider] for why this stays independent of
-/// [billsDueThisMonthBreakdownProvider].
-final _billsPaidThisMonthProvider = Provider<double>((ref) {
+// ---------------------------------------------------------------------------
+// Date-range filter (Feature: Cash Flow date range)
+// ---------------------------------------------------------------------------
+//
+// The Cash Flow screen's single selected date range, defaulting to the
+// current calendar month. Only the sections built directly on
+// `calculableTransactionsProvider` (Section 5 "Cash Flow Summary" and the
+// "My Expenses" section below) can be meaningfully scoped to an arbitrary
+// user-picked range — Sections 1/3/4 (Payments Due, Credit Card Statement
+// Summary, Upcoming Payments) are built on each module's `CycleEngine`
+// carry-forward classification (due-cycle/statement-cycle semantics, not an
+// arbitrary window), so they deliberately keep showing "what's currently
+// owed" regardless of this range rather than being forced into a filter
+// that would misrepresent overdue/carried-over amounts. Section 2 (Money To
+// Receive) is an outstanding-balance concept, not date-scoped either.
+final cashFlowDateRangeProvider = StateProvider<CashFlowPeriod>((ref) {
+  return const CashFlowPeriod.preset(CashFlowPreset.thisMonth);
+});
+
+/// [cashFlowDateRangeProvider]'s period resolved against "now" into a
+/// concrete [DateRange] — the single value every range-scoped Cash Flow
+/// provider below reads, so "This Month" rolls forward at a month boundary
+/// without every consumer re-deriving `DateTime.now()` independently.
+final resolvedCashFlowRangeProvider = Provider<DateRange>((ref) {
+  final period = ref.watch(cashFlowDateRangeProvider);
+  return period.rangeFor(DateTime.now());
+});
+
+/// A (period, range) pair — the argument every range-parameterized Money
+/// In/Out line provider below takes, so the exact same calculation can be
+/// evaluated for the Cash Flow screen's user-selected period AND the
+/// Dashboard's fixed "this month" period without duplicating the logic
+/// itself (see [moneyInLinesForRangeFamilyProvider]/
+/// [moneyOutLinesForRangeFamilyProvider] and [cashFlowThisMonthProvider]).
+typedef _PeriodRange = ({CashFlowPeriod period, DateRange range});
+
+/// Every [MoneyFlowLine] that contributes to Money In for [key]'s range —
+/// plain income transactions, plus split-expense settlements collected from
+/// others (via each expense's own tracked installments). No account type
+/// (bank, credit card, cash, wallet, ...) is ever filtered here or anywhere
+/// downstream — [Transaction.accountId] only ever affects the line's
+/// display `accountLabel`, never whether it's included.
+///
+/// Bucketing: plain transactions are matched against
+/// [CashFlowPeriod.bucketDateFor] (so a whole-month preset still respects
+/// `accountingMonth`, while a day-precision custom range reads the
+/// transaction's real [Transaction.dateTime] instead of the month-truncated
+/// `effectiveMonth` — the bug this replaces). Split-expense settlements are
+/// bucketed by the linked transaction's own date, exactly matching
+/// [moneyReceivedForRangeProvider]'s existing rule, so this is additive
+/// with that provider rather than a second reimplementation of it.
+final moneyInLinesForRangeFamilyProvider = Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
+  final period = key.period;
+  final range = key.range;
+  final categoriesById = {for (final c in ref.watch(categoriesStreamProvider).value ?? const []) c.id: c};
+  final accountsById = {for (final a in ref.watch(accountsStreamProvider).value ?? const []) a.id: a};
+
+  final lines = <MoneyFlowLine>[];
+
+  final transactions = ref.watch(calculableTransactionsProvider);
+  for (final t in transactions) {
+    if (t.isDeleted || t.type != TransactionType.income) continue;
+    final bucketDate = period.bucketDateFor(t);
+    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
+    lines.add((
+      kind: MoneyFlowKind.income,
+      date: t.dateTime,
+      title: t.description.isNotEmpty ? t.description : 'Income',
+      amount: t.amount,
+      categoryLabel: categoriesById[t.categoryId]?.name,
+      accountLabel: accountsById[t.accountId]?.name,
+    ));
+  }
+
+  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+  final calculableById = {for (final t in transactions) t.id: t};
+  for (final expense in expenses) {
+    if (!expense.isSplit || expense.scheduleId == null) continue;
+    final transaction = calculableById[expense.transactionId];
+    if (transaction == null) continue;
+    final bucketDate = period.bucketDateFor(transaction);
+    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
+    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
+    final collected = installments.fold(0.0, (sum, i) => sum + i.amountPaid);
+    if (collected <= 0) continue;
+    lines.add((
+      kind: MoneyFlowKind.moneyReceived,
+      date: transaction.dateTime,
+      title: 'Money received: ${expense.description}',
+      amount: collected,
+      categoryLabel: categoriesById[expense.categoryId]?.name,
+      accountLabel: accountsById[expense.accountId]?.name,
+    ));
+  }
+
+  lines.sort((a, b) => b.date.compareTo(a.date));
+  return lines;
+});
+
+/// Every [MoneyFlowLine] that contributes to Money Out for [key]'s range —
+/// EVERY qualifying expense transaction regardless of which [Account]/
+/// [AccountType] it's posted against (bank, credit card, cash, wallet, or
+/// any other type this app supports), plus EMI/Loan/Bill payments (which
+/// never post their own [Transaction], see [cashFlowThisMonthProvider]'s
+/// doc comment). A credit-card purchase is stored as an ordinary
+/// [Transaction] on that card's [Account] — see `CreditCardProfile.accountId`
+/// — so it is already included by the same unfiltered loop as any other
+/// account's expense transaction; there is deliberately no `accountId`/
+/// `AccountType`/"is this a credit card" branch anywhere in this provider.
+/// Same single-source-of-truth contract as
+/// [moneyInLinesForRangeFamilyProvider]: whichever total reads this (Cash
+/// Flow screen or Dashboard) sums these exact lines, so the summary and the
+/// Money Out detail screen can never drift apart, and "This Month" can
+/// never see a different set of account types than "This Week"/a custom
+/// range — the period only ever changes WHICH transactions fall inside
+/// [key.range], never WHICH ACCOUNTS are eligible.
+///
+/// EMI/Loan/Bill lines are bucketed by the installment/occurrence's own due
+/// date — same rule [emiPaidThisMonthProvider] and friends already use for
+/// "this month" (a payment counts toward whichever cycle it was due in, not
+/// necessarily the day it was actually paid) — generalized here to an
+/// arbitrary range instead of always the current calendar month. A
+/// credit-card STATEMENT payment (paying off the card's bill) is distinct
+/// from a credit-card PURCHASE: the purchase already counted once as an
+/// ordinary expense [Transaction] above, and paying the statement later
+/// moves money between the card account and the paying account without
+/// posting a second expense transaction — see `CreditCardStatementSummaryCard`'s
+/// own section, which tracks statement payment status separately and is
+/// never summed into this provider, so a purchase is never double-counted
+/// against its own later bill payment.
+final moneyOutLinesForRangeFamilyProvider = Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
+  final period = key.period;
+  final range = key.range;
+  final categoriesById = {for (final c in ref.watch(categoriesStreamProvider).value ?? const []) c.id: c};
+  final accountsById = {for (final a in ref.watch(accountsStreamProvider).value ?? const []) a.id: a};
+
+  final lines = <MoneyFlowLine>[];
+
+  final transactions = ref.watch(calculableTransactionsProvider);
+  for (final t in transactions) {
+    if (t.isDeleted || t.type != TransactionType.expense) continue;
+    final bucketDate = period.bucketDateFor(t);
+    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
+    lines.add((
+      kind: MoneyFlowKind.expense,
+      date: t.dateTime,
+      title: t.description.isNotEmpty ? t.description : 'Expense',
+      amount: t.amount,
+      categoryLabel: categoriesById[t.categoryId]?.name,
+      accountLabel: accountsById[t.accountId]?.name,
+    ));
+  }
+
+  for (final emi in ref.watch(activeEmisProvider)) {
+    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+    for (final i in installments) {
+      if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) continue;
+      if (i.amountPaid <= 0) continue;
+      lines.add((
+        kind: MoneyFlowKind.emi,
+        date: i.dueDate,
+        title: emi.name,
+        amount: i.amountPaid,
+        categoryLabel: 'EMI',
+        accountLabel: null,
+      ));
+    }
+  }
+
+  for (final loan in ref.watch(activeLoansProvider)) {
+    final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+    for (final i in installments) {
+      if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) continue;
+      if (i.amountPaid <= 0) continue;
+      lines.add((
+        kind: MoneyFlowKind.loan,
+        date: i.dueDate,
+        title: loan.name ?? 'Loan',
+        amount: i.amountPaid,
+        categoryLabel: 'Loan',
+        accountLabel: null,
+      ));
+    }
+  }
+
   final bills = ref.watch(billsStreamProvider).value ?? const [];
-  final now = DateTime.now();
-  var paid = 0.0;
   for (final bill in bills) {
     final occurrences = ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
     for (final o in occurrences) {
-      if (!o.dueDate.isSameMonth(now) || o.status == BillStatus.skipped) continue;
-      paid += o.amountPaid;
+      if (o.status == BillStatus.skipped) continue;
+      if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end)) continue;
+      if (o.amountPaid <= 0) continue;
+      lines.add((
+        kind: MoneyFlowKind.bill,
+        date: o.dueDate,
+        title: bill.name,
+        amount: o.amountPaid,
+        categoryLabel: 'Bill',
+        accountLabel: null,
+      ));
     }
   }
-  return paid;
+
+  lines.sort((a, b) => b.date.compareTo(a.date));
+  return lines;
 });
 
-/// This month's cash flow. EMI/Bill/Loan payments never post a `Transaction`
-/// (confirmed by reading `EmiRepository`/`BillRepository`'s payment-recording
-/// methods), so [moneyOut] must add their paid amounts explicitly on top of
-/// expense transactions rather than assuming those payments are already
-/// included.
-final cashFlowThisMonthProvider = Provider<CashFlowSummary>((ref) {
-  final now = DateTime.now();
-  final transactions = ref.watch(calculableTransactionsProvider);
-  final monthTransactions = transactions.where((t) => t.effectiveMonth.isSameMonth(now) && !t.isDeleted);
+/// [moneyInLinesForRangeFamilyProvider] bound to the Cash Flow screen's own
+/// selected [cashFlowDateRangeProvider] — what the Cash Flow screen and its
+/// Money In detail screen actually watch.
+final moneyInLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
+  final period = ref.watch(cashFlowDateRangeProvider);
+  final range = ref.watch(resolvedCashFlowRangeProvider);
+  return ref.watch(moneyInLinesForRangeFamilyProvider((period: period, range: range)));
+});
 
-  final income = monthTransactions
-      .where((t) => t.type == TransactionType.income)
-      .fold(0.0, (sum, t) => sum + t.amount);
-  final expenses = monthTransactions
-      .where((t) => t.type == TransactionType.expense)
-      .fold(0.0, (sum, t) => sum + t.amount);
+/// [moneyOutLinesForRangeFamilyProvider] bound to the Cash Flow screen's own
+/// selected [cashFlowDateRangeProvider] — what the Cash Flow screen and its
+/// Money Out detail screen actually watch.
+final moneyOutLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
+  final period = ref.watch(cashFlowDateRangeProvider);
+  final range = ref.watch(resolvedCashFlowRangeProvider);
+  return ref.watch(moneyOutLinesForRangeFamilyProvider((period: period, range: range)));
+});
 
-  final moneyReceived = ref.watch(moneyReceivedForRangeProvider((start: now.startOfMonth, end: now.endOfMonth)));
-  final emiPaid = ref.watch(emiPaidThisMonthProvider);
-  final loanPaid = ref.watch(_loanPaidThisMonthProvider);
-  final billsPaid = ref.watch(_billsPaidThisMonthProvider);
-
-  final moneyIn = income + moneyReceived;
-  final moneyOut = expenses + emiPaid + loanPaid + billsPaid;
+/// Cash Flow Summary (Section 5), generalized from
+/// [cashFlowThisMonthProvider] to read [resolvedCashFlowRangeProvider]
+/// instead of always the current calendar month. `moneyIn`/`moneyOut` are
+/// sums of [moneyInLinesForRangeProvider]/[moneyOutLinesForRangeProvider] —
+/// never a separately-filtered calculation — so this figure and the Money
+/// In/Out detail screens are guaranteed to agree by construction. Kept as a
+/// separate provider (rather than rewriting [cashFlowThisMonthProvider] in
+/// place) so nothing else that still depends on strict "this calendar
+/// month" behavior is affected.
+final cashFlowForRangeProvider = Provider<CashFlowSummary>((ref) {
+  final moneyIn = ref.watch(moneyInLinesForRangeProvider).fold(0.0, (sum, l) => sum + l.amount);
+  final moneyOut = ref.watch(moneyOutLinesForRangeProvider).fold(0.0, (sum, l) => sum + l.amount);
   return (moneyIn: moneyIn, moneyOut: moneyOut, net: moneyIn - moneyOut);
+});
+
+// ---------------------------------------------------------------------------
+// My Expenses (Feature: separate from the date range filter above, but
+// reads it)
+// ---------------------------------------------------------------------------
+//
+// "How much did I personally spend during the selected period?" — my own
+// share only. Explicitly NOT the same number as Section 5's Money Out
+// above: Money Out also includes EMI/Loan/Bill payments (scheduled
+// obligations, not spending choices), and for a shared expense it counts
+// the FULL amount (since that's what actually left the account), not just
+// my share of it.
+
+/// My Expenses' breakdown for the selected range — reduces
+/// [calculableTransactionsProvider] filtered to
+/// [resolvedCashFlowRangeProvider] through the same
+/// [myExpenseBreakdownForTransactionsProvider] Reports already uses, so the
+/// Expense-vs-plain-transaction / split-share math is never re-derived here.
+final myExpensesForRangeProvider = Provider<MyExpenseBreakdown>((ref) {
+  final period = ref.watch(cashFlowDateRangeProvider);
+  final range = ref.watch(resolvedCashFlowRangeProvider);
+  final transactions = ref.watch(calculableTransactionsProvider);
+  final rangeTransactions = transactions.where((t) {
+    if (t.isDeleted) return false;
+    final bucketDate = period.bucketDateFor(t);
+    return !bucketDate.isBefore(range.start) && !bucketDate.isAfter(range.end);
+  }).toList();
+  return ref.watch(myExpenseBreakdownForTransactionsProvider(rangeTransactions));
+});
+
+/// Every individual [MyExpenseLine] behind [myExpensesForRangeProvider]'s
+/// total — the single list [myExpensesByCategoryProvider] and the My
+/// Expenses history/category-detail screens all read, so the total, the
+/// per-category totals, and the drill-down history can never disagree: each
+/// is just a different fold/filter over this exact same list. Bucketed by
+/// [CashFlowPeriod.bucketDateFor], the same rule every other range-scoped
+/// Cash Flow line list uses, so this always matches
+/// [myExpensesForRangeProvider]'s own [Transaction.effectiveMonth]-vs-
+/// [Transaction.dateTime] choice for the selected period.
+final myExpenseLinesForRangeProvider = Provider<List<MyExpenseLine>>((ref) {
+  final period = ref.watch(cashFlowDateRangeProvider);
+  final range = ref.watch(resolvedCashFlowRangeProvider);
+  final categoriesById = {for (final c in ref.watch(categoriesStreamProvider).value ?? const []) c.id: c};
+  final accountsById = {for (final a in ref.watch(accountsStreamProvider).value ?? const []) a.id: a};
+  final expenseByTransactionId = {
+    for (final e in ref.watch(expensesStreamProvider).value ?? const []) e.transactionId: e,
+  };
+
+  final lines = <MyExpenseLine>[];
+  final transactions = ref.watch(calculableTransactionsProvider);
+  for (final t in transactions) {
+    if (t.isDeleted || t.type != TransactionType.expense) continue;
+    final bucketDate = period.bucketDateFor(t);
+    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
+
+    final expense = expenseByTransactionId[t.id];
+    final myShare = expense?.myShare ?? t.amount;
+    if (myShare <= 0) continue;
+    final categoryId = expense?.categoryId ?? t.categoryId;
+
+    lines.add((
+      transactionId: t.id,
+      date: t.dateTime,
+      title: expense?.description.isNotEmpty == true ? expense!.description : (t.description.isNotEmpty ? t.description : 'Expense'),
+      myShare: myShare,
+      totalAmount: expense?.isSplit == true ? expense!.totalAmount : null,
+      isSplit: expense?.isSplit ?? false,
+      categoryId: categoryId,
+      categoryLabel: categoriesById[categoryId]?.name,
+      accountLabel: accountsById[t.accountId]?.name,
+      notes: expense?.notes ?? '',
+    ));
+  }
+
+  lines.sort((a, b) => b.date.compareTo(a.date));
+  return lines;
+});
+
+/// One category's total within [myExpenseLinesForRangeProvider] — sorted
+/// highest amount first for the My Expenses history's category list.
+typedef MyExpenseCategoryTotal = ({String categoryId, String categoryLabel, double amount});
+
+/// [myExpenseLinesForRangeProvider] grouped by category and summed — always
+/// reconciles with [myExpensesForRangeProvider].total by construction, since
+/// both fold over the exact same line list.
+final myExpensesByCategoryProvider = Provider<List<MyExpenseCategoryTotal>>((ref) {
+  final lines = ref.watch(myExpenseLinesForRangeProvider);
+  final totals = <String, double>{};
+  final labels = <String, String>{};
+  for (final line in lines) {
+    totals[line.categoryId] = (totals[line.categoryId] ?? 0) + line.myShare;
+    labels[line.categoryId] = line.categoryLabel ?? 'Uncategorized';
+  }
+  final result = [
+    for (final entry in totals.entries) (categoryId: entry.key, categoryLabel: labels[entry.key]!, amount: entry.value),
+  ];
+  result.sort((a, b) => b.amount.compareTo(a.amount));
+  return result;
+});
+
+/// [myExpenseLinesForRangeProvider] filtered to a single [categoryId] — the
+/// My Expenses category drill-down's data source, sorted newest first same
+/// as the parent list.
+final myExpensesForCategoryProvider = Provider.family<List<MyExpenseLine>, String>((ref, categoryId) {
+  return ref.watch(myExpenseLinesForRangeProvider).where((l) => l.categoryId == categoryId).toList();
 });

@@ -254,10 +254,18 @@ final othersShareForTransactionsProvider = Provider.family<double, List<Transact
 /// [start]..[end] — Reports' "Money Received" figure, the one Task 7 number
 /// with no existing analog (every other split-expense total reads cached
 /// `Installment` fields rather than individual payments). Buckets by the
-/// linked transaction's [Transaction.effectiveMonth] (not [Expense.date])
-/// and skips a transaction marked `excludeFromCalculations`, matching every
-/// other Reports/Dashboard figure shown alongside this one.
-final moneyReceivedForRangeProvider = Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
+/// linked transaction's [Transaction.effectiveMonth] when [monthGranular]
+/// (matching every whole-month Reports period, e.g. "This Month"/"Last
+/// Month" — same `accountingMonth`-respecting rule those periods use
+/// everywhere else), else by [Transaction.dateTime] directly — required for
+/// a day-precision period (Reports' "Today"/"This Week", or Cash Flow's
+/// custom range), since [Transaction.effectiveMonth] truncates to the 1st
+/// of the month and would let every transaction anywhere in that month leak
+/// into a single-day range. Skips a transaction marked
+/// `excludeFromCalculations`, matching every other Reports/Dashboard figure
+/// shown alongside this one.
+final moneyReceivedForRangeProvider =
+    Provider.family<double, ({DateTime start, DateTime end, bool monthGranular})>((ref, range) {
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];
   final calculableById = {for (final t in ref.watch(calculableTransactionsProvider)) t.id: t};
   var total = 0.0;
@@ -265,7 +273,8 @@ final moneyReceivedForRangeProvider = Provider.family<double, ({DateTime start, 
     if (!expense.isSplit || expense.scheduleId == null) continue;
     final transaction = calculableById[expense.transactionId];
     if (transaction == null) continue;
-    if (transaction.effectiveMonth.isBefore(range.start) || transaction.effectiveMonth.isAfter(range.end)) continue;
+    final bucketDate = range.monthGranular ? transaction.effectiveMonth : transaction.dateTime;
+    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
     final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
     total += installments.fold(0.0, (sum, i) => sum + i.amountPaid);
   }
