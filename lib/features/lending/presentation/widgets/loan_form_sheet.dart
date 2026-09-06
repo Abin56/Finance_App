@@ -13,6 +13,7 @@ import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/section_label.dart';
 import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../../people/presentation/widgets/person_form_sheet.dart';
 import '../../domain/loan.dart';
 import '../../domain/loan_category.dart';
 import '../../domain/loan_direction.dart';
@@ -28,6 +29,11 @@ import 'loan_direction_badge.dart';
 /// [loan] only exposes name/amount/due date/notes (mirrors
 /// `LoanRepository.editLoan`'s own field list), with amount further locked
 /// once any payment has been recorded.
+/// Sentinel dropdown value for the "Add new person" shortcut — distinct from
+/// any real person id and from `null` ("I pay it myself"), so selecting it
+/// can be intercepted before it's ever treated as a real [Person.id].
+const _addNewPersonValue = '__add_new_person__';
+
 class LoanFormSheet extends ConsumerStatefulWidget {
   const LoanFormSheet({super.key, this.loan});
 
@@ -38,6 +44,7 @@ class LoanFormSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
+      useSafeArea: true,
       builder: (_) => LoanFormSheet(loan: loan),
     );
   }
@@ -61,7 +68,6 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
   );
   late final _institutionNameController = TextEditingController(text: widget.loan?.institutionName ?? '');
   late final _loanTypeController = TextEditingController(text: widget.loan?.loanType ?? '');
-  late final _loanNumberController = TextEditingController(text: widget.loan?.loanNumber ?? '');
   late final _accountNumberController = TextEditingController(text: widget.loan?.accountNumber ?? '');
   late final _branchController = TextEditingController(text: widget.loan?.branch ?? '');
   final _nameFocusNode = FocusNode();
@@ -92,7 +98,6 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
     _rateController.dispose();
     _institutionNameController.dispose();
     _loanTypeController.dispose();
-    _loanNumberController.dispose();
     _accountNumberController.dispose();
     _branchController.dispose();
     _nameFocusNode.dispose();
@@ -274,7 +279,7 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
           institutionName:
               _category == LoanCategory.institutional ? _institutionNameController.text.trim() : null,
           loanType: _category == LoanCategory.institutional ? _loanTypeController.text.trim() : null,
-          loanNumber: _category == LoanCategory.institutional ? _loanNumberController.text.trim() : null,
+          loanNumber: widget.loan?.loanNumber,
           accountNumber: _category == LoanCategory.institutional ? _accountNumberController.text.trim() : null,
           branch: _category == LoanCategory.institutional ? _branchController.text.trim() : null,
           payerPersonId: _payerPersonId,
@@ -311,7 +316,7 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
           institutionName:
               _category == LoanCategory.institutional ? _institutionNameController.text.trim() : null,
           loanType: _category == LoanCategory.institutional ? _loanTypeController.text.trim() : null,
-          loanNumber: _category == LoanCategory.institutional ? _loanNumberController.text.trim() : null,
+          loanNumber: null,
           accountNumber: _category == LoanCategory.institutional ? _accountNumberController.text.trim() : null,
           branch: _category == LoanCategory.institutional ? _branchController.text.trim() : null,
           payerPersonId: _payerPersonId,
@@ -450,11 +455,6 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
                               ),
                               const SizedBox(height: AppSizes.md),
                               TextFormField(
-                                controller: _loanNumberController,
-                                decoration: const InputDecoration(labelText: 'Loan account number (optional)'),
-                              ),
-                              const SizedBox(height: AppSizes.md),
-                              TextFormField(
                                 controller: _accountNumberController,
                                 decoration: const InputDecoration(labelText: 'Bank account number (optional)'),
                               ),
@@ -479,8 +479,26 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
                 items: [
                   const DropdownMenuItem(value: null, child: Text('I pay it myself')),
                   for (final person in people) DropdownMenuItem(value: person.id, child: Text(person.name)),
+                  const DropdownMenuItem(
+                    value: _addNewPersonValue,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 18),
+                        SizedBox(width: AppSizes.xs),
+                        Text('Add new person'),
+                      ],
+                    ),
+                  ),
                 ],
-                onChanged: (value) => setState(() => _payerPersonId = value),
+                onChanged: (value) async {
+                  if (value == _addNewPersonValue) {
+                    final newPersonId = await PersonFormSheet.show(context);
+                    if (newPersonId != null) setState(() => _payerPersonId = newPersonId);
+                    return;
+                  }
+                  setState(() => _payerPersonId = value);
+                },
               ),
               const SizedBox(height: AppSizes.sm),
               TextFormField(

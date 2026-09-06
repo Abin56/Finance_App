@@ -34,6 +34,7 @@ class RecordLoanLumpSumSettlementSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
+      useSafeArea: true,
       builder: (_) => RecordLoanLumpSumSettlementSheet(loan: loan),
     );
   }

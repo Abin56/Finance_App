@@ -42,6 +42,7 @@ class RecordLoanPaymentSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
+      useSafeArea: true,
       builder: (_) => RecordLoanPaymentSheet(installment: installment, loan: loan, smsPrefill: smsPrefill),
     );
   }

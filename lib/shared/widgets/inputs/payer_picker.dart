@@ -4,6 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/models/payer_source.dart';
 import '../../../features/people/presentation/providers/people_providers.dart';
+import '../../../features/people/presentation/widgets/person_form_sheet.dart';
+
+/// Sentinel dropdown value for the "Add new person" shortcut — distinct from
+/// any real person id, so selecting it can be intercepted before it's ever
+/// treated as a real person id.
+const _addNewPersonValue = '__add_new_person__';
 
 /// "You" / "Someone else paid this" toggle, reused by every payment sheet
 /// (EMI, Loan, Bill) that lets a payment be recorded on someone else's
@@ -53,8 +59,26 @@ class PayerPicker extends ConsumerWidget {
             decoration: const InputDecoration(labelText: 'Who paid?'),
             items: [
               for (final person in people) DropdownMenuItem(value: person.id, child: Text(person.name)),
+              const DropdownMenuItem(
+                value: _addNewPersonValue,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, size: 18),
+                    SizedBox(width: AppSizes.xs),
+                    Text('Add new person'),
+                  ],
+                ),
+              ),
             ],
-            onChanged: onPersonChanged,
+            onChanged: (value) async {
+              if (value == _addNewPersonValue) {
+                final newPersonId = await PersonFormSheet.show(context);
+                if (newPersonId != null) onPersonChanged(newPersonId);
+                return;
+              }
+              onPersonChanged(value);
+            },
             validator: (value) => value == null ? 'Choose who paid' : null,
           ),
         ],

@@ -19,11 +19,15 @@ class PersonFormSheet extends ConsumerStatefulWidget {
 
   final Person? person;
 
-  static Future<void> show(BuildContext context, {Person? person}) {
-    return showModalBottomSheet(
+  /// Resolves with the created/edited person's id once saved (null if the
+  /// sheet is dismissed without saving) — lets a caller like [LoanFormSheet]
+  /// auto-select a person just created from a "+ Add new person" shortcut.
+  static Future<String?> show(BuildContext context, {Person? person}) {
+    return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
+      useSafeArea: true,
       builder: (_) => PersonFormSheet(person: person),
     );
   }
@@ -62,6 +66,7 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
       final repository = ref.read(personRepositoryProvider);
       final phone = _phoneController.text.trim();
 
+      String personId;
       if (_isEditing) {
         await repository.editPerson(
           widget.person!,
@@ -69,15 +74,17 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
           phone: phone.isEmpty ? null : phone,
           avatarColorValue: _avatarColorValue,
         );
+        personId = widget.person!.id;
       } else {
-        await repository.createPerson(
+        final created = await repository.createPerson(
           name: _nameController.text.trim(),
           phone: phone.isEmpty ? null : phone,
           avatarColorValue: _avatarColorValue,
           openingBalance: double.parse(_openingBalanceController.text.trim()),
         );
+        personId = created.id;
       }
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(personId);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
