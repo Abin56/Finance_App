@@ -17,10 +17,11 @@ import '../domain/emi.dart';
 import '../domain/emi_interest.dart';
 import '../domain/emi_loan_type.dart';
 
-/// Fixed reminder offsets for EMI (Due Today, 1/3/7 days before) — no
-/// per-EMI picker in this milestone, unlike Bills' configurable `FilterChip`
-/// offsets.
-const _emiReminderOffsets = [0, 1, 3, 7];
+/// Fixed reminder offsets for EMI (7/3/1 days before, due today, and 1/3
+/// days after i.e. overdue — negative offsets, see
+/// `ReminderNotificationService.reschedule`'s doc comment) — no per-EMI
+/// picker in this milestone, unlike Bills' configurable `FilterChip` offsets.
+const _emiReminderOffsets = [7, 3, 1, 0, -1, -3];
 
 /// Reminder offsets for the "loan ending soon" one-time reminder, scheduled
 /// against the last installment's due date under a distinct owner id so it
@@ -656,6 +657,12 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       offsets: _emiReminderOffsets,
     ).catchError((_) {});
   }
+
+  /// Cancels every reminder scheduled for [emiId] — call once an EMI has
+  /// nothing left to remind about (fully paid off, but not explicitly
+  /// closed). Public so payment-recording UIs can call it directly when a
+  /// payment leaves no unpaid installment behind, same as [rescheduleReminders].
+  void cancelReminders(String emiId) => _cancelReminders(emiId);
 
   void _cancelReminders(String emiId) {
     ReminderNotificationService.cancel(emiId).catchError((_) {});

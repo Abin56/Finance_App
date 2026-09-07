@@ -19,6 +19,7 @@ import '../../features/credit_cards/presentation/screens/statement_detail_screen
 import '../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/emi/presentation/screens/emi_detail_screen.dart';
 import '../../features/emi/presentation/screens/emis_screen.dart';
+import '../../features/lending/presentation/screens/loan_dashboard_screen.dart';
 import '../../features/lending/presentation/screens/loan_detail_screen.dart';
 import '../../features/lending/presentation/screens/loans_screen.dart';
 import '../../features/more/presentation/screens/about_screen.dart';
@@ -192,6 +193,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.loans,
         builder: (context, state) => const LoansScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.loanDashboard,
+        builder: (context, state) => const LoanDashboardScreen(),
       ),
       GoRoute(
         path: AppRoutes.loanDetail,

@@ -81,10 +81,15 @@ abstract class AppClay {
     );
   }
 
-  // Radii — flattened to match the app-wide sharp-cornered design language (see
-  // AppSizes' matching radius block for the full rationale). [radiusPill] stays a
+  // Radii — [radiusCard] restored to its original claymorphism spec (soft,
+  // friendly corners on Dashboard hero/summary cards specifically) after a
+  // prior app-wide flattening pass zeroed it out along with every other
+  // radius token. [radiusLg]/[radiusMd]/[radiusSm] stay flat, matching
+  // AppSizes' equivalents used by the rest of the app (buttons, inputs,
+  // dialogs, chips) — this is a Dashboard-card-only restoration, not a
+  // reversal of the app-wide flat design language. [radiusPill] stays a
   // genuine pill/circle shape, left untouched.
-  static const double radiusCard = 0;
+  static const double radiusCard = 20;
   static const double radiusLg = 0;
   static const double radiusMd = 0;
   static const double radiusSm = 0;

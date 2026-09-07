@@ -26,6 +26,7 @@ class InstallmentPaymentRepository extends FirestoreCrudRepository<InstallmentPa
     String note = '',
     String? settlementMethod,
     String? billingCycleLabel,
+    String? payerPersonId,
   }) async {
     if (amount <= 0) {
       throw const AppException('Payment amount must be greater than 0');
@@ -45,6 +46,7 @@ class InstallmentPaymentRepository extends FirestoreCrudRepository<InstallmentPa
       settlementMethod: settlementMethod,
       billingCycleLabel: billingCycleLabel,
       remainingBalanceAfterPayment: remainingAfter,
+      payerPersonId: payerPersonId,
     );
     await add(payment.id, payment);
     await installmentRepository.applyPayment(installment, payment.amount);

@@ -76,7 +76,7 @@ class LoansTrashScreen extends ConsumerWidget {
     );
 
     if (confirmed == true) {
-      await ref.read(loanRepositoryProvider).permanentlyDelete(loan);
+      await ref.read(loanRepositoryProvider).permanentlyDeleteLoan(loan);
     }
   }
 }

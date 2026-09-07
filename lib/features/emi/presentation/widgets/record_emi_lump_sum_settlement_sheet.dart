@@ -130,8 +130,11 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
       final refreshed = ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ?? const [];
       final nextUnpaid = refreshed.where((i) => i.status != InstallmentStatus.paid).toList()
         ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final emiRepository = ref.read(emiRepositoryProvider);
       if (nextUnpaid.isNotEmpty) {
-        ref.read(emiRepositoryProvider).rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
+        emiRepository.rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
+      } else {
+        emiRepository.cancelReminders(widget.emi.id);
       }
 
       if (mounted) Navigator.of(context).pop();

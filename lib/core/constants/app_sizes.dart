@@ -27,7 +27,10 @@ abstract class AppSizes {
 
   /// Premium dashboard card radius (Figma spec) — distinct from [radiusLg]/
   /// [radiusXl], used by the redesigned Dashboard's hero/summary cards.
-  static const double radiusCard = 0;
+  /// Deliberately non-zero (unlike every other radius above) so Dashboard
+  /// cards keep soft, friendly corners even though the rest of the app is
+  /// flat — mirrors [AppClay.radiusCard]'s own restoration.
+  static const double radiusCard = 20;
 
   // Icon sizes
   static const double iconSm = 16;

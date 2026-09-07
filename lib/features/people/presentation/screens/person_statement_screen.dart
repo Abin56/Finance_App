@@ -29,6 +29,7 @@ import '../widgets/ledger_entry_form_sheet.dart';
 import '../widgets/person_cycle_summary_card.dart';
 import '../widgets/person_expense_stats_card.dart';
 import '../widgets/person_form_sheet.dart';
+import '../widgets/person_loan_ledger_summary_card.dart';
 import '../widgets/person_loans_summary_card.dart';
 import '../widgets/person_pending_breakdown.dart';
 import '../widgets/person_statement_groups_card.dart';
@@ -617,6 +618,8 @@ class _SummaryTab extends ConsumerWidget {
         PersonCycleSummaryCard(summary: ref.watch(personCycleSummaryProvider(personId))),
         const SizedBox(height: AppSizes.lg),
         PersonPendingBreakdown(entries: entries),
+        const SizedBox(height: AppSizes.lg),
+        PersonLoanLedgerSummaryCard(person: person),
         const SizedBox(height: AppSizes.lg),
         PersonLoansSummaryCard(person: person),
         const SizedBox(height: AppSizes.lg),

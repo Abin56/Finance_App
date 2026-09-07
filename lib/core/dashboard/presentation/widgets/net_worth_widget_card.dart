@@ -7,21 +7,21 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../features/accounts/presentation/providers/account_providers.dart';
 import '../../../../features/transactions/domain/transaction.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
 import '../../../../features/transactions/presentation/providers/transaction_providers.dart';
 import '../../../../shared/widgets/animations/count_up_text.dart';
 import '../../../../shared/widgets/charts/mini_trend_chart.dart';
 import '../../domain/widget_configuration.dart';
+import '../providers/dashboard_financial_summary_provider.dart';
 import 'dashboard_widget_shell.dart';
 
-/// Renders [DashboardWidgetType.netWorth] — the dashboard's hero card. Sums
-/// every account's [Account.currentBalance] via the existing
-/// [netWorthProvider] (never re-derives a figure Accounts/Reports already
-/// own) and adds a 7-day net-cash-flow sparkline for an at-a-glance trend,
-/// derived client-side from the same transaction stream every other
-/// Dashboard stat already watches.
+/// Renders [DashboardWidgetType.netWorth] — the dashboard's hero card. Reads
+/// net worth via [dashboardFinancialSummaryProvider] (itself a thin
+/// composition over the existing `netWorthProvider` — never re-derives a
+/// figure Accounts/Reports already own) and adds a 7-day net-cash-flow
+/// sparkline for an at-a-glance trend, derived client-side from the same
+/// transaction stream every other Dashboard stat already watches.
 class NetWorthWidgetCard extends ConsumerStatefulWidget {
   const NetWorthWidgetCard({super.key, required this.config});
 
@@ -50,7 +50,7 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
 
   @override
   Widget build(BuildContext context) {
-    final netWorth = ref.watch(netWorthProvider);
+    final netWorth = ref.watch(dashboardFinancialSummaryProvider).netWorth;
     final transactions = ref.watch(calculableTransactionsProvider);
     final trend = _weeklyTrend(transactions);
     final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
@@ -58,7 +58,7 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
     return DashboardWidgetGradientCard(
       onTap: () => context.push(AppRoutes.accounts),
       child: Padding(
-        padding: const EdgeInsets.all(AppSizes.lg),
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -104,7 +104,7 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
                 ),
               ],
             ),
-            const SizedBox(height: AppSizes.md),
+            const SizedBox(height: AppSizes.sm),
             _hidden
                 ? Text(
                     '••••••',
@@ -123,7 +123,7 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
                       letterSpacing: -0.5,
                     ),
                   ),
-            const SizedBox(height: AppSizes.lg),
+            const SizedBox(height: AppSizes.md),
             MiniTrendChart(values: trend, color: Colors.white),
           ],
         ),

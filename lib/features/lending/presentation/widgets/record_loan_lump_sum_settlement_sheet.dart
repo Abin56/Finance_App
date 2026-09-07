@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/models/payer_source.dart';
@@ -103,6 +104,11 @@ class _RecordLoanLumpSumSettlementSheetState extends ConsumerState<RecordLoanLum
 
       final amount = double.parse(_amountController.text.trim());
       final plan = InstallmentSettlement.plan(outstanding, amount);
+      final payer = _resolvePayer();
+      final payerPersonId = switch (payer) {
+        PersonPayerSource(:final person) => person.id,
+        SelfPayerSource() => null,
+      };
 
       final items = [
         for (final p in plan.portions)
@@ -115,17 +121,26 @@ class _RecordLoanLumpSumSettlementSheetState extends ConsumerState<RecordLoanLum
                     (scheduleId: p.installment.scheduleId, installmentId: p.installment.id),
                   ),
                 )
-                .recordPayment(p.installment, amount: amount, date: date, note: note),
+                .recordPayment(p.installment, amount: amount, date: date, note: note, payerPersonId: payerPersonId),
           ),
       ];
 
-      final payer = _resolvePayer();
       await ref.read(paymentAttributionServiceProvider).apply(
         items: items,
         payer: payer,
         date: _date,
         note: _resolveNote(payer),
       );
+
+      final refreshedInstallments = ref.read(installmentsStreamProvider(widget.loan.scheduleId)).value ?? const [];
+      final nextUnpaid = refreshedInstallments.where((i) => i.remainingAmount > 0 && !i.isSkipped).toList()
+        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final repository = ref.read(loanRepositoryProvider);
+      if (nextUnpaid.isNotEmpty) {
+        repository.rescheduleReminders(widget.loan, nextUnpaid.first.dueDate);
+      } else {
+        repository.cancelReminders(widget.loan.id);
+      }
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -141,6 +156,15 @@ class _RecordLoanLumpSumSettlementSheetState extends ConsumerState<RecordLoanLum
   @override
   Widget build(BuildContext context) {
     final totalOutstanding = ref.watch(loanRemainingAmountProvider(widget.loan));
+    final installments = ref.watch(installmentsStreamProvider(widget.loan.scheduleId)).value ?? const [];
+    final outstanding = installments.where((i) => i.remainingAmount > 0).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    final enteredAmount = double.tryParse(_amountController.text.trim());
+    final isFullSettlement = enteredAmount != null && enteredAmount >= totalOutstanding - 0.005;
+    InstallmentSettlementPlan? previewPlan;
+    if (enteredAmount != null && enteredAmount > 0 && enteredAmount <= totalOutstanding) {
+      previewPlan = InstallmentSettlement.plan(outstanding, enteredAmount);
+    }
 
     return Form(
       key: _formKey,
@@ -159,6 +183,7 @@ class _RecordLoanLumpSumSettlementSheetState extends ConsumerState<RecordLoanLum
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: Validators.amountUpTo(totalOutstanding),
               autovalidateMode: AutovalidateMode.onUserInteraction,
+              onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSizes.md),
             OutlinedButton.icon(
@@ -173,6 +198,13 @@ class _RecordLoanLumpSumSettlementSheetState extends ConsumerState<RecordLoanLum
               maxLines: 2,
               textInputAction: TextInputAction.done,
             ),
+            if (previewPlan != null && previewPlan.portions.isNotEmpty) ...[
+              const SizedBox(height: AppSizes.lg),
+              if (isFullSettlement)
+                _FullSettlementNotice(outstanding: totalOutstanding)
+              else
+                _SettlementAllocationPreview(amount: enteredAmount!, plan: previewPlan),
+            ],
             const SizedBox(height: AppSizes.lg),
             PayerPicker(
               isSomeoneElse: _someoneElsePaid,
@@ -196,6 +228,128 @@ class _RecordLoanLumpSumSettlementSheetState extends ConsumerState<RecordLoanLum
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Shows how a lump sum will fan out across outstanding installments
+/// (oldest-due-first, per [InstallmentSettlement.plan]) before the user
+/// confirms — purely derived from the plan, no repository calls.
+class _SettlementAllocationPreview extends StatelessWidget {
+  const _SettlementAllocationPreview({required this.amount, required this.plan});
+
+  final double amount;
+  final InstallmentSettlementPlan plan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.sm),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainerHighest.withValues(alpha: 0.4),
+        border: Border.all(color: context.colors.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Settlement', style: context.textTheme.titleMedium),
+              Text(
+                CurrencyFormatter.instance.format(amount),
+                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSizes.sm),
+          for (final portion in plan.portions) _AllocationRow(portion: portion),
+          if (plan.unallocated > 0.005) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Unallocated: ${CurrencyFormatter.instance.format(plan.unallocated)}',
+              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _AllocationRow extends StatelessWidget {
+  const _AllocationRow({required this.portion});
+
+  final InstallmentSettlementPortion portion;
+
+  @override
+  Widget build(BuildContext context) {
+    final fullyPaid = portion.portion >= portion.installment.remainingAmount - 0.005;
+    final resultLabel = fullyPaid ? 'Fully Paid' : 'Partial';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('EMI #${portion.installment.sequenceNumber}', style: context.textTheme.bodyMedium),
+          Text(
+            '${CurrencyFormatter.instance.format(portion.portion)} → $resultLabel',
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: fullyPaid ? AppColors.success : AppColors.warning,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown instead of the per-installment allocation breakdown when the
+/// entered amount covers the loan's entire outstanding balance — closing
+/// the loan (if desired) still requires the existing explicit Close action;
+/// this is UI messaging only and never touches `Loan.isClosed`.
+class _FullSettlementNotice extends StatelessWidget {
+  const _FullSettlementNotice({required this.outstanding});
+
+  final double outstanding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.sm),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.08),
+        border: Border.all(color: AppColors.success.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'You are settling this loan.',
+            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: AppSizes.sm),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Outstanding', style: context.textTheme.bodyMedium),
+              Text(CurrencyFormatter.instance.format(outstanding), style: context.textTheme.bodyMedium),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('After this payment:', style: context.textTheme.bodySmall),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Outstanding', style: context.textTheme.bodyMedium),
+              Text(
+                CurrencyFormatter.instance.format(0),
+                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
