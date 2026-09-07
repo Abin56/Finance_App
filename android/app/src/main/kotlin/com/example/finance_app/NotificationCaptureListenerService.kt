@@ -6,6 +6,7 @@ import android.os.Parcelable
 import android.provider.Telephony
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 
 /**
  * Captures bank/transaction notification text so it can be scanned alongside
@@ -32,10 +33,25 @@ class NotificationCaptureListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(applicationContext)
-        if (defaultSmsPackage == null || sbn.packageName != defaultSmsPackage) return
+        // TEMPORARY DIAGNOSTIC LOGGING — no message content, remove once RCS
+        // capture is confirmed working. `adb logcat -s FinanceAppNotifCap`.
+        Log.d(
+            "FinanceAppNotifCap",
+            "posted pkg=${sbn.packageName} defaultSmsPkg=$defaultSmsPackage " +
+                "category=${sbn.notification.category} " +
+                "extrasKeys=${sbn.notification.extras.keySet().joinToString(",")}"
+        )
+        if (defaultSmsPackage == null || sbn.packageName != defaultSmsPackage) {
+            Log.d("FinanceAppNotifCap", "rejected: package filter (pkg=${sbn.packageName} != default=$defaultSmsPackage)")
+            return
+        }
 
         val extras = sbn.notification.extras
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: return
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+        if (title == null) {
+            Log.d("FinanceAppNotifCap", "rejected: no EXTRA_TITLE")
+            return
+        }
         var text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
         var postTime = sbn.postTime
 
@@ -66,15 +82,36 @@ class NotificationCaptureListenerService : NotificationListenerService() {
             postTime = latestMessage.timestamp
         }
 
-        if (text == null || !looksFinancial(text)) return
+        Log.d(
+            "FinanceAppNotifCap",
+            "package filter passed; hasMessagingStyleMessages=${messagesBundleArray != null} " +
+                "textLen=${text?.length ?: -1}"
+        )
 
+        if (text == null) {
+            Log.d("FinanceAppNotifCap", "rejected: no text extracted")
+            return
+        }
+        val financialReason = financialCheckReason(text)
+        if (financialReason != FinancialCheck.MATCH) {
+            Log.d("FinanceAppNotifCap", "rejected: keyword filter ($financialReason)")
+            return
+        }
+
+        Log.d("FinanceAppNotifCap", "ACCEPTED — inserting into NotificationCaptureStore")
         store.insertIfNew(title, text, postTime)
     }
 
-    private fun looksFinancial(text: String): Boolean {
+    private enum class FinancialCheck { MATCH, OTP_LIKE, NO_KEYWORD }
+
+    private fun financialCheckReason(text: String): FinancialCheck {
         val lower = text.lowercase()
-        if (OTP_PATTERN.containsMatchIn(lower)) return false
-        return FINANCIAL_KEYWORDS.any { lower.contains(it) }
+        if (OTP_PATTERN.containsMatchIn(lower)) return FinancialCheck.OTP_LIKE
+        return if (FINANCIAL_KEYWORDS.any { lower.contains(it) }) {
+            FinancialCheck.MATCH
+        } else {
+            FinancialCheck.NO_KEYWORD
+        }
     }
 
     companion object {

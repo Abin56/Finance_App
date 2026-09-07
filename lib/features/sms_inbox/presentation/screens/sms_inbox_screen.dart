@@ -12,6 +12,7 @@ import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../domain/filter/sms_sort_order.dart';
+import '../../domain/notification_access_availability.dart';
 import '../../domain/sms_availability.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
@@ -29,6 +30,7 @@ import '../widgets/sms_empty_state.dart';
 import '../widgets/sms_inbox_skeleton_list.dart';
 import '../widgets/sms_message_detail_sheet.dart';
 import '../widgets/sms_message_tile.dart';
+import '../widgets/notification_access_dialog.dart';
 import '../widgets/notification_capture_banner.dart';
 import '../widgets/sms_multi_select_toolbar.dart';
 import '../widgets/sms_permission_gate_view.dart';
@@ -62,6 +64,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
     with WidgetsBindingObserver {
   final Set<String> _selectedIds = {};
   bool _hasAutoScanned = false;
+  bool _hasShownNotificationAccessDialog = false;
   final _sortFieldKey = GlobalKey();
 
   /// Guards the toolbar while a bulk conversion is mid-flight: a second tap
@@ -102,6 +105,34 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
     }
   }
 
+  /// Blocking, non-dismissible-by-swipe popup shown as soon as SMS access is
+  /// granted, if notification access (the RCS-capture path) still isn't —
+  /// unlike [NotificationCaptureBanner], which lives inside the scrollable
+  /// list and is easy to miss or dismiss for the rest of the session, this
+  /// puts the RCS step in front of the user immediately. Fires once per
+  /// screen visit (a fresh visit — i.e. reopening the screen — shows it
+  /// again if still not granted), not once per app install.
+  void _maybeShowNotificationAccessDialog(
+    SmsAvailability? smsAvailability,
+    NotificationAccessAvailability? notificationAccess,
+  ) {
+    if (_hasShownNotificationAccessDialog) return;
+    if (smsAvailability != SmsAvailability.granted) return;
+    if (notificationAccess != NotificationAccessAvailability.denied &&
+        notificationAccess != NotificationAccessAvailability.notRequestedYet) {
+      return;
+    }
+    _hasShownNotificationAccessDialog = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      NotificationAccessDialog.show(
+        context,
+        onEnable: () =>
+            ref.read(notificationAccessAvailabilityProvider.notifier).openSettings(),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final availabilityAsync = ref.watch(smsAvailabilityProvider);
@@ -112,6 +143,16 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
         ref.read(smsInboxItemsProvider.notifier).scan();
       }
     });
+
+    ref.listen(notificationAccessAvailabilityProvider, (previous, next) {
+      _maybeShowNotificationAccessDialog(availabilityAsync.value, next.value);
+    });
+    if (!_hasShownNotificationAccessDialog) {
+      _maybeShowNotificationAccessDialog(
+        availabilityAsync.value,
+        ref.read(notificationAccessAvailabilityProvider).value,
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(

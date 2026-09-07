@@ -17,6 +17,11 @@
          same rationale as READ_SMS and the notification listener service
          above. See PLAY_STORE.md > "SMS Inbox and the Play build". -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Smart Import feature: lets the user scan a transaction screen/
+         document with the camera as an alternative to picking an existing
+         screenshot (see lib/features/smart_import). Requested on demand via
+         permission_handler, never at launch. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="FlowFi"
         android:name="${applicationName}"
@@ -92,4 +97,8 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+    <!-- Not required: a device with no camera (or a tablet/Chromebook) must
+         still be installable — Smart Import's camera option simply doesn't
+         work there, falling back to the screenshot/gallery flow. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
 </manifest>

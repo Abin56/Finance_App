@@ -86,6 +86,14 @@ dependencies:
   flutter_sms_inbox: ^1.0.3
   permission_handler: ^11.3.1
 
+  # Smart Import — screenshot-to-transaction scanning (see
+  # lib/features/smart_import). google_mlkit_text_recognition runs OCR fully
+  # on-device (offline, no upload of financial screenshots); image_picker
+  # supplies gallery selection now and camera selection later via the same
+  # API, so no separate camera package is needed yet.
+  image_picker: ^1.1.2
+  google_mlkit_text_recognition: ^0.15.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
