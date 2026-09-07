@@ -7,7 +7,6 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../features/accounts/presentation/providers/account_providers.dart';
 import '../../../../features/transactions/domain/transaction.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
 import '../../../../features/transactions/presentation/providers/transaction_providers.dart';
@@ -15,15 +14,16 @@ import '../../../../shared/widgets/animations/count_up_text.dart';
 import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/charts/mini_trend_chart.dart';
 import '../../domain/widget_configuration.dart';
+import '../providers/dashboard_financial_summary_provider.dart';
 
 /// Renders [DashboardWidgetType.netWorth] — the dashboard's hero card, the
 /// single most prominent surface on the default layout (see
-/// [FlowFiCard.hero]'s doc comment: at most one per screen). Sums every
-/// account's [Account.currentBalance] via the existing [netWorthProvider]
-/// (never re-derives a figure Accounts/Reports already own) and adds a
-/// 7-day net-cash-flow sparkline for an at-a-glance trend, derived
-/// client-side from the same transaction stream every other Dashboard stat
-/// already watches.
+/// [FlowFiCard.hero]'s doc comment: at most one per screen). Reads net worth
+/// via [dashboardFinancialSummaryProvider] (itself a thin composition over
+/// the existing `netWorthProvider` — never re-derives a figure
+/// Accounts/Reports already own) and adds a 7-day net-cash-flow sparkline
+/// for an at-a-glance trend, derived client-side from the same transaction
+/// stream every other Dashboard stat already watches.
 class NetWorthWidgetCard extends ConsumerStatefulWidget {
   const NetWorthWidgetCard({super.key, required this.config});
 
@@ -57,7 +57,7 @@ class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
 
   @override
   Widget build(BuildContext context) {
-    final netWorth = ref.watch(netWorthProvider);
+    final netWorth = ref.watch(dashboardFinancialSummaryProvider).netWorth;
     final transactions = ref.watch(calculableTransactionsProvider);
     final trend = _weeklyTrend(transactions);
     final format = NumberFormat.currency(

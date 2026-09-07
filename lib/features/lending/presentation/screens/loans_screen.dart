@@ -120,6 +120,11 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
             : const Text('Loans'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.dashboard_outlined),
+            tooltip: 'Loan Dashboard',
+            onPressed: () => context.push(AppRoutes.loanDashboard),
+          ),
+          IconButton(
             icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded),
             tooltip: _searching ? 'Close search' : 'Search',
             onPressed: () => setState(() {

@@ -55,6 +55,14 @@ class LoanInstallmentTile extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (status == InstallmentStatus.partiallyPaid)
+                      Text(
+                        'Paid ${CurrencyFormatter.instance.format(installment.amountPaid)}'
+                        ' · Remaining ${CurrencyFormatter.instance.format(installment.remainingAmount)}',
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: context.colors.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
                   ],
                 ),
               ),

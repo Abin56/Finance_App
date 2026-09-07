@@ -14,6 +14,7 @@ import '../../../credit_cards/domain/statement_status.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../emi/presentation/providers/emi_providers.dart';
 import '../../../expense/presentation/providers/expense_providers.dart';
+import '../../../lending/domain/loan_direction.dart';
 import '../../../lending/presentation/providers/loan_providers.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
@@ -455,11 +456,12 @@ final resolvedCashFlowRangeProvider = Provider<DateRange>((ref) {
 typedef _PeriodRange = ({CashFlowPeriod period, DateRange range});
 
 /// Every [MoneyFlowLine] that contributes to Money In for [key]'s range —
-/// plain income transactions, plus split-expense settlements collected from
-/// others (via each expense's own tracked installments). No account type
-/// (bank, credit card, cash, wallet, ...) is ever filtered here or anywhere
-/// downstream — [Transaction.accountId] only ever affects the line's
-/// display `accountLabel`, never whether it's included.
+/// plain income transactions, split-expense settlements collected from
+/// others (via each expense's own tracked installments), and repayments
+/// received on money I lent ([LoanDirection.given] loans — see the loan loop
+/// below). No account type (bank, credit card, cash, wallet, ...) is ever
+/// filtered here or anywhere downstream — [Transaction.accountId] only ever
+/// affects the line's display `accountLabel`, never whether it's included.
 ///
 /// Bucketing: plain transactions are matched against
 /// [CashFlowPeriod.bucketDateFor] (so a whole-month preset still respects
@@ -468,7 +470,10 @@ typedef _PeriodRange = ({CashFlowPeriod period, DateRange range});
 /// `effectiveMonth` — the bug this replaces). Split-expense settlements are
 /// bucketed by the linked transaction's own date, exactly matching
 /// [moneyReceivedForRangeProvider]'s existing rule, so this is additive
-/// with that provider rather than a second reimplementation of it.
+/// with that provider rather than a second reimplementation of it. Loan
+/// repayments are bucketed by each [InstallmentPayment]'s own real date —
+/// see [moneyOutLinesForRangeFamilyProvider]'s doc comment for why Loans
+/// don't share EMI/Bill's due-date bucketing.
 final moneyInLinesForRangeFamilyProvider =
     Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
       final period = key.period;
@@ -527,6 +532,51 @@ final moneyInLinesForRangeFamilyProvider =
         ));
       }
 
+      // Repayments received on money I lent ([LoanDirection.given]) — the
+      // counterparty paying an installment back to me is Money In, the
+      // mirror image of a [LoanDirection.taken] loan's own installment
+      // payment being Money Out below in
+      // [moneyOutLinesForRangeFamilyProvider]. Bucketed by each
+      // [InstallmentPayment]'s own real [InstallmentPayment.date] (the day
+      // the repayment actually happened), not the installment's due date —
+      // see [moneyOutLinesForRangeFamilyProvider]'s doc comment for why
+      // EMI/Bill still use due-date bucketing; a Loan's counterparty-driven
+      // repayment has no "cycle" concept to attribute it to, so the real
+      // payment date is the only correct event date here.
+      for (final loan in ref.watch(activeLoansProvider)) {
+        if (loan.direction != LoanDirection.given) continue;
+        final installments =
+            ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+            const [];
+        for (final installment in installments) {
+          final payments =
+              ref
+                  .watch(
+                    installmentPaymentsStreamProvider((
+                      scheduleId: loan.scheduleId,
+                      installmentId: installment.id,
+                    )),
+                  )
+                  .value ??
+              const [];
+          for (final payment in payments) {
+            final bucketDate = payment.date;
+            if (bucketDate.isBefore(range.start) ||
+                bucketDate.isAfter(range.end)) {
+              continue;
+            }
+            lines.add((
+              kind: MoneyFlowKind.loan,
+              date: bucketDate,
+              title: loan.name ?? 'Loan',
+              amount: payment.amount,
+              categoryLabel: 'Loan',
+              accountLabel: null,
+            ));
+          }
+        }
+      }
+
       lines.sort((a, b) => b.date.compareTo(a.date));
       return lines;
     });
@@ -549,11 +599,14 @@ final moneyInLinesForRangeFamilyProvider =
 /// range — the period only ever changes WHICH transactions fall inside
 /// [key.range], never WHICH ACCOUNTS are eligible.
 ///
-/// EMI/Loan/Bill lines are bucketed by the installment/occurrence's own due
+/// EMI/Bill lines are bucketed by the installment/occurrence's own due
 /// date — same rule [emiPaidThisMonthProvider] and friends already use for
 /// "this month" (a payment counts toward whichever cycle it was due in, not
 /// necessarily the day it was actually paid) — generalized here to an
-/// arbitrary range instead of always the current calendar month. A
+/// arbitrary range instead of always the current calendar month. Loan lines
+/// are the one exception: they bucket by each payment's own real date (see
+/// the loan loop below) since a repayment has no due-cycle concept of its
+/// own the way a recurring EMI/Bill does. A
 /// credit-card STATEMENT payment (paying off the card's bill) is distinct
 /// from a credit-card PURCHASE: the purchase already counted once as an
 /// ordinary expense [Transaction] above, and paying the statement later
@@ -612,22 +665,53 @@ final moneyOutLinesForRangeFamilyProvider =
         }
       }
 
+      // Only [LoanDirection.taken] loans belong in Money Out — an EMI-like
+      // repayment of money I borrowed is real money leaving me, the same as
+      // an EMI installment above. A [LoanDirection.given] loan's installment
+      // payment is the counterparty repaying ME, so it's counted in Money In
+      // instead (see [moneyInLinesForRangeFamilyProvider]) — never both,
+      // since each loan's installments are only ever read from the one
+      // direction-gated loop that matches its own [Loan.direction].
+      //
+      // Bucketed by each [InstallmentPayment]'s own real
+      // [InstallmentPayment.date] — unlike EMI/Bill above, which bucket by
+      // the installment's due date — so a payment always lands in the range
+      // it was actually paid in, matching the "actual financial
+      // event/payment date" contract Loan payments must honor (an EMI/Bill's
+      // due-date bucketing is a deliberate different choice for
+      // scheduled-obligation cycles; a Loan repayment has no such cycle to
+      // attribute it to instead of its own payment date).
       for (final loan in ref.watch(activeLoansProvider)) {
+        if (loan.direction != LoanDirection.taken) continue;
         final installments =
             ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
             const [];
-        for (final i in installments) {
-          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
-            continue;
-          if (i.amountPaid <= 0) continue;
-          lines.add((
-            kind: MoneyFlowKind.loan,
-            date: i.dueDate,
-            title: loan.name ?? 'Loan',
-            amount: i.amountPaid,
-            categoryLabel: 'Loan',
-            accountLabel: null,
-          ));
+        for (final installment in installments) {
+          final payments =
+              ref
+                  .watch(
+                    installmentPaymentsStreamProvider((
+                      scheduleId: loan.scheduleId,
+                      installmentId: installment.id,
+                    )),
+                  )
+                  .value ??
+              const [];
+          for (final payment in payments) {
+            final bucketDate = payment.date;
+            if (bucketDate.isBefore(range.start) ||
+                bucketDate.isAfter(range.end)) {
+              continue;
+            }
+            lines.add((
+              kind: MoneyFlowKind.loan,
+              date: bucketDate,
+              title: loan.name ?? 'Loan',
+              amount: payment.amount,
+              categoryLabel: 'Loan',
+              accountLabel: null,
+            ));
+          }
         }
       }
 

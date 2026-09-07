@@ -79,8 +79,8 @@ double _amountFor(
     case FinancialViewModule.sharedExpenses:
       return _sharedExpenses(ref, strategy, range);
     case FinancialViewModule.combinedExpenses:
-      return _myExpenses(ref, strategy, range) +
-          _sharedExpenses(ref, strategy, range) +
+      return _myExpenses(ref, strategy, range, excludeCreditCardAccounts: true) +
+          _sharedExpenses(ref, strategy, range, excludeCreditCardAccounts: true) +
           _billsPaid(ref, range) +
           _emiPaid(ref, range) +
           _loanPaid(ref, range) +
@@ -90,8 +90,13 @@ double _amountFor(
     case FinancialViewModule.netCashFlow:
       final moneyIn = _income(ref, strategy, range);
       final moneyOut =
-          _myExpenses(ref, strategy, range) +
-          _sharedExpenses(ref, strategy, range) +
+          _myExpenses(ref, strategy, range, excludeCreditCardAccounts: true) +
+          _sharedExpenses(
+            ref,
+            strategy,
+            range,
+            excludeCreditCardAccounts: true,
+          ) +
           _billsPaid(ref, range) +
           _emiPaid(ref, range) +
           _loanPaid(ref, range) +
@@ -111,8 +116,8 @@ Map<String, double> _breakdownFor(
     return const {};
   }
   return {
-    'My Expenses': _myExpenses(ref, strategy, range),
-    'Shared Expenses': _sharedExpenses(ref, strategy, range),
+    'My Expenses': _myExpenses(ref, strategy, range, excludeCreditCardAccounts: true),
+    'Shared Expenses': _sharedExpenses(ref, strategy, range, excludeCreditCardAccounts: true),
     'Bills': _billsPaid(ref, range),
     'EMIs': _emiPaid(ref, range),
     'Loans': _loanPaid(ref, range),
@@ -144,17 +149,28 @@ DateTime _bucketDateFor(DateRangeStrategy strategy, Transaction transaction) {
 /// [calculableTransactionsProvider] (excludes `excludeFromCalculations`) and
 /// buckets by [_bucketDateFor], exactly like every other Dashboard/Reports/
 /// Budget/Cash-Flow total in the app.
+///
+/// When [excludeCreditCardAccounts] is set, transactions posted on a credit
+/// card's own account are dropped. [combinedExpenses]/[netCashFlow] also add
+/// [_creditCardPaid] (the card's statement payments) as a separate line item,
+/// so counting the card purchase here too would double-count the same spend
+/// once as an ordinary expense and again as a credit-card payment.
 List<Transaction> _expenseTransactionsInRange(
   Ref ref,
   DateRangeStrategy strategy,
-  DateRange range,
-) {
+  DateRange range, {
+  bool excludeCreditCardAccounts = false,
+}) {
   final transactions = ref.watch(calculableTransactionsProvider);
+  final creditCardAccountIds = excludeCreditCardAccounts
+      ? (ref.watch(creditCardsStreamProvider).value ?? const []).map((c) => c.accountId).toSet()
+      : const <String>{};
   return transactions
       .where(
         (t) =>
             t.type == TransactionType.expense &&
-            range.contains(_bucketDateFor(strategy, t)),
+            range.contains(_bucketDateFor(strategy, t)) &&
+            !creditCardAccountIds.contains(t.accountId),
       )
       .toList();
 }
@@ -164,8 +180,18 @@ List<Transaction> _expenseTransactionsInRange(
 /// Delegates the Transaction+Expense join to
 /// [myExpenseBreakdownForTransactionsProvider], the same one Reports uses, so
 /// this never re-derives its own exclusion/date filtering.
-double _myExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
-  final transactions = _expenseTransactionsInRange(ref, strategy, range);
+double _myExpenses(
+  Ref ref,
+  DateRangeStrategy strategy,
+  DateRange range, {
+  bool excludeCreditCardAccounts = false,
+}) {
+  final transactions = _expenseTransactionsInRange(
+    ref,
+    strategy,
+    range,
+    excludeCreditCardAccounts: excludeCreditCardAccounts,
+  );
   return ref
       .watch(myExpenseBreakdownForTransactionsProvider(transactions))
       .total;
@@ -175,8 +201,18 @@ double _myExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
 /// owe — never money I actually spent. Delegates to
 /// [othersShareForTransactionsProvider], the same join/filter contract as
 /// [_myExpenses].
-double _sharedExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
-  final transactions = _expenseTransactionsInRange(ref, strategy, range);
+double _sharedExpenses(
+  Ref ref,
+  DateRangeStrategy strategy,
+  DateRange range, {
+  bool excludeCreditCardAccounts = false,
+}) {
+  final transactions = _expenseTransactionsInRange(
+    ref,
+    strategy,
+    range,
+    excludeCreditCardAccounts: excludeCreditCardAccounts,
+  );
   return ref.watch(othersShareForTransactionsProvider(transactions));
 }
 

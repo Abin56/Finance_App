@@ -88,6 +88,7 @@ class AccountsScreen extends ConsumerWidget {
                         FlowFiAmountText(
                           CurrencyFormatter.instance.format(netWorth),
                           size: AmountSize.display,
+                          color: context.flowfi.onHeroSurface,
                         ),
                       ],
                     ),

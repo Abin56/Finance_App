@@ -22,6 +22,7 @@ class InstallmentPayment extends SoftDeletableEntity {
     this.settlementMethod,
     this.billingCycleLabel,
     this.remainingBalanceAfterPayment,
+    this.payerPersonId,
   });
 
   @override
@@ -55,6 +56,13 @@ class InstallmentPayment extends SoftDeletableEntity {
   /// in hand.
   final double? remainingBalanceAfterPayment;
 
+  /// The [Person] who actually handed over the money for this payment, when
+  /// that's someone other than the account owner — mirrors `PayerSource`
+  /// (see `RecordLoanPaymentSheet._resolvePayer`). `null` means the account
+  /// owner ("You") paid it themselves; callers that don't collect a payer at
+  /// all (e.g. Bills, split-expense settlements) also leave this null.
+  final String? payerPersonId;
+
   factory InstallmentPayment.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
     SnapshotOptions? options,
@@ -74,6 +82,7 @@ class InstallmentPayment extends SoftDeletableEntity {
         billingCycleLabel: data['billingCycleLabel'] as String?,
         remainingBalanceAfterPayment:
             (data['remainingBalanceAfterPayment'] as num?)?.toDouble(),
+        payerPersonId: data['payerPersonId'] as String?,
       )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -95,6 +104,7 @@ class InstallmentPayment extends SoftDeletableEntity {
       'settlementMethod': settlementMethod,
       'billingCycleLabel': billingCycleLabel,
       'remainingBalanceAfterPayment': remainingBalanceAfterPayment,
+      'payerPersonId': payerPersonId,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null
           ? null

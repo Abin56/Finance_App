@@ -11,6 +11,7 @@ import 'package:finance_app/features/cash_flow/domain/cash_flow_period.dart';
 import 'package:finance_app/features/cash_flow/domain/money_flow_line.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
 import 'package:finance_app/features/emi/presentation/providers/emi_providers.dart';
+import 'package:finance_app/features/lending/domain/loan_direction.dart';
 import 'package:finance_app/features/lending/domain/loan_repayment_type.dart';
 import 'package:finance_app/features/lending/presentation/providers/loan_providers.dart';
 import 'package:finance_app/features/people/presentation/providers/people_providers.dart';
@@ -454,9 +455,14 @@ void main() {
           openingBalance: 0,
         );
 
+        // Direction is `taken` — money OWED BY the user, so its installment
+        // payments are a real outflow and belong in Money Out. A `given`
+        // loan (money owed TO the user) would instead count in Money In —
+        // see the dedicated direction tests below.
         final loans = container.read(loanRepositoryProvider);
         final loan = await loans.createLoan(
           personId: person.id,
+          direction: LoanDirection.taken,
           loanAmount: 1000,
           loanDate: DateTime(2026, 9, 1),
           repaymentType: LoanRepaymentType.oneTime,
@@ -479,6 +485,11 @@ void main() {
           scheduleId: loan.scheduleId,
           installmentId: loanInstallment.id,
         );
+        final loanPaymentsSub = container.listen(
+          installmentPaymentsStreamProvider(loanPaymentKey),
+          (_, _) {},
+        );
+        addTearDown(loanPaymentsSub.close);
         await container
             .read(installmentPaymentRepositoryProvider(loanPaymentKey))
             .recordPayment(
@@ -488,6 +499,9 @@ void main() {
             );
         await container.read(
           installmentsStreamProvider(loan.scheduleId).future,
+        );
+        await container.read(
+          installmentPaymentsStreamProvider(loanPaymentKey).future,
         );
 
         final bills = container.read(billRepositoryProvider);

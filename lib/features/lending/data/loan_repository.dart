@@ -1,3 +1,4 @@
+import '../../../core/constants/firestore_constants.dart';
 import '../../../core/data/firestore_crud_repository.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/interest/interest_calculator.dart';
@@ -9,12 +10,23 @@ import '../../../core/payment_schedule/domain/owner_type.dart';
 import '../../../core/payment_schedule/domain/payment_schedule.dart';
 import '../../../core/payment_schedule/domain/precomputed_installment_amount.dart';
 import '../../../core/payment_schedule/domain/schedule_type.dart';
+import '../../../core/services/reminder_notification_service.dart';
 import '../../../core/utils/id_generator.dart';
+import '../../../core/utils/reminder_offset_label.dart';
 import '../domain/loan.dart';
 import '../domain/loan_category.dart';
 import '../domain/loan_direction.dart';
 import '../domain/loan_interest.dart';
 import '../domain/loan_repayment_type.dart';
+
+/// Fixed reminder offsets for Loans, mirroring EMI's `_emiReminderOffsets`
+/// exactly: 7/3 days before (due soon), the day of (due today), and 1/3 days
+/// after (overdue, negative offsets — see
+/// `ReminderNotificationService.reschedule`'s doc comment). Applies to both
+/// repayment types: an installment loan's "next due date" is its next
+/// unpaid installment; a one-time loan's is simply [Loan.dueDate] itself.
+/// No per-loan picker in this milestone, same posture as EMI.
+const _loanReminderOffsets = [7, 3, 1, 0, -1, -3];
 
 /// Loan-specific persistence on top of the generic CRUD/soft-delete
 /// repository. Bridges the feature-agnostic `PaymentScheduleRepository`/
@@ -139,9 +151,13 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       installmentCount: effectiveInstallmentCount,
     );
 
-    await _installmentRepositoryFor(
+    final installments = await _installmentRepositoryFor(
       schedule.id,
-    ).generateInstallments(schedule, precomputedAmounts: precomputed);
+    ).generateInstallments(
+      schedule,
+      precomputedAmounts: precomputed,
+      dueDayOfMonth: loanDate.day,
+    );
 
     final loan = Loan(
       id: loanId,
@@ -175,6 +191,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       createdAt: DateTime.now(),
     );
     await add(loan.id, loan);
+    if (installments.isNotEmpty) _scheduleReminders(loan, installments.first.dueDate);
     return loan;
   }
 
@@ -382,6 +399,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         tailScheduleShape,
         precomputedAmounts: precomputed,
         startingSequenceNumber: settled.length,
+        dueDayOfMonth: loan.loanDate.day,
       );
     }
 
@@ -406,6 +424,12 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         installmentCount: newInstallmentCount,
         totalAmount: settledTotal + newTailTotal,
       );
+    }
+
+    if (newTail.isNotEmpty) {
+      rescheduleReminders(loan, newTail.first.dueDate);
+    } else {
+      _cancelReminders(loan.id);
     }
   }
 
@@ -474,7 +498,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       );
     }
 
-    await installmentRepository.generateInstallments(
+    final newInstallments = await installmentRepository.generateInstallments(
       PaymentSchedule(
         id: loan.scheduleId,
         ownerType: OwnerType.loan,
@@ -486,6 +510,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         createdAt: loan.createdAt,
       ),
       precomputedAmounts: precomputed,
+      dueDayOfMonth: newLoanDate.day,
     );
 
     loan.recordEdit(
@@ -495,6 +520,8 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     );
     loan.loanDate = newLoanDate;
     await update(loan);
+
+    if (newInstallments.isNotEmpty) rescheduleReminders(loan, newInstallments.first.dueDate);
   }
 
   Future<void> closeLoan(Loan loan) async {
@@ -502,13 +529,90 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     loan.recordEdit(field: 'isClosed', oldValue: 'false', newValue: 'true');
     loan.isClosed = true;
     await update(loan);
+    _cancelReminders(loan.id);
   }
 
-  Future<void> reopenLoan(Loan loan) async {
+  /// [currentInstallments] lets a still-unpaid installment loan pick back up
+  /// its reminders against its next unpaid due date; a one-time loan (no
+  /// installments) reschedules against [Loan.dueDate] itself. Optional and
+  /// defaults to empty so existing call sites that don't have the list on
+  /// hand keep compiling — they simply won't get reminders restored until
+  /// the next payment/edit touches this loan.
+  Future<void> reopenLoan(Loan loan, {List<Installment> currentInstallments = const []}) async {
     if (!loan.isClosed) return;
     loan.recordEdit(field: 'isClosed', oldValue: 'true', newValue: 'false');
     loan.isClosed = false;
     await update(loan);
+
+    if (loan.repaymentType == LoanRepaymentType.oneTime) {
+      if (loan.dueDate != null) _scheduleReminders(loan, loan.dueDate!);
+      return;
+    }
+    final nextUnpaid = currentInstallments.where((i) => i.remainingAmount > 0 && !i.isSkipped).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    if (nextUnpaid.isNotEmpty) rescheduleReminders(loan, nextUnpaid.first.dueDate);
+  }
+
+  /// Wipes [loan] and everything under it — unlike the generic inherited
+  /// `permanentlyDelete` (which only removes the `loans/{loanId}` doc), this
+  /// also deletes every `Installment` on the linked schedule (including
+  /// already-trashed ones from a prior `editLoanTerms`/`editLoanDate`
+  /// regeneration), each installment's own `payments` subcollection, and the
+  /// `PaymentSchedule` document — so nothing orphaned is left in Firestore,
+  /// and any reminder still scheduled against this loan is cancelled too.
+  /// Mirrors `EmiRepository.permanentlyDeleteEmi` exactly. This is the
+  /// method trash screens should call instead of the inherited
+  /// `permanentlyDelete`.
+  Future<void> permanentlyDeleteLoan(Loan loan) async {
+    final installmentRepository = _installmentRepositoryFor(loan.scheduleId);
+    final installments = await installmentRepository.getAll();
+    final trashedInstallments = await installmentRepository.getTrash();
+
+    for (final installment in [...installments, ...trashedInstallments]) {
+      final paymentsSnapshot =
+          await installmentRepository.collection.doc(installment.id).collection(FirestoreCollections.payments).get();
+      for (final paymentDoc in paymentsSnapshot.docs) {
+        await paymentDoc.reference.delete();
+      }
+      await installmentRepository.permanentlyDelete(installment);
+    }
+
+    _cancelReminders(loan.id);
+
+    await paymentScheduleRepository.collection.doc(loan.scheduleId).delete();
+    await permanentlyDelete(loan);
+  }
+
+  /// Reschedules reminders against [nextDueDate] — the caller resolves this
+  /// from the loan's next unpaid installment (installment loans) or its own
+  /// [Loan.dueDate] (one-time loans). Exposed publicly (unlike Bills'
+  /// private `_scheduleReminders`) because a loan's "next due date" changes
+  /// on every payment, not just on create/edit, so the payment-recording UI
+  /// needs to trigger this too — mirrors `EmiRepository.rescheduleReminders`.
+  void rescheduleReminders(Loan loan, DateTime nextDueDate) => _scheduleReminders(loan, nextDueDate);
+
+  /// Cancels every reminder scheduled for [loanId] — call once a loan has
+  /// nothing left to remind about (fully paid off, but not explicitly
+  /// closed). Public so payment-recording UIs can call it directly when a
+  /// payment leaves no unpaid installment behind, same as [rescheduleReminders].
+  void cancelReminders(String loanId) => _cancelReminders(loanId);
+
+  /// Best-effort, fire-and-forget — a notification scheduling failure must
+  /// never block or fail a Firestore write, and the installment schedule
+  /// stays the sole source of truth regardless of whether this succeeds.
+  void _scheduleReminders(Loan loan, DateTime nextDueDate) {
+    final label = loan.repaymentType == LoanRepaymentType.oneTime ? 'loan payment' : 'EMI';
+    ReminderNotificationService.reschedule(
+      ownerId: loan.id,
+      title: loan.name?.isNotEmpty == true ? loan.name! : 'Loan',
+      bodyBuilder: (offset) => '${reminderOffsetLabel(offset)} — $label due ${nextDueDate.day}/${nextDueDate.month}',
+      dueDate: nextDueDate,
+      offsets: _loanReminderOffsets,
+    ).catchError((_) {});
+  }
+
+  void _cancelReminders(String loanId) {
+    ReminderNotificationService.cancel(loanId).catchError((_) {});
   }
 
   /// True per-installment count for [InterestCalculator]'s
