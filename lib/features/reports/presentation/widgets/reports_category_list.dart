@@ -7,7 +7,11 @@ import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../../categories/domain/category.dart';
 
 class CategorySpendingEntry {
-  const CategorySpendingEntry({required this.category, required this.amount, required this.percentOfTotal});
+  const CategorySpendingEntry({
+    required this.category,
+    required this.amount,
+    required this.percentOfTotal,
+  });
 
   final Category category;
   final double amount;
@@ -18,7 +22,11 @@ class CategorySpendingEntry {
 /// bar sized to each category's share of total spending — tapping a row
 /// opens that category's detail screen.
 class ReportsCategoryList extends StatelessWidget {
-  const ReportsCategoryList({super.key, required this.entries, required this.onTapCategory});
+  const ReportsCategoryList({
+    super.key,
+    required this.entries,
+    required this.onTapCategory,
+  });
 
   final List<CategorySpendingEntry> entries;
   final void Function(Category category) onTapCategory;
@@ -29,7 +37,10 @@ class ReportsCategoryList extends StatelessWidget {
       children: [
         for (var i = 0; i < entries.length; i++) ...[
           if (i > 0) const SizedBox(height: AppSizes.md),
-          _CategoryRow(entry: entries[i], onTap: () => onTapCategory(entries[i].category)),
+          _CategoryRow(
+            entry: entries[i],
+            onTap: () => onTapCategory(entries[i].category),
+          ),
         ],
       ],
     );
@@ -56,8 +67,15 @@ class _CategoryRow extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-              child: Icon(entry.category.icon, color: color, size: AppSizes.iconMd),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                entry.category.icon,
+                color: color,
+                size: AppSizes.iconMd,
+              ),
             ),
             const SizedBox(width: AppSizes.md),
             Expanded(
@@ -80,7 +98,9 @@ class _CategoryRow extends StatelessWidget {
                           alignment: Alignment.centerRight,
                           child: Text(
                             CurrencyFormatter.instance.format(entry.amount),
-                            style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                            style: context.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
@@ -89,12 +109,19 @@ class _CategoryRow extends StatelessWidget {
                   const SizedBox(height: AppSizes.xs),
                   Row(
                     children: [
-                      Expanded(child: ProgressBar(progress: entry.percentOfTotal, height: 6)),
+                      Expanded(
+                        child: ProgressBar(
+                          progress: entry.percentOfTotal,
+                          height: 6,
+                        ),
+                      ),
                       const SizedBox(width: AppSizes.sm),
                       Text(
                         '${(entry.percentOfTotal * 100).toStringAsFixed(1)}%',
                         style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.6),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     ],

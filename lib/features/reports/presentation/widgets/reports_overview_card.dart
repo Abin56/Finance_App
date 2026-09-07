@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 
 /// Total income / total expenses / net savings for the selected period,
 /// each with a percent change vs. the prior comparable period.
@@ -28,8 +28,7 @@ class ReportsOverviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final netSavings = income - expenses;
 
-    return ClayCard(
-      isHero: true,
+    return FlowFiCard.hero(
       child: Row(
         // From ~1.3x text scale "Total Expenses" wraps and the others don't, so
         // the columns differ in height; without this the shorter ones centre
@@ -58,7 +57,7 @@ class ReportsOverviewCard extends StatelessWidget {
             child: _OverviewStat(
               label: 'Net Savings',
               value: netSavings,
-              valueColor: context.colors.onSurface,
+              valueColor: context.flowfi.onHeroSurface,
               changePercent: netSavingsChangePercent,
             ),
           ),
@@ -89,13 +88,16 @@ class _OverviewStat extends StatelessWidget {
         Text(
           label,
           style: context.textTheme.bodySmall?.copyWith(
-            color: context.colors.onSurface.withValues(alpha: 0.6),
+            color: context.flowfi.onHeroSurfaceMuted,
           ),
         ),
         const SizedBox(height: AppSizes.xs),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: valueColor),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -105,15 +107,21 @@ class _OverviewStat extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                changePercent! >= 0 ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                changePercent! >= 0
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
                 size: AppSizes.iconSm,
-                color: changePercent! >= 0 ? AppColors.income : AppColors.expense,
+                color: changePercent! >= 0
+                    ? AppColors.income
+                    : AppColors.expense,
               ),
               Text(
                 '${changePercent!.abs().round()}%',
                 style: context.textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: changePercent! >= 0 ? AppColors.income : AppColors.expense,
+                  color: changePercent! >= 0
+                      ? AppColors.income
+                      : AppColors.expense,
                 ),
               ),
             ],

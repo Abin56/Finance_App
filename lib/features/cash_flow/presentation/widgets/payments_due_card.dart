@@ -6,7 +6,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/theme/clay_widgets.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
 import '../../../../shared/domain/payment_urgency.dart';
 import '../providers/cash_flow_providers.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
@@ -23,10 +24,26 @@ class PaymentsDueCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final total = ref.watch(totalDueThisMonthProvider);
     final rows = [
-      (label: 'Credit Cards', breakdown: ref.watch(creditCardDueThisMonthBreakdownProvider), route: AppRoutes.creditCards),
-      (label: 'EMI', breakdown: ref.watch(emiDueThisMonthBreakdownProvider), route: AppRoutes.emis),
-      (label: 'Loans', breakdown: ref.watch(loanDueThisMonthBreakdownProvider), route: AppRoutes.loans),
-      (label: 'Bills', breakdown: ref.watch(billsDueThisMonthBreakdownProvider), route: AppRoutes.bills),
+      (
+        label: 'Credit Cards',
+        breakdown: ref.watch(creditCardDueThisMonthBreakdownProvider),
+        route: AppRoutes.creditCards,
+      ),
+      (
+        label: 'EMI',
+        breakdown: ref.watch(emiDueThisMonthBreakdownProvider),
+        route: AppRoutes.emis,
+      ),
+      (
+        label: 'Loans',
+        breakdown: ref.watch(loanDueThisMonthBreakdownProvider),
+        route: AppRoutes.loans,
+      ),
+      (
+        label: 'Bills',
+        breakdown: ref.watch(billsDueThisMonthBreakdownProvider),
+        route: AppRoutes.bills,
+      ),
       (
         label: 'Other Scheduled Payments',
         breakdown: ref.watch(otherScheduledDueThisMonthBreakdownProvider),
@@ -38,11 +55,12 @@ class PaymentsDueCard extends ConsumerWidget {
       return const PlaceholderCard(
         icon: Icons.event_available_rounded,
         title: 'Nothing due this month',
-        message: 'Credit card bills, EMIs, loans, and bills due this month will appear here.',
+        message:
+            'Credit card bills, EMIs, loans, and bills due this month will appear here.',
       );
     }
 
-    return ClayCard(
+    return FlowFiCard(
       padding: const EdgeInsets.all(AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,12 +68,14 @@ class PaymentsDueCard extends ConsumerWidget {
           Text('Payments Due This Month', style: context.textTheme.titleMedium),
           Text(
             'Always shows what\'s currently due, regardless of the selected period',
-            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.5),
+            ),
           ),
           const SizedBox(height: AppSizes.sm),
-          Text(
+          FlowFiAmountText(
             CurrencyFormatter.instance.format(total.due),
-            style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            size: AmountSize.large,
           ),
           const SizedBox(height: AppSizes.lg),
           for (final row in rows) ...[
@@ -73,12 +93,22 @@ class PaymentsDueCard extends ConsumerWidget {
             // ones centre and their amounts drop out of line.
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _FooterStat(label: 'Total Due', value: total.due)),
               Expanded(
-                child: _FooterStat(label: 'Already Paid', value: total.paid, color: PaymentUrgency.paid.color),
+                child: _FooterStat(label: 'Total Due', value: total.due),
               ),
               Expanded(
-                child: _FooterStat(label: 'Remaining', value: total.remaining, color: PaymentUrgency.overdue.color),
+                child: _FooterStat(
+                  label: 'Already Paid',
+                  value: total.paid,
+                  color: PaymentUrgency.paid.color,
+                ),
+              ),
+              Expanded(
+                child: _FooterStat(
+                  label: 'Remaining',
+                  value: total.remaining,
+                  color: PaymentUrgency.overdue.color,
+                ),
               ),
             ],
           ),
@@ -89,7 +119,11 @@ class PaymentsDueCard extends ConsumerWidget {
 }
 
 class _PaymentRow extends StatelessWidget {
-  const _PaymentRow({required this.label, required this.breakdown, required this.onTap});
+  const _PaymentRow({
+    required this.label,
+    required this.breakdown,
+    required this.onTap,
+  });
 
   final String label;
   final DueCategoryBreakdown breakdown;
@@ -120,7 +154,9 @@ class _PaymentRow extends StatelessWidget {
                 CurrencyFormatter.instance.format(breakdown.remaining),
                 textAlign: TextAlign.end,
                 style: context.textTheme.bodyMedium?.copyWith(
-                  color: breakdown.remaining > 0 ? PaymentUrgency.overdue.color : PaymentUrgency.paid.color,
+                  color: breakdown.remaining > 0
+                      ? PaymentUrgency.overdue.color
+                      : PaymentUrgency.paid.color,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -146,11 +182,16 @@ class _FooterStat extends StatelessWidget {
       children: [
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
         ),
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
       ],
     );

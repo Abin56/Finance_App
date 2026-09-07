@@ -24,7 +24,12 @@ import 'split_expense_form_sheet.dart' show AddExpenseDraftPrefill;
 /// fields plus one required person picker and calls
 /// `ExpenseRepository.assignToPerson`.
 class AssignExpenseSheet extends ConsumerStatefulWidget {
-  const AssignExpenseSheet({super.key, this.smsPrefill, this.initialPerson, this.draft});
+  const AssignExpenseSheet({
+    super.key,
+    this.smsPrefill,
+    this.initialPerson,
+    this.draft,
+  });
 
   /// Set when opened from the SMS Inbox's "Paid for Someone Else" option —
   /// seeds description/amount/date/account/category as normal editable
@@ -52,7 +57,11 @@ class AssignExpenseSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => AssignExpenseSheet(smsPrefill: smsPrefill, initialPerson: initialPerson, draft: draft),
+      builder: (_) => AssignExpenseSheet(
+        smsPrefill: smsPrefill,
+        initialPerson: initialPerson,
+        draft: draft,
+      ),
     );
   }
 
@@ -63,27 +72,37 @@ class AssignExpenseSheet extends ConsumerStatefulWidget {
 class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _descriptionController = TextEditingController(
-    text: widget.smsPrefill?.merchantOrSender ?? widget.draft?.description ?? '',
+    text:
+        widget.smsPrefill?.merchantOrSender ?? widget.draft?.description ?? '',
   );
   late final _amountController = TextEditingController(
     text: widget.smsPrefill != null
         ? widget.smsPrefill!.amount.toStringAsFixed(2)
-        : (widget.draft?.amount == null ? '' : widget.draft!.amount!.toStringAsFixed(2)),
+        : (widget.draft?.amount == null
+              ? ''
+              : widget.draft!.amount!.toStringAsFixed(2)),
   );
-  late final _notesController = TextEditingController(text: widget.smsPrefill?.note ?? widget.draft?.notes ?? '');
+  late final _notesController = TextEditingController(
+    text: widget.smsPrefill?.note ?? widget.draft?.notes ?? '',
+  );
   final _amountFocusNode = FocusNode();
-  late DateTime _date = widget.smsPrefill?.dateTime ?? widget.draft?.date ?? DateTime.now();
+  late DateTime _date =
+      widget.smsPrefill?.dateTime ?? widget.draft?.date ?? DateTime.now();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
-  late String? _accountId = widget.smsPrefill?.suggestedAccountId ?? widget.draft?.accountId;
-  late String? _categoryId = widget.smsPrefill?.suggestedCategoryId ?? widget.draft?.categoryId;
+  late String? _accountId =
+      widget.smsPrefill?.suggestedAccountId ?? widget.draft?.accountId;
+  late String? _categoryId =
+      widget.smsPrefill?.suggestedCategoryId ?? widget.draft?.categoryId;
   late String? _personId = widget.initialPerson?.id;
   String? _accountError;
   String? _categoryError;
   String? _personError;
   bool _isSaving = false;
-  late bool _excludeFromCalculations = widget.draft?.excludeFromCalculations ?? false;
+  late bool _excludeFromCalculations =
+      widget.draft?.excludeFromCalculations ?? false;
   late bool _customAccountingMonth = widget.draft?.accountingMonth != null;
-  late DateTime _accountingMonth = widget.draft?.accountingMonth ?? DateTime(_date.year, _date.month);
+  late DateTime _accountingMonth =
+      widget.draft?.accountingMonth ?? DateTime(_date.year, _date.month);
 
   bool get _personLocked => widget.initialPerson != null;
 
@@ -125,7 +144,11 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
       _categoryError = _categoryId == null ? 'Select a category' : null;
       _personError = _personId == null ? 'Select a person' : null;
     });
-    if (!formValid || _accountId == null || _categoryId == null || _personId == null) return;
+    if (!formValid ||
+        _accountId == null ||
+        _categoryId == null ||
+        _personId == null)
+      return;
 
     setState(() => _isSaving = true);
     try {
@@ -146,14 +169,18 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
         source: widget.smsPrefill == null ? null : 'sms',
       );
 
-      await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);
+      await completeSmsImport(
+        ref,
+        smsPrefill: widget.smsPrefill,
+        linkedEntityId: expense.transactionId,
+      );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save expense: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save expense: $e')));
       }
     }
   }
@@ -162,7 +189,9 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
-    final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
+    final categories = ref.watch(
+      categoriesForTypeProvider(TransactionType.expense),
+    );
     final peopleAsync = ref.watch(peopleStreamProvider);
     final people = peopleAsync.value ?? const [];
 
@@ -181,7 +210,9 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _personLocked ? 'Add expense for ${widget.initialPerson!.name}' : 'Say who will pay this expense',
+                _personLocked
+                    ? 'Add expense for ${widget.initialPerson!.name}'
+                    : 'Say who will pay this expense',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: AppSizes.lg),
@@ -197,7 +228,9 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 controller: _amountController,
                 focusNode: _amountFocusNode,
                 decoration: const InputDecoration(labelText: 'Total amount'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 validator: Validators.amount,
                 textInputAction: TextInputAction.done,
               ),
@@ -206,13 +239,21 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 loading: () => const LinearProgressIndicator(),
                 error: (error, _) => Text('Could not load accounts: $error'),
                 data: (accounts) {
-                  final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
+                  final validId = accounts.any((a) => a.id == _accountId)
+                      ? _accountId
+                      : null;
                   return DropdownButtonFormField<String>(
                     initialValue: validId,
-                    decoration: InputDecoration(labelText: 'Account', errorText: _accountError),
+                    decoration: InputDecoration(
+                      labelText: 'Account',
+                      errorText: _accountError,
+                    ),
                     items: [
                       for (final account in accounts)
-                        DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
+                        DropdownMenuItem(
+                          value: account.id,
+                          child: Text(accountPickerLabel(account, creditCards)),
+                        ),
                     ],
                     onChanged: (value) => setState(() {
                       _accountId = value;
@@ -223,11 +264,19 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
               ),
               const SizedBox(height: AppSizes.md),
               DropdownButtonFormField<String>(
-                initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-                decoration: InputDecoration(labelText: 'Category', errorText: _categoryError),
+                initialValue: categories.any((c) => c.id == _categoryId)
+                    ? _categoryId
+                    : null,
+                decoration: InputDecoration(
+                  labelText: 'Category',
+                  errorText: _categoryError,
+                ),
                 items: [
                   for (final category in categories)
-                    DropdownMenuItem(value: category.id, child: Text(category.name)),
+                    DropdownMenuItem(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
                 ],
                 onChanged: (value) => setState(() {
                   _categoryId = value;
@@ -242,11 +291,19 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 )
               else
                 DropdownButtonFormField<String>(
-                  initialValue: people.any((p) => p.id == _personId) ? _personId : null,
-                  decoration: InputDecoration(labelText: 'Person', errorText: _personError),
+                  initialValue: people.any((p) => p.id == _personId)
+                      ? _personId
+                      : null,
+                  decoration: InputDecoration(
+                    labelText: 'Person',
+                    errorText: _personError,
+                  ),
                   items: [
                     for (final person in people)
-                      DropdownMenuItem(value: person.id, child: Text(person.name)),
+                      DropdownMenuItem(
+                        value: person.id,
+                        child: Text(person.name),
+                      ),
                   ],
                   onChanged: (value) => setState(() {
                     _personId = value;
@@ -256,7 +313,10 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
               const SizedBox(height: AppSizes.md),
               OutlinedButton.icon(
                 onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+                icon: const Icon(
+                  Icons.calendar_today_outlined,
+                  size: AppSizes.iconSm,
+                ),
                 label: Text(_date.fullDate),
               ),
               const SizedBox(height: AppSizes.md),
@@ -270,7 +330,9 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Notes (optional)',
+                ),
                 maxLines: 3,
                 textInputAction: TextInputAction.done,
               ),
@@ -282,7 +344,8 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                   "Still shows in your history — just won't affect your balance, budgets, or reports.",
                 ),
                 value: _excludeFromCalculations,
-                onChanged: (value) => setState(() => _excludeFromCalculations = value),
+                onChanged: (value) =>
+                    setState(() => _excludeFromCalculations = value),
               ),
               const SizedBox(height: AppSizes.sm),
               SwitchListTile(
@@ -296,7 +359,8 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 value: _customAccountingMonth,
                 onChanged: (value) => setState(() {
                   _customAccountingMonth = value;
-                  if (!value) _accountingMonth = DateTime(_date.year, _date.month);
+                  if (!value)
+                    _accountingMonth = DateTime(_date.year, _date.month);
                 }),
               ),
               if (_customAccountingMonth) ...[
@@ -305,7 +369,8 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                   value: _accountingMonth,
                   min: DateTime(DateTime.now().year - 5, DateTime.now().month),
                   max: DateTime(DateTime.now().year + 2, DateTime.now().month),
-                  onChanged: (month) => setState(() => _accountingMonth = month),
+                  onChanged: (month) =>
+                      setState(() => _accountingMonth = month),
                 ),
               ],
               const SizedBox(height: AppSizes.xl),

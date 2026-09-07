@@ -47,7 +47,11 @@ class EmiHistoryData {
 /// [BillHistoryData.payments]' per-owner shape, just keyed by statement
 /// since payments live in a per-statement subcollection.
 class CreditCardHistoryData {
-  const CreditCardHistoryData({required this.cardName, required this.statements, required this.paymentsByStatementId});
+  const CreditCardHistoryData({
+    required this.cardName,
+    required this.statements,
+    required this.paymentsByStatementId,
+  });
 
   final String cardName;
   final List<Statement> statements;
@@ -74,7 +78,10 @@ abstract class HistoryBuilder {
     Map<String, List<Installment>> installmentsByScheduleId = const {},
     bool includeDeleted = false,
   }) {
-    final splitExpenseByTransactionId = {for (final e in expenses) if (e.isSplit) e.transactionId: e};
+    final splitExpenseByTransactionId = {
+      for (final e in expenses)
+        if (e.isSplit) e.transactionId: e,
+    };
 
     final entries = <HistoryEntry>[
       for (final transaction in transactions)
@@ -84,10 +91,14 @@ abstract class HistoryBuilder {
             splitExpense: splitExpenseByTransactionId[transaction.id],
             installmentsByScheduleId: installmentsByScheduleId,
           ),
-      for (final loanData in loans) ..._fromLoan(loanData, includeDeleted: includeDeleted),
-      for (final billData in bills) ..._fromBill(billData, includeDeleted: includeDeleted),
-      for (final emiData in emis) ..._fromEmi(emiData, includeDeleted: includeDeleted),
-      for (final cardData in creditCards) ..._fromCreditCard(cardData, includeDeleted: includeDeleted),
+      for (final loanData in loans)
+        ..._fromLoan(loanData, includeDeleted: includeDeleted),
+      for (final billData in bills)
+        ..._fromBill(billData, includeDeleted: includeDeleted),
+      for (final emiData in emis)
+        ..._fromEmi(emiData, includeDeleted: includeDeleted),
+      for (final cardData in creditCards)
+        ..._fromCreditCard(cardData, includeDeleted: includeDeleted),
     ]..sort((a, b) => b.date.compareTo(a.date));
     return entries;
   }
@@ -101,15 +112,15 @@ abstract class HistoryBuilder {
     final category = splitExpense != null
         ? HistoryCategory.splitExpense
         : isMoneyReceived
-            ? HistoryCategory.moneyReceived
-            : HistoryCategory.transaction;
+        ? HistoryCategory.moneyReceived
+        : HistoryCategory.transaction;
     final isCredit = transaction.type == TransactionType.income;
 
     final kind = splitExpense != null
         ? TransactionKind.splitExpense
         : isCredit
-            ? TransactionKind.myIncome
-            : TransactionKind.myExpense;
+        ? TransactionKind.myIncome
+        : TransactionKind.myExpense;
 
     return HistoryEntry(
       id: 'txn-${transaction.id}',
@@ -122,8 +133,9 @@ abstract class HistoryBuilder {
       icon: transaction.type.icon,
       kind: kind,
       routePath: '${AppRoutes.transactions}/${transaction.id}',
-      splitExpenseDetail:
-          splitExpense == null ? null : splitExpenseDetailFor(splitExpense, installmentsByScheduleId),
+      splitExpenseDetail: splitExpense == null
+          ? null
+          : splitExpenseDetailFor(splitExpense, installmentsByScheduleId),
       excludeFromCalculations: transaction.excludeFromCalculations,
       accountingMonth: transaction.accountingMonth,
     );
@@ -137,8 +149,12 @@ abstract class HistoryBuilder {
     Expense expense,
     Map<String, List<Installment>> installmentsByScheduleId,
   ) {
-    final installments = installmentsByScheduleId[expense.scheduleId] ?? const <Installment>[];
-    final amountToCollect = installments.fold(0.0, (sum, i) => sum + i.remainingAmount);
+    final installments =
+        installmentsByScheduleId[expense.scheduleId] ?? const <Installment>[];
+    final amountToCollect = installments.fold(
+      0.0,
+      (sum, i) => sum + i.remainingAmount,
+    );
     final collected = installments.fold(0.0, (sum, i) => sum + i.amountPaid);
 
     final SplitExpenseHistoryStatus status;
@@ -160,12 +176,19 @@ abstract class HistoryBuilder {
       collected: collected,
       shares: [
         for (final p in expense.participants)
-          SplitShare(name: p.isMe ? 'You' : p.name, share: p.share, isMe: p.isMe),
+          SplitShare(
+            name: p.isMe ? 'You' : p.name,
+            share: p.share,
+            isMe: p.isMe,
+          ),
       ]..sort((a, b) => a.isMe ? -1 : (b.isMe ? 1 : 0)),
     );
   }
 
-  static List<HistoryEntry> _fromLoan(LoanHistoryData data, {required bool includeDeleted}) {
+  static List<HistoryEntry> _fromLoan(
+    LoanHistoryData data, {
+    required bool includeDeleted,
+  }) {
     final loan = data.loan;
     if (!includeDeleted && loan.isDeleted) return const [];
 
@@ -187,7 +210,10 @@ abstract class HistoryBuilder {
     ];
   }
 
-  static List<HistoryEntry> _fromBill(BillHistoryData data, {required bool includeDeleted}) {
+  static List<HistoryEntry> _fromBill(
+    BillHistoryData data, {
+    required bool includeDeleted,
+  }) {
     final bill = data.bill;
     if (!includeDeleted && bill.isDeleted) return const [];
 
@@ -216,7 +242,10 @@ abstract class HistoryBuilder {
   /// the ordinary transaction/split-settlement entries above; chronological
   /// sort is what keeps the whole chain reading in order, no separate
   /// threading mechanism needed).
-  static List<HistoryEntry> _fromCreditCard(CreditCardHistoryData data, {required bool includeDeleted}) {
+  static List<HistoryEntry> _fromCreditCard(
+    CreditCardHistoryData data, {
+    required bool includeDeleted,
+  }) {
     final entries = <HistoryEntry>[];
     for (final statement in data.statements) {
       if (!includeDeleted && statement.isDeleted) continue;
@@ -225,13 +254,15 @@ abstract class HistoryBuilder {
           id: 'statement-generated-${statement.id}',
           date: statement.generatedDate,
           title: '${data.cardName} statement generated',
-          subtitle: 'Pay by ${statement.dueDate.day}/${statement.dueDate.month}',
+          subtitle:
+              'Pay by ${statement.dueDate.day}/${statement.dueDate.month}',
           amount: statement.totalAmount,
           isCredit: false,
           category: HistoryCategory.statementGenerated,
           icon: Icons.receipt_long_outlined,
           kind: TransactionKind.creditCard,
-          routePath: '${AppRoutes.creditCards}/${statement.cardId}/statements/${statement.id}',
+          routePath:
+              '${AppRoutes.creditCards}/${statement.cardId}/statements/${statement.id}',
         ),
       );
       final payments = data.paymentsByStatementId[statement.id] ?? const [];
@@ -248,7 +279,8 @@ abstract class HistoryBuilder {
             category: HistoryCategory.statementPaid,
             icon: Icons.check_circle_outline_rounded,
             kind: TransactionKind.creditCard,
-            routePath: '${AppRoutes.creditCards}/${statement.cardId}/statements/${statement.id}',
+            routePath:
+                '${AppRoutes.creditCards}/${statement.cardId}/statements/${statement.id}',
           ),
         );
       }
@@ -256,7 +288,10 @@ abstract class HistoryBuilder {
     return entries;
   }
 
-  static List<HistoryEntry> _fromEmi(EmiHistoryData data, {required bool includeDeleted}) {
+  static List<HistoryEntry> _fromEmi(
+    EmiHistoryData data, {
+    required bool includeDeleted,
+  }) {
     final emi = data.emi;
     if (!includeDeleted && emi.isDeleted) return const [];
 

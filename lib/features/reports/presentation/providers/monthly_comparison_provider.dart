@@ -11,20 +11,26 @@ import '../../../transactions/presentation/providers/transaction_providers.dart'
 /// the same real-date bucketing `CashFlowChart` uses for its weekly bars,
 /// just at month granularity. No new totals: each month's income/expense
 /// is the same `fold` every other Reports figure already does.
-final monthlyComparisonProvider = Provider.family<AppBarChartData, int>((ref, monthCount) {
+final monthlyComparisonProvider = Provider.family<AppBarChartData, int>((
+  ref,
+  monthCount,
+) {
   final transactions = ref.watch(calculableTransactionsProvider);
   final now = DateTime.now();
 
   final months = <DateTime>[
-    for (var i = monthCount - 1; i >= 0; i--) DateTime(now.year, now.month - i, 1),
+    for (var i = monthCount - 1; i >= 0; i--)
+      DateTime(now.year, now.month - i, 1),
   ];
 
   double totalFor(DateTime month, TransactionType type) {
     return transactions
-        .where((t) =>
-            t.type == type &&
-            t.dateTime.year == month.year &&
-            t.dateTime.month == month.month)
+        .where(
+          (t) =>
+              t.type == type &&
+              t.dateTime.year == month.year &&
+              t.dateTime.month == month.month,
+        )
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 

@@ -58,125 +58,147 @@ typedef UpcomingDueItem = ({
 /// date to be filtered/sorted by here. Money owed *through a split expense*
 /// still appears, since each participant's share is tracked by a dated
 /// [Installment] like every other kind in this list.
-final upcomingDueProvider = Provider.family<List<UpcomingDueItem>, UpcomingDueCycle>((ref, cycle) {
-  final cutoff = cycle.end.dateOnly;
-  final items = <UpcomingDueItem>[];
+final upcomingDueProvider =
+    Provider.family<List<UpcomingDueItem>, UpcomingDueCycle>((ref, cycle) {
+      final cutoff = cycle.end.dateOnly;
+      final items = <UpcomingDueItem>[];
 
-  for (final card in ref.watch(activeCreditCardsProvider)) {
-    final view = ref.watch(statementCycleViewProvider(card.id));
-    final relevant = [...view.previousCyclePending, if (view.current != null) view.current!];
-    for (final statement in relevant) {
-      if (statement.remainingAmount <= 0) continue;
-      if (statement.dueDate.dateOnly.isAfter(cutoff)) continue;
-      final isCarriedOver = view.previousCyclePending.contains(statement);
-      items.add((
-        kind: UpcomingDueKind.creditCard,
-        title: card.lastFourDigits != null ? 'Card •••• ${card.lastFourDigits}' : 'Credit Card',
-        dueDate: statement.dueDate,
-        remaining: statement.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromStatementStatus(statement.status),
-        isCarriedOver: isCarriedOver,
-        routeId: card.id,
-        secondaryRouteId: statement.id,
-      ));
-    }
-  }
+      for (final card in ref.watch(activeCreditCardsProvider)) {
+        final view = ref.watch(statementCycleViewProvider(card.id));
+        final relevant = [
+          ...view.previousCyclePending,
+          if (view.current != null) view.current!,
+        ];
+        for (final statement in relevant) {
+          if (statement.remainingAmount <= 0) continue;
+          if (statement.dueDate.dateOnly.isAfter(cutoff)) continue;
+          final isCarriedOver = view.previousCyclePending.contains(statement);
+          items.add((
+            kind: UpcomingDueKind.creditCard,
+            title: card.lastFourDigits != null
+                ? 'Card •••• ${card.lastFourDigits}'
+                : 'Credit Card',
+            dueDate: statement.dueDate,
+            remaining: statement.remainingAmount,
+            urgency: isCarriedOver
+                ? PaymentUrgency.carriedForward
+                : PaymentUrgencyX.fromStatementStatus(statement.status),
+            isCarriedOver: isCarriedOver,
+            routeId: card.id,
+            secondaryRouteId: statement.id,
+          ));
+        }
+      }
 
-  for (final emi in ref.watch(activeEmisProvider)) {
-    final view = ref.watch(emiCycleViewRecordProvider(emi));
-    final relevant = [...view.previousCyclePending, ...view.current];
-    for (final installment in relevant) {
-      if (installment.remainingAmount <= 0 || installment.isSkipped) continue;
-      if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
-      final isCarriedOver = view.previousCyclePending.contains(installment);
-      items.add((
-        kind: UpcomingDueKind.emi,
-        title: emi.name,
-        dueDate: installment.dueDate,
-        remaining: installment.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromInstallmentStatus(installment.status),
-        isCarriedOver: isCarriedOver,
-        routeId: emi.id,
-        secondaryRouteId: null,
-      ));
-    }
-  }
+      for (final emi in ref.watch(activeEmisProvider)) {
+        final view = ref.watch(emiCycleViewRecordProvider(emi));
+        final relevant = [...view.previousCyclePending, ...view.current];
+        for (final installment in relevant) {
+          if (installment.remainingAmount <= 0 || installment.isSkipped)
+            continue;
+          if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
+          final isCarriedOver = view.previousCyclePending.contains(installment);
+          items.add((
+            kind: UpcomingDueKind.emi,
+            title: emi.name,
+            dueDate: installment.dueDate,
+            remaining: installment.remainingAmount,
+            urgency: isCarriedOver
+                ? PaymentUrgency.carriedForward
+                : PaymentUrgencyX.fromInstallmentStatus(installment.status),
+            isCarriedOver: isCarriedOver,
+            routeId: emi.id,
+            secondaryRouteId: null,
+          ));
+        }
+      }
 
-  for (final loan in ref.watch(activeLoansProvider)) {
-    final view = ref.watch(loanCycleViewRecordProvider(loan));
-    final relevant = [...view.previousCyclePending, ...view.current];
-    for (final installment in relevant) {
-      if (installment.remainingAmount <= 0 || installment.isSkipped) continue;
-      if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
-      final isCarriedOver = view.previousCyclePending.contains(installment);
-      items.add((
-        kind: UpcomingDueKind.loan,
-        title: loan.name ?? 'Loan',
-        dueDate: installment.dueDate,
-        remaining: installment.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromInstallmentStatus(installment.status),
-        isCarriedOver: isCarriedOver,
-        routeId: loan.id,
-        secondaryRouteId: null,
-      ));
-    }
-  }
+      for (final loan in ref.watch(activeLoansProvider)) {
+        final view = ref.watch(loanCycleViewRecordProvider(loan));
+        final relevant = [...view.previousCyclePending, ...view.current];
+        for (final installment in relevant) {
+          if (installment.remainingAmount <= 0 || installment.isSkipped)
+            continue;
+          if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
+          final isCarriedOver = view.previousCyclePending.contains(installment);
+          items.add((
+            kind: UpcomingDueKind.loan,
+            title: loan.name ?? 'Loan',
+            dueDate: installment.dueDate,
+            remaining: installment.remainingAmount,
+            urgency: isCarriedOver
+                ? PaymentUrgency.carriedForward
+                : PaymentUrgencyX.fromInstallmentStatus(installment.status),
+            isCarriedOver: isCarriedOver,
+            routeId: loan.id,
+            secondaryRouteId: null,
+          ));
+        }
+      }
 
-  final bills = ref.watch(billsStreamProvider).value ?? const [];
-  for (final bill in bills) {
-    final view = ref.watch(billOccurrenceCycleViewProvider(bill.id));
-    final relevant = [...view.previousCyclePending, if (view.current != null) view.current!];
-    for (final occurrence in relevant) {
-      if (occurrence.status == BillStatus.skipped || occurrence.remainingAmount <= 0) continue;
-      if (occurrence.dueDate.dateOnly.isAfter(cutoff)) continue;
-      final isCarriedOver = view.previousCyclePending.contains(occurrence);
-      items.add((
-        kind: UpcomingDueKind.bill,
-        title: bill.name,
-        dueDate: occurrence.dueDate,
-        remaining: occurrence.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromBillStatus(occurrence.status),
-        isCarriedOver: isCarriedOver,
-        routeId: bill.id,
-        secondaryRouteId: null,
-      ));
-    }
-  }
+      final bills = ref.watch(billsStreamProvider).value ?? const [];
+      for (final bill in bills) {
+        final view = ref.watch(billOccurrenceCycleViewProvider(bill.id));
+        final relevant = [
+          ...view.previousCyclePending,
+          if (view.current != null) view.current!,
+        ];
+        for (final occurrence in relevant) {
+          if (occurrence.status == BillStatus.skipped ||
+              occurrence.remainingAmount <= 0)
+            continue;
+          if (occurrence.dueDate.dateOnly.isAfter(cutoff)) continue;
+          final isCarriedOver = view.previousCyclePending.contains(occurrence);
+          items.add((
+            kind: UpcomingDueKind.bill,
+            title: bill.name,
+            dueDate: occurrence.dueDate,
+            remaining: occurrence.remainingAmount,
+            urgency: isCarriedOver
+                ? PaymentUrgency.carriedForward
+                : PaymentUrgencyX.fromBillStatus(occurrence.status),
+            isCarriedOver: isCarriedOver,
+            routeId: bill.id,
+            secondaryRouteId: null,
+          ));
+        }
+      }
 
-  // Split-expense participants have no single owning schedule/card to key a
-  // dedicated `*CycleViewProvider` off of (unlike EMI/Loan/Bills), so each
-  // pending participant's installment is classified individually here —
-  // still via the shared `CycleEngine` + `InstallmentCycleItem` adapter,
-  // anchored at the same `personCycleAnchor` the People module's own
-  // `personCycleViewProvider` uses, since a split expense's carry-forward
-  // boundary is the same Contact Ledger cycle as the person it's owed to.
-  for (final pending in ref.watch(pendingSplitParticipantsProvider)) {
-    if (pending.participant.isMe) continue;
-    final installment = pending.installment;
-    if (installment.isSkipped) continue;
-    if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
-    final classification = CycleEngine.classifyForCarryForward(
-      [InstallmentCycleItem(installment)],
-      personCycleAnchor,
-    );
-    final isCarriedOver = classification.previousCyclePending.isNotEmpty;
-    items.add((
-      kind: UpcomingDueKind.splitExpense,
-      title: '${pending.expense.description} · ${pending.participant.name}',
-      dueDate: installment.dueDate,
-      remaining: installment.remainingAmount,
-      urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromInstallmentStatus(installment.status),
-      isCarriedOver: isCarriedOver,
-      routeId: pending.expense.transactionId,
-      secondaryRouteId: null,
-    ));
-  }
+      // Split-expense participants have no single owning schedule/card to key a
+      // dedicated `*CycleViewProvider` off of (unlike EMI/Loan/Bills), so each
+      // pending participant's installment is classified individually here —
+      // still via the shared `CycleEngine` + `InstallmentCycleItem` adapter,
+      // anchored at the same `personCycleAnchor` the People module's own
+      // `personCycleViewProvider` uses, since a split expense's carry-forward
+      // boundary is the same Contact Ledger cycle as the person it's owed to.
+      for (final pending in ref.watch(pendingSplitParticipantsProvider)) {
+        if (pending.participant.isMe) continue;
+        final installment = pending.installment;
+        if (installment.isSkipped) continue;
+        if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
+        final classification = CycleEngine.classifyForCarryForward([
+          InstallmentCycleItem(installment),
+        ], personCycleAnchor);
+        final isCarriedOver = classification.previousCyclePending.isNotEmpty;
+        items.add((
+          kind: UpcomingDueKind.splitExpense,
+          title: '${pending.expense.description} · ${pending.participant.name}',
+          dueDate: installment.dueDate,
+          remaining: installment.remainingAmount,
+          urgency: isCarriedOver
+              ? PaymentUrgency.carriedForward
+              : PaymentUrgencyX.fromInstallmentStatus(installment.status),
+          isCarriedOver: isCarriedOver,
+          routeId: pending.expense.transactionId,
+          secondaryRouteId: null,
+        ));
+      }
 
-  items.sort((a, b) {
-    final aOverdue = a.urgency == PaymentUrgency.overdue;
-    final bOverdue = b.urgency == PaymentUrgency.overdue;
-    if (aOverdue != bOverdue) return aOverdue ? -1 : 1;
-    return a.dueDate.compareTo(b.dueDate);
-  });
-  return items;
-});
+      items.sort((a, b) {
+        final aOverdue = a.urgency == PaymentUrgency.overdue;
+        final bOverdue = b.urgency == PaymentUrgency.overdue;
+        if (aOverdue != bOverdue) return aOverdue ? -1 : 1;
+        return a.dueDate.compareTo(b.dueDate);
+      });
+      return items;
+    });

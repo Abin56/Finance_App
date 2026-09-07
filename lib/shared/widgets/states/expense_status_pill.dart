@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_sizes.dart';
 import '../../../features/transactions/domain/history_entry.dart';
 
 extension SplitExpenseHistoryStatusColor on SplitExpenseHistoryStatus {
@@ -26,7 +27,11 @@ extension SplitExpenseHistoryStatusColor on SplitExpenseHistoryStatus {
 /// [MoneyDirectionBadge]'s shape (icon + label + color, `compact` for dense
 /// rows) rather than inventing a second badge convention.
 class ExpenseStatusPill extends StatelessWidget {
-  const ExpenseStatusPill({super.key, required this.status, this.compact = false});
+  const ExpenseStatusPill({
+    super.key,
+    required this.status,
+    this.compact = false,
+  });
 
   final SplitExpenseHistoryStatus status;
 
@@ -38,15 +43,21 @@ class ExpenseStatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = status.color;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10, vertical: compact ? 2 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 10,
+        vertical: compact ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
       child: Text(
         status.label,
-        style: (compact ? Theme.of(context).textTheme.labelSmall : Theme.of(context).textTheme.labelMedium)
-            ?.copyWith(color: color, fontWeight: FontWeight.w600),
+        style:
+            (compact
+                    ? Theme.of(context).textTheme.labelSmall
+                    : Theme.of(context).textTheme.labelMedium)
+                ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

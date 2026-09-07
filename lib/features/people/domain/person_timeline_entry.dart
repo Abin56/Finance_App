@@ -12,7 +12,13 @@ import '../../../shared/domain/transaction_kind.dart';
 /// with `linkedPersonId` set but no owed toggle — no `Expense`/`LedgerEntry`
 /// backs it at all, see `PersonTimelineBuilder`'s `referencedTransactions`
 /// input) all exist.
-enum PersonTimelineCategory { lending, assignedExpense, splitExpense, other, reference }
+enum PersonTimelineCategory {
+  lending,
+  assignedExpense,
+  splitExpense,
+  other,
+  reference,
+}
 
 extension PersonTimelineCategoryX on PersonTimelineCategory {
   String get label {
@@ -160,7 +166,11 @@ class PersonTimelineEntry {
   /// or a loan installment payment — as opposed to money that created or
   /// grew one (lending, split/assigned expenses, adjustments). Drives the
   /// person statement's Transactions/Settlements split.
-  static const _settlementTitles = {'Mark as Paid', 'Received Payment', 'Loan payment received'};
+  static const _settlementTitles = {
+    'Mark as Paid',
+    'Received Payment',
+    'Loan payment received',
+  };
 
   bool get isSettlement => _settlementTitles.contains(title);
 

@@ -28,7 +28,9 @@ class PersonRepository extends FirestoreCrudRepository<Person> {
       return false;
     });
     if (isDuplicate) {
-      throw const AppException('A person with this name and phone/email already exists');
+      throw const AppException(
+        'A person with this name and phone/email already exists',
+      );
     }
 
     final person = Person(
@@ -55,10 +57,30 @@ class PersonRepository extends FirestoreCrudRepository<Person> {
     String? notes,
     int? avatarColorValue,
   }) async {
-    person.updateField(field: 'name', oldValue: person.name, newValue: name, apply: (v) => person.name = v);
-    person.updateField(field: 'phone', oldValue: person.phone, newValue: phone, apply: (v) => person.phone = v);
-    person.updateField(field: 'email', oldValue: person.email, newValue: email, apply: (v) => person.email = v);
-    person.updateField(field: 'notes', oldValue: person.notes, newValue: notes, apply: (v) => person.notes = v);
+    person.updateField(
+      field: 'name',
+      oldValue: person.name,
+      newValue: name,
+      apply: (v) => person.name = v,
+    );
+    person.updateField(
+      field: 'phone',
+      oldValue: person.phone,
+      newValue: phone,
+      apply: (v) => person.phone = v,
+    );
+    person.updateField(
+      field: 'email',
+      oldValue: person.email,
+      newValue: email,
+      apply: (v) => person.email = v,
+    );
+    person.updateField(
+      field: 'notes',
+      oldValue: person.notes,
+      newValue: notes,
+      apply: (v) => person.notes = v,
+    );
     person.updateField(
       field: 'avatarColor',
       oldValue: person.avatarColorValue,
@@ -93,8 +115,14 @@ class PersonRepository extends FirestoreCrudRepository<Person> {
   /// (family-scoped) repository the caller already has from the provider
   /// layer — [PersonRepository] itself stays free of any structural
   /// dependency on `LedgerRepository`.
-  Future<void> deletePersonAndLedger(Person person, LedgerRepository ledgerRepo) async {
-    final entries = [...await ledgerRepo.getAll(), ...await ledgerRepo.getTrash()];
+  Future<void> deletePersonAndLedger(
+    Person person,
+    LedgerRepository ledgerRepo,
+  ) async {
+    final entries = [
+      ...await ledgerRepo.getAll(),
+      ...await ledgerRepo.getTrash(),
+    ];
     for (final entry in entries) {
       await ledgerRepo.permanentlyDelete(entry);
     }

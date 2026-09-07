@@ -71,7 +71,13 @@ void main() {
   }
 
   final transactions = [
-    tx(id: 't1', type: TransactionType.expense, amount: 12345.67, date: now, categoryId: groceries.id),
+    tx(
+      id: 't1',
+      type: TransactionType.expense,
+      amount: 12345.67,
+      date: now,
+      categoryId: groceries.id,
+    ),
     tx(
       id: 't2',
       type: TransactionType.expense,
@@ -79,7 +85,13 @@ void main() {
       date: now.subtract(const Duration(days: 3)),
       categoryId: groceries.id,
     ),
-    tx(id: 't3', type: TransactionType.income, amount: 200000, date: now, categoryId: salary.id),
+    tx(
+      id: 't3',
+      type: TransactionType.income,
+      amount: 200000,
+      date: now,
+      categoryId: salary.id,
+    ),
     tx(
       id: 't4',
       type: TransactionType.income,
@@ -97,9 +109,13 @@ void main() {
       ProviderScope(
         overrides: [
           calculableTransactionsProvider.overrideWithValue(transactions),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value([groceries, salary])),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value([groceries, salary]),
+          ),
           emisStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
           activeCreditCardsProvider.overrideWithValue(const []),
           billsStreamProvider.overrideWith((ref) => Stream.value(const [])),
           loansStreamProvider.overrideWith((ref) => Stream.value(const [])),
@@ -110,7 +126,9 @@ void main() {
         ],
         child: MaterialApp(
           builder: (context, inner) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
             child: inner!,
           ),
           home: const ReportsScreen(),
@@ -121,22 +139,32 @@ void main() {
   }
 
   for (final scale in _scales) {
-    testWidgets('Reports screen renders every Phase 5 section without overflow @${scale}x', (tester) async {
-      await pumpAt(tester, scale);
-      expect(tester.takeException(), isNull);
+    testWidgets(
+      'Reports screen renders every Phase 5 section without overflow @${scale}x',
+      (tester) async {
+        await pumpAt(tester, scale);
+        expect(tester.takeException(), isNull);
 
-      Future<void> scrollUntilFound(String text) async {
-        for (var i = 0; i < 20 && find.text(text).evaluate().isEmpty; i++) {
-          await tester.drag(find.byType(ListView).first, const Offset(0, -300));
-          await tester.pump();
+        Future<void> scrollUntilFound(String text) async {
+          for (var i = 0; i < 20 && find.text(text).evaluate().isEmpty; i++) {
+            await tester.drag(
+              find.byType(ListView).first,
+              const Offset(0, -300),
+            );
+            await tester.pump();
+          }
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'overflow while scrolling to "$text"',
+          );
+          expect(find.text(text), findsOneWidget);
         }
-        expect(tester.takeException(), isNull, reason: 'overflow while scrolling to "$text"');
-        expect(find.text(text), findsOneWidget);
-      }
 
-      await scrollUntilFound('Spending Trend');
-      await scrollUntilFound('Monthly Comparison');
-      await scrollUntilFound('Financial Health');
-    });
+        await scrollUntilFound('Spending Trend');
+        await scrollUntilFound('Monthly Comparison');
+        await scrollUntilFound('Financial Health');
+      },
+    );
   }
 }

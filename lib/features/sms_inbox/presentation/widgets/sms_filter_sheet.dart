@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/filter/sms_date_range_filter.dart';
 import '../../domain/filter/sms_filter_criteria.dart';
 import '../../domain/sms_import_status.dart';
@@ -279,7 +280,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                     'Above ${CurrencyFormatter.instance.format(threshold)}',
                                 selected: _draft.minAmount == threshold,
                                 onSelected: () {
-                                  final selected = _draft.minAmount != threshold;
+                                  final selected =
+                                      _draft.minAmount != threshold;
                                   final next = selected ? threshold : null;
                                   _minController.text = _amountText(next);
                                   _update(
@@ -400,19 +402,11 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: AppClay.primaryGradient,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              shape: BoxShape.circle,
-              boxShadow: AppClay.glow(AppClay.primary),
-            ),
-            child: const Icon(Icons.tune_rounded, size: AppSizes.iconSm, color: Colors.white),
+          FlowFiIconChip(
+            icon: Icons.tune_rounded,
+            color: context.colors.primary,
+            size: 36,
+            iconSize: AppSizes.iconSm,
           ),
           const SizedBox(width: AppSizes.sm),
           Expanded(
@@ -422,12 +416,19 @@ class _Header extends StatelessWidget {
               children: [
                 Text(
                   'Filter SMS',
-                  style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 if (activeCount > 0)
                   Text(
                     '$activeCount active',
-                    style: context.textTheme.bodySmall?.copyWith(color: AppClay.primaryAccent(context)),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.isDarkMode
+                          ? AppColors.primaryDark
+                          : context.colors.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
                   )
                 else
                   Text(
@@ -476,44 +477,18 @@ class _ActionBar extends StatelessWidget {
           Expanded(
             child: OutlinedButton(
               onPressed: onClearAll,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppClay.primaryAccent(context),
-                side: BorderSide(color: AppClay.primaryAccent(context).withValues(alpha: 0.4)),
-              ),
               child: const Text('Clear All'),
             ),
           ),
           const SizedBox(width: AppSizes.sm),
           Expanded(
             flex: 2,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                boxShadow: AppClay.glow(AppClay.primary),
+            child: FilledButton(
+              onPressed: onApply,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
               ),
-              child: FilledButton(
-                onPressed: onApply,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  padding: EdgeInsets.zero,
-                ),
-                child: Ink(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: AppClay.primaryGradient,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  ),
-                  child: Container(
-                    alignment: Alignment.center,
-                    height: AppSizes.buttonHeight,
-                    child: const Text('Apply Filters', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ),
+              child: const Text('Apply Filters'),
             ),
           ),
         ],
@@ -529,7 +504,12 @@ class _ActionBar extends StatelessWidget {
 /// identical (the same pill chip), which is exactly what made it unclear
 /// which behavior to expect from any given section.
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child, this.icon, this.hint});
+  const _Section({
+    required this.title,
+    required this.child,
+    this.icon,
+    this.hint,
+  });
 
   final String title;
   final IconData? icon;
@@ -546,7 +526,11 @@ class _Section extends StatelessWidget {
         AppSizes.md,
       ),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppClay.primary.withValues(alpha: 0.06))),
+        border: Border(
+          bottom: BorderSide(
+            color: context.colors.outline.withValues(alpha: 0.6),
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -554,14 +538,11 @@ class _Section extends StatelessWidget {
           Row(
             children: [
               if (icon != null) ...[
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    gradient: AppClay.iconChipGradient(AppClay.primary),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 13, color: AppClay.primary),
+                FlowFiIconChip(
+                  icon: icon!,
+                  color: context.colors.primary,
+                  size: 24,
+                  iconSize: 13,
                 ),
                 const SizedBox(width: AppSizes.xs),
               ],

@@ -76,8 +76,9 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   Widget build(BuildContext context) {
     final lockState = ref.watch(appLockProvider);
     final isLockedOut = lockState.isLockedOut;
-    final remainingSeconds =
-        isLockedOut ? lockState.lockoutUntil!.difference(DateTime.now()).inSeconds + 1 : 0;
+    final remainingSeconds = isLockedOut
+        ? lockState.lockoutUntil!.difference(DateTime.now()).inSeconds + 1
+        : 0;
 
     return Scaffold(
       body: SafeArea(
@@ -86,7 +87,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_rounded, size: AppSizes.iconXl, color: context.colors.primary),
+              Icon(
+                Icons.lock_rounded,
+                size: AppSizes.iconXl,
+                color: context.colors.primary,
+              ),
               const SizedBox(height: AppSizes.lg),
               Text(AppStrings.appName, style: context.textTheme.headlineSmall),
               const SizedBox(height: AppSizes.sm),
@@ -94,8 +99,8 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                 isLockedOut
                     ? 'Too many attempts. Try again in ${remainingSeconds}s'
                     : _hasError
-                        ? 'Incorrect PIN, try again'
-                        : 'Enter your PIN to unlock',
+                    ? 'Incorrect PIN, try again'
+                    : 'Enter your PIN to unlock',
                 textAlign: TextAlign.center,
                 style: context.textTheme.bodyMedium?.copyWith(
                   color: (_hasError || isLockedOut)
@@ -104,14 +109,22 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                 ),
               ),
               const SizedBox(height: AppSizes.xxl),
-              PinDotsIndicator(length: 6, filled: _pin.length, hasError: _hasError),
+              PinDotsIndicator(
+                length: 6,
+                filled: _pin.length,
+                hasError: _hasError,
+              ),
               const SizedBox(height: AppSizes.xxl),
               PinPad(
                 enabled: !isLockedOut,
                 onDigit: _onDigit,
                 onBackspace: _onBackspace,
-                leadingIcon: lockState.biometricEnabled ? Icons.fingerprint_rounded : null,
-                onLeadingAction: lockState.biometricEnabled ? _tryBiometricUnlock : null,
+                leadingIcon: lockState.biometricEnabled
+                    ? Icons.fingerprint_rounded
+                    : null,
+                onLeadingAction: lockState.biometricEnabled
+                    ? _tryBiometricUnlock
+                    : null,
               ),
             ],
           ),

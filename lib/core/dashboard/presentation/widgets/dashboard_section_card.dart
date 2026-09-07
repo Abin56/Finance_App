@@ -11,7 +11,11 @@ import '../../../extensions/context_extensions.dart';
 /// (`radiusLg`, no shadow): dashboard cards use their own "premium" radius
 /// per the Figma spec (see `AppSizes.radiusCard`).
 class DashboardSectionCard extends StatelessWidget {
-  const DashboardSectionCard({super.key, required this.child, this.padding = const EdgeInsets.all(AppSizes.lg)});
+  const DashboardSectionCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(AppSizes.lg),
+  });
 
   final Widget child;
   final EdgeInsetsGeometry padding;

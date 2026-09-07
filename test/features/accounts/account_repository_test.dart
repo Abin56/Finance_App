@@ -11,7 +11,9 @@ void main() {
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('accounts').withConverter<Account>(
+    final collection = firestore
+        .collection('accounts')
+        .withConverter<Account>(
           fromFirestore: Account.fromFirestore,
           toFirestore: (a, _) => a.toFirestore(),
         );
@@ -86,36 +88,45 @@ void main() {
       expect(account.editHistory, isEmpty);
     });
 
-    test('persists the new balance to Firestore, not just the in-memory object', () async {
-      final account = await repository.createAccount(
-        name: 'Wallet',
-        type: AccountType.cash,
-        openingBalance: 1000,
-        colorValue: 0xFF000000,
-      );
+    test(
+      'persists the new balance to Firestore, not just the in-memory object',
+      () async {
+        final account = await repository.createAccount(
+          name: 'Wallet',
+          type: AccountType.cash,
+          openingBalance: 1000,
+          colorValue: 0xFF000000,
+        );
 
-      await repository.adjustBalance(account, 500);
+        await repository.adjustBalance(account, 500);
 
-      final reloaded = await repository.getByKey(account.id);
-      expect(reloaded?.currentBalance, 1500);
-    });
+        final reloaded = await repository.getByKey(account.id);
+        expect(reloaded?.currentBalance, 1500);
+      },
+    );
   });
 
   group('AccountRepository.reconcileBalance', () {
-    test('overwrites currentBalance with openingBalance + transactionsTotal when they differ', () async {
-      final account = await repository.createAccount(
-        name: 'Wallet',
-        type: AccountType.cash,
-        openingBalance: 1000,
-        colorValue: 0xFF000000,
-      );
-      // Simulate drift: currentBalance says 1200 but transactions only sum to 100.
-      await repository.adjustBalance(account, 200);
+    test(
+      'overwrites currentBalance with openingBalance + transactionsTotal when they differ',
+      () async {
+        final account = await repository.createAccount(
+          name: 'Wallet',
+          type: AccountType.cash,
+          openingBalance: 1000,
+          colorValue: 0xFF000000,
+        );
+        // Simulate drift: currentBalance says 1200 but transactions only sum to 100.
+        await repository.adjustBalance(account, 200);
 
-      await repository.reconcileBalance(account, 100);
+        await repository.reconcileBalance(account, 100);
 
-      expect(account.currentBalance, 1100); // openingBalance(1000) + transactionsTotal(100)
-    });
+        expect(
+          account.currentBalance,
+          1100,
+        ); // openingBalance(1000) + transactionsTotal(100)
+      },
+    );
 
     test('is a no-op when the balance already matches', () async {
       final account = await repository.createAccount(
@@ -134,20 +145,27 @@ void main() {
   });
 
   group('AccountRepository.editAccount', () {
-    test('updates name/type/colorValue and records an audit entry per changed field', () async {
-      final account = await repository.createAccount(
-        name: 'Wallet',
-        type: AccountType.cash,
-        openingBalance: 1000,
-        colorValue: 0xFF000000,
-      );
+    test(
+      'updates name/type/colorValue and records an audit entry per changed field',
+      () async {
+        final account = await repository.createAccount(
+          name: 'Wallet',
+          type: AccountType.cash,
+          openingBalance: 1000,
+          colorValue: 0xFF000000,
+        );
 
-      await repository.editAccount(account, name: 'Main Wallet', type: AccountType.bank);
+        await repository.editAccount(
+          account,
+          name: 'Main Wallet',
+          type: AccountType.bank,
+        );
 
-      expect(account.name, 'Main Wallet');
-      expect(account.type, AccountType.bank);
-      expect(account.editHistory.length, 2);
-    });
+        expect(account.name, 'Main Wallet');
+        expect(account.type, AccountType.bank);
+        expect(account.editHistory.length, 2);
+      },
+    );
 
     test('does not expose a way to change openingBalance', () async {
       final account = await repository.createAccount(
@@ -164,23 +182,26 @@ void main() {
   });
 
   group('AccountRepository — bank/holder/notes/account-number fields', () {
-    test('persists bankId/accountHolderName/notes/accountNumberLast4 at creation', () async {
-      final account = await repository.createAccount(
-        name: 'HDFC Savings',
-        type: AccountType.bank,
-        openingBalance: 1000,
-        colorValue: 0xFF000000,
-        bankId: 'hdfc',
-        accountHolderName: 'Abin John',
-        notes: 'Primary salary account',
-        accountNumberLast4: '1234',
-      );
+    test(
+      'persists bankId/accountHolderName/notes/accountNumberLast4 at creation',
+      () async {
+        final account = await repository.createAccount(
+          name: 'HDFC Savings',
+          type: AccountType.bank,
+          openingBalance: 1000,
+          colorValue: 0xFF000000,
+          bankId: 'hdfc',
+          accountHolderName: 'Abin John',
+          notes: 'Primary salary account',
+          accountNumberLast4: '1234',
+        );
 
-      expect(account.bankId, 'hdfc');
-      expect(account.accountHolderName, 'Abin John');
-      expect(account.notes, 'Primary salary account');
-      expect(account.accountNumberLast4, '1234');
-    });
+        expect(account.bankId, 'hdfc');
+        expect(account.accountHolderName, 'Abin John');
+        expect(account.notes, 'Primary salary account');
+        expect(account.accountNumberLast4, '1234');
+      },
+    );
 
     test('rejects an account number that is not exactly 4 digits', () async {
       await expectLater(
@@ -195,27 +216,30 @@ void main() {
       );
     });
 
-    test('editAccount updates bankId/accountHolderName/notes/accountNumberLast4', () async {
-      final account = await repository.createAccount(
-        name: 'HDFC Savings',
-        type: AccountType.bank,
-        openingBalance: 1000,
-        colorValue: 0xFF000000,
-      );
+    test(
+      'editAccount updates bankId/accountHolderName/notes/accountNumberLast4',
+      () async {
+        final account = await repository.createAccount(
+          name: 'HDFC Savings',
+          type: AccountType.bank,
+          openingBalance: 1000,
+          colorValue: 0xFF000000,
+        );
 
-      await repository.editAccount(
-        account,
-        bankId: 'sbi',
-        accountHolderName: 'Maneesh Madhu',
-        notes: 'Joint account',
-        accountNumberLast4: '5678',
-      );
+        await repository.editAccount(
+          account,
+          bankId: 'sbi',
+          accountHolderName: 'Maneesh Madhu',
+          notes: 'Joint account',
+          accountNumberLast4: '5678',
+        );
 
-      expect(account.bankId, 'sbi');
-      expect(account.accountHolderName, 'Maneesh Madhu');
-      expect(account.notes, 'Joint account');
-      expect(account.accountNumberLast4, '5678');
-    });
+        expect(account.bankId, 'sbi');
+        expect(account.accountHolderName, 'Maneesh Madhu');
+        expect(account.notes, 'Joint account');
+        expect(account.accountNumberLast4, '5678');
+      },
+    );
 
     test('editAccount clears bankId when clearBankId is true', () async {
       final account = await repository.createAccount(
@@ -233,27 +257,30 @@ void main() {
   });
 
   group('Soft-delete / restore', () {
-    test('soft-deleting an account does not reverse its balance; restoring brings it back', () async {
-      final account = await repository.createAccount(
-        name: 'Wallet',
-        type: AccountType.cash,
-        openingBalance: 1000,
-        colorValue: 0xFF000000,
-      );
-      await repository.adjustBalance(account, 500);
+    test(
+      'soft-deleting an account does not reverse its balance; restoring brings it back',
+      () async {
+        final account = await repository.createAccount(
+          name: 'Wallet',
+          type: AccountType.cash,
+          openingBalance: 1000,
+          colorValue: 0xFF000000,
+        );
+        await repository.adjustBalance(account, 500);
 
-      await repository.softDelete(account);
-      expect(account.isDeleted, isTrue);
-      expect(account.currentBalance, 1500);
+        await repository.softDelete(account);
+        expect(account.isDeleted, isTrue);
+        expect(account.currentBalance, 1500);
 
-      final trashed = await repository.getTrash();
-      expect(trashed.map((a) => a.id), contains(account.id));
+        final trashed = await repository.getTrash();
+        expect(trashed.map((a) => a.id), contains(account.id));
 
-      await repository.restore(account);
-      expect(account.isDeleted, isFalse);
+        await repository.restore(account);
+        expect(account.isDeleted, isFalse);
 
-      final active = await repository.getAll();
-      expect(active.map((a) => a.id), contains(account.id));
-    });
+        final active = await repository.getAll();
+        expect(active.map((a) => a.id), contains(account.id));
+      },
+    );
   });
 }

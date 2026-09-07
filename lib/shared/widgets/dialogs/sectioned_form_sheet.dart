@@ -97,8 +97,16 @@ class SectionedFormSheet extends StatelessWidget {
           children: [
             Container(height: 4, color: accent),
             Container(
-              padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.sm, AppSizes.sm, AppSizes.sm),
-              decoration: BoxDecoration(color: bandColor, border: Border(bottom: BorderSide(color: bandBorder))),
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.md,
+                AppSizes.sm,
+                AppSizes.sm,
+                AppSizes.sm,
+              ),
+              decoration: BoxDecoration(
+                color: bandColor,
+                border: Border(bottom: BorderSide(color: bandBorder)),
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -125,12 +133,20 @@ class SectionedFormSheet extends StatelessWidget {
                   // corner language even on this one control.
                   InkWell(
                     onTap: () => Navigator.of(context).maybePop(),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusXs),
                     child: Container(
                       width: 32,
                       height: 32,
                       alignment: Alignment.center,
-                      decoration: BoxDecoration(border: Border.all(color: bandBorder)),
-                      child: Icon(Icons.close, size: AppSizes.iconSm, color: colors.onSurface.withValues(alpha: 0.7)),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppSizes.radiusXs),
+                        border: Border.all(color: bandBorder),
+                      ),
+                      child: Icon(
+                        Icons.close,
+                        size: AppSizes.iconSm,
+                        color: colors.onSurface.withValues(alpha: 0.7),
+                      ),
                     ),
                   ),
                 ],
@@ -138,18 +154,23 @@ class SectionedFormSheet extends StatelessWidget {
             ),
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSizes.md),
+                padding: const EdgeInsets.all(AppSizes.lg),
                 child: child,
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(AppSizes.sm),
-              decoration: BoxDecoration(color: bandColor, border: Border(top: BorderSide(color: bandBorder))),
+              padding: const EdgeInsets.all(AppSizes.md),
+              decoration: BoxDecoration(
+                color: bandColor,
+                border: Border(top: BorderSide(color: bandBorder)),
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: isSaving ? null : () => Navigator.of(context).maybePop(),
+                      onPressed: isSaving
+                          ? null
+                          : () => Navigator.of(context).maybePop(),
                       child: const Text('Cancel'),
                     ),
                   ),

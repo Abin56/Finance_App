@@ -41,7 +41,10 @@ class CategorySpendingPieChart extends StatelessWidget {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: BoxDecoration(color: Color(entry.category.colorValue), shape: BoxShape.circle),
+                          decoration: BoxDecoration(
+                            color: Color(entry.category.colorValue),
+                            shape: BoxShape.circle,
+                          ),
                         ),
                         const SizedBox(width: AppSizes.xs),
                         Expanded(
@@ -54,8 +57,12 @@ class CategorySpendingPieChart extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSizes.xs),
                         Text(
-                          CurrencyFormatter.instance.formatCompact(entry.amount),
-                          style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                          CurrencyFormatter.instance.formatCompact(
+                            entry.amount,
+                          ),
+                          style: context.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),

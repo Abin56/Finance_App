@@ -64,7 +64,9 @@ class _BudgetFormSheetState extends ConsumerState<BudgetFormSheet> {
           ? 'Edit ${widget.categoryName ?? 'category'} budget'
           : 'Set ${widget.categoryName ?? 'category'} budget';
     }
-    return _isEditing ? 'Edit ${widget.type.label.toLowerCase()} budget' : 'Set ${widget.type.label.toLowerCase()} budget';
+    return _isEditing
+        ? 'Edit ${widget.type.label.toLowerCase()} budget'
+        : 'Set ${widget.type.label.toLowerCase()} budget';
   }
 
   @override
@@ -94,9 +96,9 @@ class _BudgetFormSheetState extends ConsumerState<BudgetFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save budget: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save budget: $e')));
       }
     }
   }

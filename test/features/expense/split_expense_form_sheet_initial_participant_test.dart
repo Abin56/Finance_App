@@ -28,25 +28,36 @@ void main() {
       ProviderScope(
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
           peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
         ],
         child: MaterialApp(
-          home: Scaffold(body: SplitExpenseFormSheet(initialParticipant: initialParticipant)),
+          home: Scaffold(
+            body: SplitExpenseFormSheet(initialParticipant: initialParticipant),
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('with initialParticipant set, the first share-with row is pre-selected to that person', (tester) async {
-    await pump(tester, initialParticipant: person);
+  testWidgets(
+    'with initialParticipant set, the first share-with row is pre-selected to that person',
+    (tester) async {
+      await pump(tester, initialParticipant: person);
 
-    expect(find.widgetWithText(TextFormField, 'Jane Doe'), findsOneWidget);
-  });
+      expect(find.widgetWithText(TextFormField, 'Jane Doe'), findsOneWidget);
+    },
+  );
 
-  testWidgets('with no initialParticipant, the first row starts blank', (tester) async {
+  testWidgets('with no initialParticipant, the first row starts blank', (
+    tester,
+  ) async {
     await pump(tester);
 
     expect(find.widgetWithText(TextFormField, 'Jane Doe'), findsNothing);

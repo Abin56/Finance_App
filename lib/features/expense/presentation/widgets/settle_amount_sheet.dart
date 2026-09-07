@@ -45,7 +45,11 @@ class SettleAmountSheet extends ConsumerStatefulWidget {
     return Navigator.of(context).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => SettleAmountSheet(expense: expense, participant: participant, installment: installment),
+        builder: (_) => SettleAmountSheet(
+          expense: expense,
+          participant: participant,
+          installment: installment,
+        ),
       ),
     );
   }
@@ -78,20 +82,26 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
 
   Future<void> _settle() async {
     if (!_receivedFullAmount) {
-      await showCannotSettleInfo(context, remainingAmount: widget.installment.remainingAmount);
+      await showCannotSettleInfo(
+        context,
+        remainingAmount: widget.installment.remainingAmount,
+      );
       return;
     }
 
     setState(() => _isSaving = true);
     try {
-      await ref.read(expenseRepositoryProvider).settleParticipant(
+      await ref
+          .read(expenseRepositoryProvider)
+          .settleParticipant(
             expense: widget.expense,
             participant: widget.participant,
             installment: widget.installment,
             installmentPaymentRepository: ref.read(
-              installmentPaymentRepositoryProvider(
-                (scheduleId: widget.installment.scheduleId, installmentId: widget.installment.id),
-              ),
+              installmentPaymentRepositoryProvider((
+                scheduleId: widget.installment.scheduleId,
+                installmentId: widget.installment.id,
+              )),
             ),
             amount: widget.installment.remainingAmount,
             date: _date,
@@ -101,9 +111,9 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not settle: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not settle: $e')));
       }
     }
   }
@@ -114,14 +124,23 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        leading: TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
         leadingWidth: 80,
         title: const Text('Settle Amount'),
         centerTitle: true,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _settle,
-            child: Text('Settle', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Settle',
+              style: TextStyle(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -131,11 +150,18 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
           AppCard(
             child: Column(
               children: [
-                _RecapRow(label: 'Total Amount', value: widget.participant.share),
+                _RecapRow(
+                  label: 'Total Amount',
+                  value: widget.participant.share,
+                ),
                 const SizedBox(height: AppSizes.sm),
                 _RecapRow(label: 'Paid', value: installment.amountPaid),
                 const SizedBox(height: AppSizes.sm),
-                _RecapRow(label: 'Remaining', value: installment.remainingAmount, valueColor: AppColors.error),
+                _RecapRow(
+                  label: 'Remaining',
+                  value: installment.remainingAmount,
+                  valueColor: AppColors.error,
+                ),
               ],
             ),
           ),
@@ -148,9 +174,17 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+                Icon(
+                  Icons.info_outline_rounded,
+                  size: AppSizes.iconSm,
+                  color: context.colors.primary,
+                ),
                 const SizedBox(width: AppSizes.sm),
-                const Expanded(child: Text('You are about to mark this expense as fully settled.')),
+                const Expanded(
+                  child: Text(
+                    'You are about to mark this expense as fully settled.',
+                  ),
+                ),
               ],
             ),
           ),
@@ -161,7 +195,9 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
             onTap: _pickDate,
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
             child: InputDecorator(
-              decoration: const InputDecoration(suffixIcon: Icon(Icons.calendar_today_outlined)),
+              decoration: const InputDecoration(
+                suffixIcon: Icon(Icons.calendar_today_outlined),
+              ),
               child: Text(_date.fullDate),
             ),
           ),
@@ -185,7 +221,9 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
           Container(
             padding: const EdgeInsets.all(AppSizes.md),
             decoration: BoxDecoration(
-              color: context.colors.surfaceContainerHighest.withValues(alpha: 0.5),
+              color: context.colors.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
               borderRadius: BorderRadius.circular(AppSizes.radiusLg),
             ),
             child: Row(
@@ -193,7 +231,9 @@ class _SettleAmountSheetState extends ConsumerState<SettleAmountSheet> {
               children: [
                 Text(
                   'This expense will be marked as',
-                  style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
                 _OutcomePill(settled: _receivedFullAmount),
               ],
@@ -217,10 +257,18 @@ class _RecapRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7))),
+        Text(
+          label,
+          style: context.textTheme.bodyMedium?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: valueColor),
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: valueColor,
+          ),
         ),
       ],
     );
@@ -237,10 +285,16 @@ class _OutcomePill extends StatelessWidget {
     final color = settled ? AppColors.success : AppColors.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusSm)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      ),
       child: Text(
         settled ? 'Settled ✓' : 'Partly Paid',
-        style: context.textTheme.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w700),
+        style: context.textTheme.labelMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -7,9 +7,9 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../features/accounts/presentation/providers/account_providers.dart';
-import '../../domain/widget_configuration.dart';
-import '../../../theme/clay_widgets.dart';
 import '../../../../shared/widgets/bank_logo.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
+import '../../domain/widget_configuration.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.accounts] — every non-deleted [Account] and
@@ -31,7 +31,11 @@ class AccountsWidgetCard extends ConsumerWidget {
         : accounts.where((a) => config.accountIds.contains(a.id)).toList();
     final visible = filtered.take(_maxVisible).toList();
     final remaining = filtered.length - visible.length;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
     final textTheme = context.textTheme;
     final colors = context.colors;
 
@@ -43,20 +47,31 @@ class AccountsWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.push(AppRoutes.accounts),
                 child: Text(
                   'See all ›',
-                  style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSizes.sm),
           if (visible.isEmpty)
-            Text('No accounts yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
+            Text(
+              'No accounts yet.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            )
           else ...[
             for (final account in visible)
               Padding(
@@ -64,19 +79,31 @@ class AccountsWidgetCard extends ConsumerWidget {
                 child: Row(
                   children: [
                     if (account.bankId != null)
-                      BankLogo(bankId: account.bankId, fallbackName: account.name, size: 26)
+                      BankLogo(
+                        bankId: account.bankId,
+                        fallbackName: account.name,
+                        size: 26,
+                      )
                     else
-                      ClayIconChip(
+                      FlowFiIconChip(
                         icon: Icons.account_balance_wallet_outlined,
                         color: Color(account.colorValue),
+                        size: 26,
+                        iconSize: 14,
                       ),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
-                      child: Text(account.name, style: textTheme.bodySmall, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        account.name,
+                        style: textTheme.bodySmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Text(
                       format.format(account.currentBalance),
-                      style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                      style: textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -85,7 +112,9 @@ class AccountsWidgetCard extends ConsumerWidget {
               const SizedBox(height: AppSizes.xs),
               Text(
                 '+$remaining more',
-                style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                style: textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ],

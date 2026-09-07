@@ -94,6 +94,17 @@ dependencies:
   image_picker: ^1.1.2
   google_mlkit_text_recognition: ^0.15.0
 
+  # PDF Statement Import (see lib/features/pdf_import) — syncfusion_flutter_pdf
+  # reads/decrypts PDFs and extracts text with per-line bounds (needed for
+  # column-aware layout reconstruction of bank statement tables); pdfrx
+  # rasterizes pages to images for the OCR fallback on scanned statements,
+  # which then reuses the same google_mlkit_text_recognition recognizer as
+  # Screenshot Import; file_picker lets the user choose an arbitrary PDF from
+  # device storage (image_picker cannot select non-image files).
+  syncfusion_flutter_pdf: ^34.2.6
+  pdfrx: ^1.1.19
+  file_picker: ^8.1.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

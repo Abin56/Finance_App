@@ -54,7 +54,10 @@ class BillBreakdown extends UpcomingDueBreakdown {
 /// no provider needed, these are plain getters on the already-loaded
 /// [Expense].
 class SplitExpenseBreakdown extends UpcomingDueBreakdown {
-  const SplitExpenseBreakdown({required this.myShare, required this.othersShare});
+  const SplitExpenseBreakdown({
+    required this.myShare,
+    required this.othersShare,
+  });
 
   final double myShare;
   final double othersShare;
@@ -65,12 +68,17 @@ class SplitExpenseBreakdown extends UpcomingDueBreakdown {
 /// the schedule carries interest, else both null — a 0%-interest EMI
 /// genuinely has no split to show, not a hidden zero.
 class EmiBreakdown extends UpcomingDueBreakdown {
-  const EmiBreakdown({required this.amountDue, required this.principalPortion, required this.interestPortion});
+  const EmiBreakdown({
+    required this.amountDue,
+    required this.principalPortion,
+    required this.interestPortion,
+  });
 
   final double amountDue;
   final double? principalPortion;
   final double? interestPortion;
-  bool get hasInterestSplit => principalPortion != null && interestPortion != null;
+  bool get hasInterestSplit =>
+      principalPortion != null && interestPortion != null;
 }
 
 /// Loan installment: outstanding principal/interest summed from
@@ -99,81 +107,106 @@ class LoanBreakdown extends UpcomingDueBreakdown {
 /// into its [UpcomingDueBreakdown]. Returns null only if the underlying
 /// record can no longer be found (e.g. deleted between the row rendering
 /// and the sheet opening).
-final upcomingDueBreakdownProvider = Provider.family<UpcomingDueBreakdown?, UpcomingDueItem>((ref, item) {
-  switch (item.kind) {
-    case UpcomingDueKind.creditCard:
-      final cards = ref.watch(activeCreditCardsProvider);
-      final card = cards.where((c) => c.id == item.routeId).firstOrNull;
-      if (card == null) return null;
-      final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
-      final statement = statements.where((s) => s.id == item.secondaryRouteId).firstOrNull;
-      if (statement == null) return null;
+final upcomingDueBreakdownProvider =
+    Provider.family<UpcomingDueBreakdown?, UpcomingDueItem>((ref, item) {
+      switch (item.kind) {
+        case UpcomingDueKind.creditCard:
+          final cards = ref.watch(activeCreditCardsProvider);
+          final card = cards.where((c) => c.id == item.routeId).firstOrNull;
+          if (card == null) return null;
+          final statements = ref.watch(
+            statementsWithLiveTotalsProvider(card.id),
+          );
+          final statement = statements
+              .where((s) => s.id == item.secondaryRouteId)
+              .firstOrNull;
+          if (statement == null) return null;
 
-      final people = ref.watch(peopleStreamProvider).value ?? const [];
-      var othersShare = 0.0;
-      for (final person in people) {
-        final groups = ref.watch(personStatementGroupsProvider(person.id));
-        final group = groups.where((g) => g.statement.id == statement.id).firstOrNull;
-        if (group == null) continue;
-        othersShare += group.items.fold(0.0, (sum, i) => sum + i.share);
+          final people = ref.watch(peopleStreamProvider).value ?? const [];
+          var othersShare = 0.0;
+          for (final person in people) {
+            final groups = ref.watch(personStatementGroupsProvider(person.id));
+            final group = groups
+                .where((g) => g.statement.id == statement.id)
+                .firstOrNull;
+            if (group == null) continue;
+            othersShare += group.items.fold(0.0, (sum, i) => sum + i.share);
+          }
+
+          final cardTransactions = ref.watch(
+            transactionsForCardProvider(card.id),
+          );
+          final transactionCount = cardTransactions
+              .where((t) => statement.contains(t.dateTime))
+              .length;
+
+          return CreditCardBreakdown(
+            totalAmount: statement.totalAmount,
+            othersShare: othersShare,
+            transactionCount: transactionCount,
+          );
+
+        case UpcomingDueKind.bill:
+          final bills = ref.watch(billsStreamProvider).value ?? const [];
+          final bill = bills.where((b) => b.id == item.routeId).firstOrNull;
+          if (bill == null) return null;
+          return BillBreakdown(amount: item.remaining);
+
+        case UpcomingDueKind.splitExpense:
+          final expense = ref.watch(
+            expenseForTransactionProvider(item.routeId),
+          );
+          if (expense == null) return null;
+          return SplitExpenseBreakdown(
+            myShare: expense.myShare,
+            othersShare: expense.othersShare,
+          );
+
+        case UpcomingDueKind.emi:
+          final emis = ref.watch(activeEmisProvider);
+          final emi = emis.where((e) => e.id == item.routeId).firstOrNull;
+          if (emi == null) return null;
+          final installments =
+              ref.watch(installmentsStreamProvider(emi.scheduleId)).value ??
+              const [];
+          final installment = installments
+              .where((i) => i.dueDate == item.dueDate)
+              .firstOrNull;
+          if (installment == null) return null;
+          return EmiBreakdown(
+            amountDue: installment.amountDue,
+            principalPortion: installment.principalPortion,
+            interestPortion: installment.interestPortion,
+          );
+
+        case UpcomingDueKind.loan:
+          final loans = ref.watch(activeLoansProvider);
+          final loan = loans.where((l) => l.id == item.routeId).firstOrNull;
+          if (loan == null) return null;
+          final installments =
+              ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+              const [];
+          var principal = 0.0;
+          var interest = 0.0;
+          for (final installment in installments) {
+            if (installment.remainingAmount <= 0 || installment.isSkipped)
+              continue;
+            final p = installment.principalPortion;
+            final i = installment.interestPortion;
+            if (p != null && i != null) {
+              final paidFraction = installment.amountDue == 0
+                  ? 0.0
+                  : installment.amountPaid / installment.amountDue;
+              principal += p * (1 - paidFraction);
+              interest += i * (1 - paidFraction);
+            } else {
+              principal += installment.remainingAmount;
+            }
+          }
+          return LoanBreakdown(
+            totalOutstanding: principal + interest,
+            outstandingPrincipal: principal,
+            outstandingInterest: interest,
+          );
       }
-
-      final cardTransactions = ref.watch(transactionsForCardProvider(card.id));
-      final transactionCount = cardTransactions.where((t) => statement.contains(t.dateTime)).length;
-
-      return CreditCardBreakdown(
-        totalAmount: statement.totalAmount,
-        othersShare: othersShare,
-        transactionCount: transactionCount,
-      );
-
-    case UpcomingDueKind.bill:
-      final bills = ref.watch(billsStreamProvider).value ?? const [];
-      final bill = bills.where((b) => b.id == item.routeId).firstOrNull;
-      if (bill == null) return null;
-      return BillBreakdown(amount: item.remaining);
-
-    case UpcomingDueKind.splitExpense:
-      final expense = ref.watch(expenseForTransactionProvider(item.routeId));
-      if (expense == null) return null;
-      return SplitExpenseBreakdown(myShare: expense.myShare, othersShare: expense.othersShare);
-
-    case UpcomingDueKind.emi:
-      final emis = ref.watch(activeEmisProvider);
-      final emi = emis.where((e) => e.id == item.routeId).firstOrNull;
-      if (emi == null) return null;
-      final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-      final installment = installments.where((i) => i.dueDate == item.dueDate).firstOrNull;
-      if (installment == null) return null;
-      return EmiBreakdown(
-        amountDue: installment.amountDue,
-        principalPortion: installment.principalPortion,
-        interestPortion: installment.interestPortion,
-      );
-
-    case UpcomingDueKind.loan:
-      final loans = ref.watch(activeLoansProvider);
-      final loan = loans.where((l) => l.id == item.routeId).firstOrNull;
-      if (loan == null) return null;
-      final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
-      var principal = 0.0;
-      var interest = 0.0;
-      for (final installment in installments) {
-        if (installment.remainingAmount <= 0 || installment.isSkipped) continue;
-        final p = installment.principalPortion;
-        final i = installment.interestPortion;
-        if (p != null && i != null) {
-          final paidFraction = installment.amountDue == 0 ? 0.0 : installment.amountPaid / installment.amountDue;
-          principal += p * (1 - paidFraction);
-          interest += i * (1 - paidFraction);
-        } else {
-          principal += installment.remainingAmount;
-        }
-      }
-      return LoanBreakdown(
-        totalOutstanding: principal + interest,
-        outstandingPrincipal: principal,
-        outstandingInterest: interest,
-      );
-  }
-});
+    });

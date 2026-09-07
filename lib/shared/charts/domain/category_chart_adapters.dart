@@ -8,11 +8,17 @@ import 'pie_chart_data.dart';
 /// stays the domain shape non-chart UI (the ranked list) already uses;
 /// this only exists so a chart view alongside that list doesn't need its
 /// own second category shape.
-AppPieChartData categorySpendingEntriesToPieData(List<CategorySpendingEntry> entries) {
+AppPieChartData categorySpendingEntriesToPieData(
+  List<CategorySpendingEntry> entries,
+) {
   return AppPieChartData(
     slices: [
       for (final entry in entries)
-        ChartSlice(label: entry.category.name, value: entry.amount, color: Color(entry.category.colorValue)),
+        ChartSlice(
+          label: entry.category.name,
+          value: entry.amount,
+          color: Color(entry.category.colorValue),
+        ),
     ],
   );
 }

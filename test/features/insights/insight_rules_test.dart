@@ -3,17 +3,32 @@ import 'package:finance_app/features/insights/domain/insight_inputs.dart';
 import 'package:finance_app/features/insights/domain/insight_rules.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _zeroInputs = InsightInputs(income: 0, expenses: 0, previousIncome: 0, previousExpenses: 0);
+const _zeroInputs = InsightInputs(
+  income: 0,
+  expenses: 0,
+  previousIncome: 0,
+  previousExpenses: 0,
+);
 
 void main() {
   group('netSavingsTrendRule', () {
     test('returns null with no previous-period savings to compare against', () {
-      final inputs = InsightInputs(income: 1000, expenses: 500, previousIncome: 0, previousExpenses: 0);
+      final inputs = InsightInputs(
+        income: 1000,
+        expenses: 500,
+        previousIncome: 0,
+        previousExpenses: 0,
+      );
       expect(netSavingsTrendRule(inputs), isNull);
     });
 
     test('positive severity when this period saved more', () {
-      final inputs = InsightInputs(income: 2000, expenses: 500, previousIncome: 1000, previousExpenses: 500);
+      final inputs = InsightInputs(
+        income: 2000,
+        expenses: 500,
+        previousIncome: 1000,
+        previousExpenses: 500,
+      );
       final insight = netSavingsTrendRule(inputs);
       expect(insight, isNotNull);
       expect(insight!.severity, InsightSeverity.positive);
@@ -21,14 +36,24 @@ void main() {
     });
 
     test('warning severity when this period saved less', () {
-      final inputs = InsightInputs(income: 1000, expenses: 800, previousIncome: 1000, previousExpenses: 200);
+      final inputs = InsightInputs(
+        income: 1000,
+        expenses: 800,
+        previousIncome: 1000,
+        previousExpenses: 200,
+      );
       final insight = netSavingsTrendRule(inputs);
       expect(insight, isNotNull);
       expect(insight!.severity, InsightSeverity.warning);
     });
 
     test('returns null when savings are unchanged', () {
-      final inputs = InsightInputs(income: 1000, expenses: 500, previousIncome: 1000, previousExpenses: 500);
+      final inputs = InsightInputs(
+        income: 1000,
+        expenses: 500,
+        previousIncome: 1000,
+        previousExpenses: 500,
+      );
       expect(netSavingsTrendRule(inputs), isNull);
     });
   });
@@ -160,21 +185,36 @@ void main() {
     });
 
     test('Good at or above 20% savings rate', () {
-      final inputs = InsightInputs(income: 1000, expenses: 700, previousIncome: 0, previousExpenses: 0);
+      final inputs = InsightInputs(
+        income: 1000,
+        expenses: 700,
+        previousIncome: 0,
+        previousExpenses: 0,
+      );
       final insight = savingsRateIndicatorRule(inputs);
       expect(insight!.message, contains('Good'));
       expect(insight.severity, InsightSeverity.positive);
     });
 
     test('Fair between 0% and 20% savings rate', () {
-      final inputs = InsightInputs(income: 1000, expenses: 900, previousIncome: 0, previousExpenses: 0);
+      final inputs = InsightInputs(
+        income: 1000,
+        expenses: 900,
+        previousIncome: 0,
+        previousExpenses: 0,
+      );
       final insight = savingsRateIndicatorRule(inputs);
       expect(insight!.message, contains('Fair'));
       expect(insight.severity, InsightSeverity.neutral);
     });
 
     test('Poor with a negative savings rate', () {
-      final inputs = InsightInputs(income: 1000, expenses: 1500, previousIncome: 0, previousExpenses: 0);
+      final inputs = InsightInputs(
+        income: 1000,
+        expenses: 1500,
+        previousIncome: 0,
+        previousExpenses: 0,
+      );
       final insight = savingsRateIndicatorRule(inputs);
       expect(insight!.message, contains('Poor'));
       expect(insight.severity, InsightSeverity.warning);
@@ -268,13 +308,29 @@ void main() {
     });
 
     test('Improving when net savings increased', () {
-      final inputs = InsightInputs(income: 2000, expenses: 500, previousIncome: 1000, previousExpenses: 500);
-      expect(cashFlowTrendIndicatorRule(inputs)!.message, contains('Improving'));
+      final inputs = InsightInputs(
+        income: 2000,
+        expenses: 500,
+        previousIncome: 1000,
+        previousExpenses: 500,
+      );
+      expect(
+        cashFlowTrendIndicatorRule(inputs)!.message,
+        contains('Improving'),
+      );
     });
 
     test('Declining when net savings decreased', () {
-      final inputs = InsightInputs(income: 1000, expenses: 900, previousIncome: 1000, previousExpenses: 200);
-      expect(cashFlowTrendIndicatorRule(inputs)!.message, contains('Declining'));
+      final inputs = InsightInputs(
+        income: 1000,
+        expenses: 900,
+        previousIncome: 1000,
+        previousExpenses: 200,
+      );
+      expect(
+        cashFlowTrendIndicatorRule(inputs)!.message,
+        contains('Declining'),
+      );
     });
   });
 
@@ -284,14 +340,24 @@ void main() {
     });
 
     test('Up when expenses increased vs previous period', () {
-      final inputs = InsightInputs(income: 0, expenses: 1200, previousIncome: 0, previousExpenses: 1000);
+      final inputs = InsightInputs(
+        income: 0,
+        expenses: 1200,
+        previousIncome: 0,
+        previousExpenses: 1000,
+      );
       final insight = spendingTrendIndicatorRule(inputs);
       expect(insight!.message, contains('Up'));
       expect(insight.severity, InsightSeverity.warning);
     });
 
     test('Down when expenses decreased vs previous period', () {
-      final inputs = InsightInputs(income: 0, expenses: 800, previousIncome: 0, previousExpenses: 1000);
+      final inputs = InsightInputs(
+        income: 0,
+        expenses: 800,
+        previousIncome: 0,
+        previousExpenses: 1000,
+      );
       final insight = spendingTrendIndicatorRule(inputs);
       expect(insight!.message, contains('Down'));
       expect(insight.severity, InsightSeverity.positive);
@@ -299,20 +365,23 @@ void main() {
   });
 
   group('rule lists', () {
-    test('generalInsightRules and healthIndicatorRules contain the expected rules', () {
-      expect(generalInsightRules, [
-        netSavingsTrendRule,
-        creditUtilizationRule,
-        topSpendingCategoryRule,
-        upcomingDueRule,
-      ]);
-      expect(healthIndicatorRules, [
-        savingsRateIndicatorRule,
-        creditUtilizationIndicatorRule,
-        debtTrendIndicatorRule,
-        cashFlowTrendIndicatorRule,
-        spendingTrendIndicatorRule,
-      ]);
-    });
+    test(
+      'generalInsightRules and healthIndicatorRules contain the expected rules',
+      () {
+        expect(generalInsightRules, [
+          netSavingsTrendRule,
+          creditUtilizationRule,
+          topSpendingCategoryRule,
+          upcomingDueRule,
+        ]);
+        expect(healthIndicatorRules, [
+          savingsRateIndicatorRule,
+          creditUtilizationIndicatorRule,
+          debtTrendIndicatorRule,
+          cashFlowTrendIndicatorRule,
+          spendingTrendIndicatorRule,
+        ]);
+      },
+    );
   });
 }

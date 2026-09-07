@@ -50,9 +50,12 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
   late final _customDaysController = TextEditingController(
     text: widget.bill?.customIntervalDays?.toString() ?? '',
   );
-  late final _notesController = TextEditingController(text: widget.bill?.notes ?? '');
+  late final _notesController = TextEditingController(
+    text: widget.bill?.notes ?? '',
+  );
   late DateTime _dueDate = widget.bill?.nextDueDate ?? DateTime.now();
-  late BillRecurrence _recurrence = widget.bill?.recurrence ?? BillRecurrence.monthly;
+  late BillRecurrence _recurrence =
+      widget.bill?.recurrence ?? BillRecurrence.monthly;
   late String? _accountId = widget.bill?.accountId;
   late String? _categoryId = widget.bill?.categoryId;
   final Set<int> _reminderOffsets = {};
@@ -128,9 +131,9 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save bill: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save bill: $e')));
       }
     }
   }
@@ -139,7 +142,9 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
-    final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
+    final categories = ref.watch(
+      categoriesForTypeProvider(TransactionType.expense),
+    );
 
     return Form(
       key: _formKey,
@@ -165,14 +170,19 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
               controller: _amountController,
               focusNode: _amountFocusNode,
               decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: Validators.amount,
               textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: AppSizes.md),
             OutlinedButton.icon(
               onPressed: _pickDueDate,
-              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              icon: const Icon(
+                Icons.calendar_today_outlined,
+                size: AppSizes.iconSm,
+              ),
               label: Text('Due ${_dueDate.fullDate}'),
             ),
             const SizedBox(height: AppSizes.lg),
@@ -180,7 +190,8 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
             const SizedBox(height: AppSizes.sm),
             ChipSelector<BillRecurrence>(
               options: [
-                for (final recurrence in BillRecurrence.values) ChipOption(value: recurrence, label: recurrence.label),
+                for (final recurrence in BillRecurrence.values)
+                  ChipOption(value: recurrence, label: recurrence.label),
               ],
               value: _recurrence,
               onChanged: (value) => setState(() => _recurrence = value),
@@ -189,11 +200,14 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
               const SizedBox(height: AppSizes.md),
               TextFormField(
                 controller: _customDaysController,
-                decoration: const InputDecoration(labelText: 'Repeat every N days'),
+                decoration: const InputDecoration(
+                  labelText: 'Repeat every N days',
+                ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   final parsed = int.tryParse(value?.trim() ?? '');
-                  if (parsed == null || parsed <= 0) return 'Enter a whole number of days';
+                  if (parsed == null || parsed <= 0)
+                    return 'Enter a whole number of days';
                   return null;
                 },
               ),
@@ -205,13 +219,20 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
               loading: () => const LinearProgressIndicator(),
               error: (error, _) => Text('Could not load accounts: $error'),
               data: (accounts) {
-                final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
+                final validId = accounts.any((a) => a.id == _accountId)
+                    ? _accountId
+                    : null;
                 return DropdownButtonFormField<String>(
                   initialValue: validId,
-                  decoration: const InputDecoration(labelText: 'Account (optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Account (optional)',
+                  ),
                   items: [
                     for (final account in accounts)
-                      DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
+                      DropdownMenuItem(
+                        value: account.id,
+                        child: Text(accountPickerLabel(account, creditCards)),
+                      ),
                   ],
                   onChanged: (value) => setState(() => _accountId = value),
                 );
@@ -219,11 +240,18 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
             ),
             const SizedBox(height: AppSizes.md),
             DropdownButtonFormField<String>(
-              initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-              decoration: const InputDecoration(labelText: 'Category (optional)'),
+              initialValue: categories.any((c) => c.id == _categoryId)
+                  ? _categoryId
+                  : null,
+              decoration: const InputDecoration(
+                labelText: 'Category (optional)',
+              ),
               items: [
                 for (final category in categories)
-                  DropdownMenuItem(value: category.id, child: Text(category.name)),
+                  DropdownMenuItem(
+                    value: category.id,
+                    child: Text(category.name),
+                  ),
               ],
               onChanged: (value) => setState(() => _categoryId = value),
             ),
@@ -237,7 +265,13 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
               children: [
                 for (final offset in _reminderOffsetChoices)
                   FilterChip(
-                    label: Text(offset == 0 ? 'Today' : offset == 1 ? 'Tomorrow' : '$offset days before'),
+                    label: Text(
+                      offset == 0
+                          ? 'Today'
+                          : offset == 1
+                          ? 'Tomorrow'
+                          : '$offset days before',
+                    ),
                     selected: _reminderOffsets.contains(offset),
                     onSelected: (selected) => setState(() {
                       if (selected) {

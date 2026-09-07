@@ -79,8 +79,7 @@ final notificationAccessServiceProvider = Provider<NotificationAccessService>(
   (ref) => const NotificationAccessService(),
 );
 
-final batteryOptimizationServiceProvider =
-    Provider<BatteryOptimizationService>(
+final batteryOptimizationServiceProvider = Provider<BatteryOptimizationService>(
   (ref) => const BatteryOptimizationService(),
 );
 
@@ -735,10 +734,11 @@ class NotificationAccessAvailabilityNotifier
       ref.read(notificationAccessServiceProvider).openSettings();
 }
 
-final notificationAccessAvailabilityProvider = AsyncNotifierProvider<
-    NotificationAccessAvailabilityNotifier, NotificationAccessAvailability>(
-  NotificationAccessAvailabilityNotifier.new,
-);
+final notificationAccessAvailabilityProvider =
+    AsyncNotifierProvider<
+      NotificationAccessAvailabilityNotifier,
+      NotificationAccessAvailability
+    >(NotificationAccessAvailabilityNotifier.new);
 
 /// Same "no OS dialog, deep-link + recheck-on-resume" shape as
 /// [NotificationAccessAvailabilityNotifier] — notification access alone
@@ -761,10 +761,11 @@ class BatteryOptimizationAvailabilityNotifier
       ref.read(batteryOptimizationServiceProvider).requestUnrestricted();
 }
 
-final batteryOptimizationAvailabilityProvider = AsyncNotifierProvider<
-    BatteryOptimizationAvailabilityNotifier, BatteryOptimizationAvailability>(
-  BatteryOptimizationAvailabilityNotifier.new,
-);
+final batteryOptimizationAvailabilityProvider =
+    AsyncNotifierProvider<
+      BatteryOptimizationAvailabilityNotifier,
+      BatteryOptimizationAvailability
+    >(BatteryOptimizationAvailabilityNotifier.new);
 
 /// Live search, kept separate from [smsFilterCriteriaProvider]: typing
 /// narrows the feed as you go, whereas the sheet's facets only land on Apply.

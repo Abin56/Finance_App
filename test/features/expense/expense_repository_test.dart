@@ -55,38 +55,57 @@ void main() {
   }
 
   Future<List<Installment>> installmentsFor(String scheduleId) async {
-    final snapshot = await firestore.collection('paymentSchedules').doc(scheduleId).collection('installments').get();
-    return snapshot.docs.map((d) => Installment.fromFirestore(d, null)).toList();
+    final snapshot = await firestore
+        .collection('paymentSchedules')
+        .doc(scheduleId)
+        .collection('installments')
+        .get();
+    return snapshot.docs
+        .map((d) => Installment.fromFirestore(d, null))
+        .toList();
   }
 
   setUp(() async {
     firestore = FakeFirebaseFirestore();
 
-    final personCollection = firestore.collection('people').withConverter<Person>(
+    final personCollection = firestore
+        .collection('people')
+        .withConverter<Person>(
           fromFirestore: Person.fromFirestore,
           toFirestore: (p, _) => p.toFirestore(),
         );
     personRepository = PersonRepository(personCollection);
 
-    final accountCollection = firestore.collection('accounts').withConverter<Account>(
+    final accountCollection = firestore
+        .collection('accounts')
+        .withConverter<Account>(
           fromFirestore: Account.fromFirestore,
           toFirestore: (a, _) => a.toFirestore(),
         );
     accountRepository = AccountRepository(accountCollection);
 
-    final transactionCollection = firestore.collection('transactions').withConverter<Transaction>(
+    final transactionCollection = firestore
+        .collection('transactions')
+        .withConverter<Transaction>(
           fromFirestore: Transaction.fromFirestore,
           toFirestore: (t, _) => t.toFirestore(),
         );
-    final transactionRepository = TransactionRepository(transactionCollection, accountRepository);
+    final transactionRepository = TransactionRepository(
+      transactionCollection,
+      accountRepository,
+    );
 
-    final scheduleCollection = firestore.collection('paymentSchedules').withConverter<PaymentSchedule>(
+    final scheduleCollection = firestore
+        .collection('paymentSchedules')
+        .withConverter<PaymentSchedule>(
           fromFirestore: PaymentSchedule.fromFirestore,
           toFirestore: (s, _) => s.toFirestore(),
         );
     final scheduleRepository = PaymentScheduleRepository(scheduleCollection);
 
-    final expenseCollection = firestore.collection('expenses').withConverter<Expense>(
+    final expenseCollection = firestore
+        .collection('expenses')
+        .withConverter<Expense>(
           fromFirestore: Expense.fromFirestore,
           toFirestore: (e, _) => e.toFirestore(),
         );
@@ -111,20 +130,26 @@ void main() {
   });
 
   group('ExpenseRepository.resolveShares — equal split', () {
-    test('splits evenly with the odd cent remainder on the last participant', () {
-      final shares = ExpenseRepository.resolveShares(
-        type: SplitType.equal,
-        total: 10,
-        inputs: const [
-          ExpenseParticipantInput(name: 'A'),
-          ExpenseParticipantInput(name: 'B'),
-          ExpenseParticipantInput(name: 'C'),
-        ],
-      );
+    test(
+      'splits evenly with the odd cent remainder on the last participant',
+      () {
+        final shares = ExpenseRepository.resolveShares(
+          type: SplitType.equal,
+          total: 10,
+          inputs: const [
+            ExpenseParticipantInput(name: 'A'),
+            ExpenseParticipantInput(name: 'B'),
+            ExpenseParticipantInput(name: 'C'),
+          ],
+        );
 
-      expect(shares.map((s) => s.share), [3.33, 3.33, 3.34]);
-      expect(shares.fold(0.0, (total, s) => total + s.share), closeTo(10, 0.001));
-    });
+        expect(shares.map((s) => s.share), [3.33, 3.33, 3.34]);
+        expect(
+          shares.fold(0.0, (total, s) => total + s.share),
+          closeTo(10, 0.001),
+        );
+      },
+    );
 
     test('splits evenly with no remainder', () {
       final shares = ExpenseRepository.resolveShares(
@@ -147,7 +172,10 @@ void main() {
       );
 
       expect(shares, hasLength(5));
-      expect(shares.fold(0.0, (total, s) => total + s.share), closeTo(100, 0.001));
+      expect(
+        shares.fold(0.0, (total, s) => total + s.share),
+        closeTo(100, 0.001),
+      );
     });
   });
 
@@ -176,7 +204,11 @@ void main() {
           ],
         ),
         throwsA(
-          isA<AppException>().having((e) => e.message, 'message', contains('Amount left to assign: 10')),
+          isA<AppException>().having(
+            (e) => e.message,
+            'message',
+            contains('Amount left to assign: 10'),
+          ),
         ),
       );
     });
@@ -223,7 +255,11 @@ void main() {
           ],
         ),
         throwsA(
-          isA<AppException>().having((e) => e.message, 'message', contains('Percentage left to assign: 25')),
+          isA<AppException>().having(
+            (e) => e.message,
+            'message',
+            contains('Percentage left to assign: 25'),
+          ),
         ),
       );
     });
@@ -240,7 +276,13 @@ void main() {
             ExpenseParticipantInput(personId: 'p1', name: 'Alice'),
           ],
         ),
-        throwsA(isA<AppException>().having((e) => e.message, 'message', contains('already in this split'))),
+        throwsA(
+          isA<AppException>().having(
+            (e) => e.message,
+            'message',
+            contains('already in this split'),
+          ),
+        ),
       );
     });
 
@@ -258,19 +300,22 @@ void main() {
       );
     });
 
-    test('allows a tracked person and a free-text participant sharing a name', () {
-      // Only free-text names collide with each other; a tracked person is
-      // matched by id, so this is not a duplicate.
-      final shares = ExpenseRepository.resolveShares(
-        type: SplitType.equal,
-        total: 100,
-        inputs: const [
-          ExpenseParticipantInput(personId: 'p1', name: 'Sam'),
-          ExpenseParticipantInput(name: 'Sam'),
-        ],
-      );
-      expect(shares, hasLength(2));
-    });
+    test(
+      'allows a tracked person and a free-text participant sharing a name',
+      () {
+        // Only free-text names collide with each other; a tracked person is
+        // matched by id, so this is not a duplicate.
+        final shares = ExpenseRepository.resolveShares(
+          type: SplitType.equal,
+          total: 100,
+          inputs: const [
+            ExpenseParticipantInput(personId: 'p1', name: 'Sam'),
+            ExpenseParticipantInput(name: 'Sam'),
+          ],
+        );
+        expect(shares, hasLength(2));
+      },
+    );
   });
 
   group('ExpenseRepository.createExpense', () {
@@ -316,47 +361,62 @@ void main() {
         participantInputs: const [ExpenseParticipantInput(name: 'Me')],
       );
 
-      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
+      final txSnapshot = await firestore
+          .collection('transactions')
+          .doc(expense.transactionId)
+          .get();
       expect(txSnapshot.exists, true);
       expect((txSnapshot.data()!['amount'] as num).toDouble(), 100);
     });
 
-    test('carries excludeFromCalculations and accountingMonth through to the created Transaction', () async {
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 15),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.none,
-        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
-        excludeFromCalculations: true,
-        accountingMonth: DateTime(2026, 2),
-      );
+    test(
+      'carries excludeFromCalculations and accountingMonth through to the created Transaction',
+      () async {
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 15),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.none,
+          participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+          excludeFromCalculations: true,
+          accountingMonth: DateTime(2026, 2),
+        );
 
-      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect(txSnapshot.data()!['excludeFromCalculations'], true);
-      expect(
-        (txSnapshot.data()!['accountingMonth'] as Timestamp).toDate(),
-        DateTime(2026, 2),
-      );
-    });
+        final txSnapshot = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect(txSnapshot.data()!['excludeFromCalculations'], true);
+        expect(
+          (txSnapshot.data()!['accountingMonth'] as Timestamp).toDate(),
+          DateTime(2026, 2),
+        );
+      },
+    );
 
-    test('carries source through to the created Transaction when supplied (SMS conversion)', () async {
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.none,
-        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
-        source: 'sms',
-      );
+    test(
+      'carries source through to the created Transaction when supplied (SMS conversion)',
+      () async {
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.none,
+          participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+          source: 'sms',
+        );
 
-      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect(txSnapshot.data()!['source'], 'sms');
-    });
+        final txSnapshot = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect(txSnapshot.data()!['source'], 'sms');
+      },
+    );
 
     test('source defaults to null for a normal (manual) create', () async {
       final expense = await repository.createExpense(
@@ -369,91 +429,121 @@ void main() {
         participantInputs: const [ExpenseParticipantInput(name: 'Me')],
       );
 
-      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
+      final txSnapshot = await firestore
+          .collection('transactions')
+          .doc(expense.transactionId)
+          .get();
       expect(txSnapshot.data()!['source'], isNull);
     });
 
-    test('unsplit expense (SplitType.none) has no participants and no schedule', () async {
-      final expense = await repository.createExpense(
-        description: 'Solo lunch',
-        totalAmount: 50,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.none,
-        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
-      );
+    test(
+      'unsplit expense (SplitType.none) has no participants and no schedule',
+      () async {
+        final expense = await repository.createExpense(
+          description: 'Solo lunch',
+          totalAmount: 50,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.none,
+          participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+        );
 
-      expect(expense.participants, isEmpty);
-      expect(expense.scheduleId, isNull);
-      expect(expense.isSplit, false);
-    });
+        expect(expense.participants, isEmpty);
+        expect(expense.scheduleId, isNull);
+        expect(expense.isSplit, false);
+      },
+    );
 
-    test('split expense creates a PaymentSchedule + one Installment per participant', () async {
-      final expense = await repository.createExpense(
-        description: 'Groceries',
-        totalAmount: 90,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.equal,
-        participantInputs: const [
-          ExpenseParticipantInput(name: 'A'),
-          ExpenseParticipantInput(name: 'B'),
-          ExpenseParticipantInput(name: 'C'),
-        ],
-      );
+    test(
+      'split expense creates a PaymentSchedule + one Installment per participant',
+      () async {
+        final expense = await repository.createExpense(
+          description: 'Groceries',
+          totalAmount: 90,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.equal,
+          participantInputs: const [
+            ExpenseParticipantInput(name: 'A'),
+            ExpenseParticipantInput(name: 'B'),
+            ExpenseParticipantInput(name: 'C'),
+          ],
+        );
 
-      expect(expense.scheduleId, isNotNull);
-      final installments = await installmentsFor(expense.scheduleId!);
-      expect(installments, hasLength(3));
-      expect(installments.map((i) => i.amountDue), everyElement(30));
+        expect(expense.scheduleId, isNotNull);
+        final installments = await installmentsFor(expense.scheduleId!);
+        expect(installments, hasLength(3));
+        expect(installments.map((i) => i.amountDue), everyElement(30));
 
-      expect(expense.participants, hasLength(3));
-      expect(expense.participants.every((p) => p.installmentId != null), true);
-    });
+        expect(expense.participants, hasLength(3));
+        expect(
+          expense.participants.every((p) => p.installmentId != null),
+          true,
+        );
+      },
+    );
 
-    test('posts a LedgerEntry per person-linked participant and updates their currentBalance', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final bob = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0xFF00C2A8, openingBalance: 0);
+    test(
+      'posts a LedgerEntry per person-linked participant and updates their currentBalance',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final bob = await personRepository.createPerson(
+          name: 'Bob',
+          avatarColorValue: 0xFF00C2A8,
+          openingBalance: 0,
+        );
 
-      await repository.createExpense(
-        description: 'Trip',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [
-          ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 60),
-          ExpenseParticipantInput(personId: bob.id, name: 'Bob', value: 40),
-        ],
-      );
+        await repository.createExpense(
+          description: 'Trip',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 60,
+            ),
+            ExpenseParticipantInput(personId: bob.id, name: 'Bob', value: 40),
+          ],
+        );
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      final refreshedBob = await personRepository.getByKey(bob.id);
-      expect(refreshedAlice!.currentBalance, 60);
-      expect(refreshedBob!.currentBalance, 40);
-    });
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        final refreshedBob = await personRepository.getByKey(bob.id);
+        expect(refreshedAlice!.currentBalance, 60);
+        expect(refreshedBob!.currentBalance, 40);
+      },
+    );
 
-    test('does not post a LedgerEntry for participants without a personId', () async {
-      final expense = await repository.createExpense(
-        description: 'Trip',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.equal,
-        participantInputs: const [
-          ExpenseParticipantInput(name: 'Guest 1'),
-          ExpenseParticipantInput(name: 'Guest 2'),
-        ],
-      );
+    test(
+      'does not post a LedgerEntry for participants without a personId',
+      () async {
+        final expense = await repository.createExpense(
+          description: 'Trip',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.equal,
+          participantInputs: const [
+            ExpenseParticipantInput(name: 'Guest 1'),
+            ExpenseParticipantInput(name: 'Guest 2'),
+          ],
+        );
 
-      expect(expense.participants.every((p) => p.personId == null), true);
-      final people = await personRepository.getAll();
-      expect(people, isEmpty);
-    });
+        expect(expense.participants.every((p) => p.personId == null), true);
+        final people = await personRepository.getAll();
+        expect(people, isEmpty);
+      },
+    );
 
     test('supports 5+ participants end-to-end', () async {
       final expense = await repository.createExpense(
@@ -463,7 +553,10 @@ void main() {
         categoryId: categoryId,
         accountId: accountId,
         splitType: SplitType.equal,
-        participantInputs: List.generate(5, (i) => ExpenseParticipantInput(name: 'Person $i')),
+        participantInputs: List.generate(
+          5,
+          (i) => ExpenseParticipantInput(name: 'Person $i'),
+        ),
       );
 
       expect(expense.participants, hasLength(5));
@@ -473,240 +566,337 @@ void main() {
   });
 
   group('ExpenseRepository.editExpense', () {
-    test('editing only description/notes on a split expense leaves shares/installments untouched', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'editing only description/notes on a split expense leaves shares/installments untouched',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
-      );
-      final installmentsBefore = await installmentsFor(expense.scheduleId!);
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 100,
+            ),
+          ],
+        );
+        final installmentsBefore = await installmentsFor(expense.scheduleId!);
 
-      await repository.editExpense(
-        expense: expense,
-        currentInstallments: installmentsBefore,
-        description: 'Dinner with Alice',
-        notes: 'Updated note',
-      );
+        await repository.editExpense(
+          expense: expense,
+          currentInstallments: installmentsBefore,
+          description: 'Dinner with Alice',
+          notes: 'Updated note',
+        );
 
-      final expenseSnapshot = await firestore.collection('expenses').doc(expense.id).get();
-      expect(expenseSnapshot.data()!['description'], 'Dinner with Alice');
-      expect(expenseSnapshot.data()!['notes'], 'Updated note');
-      expect((expenseSnapshot.data()!['totalAmount'] as num).toDouble(), 100);
+        final expenseSnapshot = await firestore
+            .collection('expenses')
+            .doc(expense.id)
+            .get();
+        expect(expenseSnapshot.data()!['description'], 'Dinner with Alice');
+        expect(expenseSnapshot.data()!['notes'], 'Updated note');
+        expect((expenseSnapshot.data()!['totalAmount'] as num).toDouble(), 100);
 
-      final installmentsAfter = await installmentsFor(expense.scheduleId!);
-      expect(installmentsAfter.single.amountDue, installmentsBefore.single.amountDue);
+        final installmentsAfter = await installmentsFor(expense.scheduleId!);
+        expect(
+          installmentsAfter.single.amountDue,
+          installmentsBefore.single.amountDue,
+        );
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 100);
-    });
-
-    test('changing totalAmount on a split expense syncs Installment.amountDue and the linked Transaction.amount', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final bob = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0xFF00C2A8, openingBalance: 0);
-
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.equal,
-        participantInputs: [
-          ExpenseParticipantInput(personId: alice.id, name: 'Alice'),
-          ExpenseParticipantInput(personId: bob.id, name: 'Bob'),
-        ],
-      );
-
-      final installmentsBefore = await installmentsFor(expense.scheduleId!);
-      expect(installmentsBefore.map((i) => i.amountDue), everyElement(50));
-
-      await repository.editExpense(
-        expense: expense,
-        currentInstallments: installmentsBefore,
-        totalAmount: 200,
-        splitType: SplitType.equal,
-        participantInputs: [
-          ExpenseParticipantInput(personId: alice.id, name: 'Alice'),
-          ExpenseParticipantInput(personId: bob.id, name: 'Bob'),
-        ],
-      );
-
-      // The Expense document itself reflects the new total.
-      final expenseSnapshot = await firestore.collection('expenses').doc(expense.id).get();
-      expect((expenseSnapshot.data()!['totalAmount'] as num).toDouble(), 200);
-
-      // Every participant's tracking Installment is resynced, not just the
-      // Expense document — this is the exact bug report: editing an amount
-      // only "saving the current page" and not reflecting globally meant
-      // this resync was missing/unreachable from the UI.
-      final installmentsAfter = await installmentsFor(expense.scheduleId!);
-      expect(installmentsAfter.map((i) => i.amountDue), everyElement(100));
-
-      // The linked account-balance Transaction is resynced too, so History/
-      // Reports/Dashboard (which read Transaction.amount) agree with the
-      // new total instead of showing the stale original amount.
-      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect((txSnapshot.data()!['amount'] as num).toDouble(), 200);
-
-      // Each person's pending balance grows by their share delta (50 -> 100).
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      final refreshedBob = await personRepository.getByKey(bob.id);
-      expect(refreshedAlice!.currentBalance, 100);
-      expect(refreshedBob!.currentBalance, 100);
-    });
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 100);
+      },
+    );
 
     test(
-        'changing totalAmount corrects the original ledger entry in place instead of leaving it stale '
-        'next to a separate adjustment entry', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      'changing totalAmount on a split expense syncs Installment.amountDue and the linked Transaction.amount',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final bob = await personRepository.createPerson(
+          name: 'Bob',
+          avatarColorValue: 0xFF00C2A8,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.equal,
+          participantInputs: [
+            ExpenseParticipantInput(personId: alice.id, name: 'Alice'),
+            ExpenseParticipantInput(personId: bob.id, name: 'Bob'),
+          ],
+        );
 
-      final installmentsBefore = await installmentsFor(expense.scheduleId!);
-      await repository.editExpense(
-        expense: expense,
-        currentInstallments: installmentsBefore,
-        totalAmount: 150,
-        splitType: SplitType.custom,
-        participantInputs: [
-          ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 150),
-        ],
-      );
+        final installmentsBefore = await installmentsFor(expense.scheduleId!);
+        expect(installmentsBefore.map((i) => i.amountDue), everyElement(50));
 
-      // Exactly one ledger entry still exists for this expense — the
-      // original "gave" entry itself now reflects the corrected amount,
-      // rather than staying at 100 alongside a second "Correct Balance"
-      // entry for the 50 delta. This is the person-statement history line
-      // the user tapped to make the edit; it must show the new amount.
-      final ledger = ledgerRepositoryFor(alice.id);
-      final entries = await ledger.getAll();
-      expect(entries, hasLength(1));
-      expect(entries.single.type, LedgerEntryType.gave);
-      expect(entries.single.amount, 150);
-
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 150);
-    });
-
-    test('rejects reducing a participant\'s share below what they already paid', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
-      );
-
-      final installments = await installmentsFor(expense.scheduleId!);
-      final installmentPaymentRepository = InstallmentPaymentRepository(
-        firestore
-            .collection('paymentSchedules')
-            .doc(expense.scheduleId!)
-            .collection('installments')
-            .doc(installments.single.id)
-            .collection('payments')
-            .withConverter<InstallmentPayment>(
-              fromFirestore: InstallmentPayment.fromFirestore,
-              toFirestore: (p, _) => p.toFirestore(),
-            ),
-        installmentRepositoryFor(expense.scheduleId!),
-      );
-      await installmentPaymentRepository.recordPayment(installments.single, amount: 80, date: DateTime(2026, 1, 2));
-
-      final currentInstallments = await installmentsFor(expense.scheduleId!);
-      expect(
-        () => repository.editExpense(
+        await repository.editExpense(
           expense: expense,
-          currentInstallments: currentInstallments,
-          totalAmount: 50,
+          currentInstallments: installmentsBefore,
+          totalAmount: 200,
+          splitType: SplitType.equal,
+          participantInputs: [
+            ExpenseParticipantInput(personId: alice.id, name: 'Alice'),
+            ExpenseParticipantInput(personId: bob.id, name: 'Bob'),
+          ],
+        );
+
+        // The Expense document itself reflects the new total.
+        final expenseSnapshot = await firestore
+            .collection('expenses')
+            .doc(expense.id)
+            .get();
+        expect((expenseSnapshot.data()!['totalAmount'] as num).toDouble(), 200);
+
+        // Every participant's tracking Installment is resynced, not just the
+        // Expense document — this is the exact bug report: editing an amount
+        // only "saving the current page" and not reflecting globally meant
+        // this resync was missing/unreachable from the UI.
+        final installmentsAfter = await installmentsFor(expense.scheduleId!);
+        expect(installmentsAfter.map((i) => i.amountDue), everyElement(100));
+
+        // The linked account-balance Transaction is resynced too, so History/
+        // Reports/Dashboard (which read Transaction.amount) agree with the
+        // new total instead of showing the stale original amount.
+        final txSnapshot = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect((txSnapshot.data()!['amount'] as num).toDouble(), 200);
+
+        // Each person's pending balance grows by their share delta (50 -> 100).
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        final refreshedBob = await personRepository.getByKey(bob.id);
+        expect(refreshedAlice!.currentBalance, 100);
+        expect(refreshedBob!.currentBalance, 100);
+      },
+    );
+
+    test(
+      'changing totalAmount corrects the original ledger entry in place instead of leaving it stale '
+      'next to a separate adjustment entry',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
+
+        final installmentsBefore = await installmentsFor(expense.scheduleId!);
+        await repository.editExpense(
+          expense: expense,
+          currentInstallments: installmentsBefore,
+          totalAmount: 150,
           splitType: SplitType.custom,
-          participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 50)],
-        ),
-        throwsA(isA<AppException>()),
-      );
-    });
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 150,
+            ),
+          ],
+        );
+
+        // Exactly one ledger entry still exists for this expense — the
+        // original "gave" entry itself now reflects the corrected amount,
+        // rather than staying at 100 alongside a second "Correct Balance"
+        // entry for the 50 delta. This is the person-statement history line
+        // the user tapped to make the edit; it must show the new amount.
+        final ledger = ledgerRepositoryFor(alice.id);
+        final entries = await ledger.getAll();
+        expect(entries, hasLength(1));
+        expect(entries.single.type, LedgerEntryType.gave);
+        expect(entries.single.amount, 150);
+
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 150);
+      },
+    );
+
+    test(
+      'rejects reducing a participant\'s share below what they already paid',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 100,
+            ),
+          ],
+        );
+
+        final installments = await installmentsFor(expense.scheduleId!);
+        final installmentPaymentRepository = InstallmentPaymentRepository(
+          firestore
+              .collection('paymentSchedules')
+              .doc(expense.scheduleId!)
+              .collection('installments')
+              .doc(installments.single.id)
+              .collection('payments')
+              .withConverter<InstallmentPayment>(
+                fromFirestore: InstallmentPayment.fromFirestore,
+                toFirestore: (p, _) => p.toFirestore(),
+              ),
+          installmentRepositoryFor(expense.scheduleId!),
+        );
+        await installmentPaymentRepository.recordPayment(
+          installments.single,
+          amount: 80,
+          date: DateTime(2026, 1, 2),
+        );
+
+        final currentInstallments = await installmentsFor(expense.scheduleId!);
+        expect(
+          () => repository.editExpense(
+            expense: expense,
+            currentInstallments: currentInstallments,
+            totalAmount: 50,
+            splitType: SplitType.custom,
+            participantInputs: [
+              ExpenseParticipantInput(
+                personId: alice.id,
+                name: 'Alice',
+                value: 50,
+              ),
+            ],
+          ),
+          throwsA(isA<AppException>()),
+        );
+      },
+    );
   });
 
   group('ExpenseRepository.assignToPerson', () {
-    test('produces a single-participant expense equivalent to a 100%-custom-split', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'produces a single-participant expense equivalent to a 100%-custom-split',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
 
-      expect(expense.splitType, SplitType.custom);
-      expect(expense.participants, hasLength(1));
-      expect(expense.participants.single.personId, alice.id);
-      expect(expense.participants.single.share, 150);
+        expect(expense.splitType, SplitType.custom);
+        expect(expense.participants, hasLength(1));
+        expect(expense.participants.single.personId, alice.id);
+        expect(expense.participants.single.share, 150);
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 150);
-    });
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 150);
+      },
+    );
 
-    test('forwards source through to the created Transaction when supplied (SMS conversion)', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'forwards source through to the created Transaction when supplied (SMS conversion)',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-        source: 'sms',
-      );
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+          source: 'sms',
+        );
 
-      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect(txSnapshot.data()!['source'], 'sms');
-    });
+        final txSnapshot = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect(txSnapshot.data()!['source'], 'sms');
+      },
+    );
   });
 
   group('ExpenseRepository — due dates', () {
-    test('defaults the installment due date to a week after the expense date when not given', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'defaults the installment due date to a week after the expense date when not given',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
 
-      final installments = await installmentsFor(expense.scheduleId!);
-      expect(installments.single.dueDate, DateTime(2026, 1, 8));
-    });
+        final installments = await installmentsFor(expense.scheduleId!);
+        expect(installments.single.dueDate, DateTime(2026, 1, 8));
+      },
+    );
 
     test('honors an explicit due date when given', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final alice = await personRepository.createPerson(
+        name: 'Alice',
+        avatarColorValue: 0xFF5B5FEF,
+        openingBalance: 0,
+      );
 
       final expense = await repository.assignToPerson(
         description: 'Concert tickets',
@@ -724,7 +914,11 @@ void main() {
     });
 
     test('editExpense updates every current installment\'s due date', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final alice = await personRepository.createPerson(
+        name: 'Alice',
+        avatarColorValue: 0xFF5B5FEF,
+        openingBalance: 0,
+      );
 
       final expense = await repository.assignToPerson(
         description: 'Concert tickets',
@@ -749,340 +943,476 @@ void main() {
   });
 
   group('ExpenseRepository.deleteExpense', () {
-    test('cascades: reverses the account and person balances, soft-deletes every related record', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final accountBefore = await accountRepository.getByKey(accountId);
+    test(
+      'cascades: reverses the account and person balances, soft-deletes every related record',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final accountBefore = await accountRepository.getByKey(accountId);
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
 
-      await repository.deleteExpense(expense);
+        await repository.deleteExpense(expense);
 
-      final accountAfter = await accountRepository.getByKey(accountId);
-      expect(accountAfter!.currentBalance, accountBefore!.currentBalance);
+        final accountAfter = await accountRepository.getByKey(accountId);
+        expect(accountAfter!.currentBalance, accountBefore!.currentBalance);
 
-      final transaction = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect(transaction.data()!['deletedAt'], isNotNull);
+        final transaction = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect(transaction.data()!['deletedAt'], isNotNull);
 
-      final expenseDoc = await firestore.collection('expenses').doc(expense.id).get();
-      expect(expenseDoc.data()!['deletedAt'], isNotNull);
+        final expenseDoc = await firestore
+            .collection('expenses')
+            .doc(expense.id)
+            .get();
+        expect(expenseDoc.data()!['deletedAt'], isNotNull);
 
-      final installmentDocs = await firestore
-          .collection('paymentSchedules')
-          .doc(expense.scheduleId)
-          .collection('installments')
-          .get();
-      expect(installmentDocs.docs, isNotEmpty);
-      for (final doc in installmentDocs.docs) {
-        expect(doc.data()['deletedAt'], isNotNull);
-      }
+        final installmentDocs = await firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .collection('installments')
+            .get();
+        expect(installmentDocs.docs, isNotEmpty);
+        for (final doc in installmentDocs.docs) {
+          expect(doc.data()['deletedAt'], isNotNull);
+        }
 
-      final scheduleDoc = await firestore.collection('paymentSchedules').doc(expense.scheduleId).get();
-      expect(scheduleDoc.data()!['deletedAt'], isNotNull);
+        final scheduleDoc = await firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .get();
+        expect(scheduleDoc.data()!['deletedAt'], isNotNull);
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 0);
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 0);
 
-      final ledgerDocs = await firestore.collection('people').doc(alice.id).collection('ledger').get();
-      expect(ledgerDocs.docs, isNotEmpty);
-      for (final doc in ledgerDocs.docs) {
-        expect(doc.data()['deletedAt'], isNotNull);
-      }
-    });
+        final ledgerDocs = await firestore
+            .collection('people')
+            .doc(alice.id)
+            .collection('ledger')
+            .get();
+        expect(ledgerDocs.docs, isNotEmpty);
+        for (final doc in ledgerDocs.docs) {
+          expect(doc.data()['deletedAt'], isNotNull);
+        }
+      },
+    );
   });
 
   group('ExpenseRepository.restoreExpense', () {
-    test('is the exact inverse of deleteExpense: every cascaded record and balance comes back', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final accountBefore = await accountRepository.getByKey(accountId);
+    test(
+      'is the exact inverse of deleteExpense: every cascaded record and balance comes back',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final accountBefore = await accountRepository.getByKey(accountId);
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 150);
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
+        expect(
+          (await personRepository.getByKey(alice.id))!.currentBalance,
+          150,
+        );
 
-      await repository.deleteExpense(expense);
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
-      final accountAfterDelete = await accountRepository.getByKey(accountId);
-      expect(accountAfterDelete!.currentBalance, accountBefore!.currentBalance);
+        await repository.deleteExpense(expense);
+        expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+        final accountAfterDelete = await accountRepository.getByKey(accountId);
+        expect(
+          accountAfterDelete!.currentBalance,
+          accountBefore!.currentBalance,
+        );
 
-      await repository.restoreExpense(expense);
+        await repository.restoreExpense(expense);
 
-      // Account balance effect re-applied.
-      final accountAfterRestore = await accountRepository.getByKey(accountId);
-      expect(accountAfterRestore!.currentBalance, accountBefore.currentBalance - 150);
+        // Account balance effect re-applied.
+        final accountAfterRestore = await accountRepository.getByKey(accountId);
+        expect(
+          accountAfterRestore!.currentBalance,
+          accountBefore.currentBalance - 150,
+        );
 
-      // Person's ledger balance re-applied — restored as an owed expense,
-      // not silently dropped back to a plain transaction.
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 150);
+        // Person's ledger balance re-applied — restored as an owed expense,
+        // not silently dropped back to a plain transaction.
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 150);
 
-      final transaction = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect(transaction.data()!['deletedAt'], isNull);
+        final transaction = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect(transaction.data()!['deletedAt'], isNull);
 
-      final expenseDoc = await firestore.collection('expenses').doc(expense.id).get();
-      expect(expenseDoc.data()!['deletedAt'], isNull);
+        final expenseDoc = await firestore
+            .collection('expenses')
+            .doc(expense.id)
+            .get();
+        expect(expenseDoc.data()!['deletedAt'], isNull);
 
-      final installmentDocs = await firestore
-          .collection('paymentSchedules')
-          .doc(expense.scheduleId)
-          .collection('installments')
-          .get();
-      expect(installmentDocs.docs, isNotEmpty);
-      for (final doc in installmentDocs.docs) {
-        expect(doc.data()['deletedAt'], isNull);
-      }
+        final installmentDocs = await firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .collection('installments')
+            .get();
+        expect(installmentDocs.docs, isNotEmpty);
+        for (final doc in installmentDocs.docs) {
+          expect(doc.data()['deletedAt'], isNull);
+        }
 
-      final scheduleDoc = await firestore.collection('paymentSchedules').doc(expense.scheduleId).get();
-      expect(scheduleDoc.data()!['deletedAt'], isNull);
+        final scheduleDoc = await firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .get();
+        expect(scheduleDoc.data()!['deletedAt'], isNull);
 
-      final ledgerDocs = await firestore.collection('people').doc(alice.id).collection('ledger').get();
-      expect(ledgerDocs.docs, isNotEmpty);
-      for (final doc in ledgerDocs.docs) {
-        expect(doc.data()['deletedAt'], isNull);
-      }
-    });
+        final ledgerDocs = await firestore
+            .collection('people')
+            .doc(alice.id)
+            .collection('ledger')
+            .get();
+        expect(ledgerDocs.docs, isNotEmpty);
+        for (final doc in ledgerDocs.docs) {
+          expect(doc.data()['deletedAt'], isNull);
+        }
+      },
+    );
 
-    test('delete -> restore -> delete again leaves everything cleanly trashed, with no double-applied balance',
-        () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final accountBefore = await accountRepository.getByKey(accountId);
+    test(
+      'delete -> restore -> delete again leaves everything cleanly trashed, with no double-applied balance',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final accountBefore = await accountRepository.getByKey(accountId);
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
 
-      await repository.deleteExpense(expense);
-      await repository.restoreExpense(expense);
-      await repository.deleteExpense(expense);
+        await repository.deleteExpense(expense);
+        await repository.restoreExpense(expense);
+        await repository.deleteExpense(expense);
 
-      final accountAfter = await accountRepository.getByKey(accountId);
-      expect(accountAfter!.currentBalance, accountBefore!.currentBalance);
+        final accountAfter = await accountRepository.getByKey(accountId);
+        expect(accountAfter!.currentBalance, accountBefore!.currentBalance);
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 0);
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 0);
 
-      final transaction = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect(transaction.data()!['deletedAt'], isNotNull);
+        final transaction = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect(transaction.data()!['deletedAt'], isNotNull);
 
-      final expenseDoc = await firestore.collection('expenses').doc(expense.id).get();
-      expect(expenseDoc.data()!['deletedAt'], isNotNull);
-    });
+        final expenseDoc = await firestore
+            .collection('expenses')
+            .doc(expense.id)
+            .get();
+        expect(expenseDoc.data()!['deletedAt'], isNotNull);
+      },
+    );
 
-    test('restoring a transaction that was never trashed does not double-apply its balance effect', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final accountBefore = await accountRepository.getByKey(accountId);
+    test(
+      'restoring a transaction that was never trashed does not double-apply its balance effect',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final accountBefore = await accountRepository.getByKey(accountId);
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
 
-      // Never deleted — calling restoreExpense on a still-active expense
-      // must be a safe no-op, not a double credit/debit.
-      await repository.restoreExpense(expense);
+        // Never deleted — calling restoreExpense on a still-active expense
+        // must be a safe no-op, not a double credit/debit.
+        await repository.restoreExpense(expense);
 
-      final accountAfter = await accountRepository.getByKey(accountId);
-      expect(accountAfter!.currentBalance, accountBefore!.currentBalance - 150);
+        final accountAfter = await accountRepository.getByKey(accountId);
+        expect(
+          accountAfter!.currentBalance,
+          accountBefore!.currentBalance - 150,
+        );
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 150);
-    });
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 150);
+      },
+    );
   });
 
   group('ExpenseRepository.unassignFromPerson', () {
-    test('reverses the ledger entry, restores the balance, removes the schedule, but keeps the Transaction alive',
-        () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final accountBefore = await accountRepository.getByKey(accountId);
+    test(
+      'reverses the ledger entry, restores the balance, removes the schedule, but keeps the Transaction alive',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final accountBefore = await accountRepository.getByKey(accountId);
 
-      final expense = await repository.assignToPerson(
-        description: 'Concert tickets',
-        totalAmount: 150,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 150);
+        final expense = await repository.assignToPerson(
+          description: 'Concert tickets',
+          totalAmount: 150,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
+        expect(
+          (await personRepository.getByKey(alice.id))!.currentBalance,
+          150,
+        );
 
-      await repository.unassignFromPerson(expense);
+        await repository.unassignFromPerson(expense);
 
-      // Balance fully reversed.
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 0);
+        // Balance fully reversed.
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 0);
 
-      // Ledger entry reversed (soft-deleted), not left dangling.
-      final ledgerDocs = await firestore.collection('people').doc(alice.id).collection('ledger').get();
-      expect(ledgerDocs.docs, isNotEmpty);
-      for (final doc in ledgerDocs.docs) {
-        expect(doc.data()['deletedAt'], isNotNull);
-      }
+        // Ledger entry reversed (soft-deleted), not left dangling.
+        final ledgerDocs = await firestore
+            .collection('people')
+            .doc(alice.id)
+            .collection('ledger')
+            .get();
+        expect(ledgerDocs.docs, isNotEmpty);
+        for (final doc in ledgerDocs.docs) {
+          expect(doc.data()['deletedAt'], isNotNull);
+        }
 
-      // Schedule/installments reversed.
-      final scheduleDoc = await firestore.collection('paymentSchedules').doc(expense.scheduleId).get();
-      expect(scheduleDoc.data()!['deletedAt'], isNotNull);
-      final installmentDocs = await firestore
-          .collection('paymentSchedules')
-          .doc(expense.scheduleId)
-          .collection('installments')
-          .get();
-      for (final doc in installmentDocs.docs) {
-        expect(doc.data()['deletedAt'], isNotNull);
-      }
+        // Schedule/installments reversed.
+        final scheduleDoc = await firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .get();
+        expect(scheduleDoc.data()!['deletedAt'], isNotNull);
+        final installmentDocs = await firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .collection('installments')
+            .get();
+        for (final doc in installmentDocs.docs) {
+          expect(doc.data()['deletedAt'], isNotNull);
+        }
 
-      // The Expense itself is soft-deleted (no dangling assigned state)...
-      final expenseDoc = await firestore.collection('expenses').doc(expense.id).get();
-      expect(expenseDoc.data()!['deletedAt'], isNotNull);
+        // The Expense itself is soft-deleted (no dangling assigned state)...
+        final expenseDoc = await firestore
+            .collection('expenses')
+            .doc(expense.id)
+            .get();
+        expect(expenseDoc.data()!['deletedAt'], isNotNull);
 
-      // ...but the underlying Transaction is untouched — still live, and its
-      // account-balance effect (the money genuinely left the account,
-      // regardless of who ends up owing it back) is unaffected by
-      // unassignFromPerson, which only ever reverses the *person's* ledger.
-      final transactionDoc = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect(transactionDoc.data()!['deletedAt'], isNull);
-      final accountAfter = await accountRepository.getByKey(accountId);
-      expect(accountAfter!.currentBalance, accountBefore!.currentBalance - 150);
-    });
+        // ...but the underlying Transaction is untouched — still live, and its
+        // account-balance effect (the money genuinely left the account,
+        // regardless of who ends up owing it back) is unaffected by
+        // unassignFromPerson, which only ever reverses the *person's* ledger.
+        final transactionDoc = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect(transactionDoc.data()!['deletedAt'], isNull);
+        final accountAfter = await accountRepository.getByKey(accountId);
+        expect(
+          accountAfter!.currentBalance,
+          accountBefore!.currentBalance - 150,
+        );
+      },
+    );
 
-    test('assign -> unassign -> assign to a different person moves the balance across without touching the account',
-        () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final bob = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0xFF00C2A8, openingBalance: 0);
-      final accountBefore = await accountRepository.getByKey(accountId);
+    test(
+      'assign -> unassign -> assign to a different person moves the balance across without touching the account',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final bob = await personRepository.createPerson(
+          name: 'Bob',
+          avatarColorValue: 0xFF00C2A8,
+          openingBalance: 0,
+        );
+        final accountBefore = await accountRepository.getByKey(accountId);
 
-      final expense = await repository.assignToPerson(
-        description: 'Taxi',
-        totalAmount: 80,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 80);
+        final expense = await repository.assignToPerson(
+          description: 'Taxi',
+          totalAmount: 80,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
+        expect((await personRepository.getByKey(alice.id))!.currentBalance, 80);
 
-      await repository.unassignFromPerson(expense);
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+        await repository.unassignFromPerson(expense);
+        expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
 
-      await repository.convertToAssigned(
-        transactionId: expense.transactionId,
-        description: 'Taxi',
-        totalAmount: 80,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        notes: '',
-        personId: bob.id,
-        personName: 'Bob',
-      );
+        await repository.convertToAssigned(
+          transactionId: expense.transactionId,
+          description: 'Taxi',
+          totalAmount: 80,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          notes: '',
+          personId: bob.id,
+          personName: 'Bob',
+        );
 
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
-      expect((await personRepository.getByKey(bob.id))!.currentBalance, 80);
+        expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+        expect((await personRepository.getByKey(bob.id))!.currentBalance, 80);
 
-      final accountAfter = await accountRepository.getByKey(accountId);
-      expect(accountAfter!.currentBalance, accountBefore!.currentBalance - 80);
-    });
+        final accountAfter = await accountRepository.getByKey(accountId);
+        expect(
+          accountAfter!.currentBalance,
+          accountBefore!.currentBalance - 80,
+        );
+      },
+    );
 
-    test('toggling off then back on (assign -> unassign -> re-assign to the same person) restores the same balance',
-        () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'toggling off then back on (assign -> unassign -> re-assign to the same person) restores the same balance',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.assignToPerson(
-        description: 'Groceries',
-        totalAmount: 60,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
-      await repository.unassignFromPerson(expense);
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
+        final expense = await repository.assignToPerson(
+          description: 'Groceries',
+          totalAmount: 60,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
+        await repository.unassignFromPerson(expense);
+        expect((await personRepository.getByKey(alice.id))!.currentBalance, 0);
 
-      await repository.convertToAssigned(
-        transactionId: expense.transactionId,
-        description: 'Groceries',
-        totalAmount: 60,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        notes: '',
-        personId: alice.id,
-        personName: 'Alice',
-      );
+        await repository.convertToAssigned(
+          transactionId: expense.transactionId,
+          description: 'Groceries',
+          totalAmount: 60,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          notes: '',
+          personId: alice.id,
+          personName: 'Alice',
+        );
 
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 60);
-    });
+        expect((await personRepository.getByKey(alice.id))!.currentBalance, 60);
+      },
+    );
   });
 
   group('ExpenseRepository.resplitExpense', () {
-    test('turns a single-person assignment into an equal multi-way split, rebalancing every person', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
-      final bob = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0xFF00C2A8, openingBalance: 0);
+    test(
+      'turns a single-person assignment into an equal multi-way split, rebalancing every person',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
+        final bob = await personRepository.createPerson(
+          name: 'Bob',
+          avatarColorValue: 0xFF00C2A8,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.assignToPerson(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        personId: alice.id,
-        personName: 'Alice',
-      );
-      expect((await personRepository.getByKey(alice.id))!.currentBalance, 100);
+        final expense = await repository.assignToPerson(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          personId: alice.id,
+          personName: 'Alice',
+        );
+        expect(
+          (await personRepository.getByKey(alice.id))!.currentBalance,
+          100,
+        );
 
-      await repository.resplitExpense(
-        expense: expense,
-        splitType: SplitType.equal,
-        participantInputs: [
-          const ExpenseParticipantInput(name: 'Me', isMe: true),
-          ExpenseParticipantInput(personId: alice.id, name: 'Alice'),
-          ExpenseParticipantInput(personId: bob.id, name: 'Bob'),
-        ],
-      );
+        await repository.resplitExpense(
+          expense: expense,
+          splitType: SplitType.equal,
+          participantInputs: [
+            const ExpenseParticipantInput(name: 'Me', isMe: true),
+            ExpenseParticipantInput(personId: alice.id, name: 'Alice'),
+            ExpenseParticipantInput(personId: bob.id, name: 'Bob'),
+          ],
+        );
 
-      // Me + Alice + Bob split 100 three ways; Alice's balance drops from
-      // 100 (full assignment) to her new ~33.33 share, Bob picks up his.
-      // Bob is last in the input list, so he absorbs the rounding remainder
-      // (33.34); Me and Alice each get 33.33.
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      final refreshedBob = await personRepository.getByKey(bob.id);
-      expect(refreshedAlice!.currentBalance, closeTo(33.33, 0.001));
-      expect(refreshedBob!.currentBalance, closeTo(33.34, 0.001));
+        // Me + Alice + Bob split 100 three ways; Alice's balance drops from
+        // 100 (full assignment) to her new ~33.33 share, Bob picks up his.
+        // Bob is last in the input list, so he absorbs the rounding remainder
+        // (33.34); Me and Alice each get 33.33.
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        final refreshedBob = await personRepository.getByKey(bob.id);
+        expect(refreshedAlice!.currentBalance, closeTo(33.33, 0.001));
+        expect(refreshedBob!.currentBalance, closeTo(33.34, 0.001));
 
-      // The linked account Transaction is untouched — no second spend.
-      final txSnapshot = await firestore.collection('transactions').doc(expense.transactionId).get();
-      expect((txSnapshot.data()!['amount'] as num).toDouble(), 100);
-    });
+        // The linked account Transaction is untouched — no second spend.
+        final txSnapshot = await firestore
+            .collection('transactions')
+            .doc(expense.transactionId)
+            .get();
+        expect((txSnapshot.data()!['amount'] as num).toDouble(), 100);
+      },
+    );
 
     test('rejects re-splitting once a payment has been collected', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final alice = await personRepository.createPerson(
+        name: 'Alice',
+        avatarColorValue: 0xFF5B5FEF,
+        openingBalance: 0,
+      );
 
       final expense = await repository.assignToPerson(
         description: 'Dinner',
@@ -1108,7 +1438,11 @@ void main() {
             ),
         installmentRepositoryFor(expense.scheduleId!),
       );
-      await installmentPaymentRepository.recordPayment(installments.single, amount: 40, date: DateTime(2026, 1, 2));
+      await installmentPaymentRepository.recordPayment(
+        installments.single,
+        amount: 40,
+        date: DateTime(2026, 1, 2),
+      );
 
       await expectLater(
         repository.resplitExpense(
@@ -1125,98 +1459,118 @@ void main() {
   });
 
   group('ExpenseRepository.settleParticipant', () {
-    test('records a payment and reverses the participant\'s pending balance', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'records a payment and reverses the participant\'s pending balance',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
-      );
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 100,
+            ),
+          ],
+        );
 
-      final participant = expense.participants.single;
-      final installments = await installmentsFor(expense.scheduleId!);
-      final installment = installments.single;
+        final participant = expense.participants.single;
+        final installments = await installmentsFor(expense.scheduleId!);
+        final installment = installments.single;
 
-      final paymentCollection = firestore
-          .collection('paymentSchedules')
-          .doc(expense.scheduleId)
-          .collection('installments')
-          .doc(installment.id)
-          .collection('payments')
-          .withConverter<InstallmentPayment>(
-            fromFirestore: InstallmentPayment.fromFirestore,
-            toFirestore: (p, _) => p.toFirestore(),
-          );
-      final installmentPaymentRepository = InstallmentPaymentRepository(
-        paymentCollection,
-        installmentRepositoryFor(expense.scheduleId!),
-      );
+        final paymentCollection = firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .collection('installments')
+            .doc(installment.id)
+            .collection('payments')
+            .withConverter<InstallmentPayment>(
+              fromFirestore: InstallmentPayment.fromFirestore,
+              toFirestore: (p, _) => p.toFirestore(),
+            );
+        final installmentPaymentRepository = InstallmentPaymentRepository(
+          paymentCollection,
+          installmentRepositoryFor(expense.scheduleId!),
+        );
 
-      await repository.settleParticipant(
-        expense: expense,
-        participant: participant,
-        installment: installment,
-        installmentPaymentRepository: installmentPaymentRepository,
-        amount: 100,
-        date: DateTime(2026, 1, 5),
-      );
-
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 0);
-
-      final refreshedInstallments = await installmentsFor(expense.scheduleId!);
-      expect(refreshedInstallments.single.remainingAmount, 0);
-    });
-
-    test('rejects an installment that does not belong to the participant', () async {
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.equal,
-        participantInputs: const [
-          ExpenseParticipantInput(name: 'A'),
-          ExpenseParticipantInput(name: 'B'),
-        ],
-      );
-
-      final installments = await installmentsFor(expense.scheduleId!);
-      final mismatchedInstallment = installments.firstWhere((i) => i.id != expense.participants.first.installmentId);
-
-      final paymentCollection = firestore
-          .collection('paymentSchedules')
-          .doc(expense.scheduleId)
-          .collection('installments')
-          .doc(mismatchedInstallment.id)
-          .collection('payments')
-          .withConverter<InstallmentPayment>(
-            fromFirestore: InstallmentPayment.fromFirestore,
-            toFirestore: (p, _) => p.toFirestore(),
-          );
-      final installmentPaymentRepository = InstallmentPaymentRepository(
-        paymentCollection,
-        installmentRepositoryFor(expense.scheduleId!),
-      );
-
-      await expectLater(
-        repository.settleParticipant(
+        await repository.settleParticipant(
           expense: expense,
-          participant: expense.participants.first,
-          installment: mismatchedInstallment,
+          participant: participant,
+          installment: installment,
           installmentPaymentRepository: installmentPaymentRepository,
-          amount: 50,
+          amount: 100,
           date: DateTime(2026, 1, 5),
-        ),
-        throwsA(isA<AppException>()),
-      );
-    });
+        );
+
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 0);
+
+        final refreshedInstallments = await installmentsFor(
+          expense.scheduleId!,
+        );
+        expect(refreshedInstallments.single.remainingAmount, 0);
+      },
+    );
+
+    test(
+      'rejects an installment that does not belong to the participant',
+      () async {
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.equal,
+          participantInputs: const [
+            ExpenseParticipantInput(name: 'A'),
+            ExpenseParticipantInput(name: 'B'),
+          ],
+        );
+
+        final installments = await installmentsFor(expense.scheduleId!);
+        final mismatchedInstallment = installments.firstWhere(
+          (i) => i.id != expense.participants.first.installmentId,
+        );
+
+        final paymentCollection = firestore
+            .collection('paymentSchedules')
+            .doc(expense.scheduleId)
+            .collection('installments')
+            .doc(mismatchedInstallment.id)
+            .collection('payments')
+            .withConverter<InstallmentPayment>(
+              fromFirestore: InstallmentPayment.fromFirestore,
+              toFirestore: (p, _) => p.toFirestore(),
+            );
+        final installmentPaymentRepository = InstallmentPaymentRepository(
+          paymentCollection,
+          installmentRepositoryFor(expense.scheduleId!),
+        );
+
+        await expectLater(
+          repository.settleParticipant(
+            expense: expense,
+            participant: expense.participants.first,
+            installment: mismatchedInstallment,
+            installmentPaymentRepository: installmentPaymentRepository,
+            amount: 50,
+            date: DateTime(2026, 1, 5),
+          ),
+          throwsA(isA<AppException>()),
+        );
+      },
+    );
   });
 
   group('ExpenseRepository — the "Me" participant', () {
@@ -1235,38 +1589,45 @@ void main() {
       expect(shares.where((s) => !s.isMe), hasLength(2));
     });
 
-    test('createExpense excludes Me from installments and ledger entries', () async {
-      final rahul = await personRepository.createPerson(name: 'Rahul', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'createExpense excludes Me from installments and ledger entries',
+      () async {
+        final rahul = await personRepository.createPerson(
+          name: 'Rahul',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 900,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.equal,
-        participantInputs: [
-          const ExpenseParticipantInput(name: 'Me', isMe: true),
-          ExpenseParticipantInput(personId: rahul.id, name: 'Rahul'),
-          const ExpenseParticipantInput(name: 'John'),
-        ],
-      );
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 900,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.equal,
+          participantInputs: [
+            const ExpenseParticipantInput(name: 'Me', isMe: true),
+            ExpenseParticipantInput(personId: rahul.id, name: 'Rahul'),
+            const ExpenseParticipantInput(name: 'John'),
+          ],
+        );
 
-      expect(expense.participants, hasLength(3));
-      final me = expense.participants.singleWhere((p) => p.isMe);
-      expect(me.installmentId, isNull);
-      expect(me.share, 300);
-      expect(expense.myShare, 300);
-      expect(expense.othersShare, 600);
+        expect(expense.participants, hasLength(3));
+        final me = expense.participants.singleWhere((p) => p.isMe);
+        expect(me.installmentId, isNull);
+        expect(me.share, 300);
+        expect(expense.myShare, 300);
+        expect(expense.othersShare, 600);
 
-      // Only the 2 non-Me participants get installments.
-      final installments = await installmentsFor(expense.scheduleId!);
-      expect(installments, hasLength(2));
+        // Only the 2 non-Me participants get installments.
+        final installments = await installmentsFor(expense.scheduleId!);
+        expect(installments, hasLength(2));
 
-      // Only Rahul (person-linked, non-Me) gets a ledger entry.
-      final refreshedRahul = await personRepository.getByKey(rahul.id);
-      expect(refreshedRahul!.currentBalance, 300);
-    });
+        // Only Rahul (person-linked, non-Me) gets a ledger entry.
+        final refreshedRahul = await personRepository.getByKey(rahul.id);
+        expect(refreshedRahul!.currentBalance, 300);
+      },
+    );
 
     test('convertToSplit excludes Me from installments the same way', () async {
       final expense = await repository.convertToSplit(
@@ -1298,115 +1659,153 @@ void main() {
           categoryId: categoryId,
           accountId: accountId,
           splitType: SplitType.equal,
-          participantInputs: const [ExpenseParticipantInput(name: 'Me', isMe: true)],
+          participantInputs: const [
+            ExpenseParticipantInput(name: 'Me', isMe: true),
+          ],
         ),
         throwsA(isA<AppException>()),
       );
     });
 
-    test('Milestone 14 Task 1 — unchecking "Include myself" omits Me entirely, not just a 0 share', () async {
-      // The form's "Include myself in this expense" checkbox unchecked
-      // means the participant list simply never includes a Me input at
-      // all — distinct from convertToAssigned's "Me participates with a
-      // 0 share" case. Examples: paying a restaurant bill for friends
-      // only, or medicine for a parent — Me never appears in the split.
-      final mother = await personRepository.createPerson(name: 'Mother', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'Milestone 14 Task 1 — unchecking "Include myself" omits Me entirely, not just a 0 share',
+      () async {
+        // The form's "Include myself in this expense" checkbox unchecked
+        // means the participant list simply never includes a Me input at
+        // all — distinct from convertToAssigned's "Me participates with a
+        // 0 share" case. Examples: paying a restaurant bill for friends
+        // only, or medicine for a parent — Me never appears in the split.
+        final mother = await personRepository.createPerson(
+          name: 'Mother',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.createExpense(
-        description: 'Medicine for Mother',
-        totalAmount: 500,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [
-          ExpenseParticipantInput(personId: mother.id, name: 'Mother', value: 500),
-        ],
-      );
+        final expense = await repository.createExpense(
+          description: 'Medicine for Mother',
+          totalAmount: 500,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: mother.id,
+              name: 'Mother',
+              value: 500,
+            ),
+          ],
+        );
 
-      expect(expense.meParticipant, isNull);
-      expect(expense.participants, hasLength(1));
-      expect(expense.myShare, 0);
-      expect(expense.othersShare, 500);
+        expect(expense.meParticipant, isNull);
+        expect(expense.participants, hasLength(1));
+        expect(expense.myShare, 0);
+        expect(expense.othersShare, 500);
 
-      final refreshedMother = await personRepository.getByKey(mother.id);
-      expect(refreshedMother!.currentBalance, 500);
-    });
+        final refreshedMother = await personRepository.getByKey(mother.id);
+        expect(refreshedMother!.currentBalance, 500);
+      },
+    );
 
-    test('Expense.myShare is 0 for a legacy split expense with no Me participant', () async {
-      final expense = await repository.createExpense(
-        description: 'Old style split',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.equal,
-        participantInputs: const [
-          ExpenseParticipantInput(name: 'A'),
-          ExpenseParticipantInput(name: 'B'),
-        ],
-      );
+    test(
+      'Expense.myShare is 0 for a legacy split expense with no Me participant',
+      () async {
+        final expense = await repository.createExpense(
+          description: 'Old style split',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.equal,
+          participantInputs: const [
+            ExpenseParticipantInput(name: 'A'),
+            ExpenseParticipantInput(name: 'B'),
+          ],
+        );
 
-      expect(expense.myShare, 0);
-      expect(expense.othersShare, 100);
-    });
+        expect(expense.myShare, 0);
+        expect(expense.othersShare, 100);
+      },
+    );
   });
 
   group('ExpenseRepository.convertToAssigned', () {
-    test('full amount: assigns 100% to the person, Me\'s share is 0, no duplicate Transaction', () async {
-      final rahul = await personRepository.createPerson(name: 'Rahul', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'full amount: assigns 100% to the person, Me\'s share is 0, no duplicate Transaction',
+      () async {
+        final rahul = await personRepository.createPerson(
+          name: 'Rahul',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final transactionsBefore = await firestore.collection('transactions').get();
-      expect(transactionsBefore.docs, isEmpty);
+        final transactionsBefore = await firestore
+            .collection('transactions')
+            .get();
+        expect(transactionsBefore.docs, isEmpty);
 
-      final expense = await repository.convertToAssigned(
-        transactionId: 'existing-txn-assign',
-        description: 'Dinner',
-        totalAmount: 1200,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        notes: '',
-        personId: rahul.id,
-        personName: 'Rahul',
-      );
+        final expense = await repository.convertToAssigned(
+          transactionId: 'existing-txn-assign',
+          description: 'Dinner',
+          totalAmount: 1200,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          notes: '',
+          personId: rahul.id,
+          personName: 'Rahul',
+        );
 
-      expect(expense.transactionId, 'existing-txn-assign');
-      expect(expense.myShare, 0);
-      expect(expense.othersShare, 1200);
+        expect(expense.transactionId, 'existing-txn-assign');
+        expect(expense.myShare, 0);
+        expect(expense.othersShare, 1200);
 
-      final transactionsAfter = await firestore.collection('transactions').get();
-      expect(transactionsAfter.docs, isEmpty);
+        final transactionsAfter = await firestore
+            .collection('transactions')
+            .get();
+        expect(transactionsAfter.docs, isEmpty);
 
-      final refreshedRahul = await personRepository.getByKey(rahul.id);
-      expect(refreshedRahul!.currentBalance, 1200);
-    });
+        final refreshedRahul = await personRepository.getByKey(rahul.id);
+        expect(refreshedRahul!.currentBalance, 1200);
+      },
+    );
 
-    test('partial amount: splits between Me and the person by the given share', () async {
-      final rahul = await personRepository.createPerson(name: 'Rahul', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'partial amount: splits between Me and the person by the given share',
+      () async {
+        final rahul = await personRepository.createPerson(
+          name: 'Rahul',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.convertToAssigned(
-        transactionId: 'existing-txn-partial',
-        description: 'Dinner',
-        totalAmount: 1200,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        notes: '',
-        personId: rahul.id,
-        personName: 'Rahul',
-        partialAmount: 800,
-      );
+        final expense = await repository.convertToAssigned(
+          transactionId: 'existing-txn-partial',
+          description: 'Dinner',
+          totalAmount: 1200,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          notes: '',
+          personId: rahul.id,
+          personName: 'Rahul',
+          partialAmount: 800,
+        );
 
-      expect(expense.myShare, 400);
-      expect(expense.othersShare, 800);
+        expect(expense.myShare, 400);
+        expect(expense.othersShare, 800);
 
-      final refreshedRahul = await personRepository.getByKey(rahul.id);
-      expect(refreshedRahul!.currentBalance, 800);
-    });
+        final refreshedRahul = await personRepository.getByKey(rahul.id);
+        expect(refreshedRahul!.currentBalance, 800);
+      },
+    );
 
     test('with an existingExpense: converts it in place', () async {
-      final rahul = await personRepository.createPerson(name: 'Rahul', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final rahul = await personRepository.createPerson(
+        name: 'Rahul',
+        avatarColorValue: 0xFF5B5FEF,
+        openingBalance: 0,
+      );
       final plainExpense = await repository.createExpense(
         description: 'Groceries',
         totalAmount: 300,
@@ -1469,78 +1868,92 @@ void main() {
   });
 
   group('ExpenseRepository.convertToSplit', () {
-    test('with no existingExpense: creates a new split Expense reusing the given transactionId', () async {
-      final rahul = await personRepository.createPerson(name: 'Rahul', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'with no existingExpense: creates a new split Expense reusing the given transactionId',
+      () async {
+        final rahul = await personRepository.createPerson(
+          name: 'Rahul',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final transactionsBefore = await firestore.collection('transactions').get();
-      expect(transactionsBefore.docs, isEmpty);
+        final transactionsBefore = await firestore
+            .collection('transactions')
+            .get();
+        expect(transactionsBefore.docs, isEmpty);
 
-      final expense = await repository.convertToSplit(
-        transactionId: 'existing-txn-1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        notes: '',
-        splitType: SplitType.equal,
-        participantInputs: [
-          ExpenseParticipantInput(personId: rahul.id, name: 'Rahul'),
-          const ExpenseParticipantInput(name: 'You'),
-        ],
-      );
+        final expense = await repository.convertToSplit(
+          transactionId: 'existing-txn-1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          notes: '',
+          splitType: SplitType.equal,
+          participantInputs: [
+            ExpenseParticipantInput(personId: rahul.id, name: 'Rahul'),
+            const ExpenseParticipantInput(name: 'You'),
+          ],
+        );
 
-      expect(expense.transactionId, 'existing-txn-1');
-      expect(expense.isSplit, isTrue);
-      expect(expense.participants, hasLength(2));
+        expect(expense.transactionId, 'existing-txn-1');
+        expect(expense.isSplit, isTrue);
+        expect(expense.participants, hasLength(2));
 
-      // No new Transaction document was created — convertToSplit never
-      // touches TransactionRepository.
-      final transactionsAfter = await firestore.collection('transactions').get();
-      expect(transactionsAfter.docs, isEmpty);
+        // No new Transaction document was created — convertToSplit never
+        // touches TransactionRepository.
+        final transactionsAfter = await firestore
+            .collection('transactions')
+            .get();
+        expect(transactionsAfter.docs, isEmpty);
 
-      final rahulAfter = await personRepository.getByKey(rahul.id);
-      expect(rahulAfter!.currentBalance, 400);
-    });
+        final rahulAfter = await personRepository.getByKey(rahul.id);
+        expect(rahulAfter!.currentBalance, 400);
+      },
+    );
 
-    test('with an existingExpense: converts it in place, keeping its id and transactionId', () async {
-      // Simulate a plain (SplitType.none) Expense document already existing —
-      // e.g. one created before this conversion feature existed.
-      final plainExpense = await repository.createExpense(
-        description: 'Groceries',
-        totalAmount: 300,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.none,
-        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
-      );
-      expect(plainExpense.isSplit, isFalse);
+    test(
+      'with an existingExpense: converts it in place, keeping its id and transactionId',
+      () async {
+        // Simulate a plain (SplitType.none) Expense document already existing —
+        // e.g. one created before this conversion feature existed.
+        final plainExpense = await repository.createExpense(
+          description: 'Groceries',
+          totalAmount: 300,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.none,
+          participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+        );
+        expect(plainExpense.isSplit, isFalse);
 
-      final converted = await repository.convertToSplit(
-        existingExpense: plainExpense,
-        transactionId: plainExpense.transactionId,
-        description: plainExpense.description,
-        totalAmount: plainExpense.totalAmount,
-        date: plainExpense.date,
-        categoryId: plainExpense.categoryId,
-        accountId: plainExpense.accountId,
-        notes: plainExpense.notes,
-        splitType: SplitType.equal,
-        participantInputs: const [
-          ExpenseParticipantInput(name: 'A'),
-          ExpenseParticipantInput(name: 'B'),
-        ],
-      );
+        final converted = await repository.convertToSplit(
+          existingExpense: plainExpense,
+          transactionId: plainExpense.transactionId,
+          description: plainExpense.description,
+          totalAmount: plainExpense.totalAmount,
+          date: plainExpense.date,
+          categoryId: plainExpense.categoryId,
+          accountId: plainExpense.accountId,
+          notes: plainExpense.notes,
+          splitType: SplitType.equal,
+          participantInputs: const [
+            ExpenseParticipantInput(name: 'A'),
+            ExpenseParticipantInput(name: 'B'),
+          ],
+        );
 
-      expect(converted.id, plainExpense.id);
-      expect(converted.transactionId, plainExpense.transactionId);
-      expect(converted.isSplit, isTrue);
+        expect(converted.id, plainExpense.id);
+        expect(converted.transactionId, plainExpense.transactionId);
+        expect(converted.isSplit, isTrue);
 
-      final refetched = await repository.getByKey(plainExpense.id);
-      expect(refetched!.isSplit, isTrue);
-      expect(refetched.participants, hasLength(2));
-    });
+        final refetched = await repository.getByKey(plainExpense.id);
+        expect(refetched!.isSplit, isTrue);
+        expect(refetched.participants, hasLength(2));
+      },
+    );
 
     test('rejects converting an expense that is already split', () async {
       final alreadySplit = await repository.createExpense(
@@ -1595,7 +2008,10 @@ void main() {
   });
 
   group('ExpenseRepository.settleAcrossPending', () {
-    InstallmentPaymentRepository installmentPaymentRepositoryFor(String scheduleId, String installmentId) {
+    InstallmentPaymentRepository installmentPaymentRepositoryFor(
+      String scheduleId,
+      String installmentId,
+    ) {
       final collection = firestore
           .collection('paymentSchedules')
           .doc(scheduleId)
@@ -1606,10 +2022,16 @@ void main() {
             fromFirestore: InstallmentPayment.fromFirestore,
             toFirestore: (p, _) => p.toFirestore(),
           );
-      return InstallmentPaymentRepository(collection, installmentRepositoryFor(scheduleId));
+      return InstallmentPaymentRepository(
+        collection,
+        installmentRepositoryFor(scheduleId),
+      );
     }
 
-    Future<List<InstallmentPayment>> paymentsFor(String scheduleId, String installmentId) async {
+    Future<List<InstallmentPayment>> paymentsFor(
+      String scheduleId,
+      String installmentId,
+    ) async {
       final snapshot = await firestore
           .collection('paymentSchedules')
           .doc(scheduleId)
@@ -1617,183 +2039,307 @@ void main() {
           .doc(installmentId)
           .collection('payments')
           .get();
-      return snapshot.docs.map((d) => InstallmentPayment.fromFirestore(d, null)).toList();
+      return snapshot.docs
+          .map((d) => InstallmentPayment.fromFirestore(d, null))
+          .toList();
     }
 
     // Case 4/bypass fix: settling a lump sum smaller than total pending
     // clears the oldest expense first, leaving the newer one untouched —
     // each keeps its own independent InstallmentPayment history.
-    test('settles oldest-due-first, leaving the newest partially/fully unsettled', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'settles oldest-due-first, leaving the newest partially/fully unsettled',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final older = await repository.createExpense(
-        description: 'Groceries',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
-        dueDate: DateTime(2026, 1, 10),
-      );
-      final newer = await repository.createExpense(
-        description: 'Taxi',
-        totalAmount: 100,
-        date: DateTime(2026, 2, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
-        dueDate: DateTime(2026, 2, 10),
-      );
+        final older = await repository.createExpense(
+          description: 'Groceries',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 100,
+            ),
+          ],
+          dueDate: DateTime(2026, 1, 10),
+        );
+        final newer = await repository.createExpense(
+          description: 'Taxi',
+          totalAmount: 100,
+          date: DateTime(2026, 2, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 100,
+            ),
+          ],
+          dueDate: DateTime(2026, 2, 10),
+        );
 
-      final olderInstallment = (await installmentsFor(older.scheduleId!)).single;
-      final newerInstallment = (await installmentsFor(newer.scheduleId!)).single;
+        final olderInstallment = (await installmentsFor(
+          older.scheduleId!,
+        )).single;
+        final newerInstallment = (await installmentsFor(
+          newer.scheduleId!,
+        )).single;
 
-      final pending = [
-        (expense: older, participant: older.participants.single, installment: olderInstallment),
-        (expense: newer, participant: newer.participants.single, installment: newerInstallment),
-      ]..sort((a, b) => a.installment.dueDate.compareTo(b.installment.dueDate));
+        final pending =
+            [
+              (
+                expense: older,
+                participant: older.participants.single,
+                installment: olderInstallment,
+              ),
+              (
+                expense: newer,
+                participant: newer.participants.single,
+                installment: newerInstallment,
+              ),
+            ]..sort(
+              (a, b) => a.installment.dueDate.compareTo(b.installment.dueDate),
+            );
 
-      await repository.settleAcrossPending(
-        person: alice,
-        pending: pending,
-        amount: 150,
-        date: DateTime(2026, 2, 15),
-        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
-      );
+        await repository.settleAcrossPending(
+          person: alice,
+          pending: pending,
+          amount: 150,
+          date: DateTime(2026, 2, 15),
+          installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+        );
 
-      final refreshedOlder = (await installmentsFor(older.scheduleId!)).single;
-      final refreshedNewer = (await installmentsFor(newer.scheduleId!)).single;
-      expect(refreshedOlder.remainingAmount, 0);
-      expect(refreshedNewer.remainingAmount, 50);
+        final refreshedOlder = (await installmentsFor(
+          older.scheduleId!,
+        )).single;
+        final refreshedNewer = (await installmentsFor(
+          newer.scheduleId!,
+        )).single;
+        expect(refreshedOlder.remainingAmount, 0);
+        expect(refreshedNewer.remainingAmount, 50);
 
-      // Each expense produced its own traceable InstallmentPayment.
-      final olderPayments = await paymentsFor(older.scheduleId!, olderInstallment.id);
-      final newerPayments = await paymentsFor(newer.scheduleId!, newerInstallment.id);
-      expect(olderPayments, hasLength(1));
-      expect(olderPayments.single.amount, 100);
-      expect(newerPayments, hasLength(1));
-      expect(newerPayments.single.amount, 50);
+        // Each expense produced its own traceable InstallmentPayment.
+        final olderPayments = await paymentsFor(
+          older.scheduleId!,
+          olderInstallment.id,
+        );
+        final newerPayments = await paymentsFor(
+          newer.scheduleId!,
+          newerInstallment.id,
+        );
+        expect(olderPayments, hasLength(1));
+        expect(olderPayments.single.amount, 100);
+        expect(newerPayments, hasLength(1));
+        expect(newerPayments.single.amount, 50);
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 50);
-    });
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 50);
+      },
+    );
 
-    test('an amount exactly matching total pending settles every installment with no remainder ledger entry', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'an amount exactly matching total pending settles every installment with no remainder ledger entry',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 80,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 80)],
-      );
-      final installment = (await installmentsFor(expense.scheduleId!)).single;
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 80,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 80,
+            ),
+          ],
+        );
+        final installment = (await installmentsFor(expense.scheduleId!)).single;
 
-      await repository.settleAcrossPending(
-        person: alice,
-        pending: [(expense: expense, participant: expense.participants.single, installment: installment)],
-        amount: 80,
-        date: DateTime(2026, 1, 10),
-        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
-      );
+        await repository.settleAcrossPending(
+          person: alice,
+          pending: [
+            (
+              expense: expense,
+              participant: expense.participants.single,
+              installment: installment,
+            ),
+          ],
+          amount: 80,
+          date: DateTime(2026, 1, 10),
+          installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+        );
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 0);
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 0);
 
-      final ledger = ledgerRepositoryFor(alice.id);
-      final entries = await ledger.getAll();
-      // Only the original "gave" entry plus the settleParticipant-posted
-      // "receivedBack" entry exist — no separate lump-sum remainder entry.
-      expect(entries.where((e) => e.note == 'Settled all'), isEmpty);
-    });
+        final ledger = ledgerRepositoryFor(alice.id);
+        final entries = await ledger.getAll();
+        // Only the original "gave" entry plus the settleParticipant-posted
+        // "receivedBack" entry exist — no separate lump-sum remainder entry.
+        expect(entries.where((e) => e.note == 'Settled all'), isEmpty);
+      },
+    );
 
     // An amount exceeding total tracked pending (e.g. the person also has an
     // untracked manual-lending balance) posts the remainder as a plain
     // ledger entry rather than inventing a synthetic installment for it.
-    test('an amount exceeding total pending posts the remainder as a plain ledger entry', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 50);
+    test(
+      'an amount exceeding total pending posts the remainder as a plain ledger entry',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 50,
+        );
 
-      final expense = await repository.createExpense(
-        description: 'Dinner',
-        totalAmount: 80,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 80)],
-      );
-      final installment = (await installmentsFor(expense.scheduleId!)).single;
+        final expense = await repository.createExpense(
+          description: 'Dinner',
+          totalAmount: 80,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 80,
+            ),
+          ],
+        );
+        final installment = (await installmentsFor(expense.scheduleId!)).single;
 
-      await repository.settleAcrossPending(
-        person: alice,
-        pending: [(expense: expense, participant: expense.participants.single, installment: installment)],
-        amount: 130,
-        date: DateTime(2026, 1, 10),
-        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
-        note: 'Settled all',
-      );
+        await repository.settleAcrossPending(
+          person: alice,
+          pending: [
+            (
+              expense: expense,
+              participant: expense.participants.single,
+              installment: installment,
+            ),
+          ],
+          amount: 130,
+          date: DateTime(2026, 1, 10),
+          installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+          note: 'Settled all',
+        );
 
-      final refreshedInstallment = (await installmentsFor(expense.scheduleId!)).single;
-      expect(refreshedInstallment.remainingAmount, 0);
+        final refreshedInstallment = (await installmentsFor(
+          expense.scheduleId!,
+        )).single;
+        expect(refreshedInstallment.remainingAmount, 0);
 
-      final ledger = ledgerRepositoryFor(alice.id);
-      final remainderEntries = (await ledger.getAll()).where((e) => e.note == 'Settled all');
-      expect(remainderEntries, hasLength(1));
-      expect(remainderEntries.single.amount, 50);
-    });
+        final ledger = ledgerRepositoryFor(alice.id);
+        final remainderEntries = (await ledger.getAll()).where(
+          (e) => e.note == 'Settled all',
+        );
+        expect(remainderEntries, hasLength(1));
+        expect(remainderEntries.single.amount, 50);
+      },
+    );
 
     // Case 5: settling one of several unpaid expenses months later leaves
     // every other expense's records — and the untouched expense's own
     // Installment/payment history — byte-identical.
-    test('settling one expense leaves another unpaid expense fully untouched (independent history)', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+    test(
+      'settling one expense leaves another unpaid expense fully untouched (independent history)',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expenseA = await repository.createExpense(
-        description: 'Groceries',
-        totalAmount: 100,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 100)],
-      );
-      final expenseB = await repository.createExpense(
-        description: 'Movie tickets',
-        totalAmount: 60,
-        date: DateTime(2026, 1, 2),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: alice.id, name: 'Alice', value: 60)],
-      );
+        final expenseA = await repository.createExpense(
+          description: 'Groceries',
+          totalAmount: 100,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 100,
+            ),
+          ],
+        );
+        final expenseB = await repository.createExpense(
+          description: 'Movie tickets',
+          totalAmount: 60,
+          date: DateTime(2026, 1, 2),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: alice.id,
+              name: 'Alice',
+              value: 60,
+            ),
+          ],
+        );
 
-      final installmentA = (await installmentsFor(expenseA.scheduleId!)).single;
-      final installmentB = (await installmentsFor(expenseB.scheduleId!)).single;
+        final installmentA = (await installmentsFor(
+          expenseA.scheduleId!,
+        )).single;
+        final installmentB = (await installmentsFor(
+          expenseB.scheduleId!,
+        )).single;
 
-      await repository.settleAcrossPending(
-        person: alice,
-        pending: [(expense: expenseA, participant: expenseA.participants.single, installment: installmentA)],
-        amount: 100,
-        date: DateTime(2026, 7, 1),
-        installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
-      );
+        await repository.settleAcrossPending(
+          person: alice,
+          pending: [
+            (
+              expense: expenseA,
+              participant: expenseA.participants.single,
+              installment: installmentA,
+            ),
+          ],
+          amount: 100,
+          date: DateTime(2026, 7, 1),
+          installmentPaymentRepositoryFor: installmentPaymentRepositoryFor,
+        );
 
-      final refreshedB = (await installmentsFor(expenseB.scheduleId!)).single;
-      expect(refreshedB.amountPaid, 0);
-      expect(refreshedB.remainingAmount, 60);
-      expect(await paymentsFor(expenseB.scheduleId!, installmentB.id), isEmpty);
+        final refreshedB = (await installmentsFor(expenseB.scheduleId!)).single;
+        expect(refreshedB.amountPaid, 0);
+        expect(refreshedB.remainingAmount, 60);
+        expect(
+          await paymentsFor(expenseB.scheduleId!, installmentB.id),
+          isEmpty,
+        );
 
-      final refreshedA = (await installmentsFor(expenseA.scheduleId!)).single;
-      expect(refreshedA.remainingAmount, 0);
-    });
+        final refreshedA = (await installmentsFor(expenseA.scheduleId!)).single;
+        expect(refreshedA.remainingAmount, 0);
+      },
+    );
 
     test('rejects an amount <= 0', () async {
-      final alice = await personRepository.createPerson(name: 'Alice', avatarColorValue: 0xFF5B5FEF, openingBalance: 0);
+      final alice = await personRepository.createPerson(
+        name: 'Alice',
+        avatarColorValue: 0xFF5B5FEF,
+        openingBalance: 0,
+      );
 
       await expectLater(
         repository.settleAcrossPending(

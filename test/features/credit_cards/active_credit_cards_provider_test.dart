@@ -58,39 +58,43 @@ void main() {
     expect(
       container.read(activeCreditCardsProvider),
       isEmpty,
-      reason: 'a card whose account was deleted must disappear from the active list',
+      reason:
+          'a card whose account was deleted must disappear from the active list',
     );
   });
 
-  test('a restored account brings its card back into the active list', () async {
-    final accounts = container.read(accountRepositoryProvider);
-    final account = await accounts.createAccount(
-      name: 'Test Card',
-      type: AccountType.card,
-      openingBalance: 0,
-      colorValue: 0xFF000000,
-    );
+  test(
+    'a restored account brings its card back into the active list',
+    () async {
+      final accounts = container.read(accountRepositoryProvider);
+      final account = await accounts.createAccount(
+        name: 'Test Card',
+        type: AccountType.card,
+        openingBalance: 0,
+        colorValue: 0xFF000000,
+      );
 
-    final cards = container.read(creditCardRepositoryProvider);
-    await cards.createCard(
-      accountId: account.id,
-      statementDay: 5,
-      paymentDueDay: 25,
-      creditLimit: 100000,
-    );
+      final cards = container.read(creditCardRepositoryProvider);
+      await cards.createCard(
+        accountId: account.id,
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 100000,
+      );
 
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
 
-    await accounts.softDelete(account);
-    await container.read(accountsStreamProvider.future);
-    expect(container.read(activeCreditCardsProvider), isEmpty);
+      await accounts.softDelete(account);
+      await container.read(accountsStreamProvider.future);
+      expect(container.read(activeCreditCardsProvider), isEmpty);
 
-    await accounts.restore(account);
-    await container.read(accountsStreamProvider.future);
+      await accounts.restore(account);
+      await container.read(accountsStreamProvider.future);
 
-    expect(container.read(activeCreditCardsProvider), hasLength(1));
-  });
+      expect(container.read(activeCreditCardsProvider), hasLength(1));
+    },
+  );
 
   test('does not affect a card whose account is still active', () async {
     final accounts = container.read(accountRepositoryProvider);
@@ -108,8 +112,18 @@ void main() {
     );
 
     final cards = container.read(creditCardRepositoryProvider);
-    await cards.createCard(accountId: keptAccount.id, statementDay: 5, paymentDueDay: 25, creditLimit: 50000);
-    await cards.createCard(accountId: deletedAccount.id, statementDay: 10, paymentDueDay: 28, creditLimit: 75000);
+    await cards.createCard(
+      accountId: keptAccount.id,
+      statementDay: 5,
+      paymentDueDay: 25,
+      creditLimit: 50000,
+    );
+    await cards.createCard(
+      accountId: deletedAccount.id,
+      statementDay: 10,
+      paymentDueDay: 28,
+      creditLimit: 75000,
+    );
 
     await container.read(accountsStreamProvider.future);
     await container.read(creditCardsStreamProvider.future);

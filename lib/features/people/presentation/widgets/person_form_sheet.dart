@@ -39,11 +39,17 @@ class PersonFormSheet extends ConsumerStatefulWidget {
 class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.person?.name);
-  late final _phoneController = TextEditingController(text: widget.person?.phone);
-  late final _openingBalanceController = TextEditingController(
-    text: widget.person == null ? '0' : widget.person!.openingBalance.toStringAsFixed(2),
+  late final _phoneController = TextEditingController(
+    text: widget.person?.phone,
   );
-  late int _avatarColorValue = widget.person?.avatarColorValue ?? AppColors.categoryPalette.first.toARGB32();
+  late final _openingBalanceController = TextEditingController(
+    text: widget.person == null
+        ? '0'
+        : widget.person!.openingBalance.toStringAsFixed(2),
+  );
+  late int _avatarColorValue =
+      widget.person?.avatarColorValue ??
+      AppColors.categoryPalette.first.toARGB32();
   final _phoneFocusNode = FocusNode();
   bool _isSaving = false;
 
@@ -88,9 +94,9 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save person: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save person: $e')));
       }
     }
   }
@@ -121,7 +127,10 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
             TextFormField(
               controller: _phoneController,
               focusNode: _phoneFocusNode,
-              decoration: _premiumDecoration(context, label: 'Phone (optional)'),
+              decoration: _premiumDecoration(
+                context,
+                label: 'Phone (optional)',
+              ),
               style: Theme.of(context).textTheme.bodyMedium,
               keyboardType: TextInputType.phone,
               validator: Validators.phone,
@@ -141,7 +150,10 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
                     : 'Positive = they owe you, negative = you owe them',
               ),
               style: Theme.of(context).textTheme.bodyMedium,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
               validator: Validators.signedAmount,
             ),
             const SizedBox(height: AppSizes.md),
@@ -149,7 +161,8 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
             const SizedBox(height: AppSizes.sm),
             ColorSwatchPicker(
               value: Color(_avatarColorValue),
-              onChanged: (color) => setState(() => _avatarColorValue = color.toARGB32()),
+              onChanged: (color) =>
+                  setState(() => _avatarColorValue = color.toARGB32()),
             ),
           ],
         ),
@@ -171,11 +184,20 @@ InputDecoration _premiumDecoration(
     labelText: label,
     helperText: helperText,
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSizes.sm,
+      vertical: AppSizes.sm,
+    ),
     filled: true,
     fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       borderSide: BorderSide(color: colors.primary, width: 1.6),

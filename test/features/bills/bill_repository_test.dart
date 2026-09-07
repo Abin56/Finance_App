@@ -10,7 +10,9 @@ void main() {
 
   setUp(() {
     final firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('bills').withConverter<Bill>(
+    final collection = firestore
+        .collection('bills')
+        .withConverter<Bill>(
           fromFirestore: Bill.fromFirestore,
           toFirestore: (b, _) => b.toFirestore(),
         );
@@ -58,7 +60,10 @@ void main() {
     });
 
     test('accepts custom recurrence with a positive interval', () async {
-      final bill = await seedBill(recurrence: BillRecurrence.custom, customIntervalDays: 10);
+      final bill = await seedBill(
+        recurrence: BillRecurrence.custom,
+        customIntervalDays: 10,
+      );
       expect(bill.customIntervalDays, 10);
     });
 
@@ -71,28 +76,40 @@ void main() {
   group('BillRepository.editBill', () {
     test('rejects a non-positive amount', () async {
       final bill = await seedBill();
-      await expectLater(repository.editBill(bill, amount: -5), throwsA(isA<AppException>()));
+      await expectLater(
+        repository.editBill(bill, amount: -5),
+        throwsA(isA<AppException>()),
+      );
     });
 
     test('records an audit entry per changed field', () async {
       final bill = await seedBill();
       await repository.editBill(bill, name: 'Electricity Bill', amount: 150);
-      expect(bill.editHistory.map((e) => e.field), containsAll(['name', 'amount']));
-    });
-
-    test('rejects switching to custom recurrence without an interval', () async {
-      final bill = await seedBill();
-      await expectLater(
-        repository.editBill(bill, recurrence: BillRecurrence.custom),
-        throwsA(isA<AppException>()),
+      expect(
+        bill.editHistory.map((e) => e.field),
+        containsAll(['name', 'amount']),
       );
     });
 
-    test('editing nextDueDate never touches an occurrence — it is a template-only field', () async {
-      final bill = await seedBill(dueDate: DateTime(2026, 3, 10));
-      await repository.editBill(bill, nextDueDate: DateTime(2026, 3, 20));
-      expect(bill.nextDueDate, DateTime(2026, 3, 20));
-    });
+    test(
+      'rejects switching to custom recurrence without an interval',
+      () async {
+        final bill = await seedBill();
+        await expectLater(
+          repository.editBill(bill, recurrence: BillRecurrence.custom),
+          throwsA(isA<AppException>()),
+        );
+      },
+    );
+
+    test(
+      'editing nextDueDate never touches an occurrence — it is a template-only field',
+      () async {
+        final bill = await seedBill(dueDate: DateTime(2026, 3, 10));
+        await repository.editBill(bill, nextDueDate: DateTime(2026, 3, 20));
+        expect(bill.nextDueDate, DateTime(2026, 3, 20));
+      },
+    );
   });
 
   group('BillRepository.advanceNextDueDate', () {

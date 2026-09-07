@@ -51,7 +51,9 @@ void main() {
   });
 
   Future<String> seedAccount() async {
-    final account = await container.read(accountRepositoryProvider).createAccount(
+    final account = await container
+        .read(accountRepositoryProvider)
+        .createAccount(
           name: 'Wallet',
           type: AccountType.cash,
           openingBalance: 10000,
@@ -70,132 +72,168 @@ void main() {
     );
   }
 
-  test('excludes a plain expense transaction marked excludeFromCalculations', () async {
-    final accountId = await seedAccount();
-    final expenses = container.read(expenseRepositoryProvider);
-    final now = DateTime.now();
-
-    await expenses.createExpense(
-      description: 'Groceries',
-      totalAmount: 600,
-      date: now,
-      categoryId: 'food',
-      accountId: accountId,
-      splitType: SplitType.none,
-      participantInputs: const [ExpenseParticipantInput(name: 'Me')],
-    );
-    await expenses.createExpense(
-      description: 'Reimbursable',
-      totalAmount: 999,
-      date: now,
-      categoryId: 'work',
-      accountId: accountId,
-      splitType: SplitType.none,
-      participantInputs: const [ExpenseParticipantInput(name: 'Me')],
-      excludeFromCalculations: true,
-    );
-
-    await container.read(transactionsStreamProvider.future);
-    await container.read(expensesStreamProvider.future);
-
-    final result = container.read(financialViewResultProvider(payPeriodConfig()));
-    expect(result.amount, 600, reason: 'excludeFromCalculations must never contribute to Spent This Pay Period');
-  });
-
   test(
-    'a pay-period (day-granular) range ignores accountingMonth and stays on the real transaction date, '
-    'exactly like Reports does for today/week/year',
+    'excludes a plain expense transaction marked excludeFromCalculations',
     () async {
       final accountId = await seedAccount();
       final expenses = container.read(expenseRepositoryProvider);
       final now = DateTime.now();
-      final nextMonth = DateTime(now.year, now.month + 2);
 
       await expenses.createExpense(
-        description: 'Advance payment',
-        totalAmount: 900,
+        description: 'Groceries',
+        totalAmount: 600,
         date: now,
-        categoryId: 'misc',
+        categoryId: 'food',
         accountId: accountId,
         splitType: SplitType.none,
         participantInputs: const [ExpenseParticipantInput(name: 'Me')],
-        accountingMonth: nextMonth,
+      );
+      await expenses.createExpense(
+        description: 'Reimbursable',
+        totalAmount: 999,
+        date: now,
+        categoryId: 'work',
+        accountId: accountId,
+        splitType: SplitType.none,
+        participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+        excludeFromCalculations: true,
       );
 
       await container.read(transactionsStreamProvider.future);
       await container.read(expensesStreamProvider.future);
 
-      final result = container.read(financialViewResultProvider(payPeriodConfig()));
+      final result = container.read(
+        financialViewResultProvider(payPeriodConfig()),
+      );
       expect(
         result.amount,
-        900,
-        reason: 'accountingMonth only ever encodes a month, so it has no well-defined day inside a 17th→17th '
-            'salary-cycle window — the transaction must stay bucketed by its real date, not silently disappear',
+        600,
+        reason:
+            'excludeFromCalculations must never contribute to Spent This Pay Period',
       );
     },
   );
 
-  test('a split expense only counts my own share toward Spent This Pay Period, not the total', () async {
+  test('a pay-period (day-granular) range ignores accountingMonth and stays on the real transaction date, '
+      'exactly like Reports does for today/week/year', () async {
     final accountId = await seedAccount();
     final expenses = container.read(expenseRepositoryProvider);
     final now = DateTime.now();
+    final nextMonth = DateTime(now.year, now.month + 2);
 
     await expenses.createExpense(
-      description: 'Dinner with Rahul',
-      totalAmount: 1000,
+      description: 'Advance payment',
+      totalAmount: 900,
       date: now,
-      categoryId: 'food',
+      categoryId: 'misc',
       accountId: accountId,
-      splitType: SplitType.equal,
-      participantInputs: const [
-        ExpenseParticipantInput(name: 'Me', isMe: true),
-        ExpenseParticipantInput(name: 'Rahul'),
-      ],
+      splitType: SplitType.none,
+      participantInputs: const [ExpenseParticipantInput(name: 'Me')],
+      accountingMonth: nextMonth,
     );
 
     await container.read(transactionsStreamProvider.future);
     await container.read(expensesStreamProvider.future);
 
-    final myExpensesResult = container.read(
-      financialViewResultProvider(
-        payPeriodConfig().copyWith(financialViewModule: FinancialViewModule.myExpenses),
-      ),
+    final result = container.read(
+      financialViewResultProvider(payPeriodConfig()),
     );
-    expect(myExpensesResult.amount, 500, reason: 'only my own share of a split expense is money I spent');
-
-    final sharedResult = container.read(
-      financialViewResultProvider(
-        payPeriodConfig().copyWith(financialViewModule: FinancialViewModule.sharedExpenses),
-      ),
+    expect(
+      result.amount,
+      900,
+      reason:
+          'accountingMonth only ever encodes a month, so it has no well-defined day inside a 17th→17th '
+          'salary-cycle window — the transaction must stay bucketed by its real date, not silently disappear',
     );
-    expect(sharedResult.amount, 500, reason: "the other participant's share is money owed, not money I spent");
   });
 
-  test('an excluded split expense contributes neither my share nor the shared share', () async {
-    final accountId = await seedAccount();
-    final expenses = container.read(expenseRepositoryProvider);
-    final now = DateTime.now();
+  test(
+    'a split expense only counts my own share toward Spent This Pay Period, not the total',
+    () async {
+      final accountId = await seedAccount();
+      final expenses = container.read(expenseRepositoryProvider);
+      final now = DateTime.now();
 
-    await expenses.createExpense(
-      description: 'Reimbursed trip',
-      totalAmount: 2000,
-      date: now,
-      categoryId: 'travel',
-      accountId: accountId,
-      splitType: SplitType.equal,
-      excludeFromCalculations: true,
-      participantInputs: const [
-        ExpenseParticipantInput(name: 'Me', isMe: true),
-        ExpenseParticipantInput(name: 'Priya'),
-      ],
-    );
+      await expenses.createExpense(
+        description: 'Dinner with Rahul',
+        totalAmount: 1000,
+        date: now,
+        categoryId: 'food',
+        accountId: accountId,
+        splitType: SplitType.equal,
+        participantInputs: const [
+          ExpenseParticipantInput(name: 'Me', isMe: true),
+          ExpenseParticipantInput(name: 'Rahul'),
+        ],
+      );
 
-    await container.read(transactionsStreamProvider.future);
-    await container.read(expensesStreamProvider.future);
+      await container.read(transactionsStreamProvider.future);
+      await container.read(expensesStreamProvider.future);
 
-    final result = container.read(financialViewResultProvider(payPeriodConfig()));
-    expect(result.amount, 0, reason: 'excludeFromCalculations must zero out both my share and the shared share');
-  });
+      final myExpensesResult = container.read(
+        financialViewResultProvider(
+          payPeriodConfig().copyWith(
+            financialViewModule: FinancialViewModule.myExpenses,
+          ),
+        ),
+      );
+      expect(
+        myExpensesResult.amount,
+        500,
+        reason: 'only my own share of a split expense is money I spent',
+      );
+
+      final sharedResult = container.read(
+        financialViewResultProvider(
+          payPeriodConfig().copyWith(
+            financialViewModule: FinancialViewModule.sharedExpenses,
+          ),
+        ),
+      );
+      expect(
+        sharedResult.amount,
+        500,
+        reason:
+            "the other participant's share is money owed, not money I spent",
+      );
+    },
+  );
+
+  test(
+    'an excluded split expense contributes neither my share nor the shared share',
+    () async {
+      final accountId = await seedAccount();
+      final expenses = container.read(expenseRepositoryProvider);
+      final now = DateTime.now();
+
+      await expenses.createExpense(
+        description: 'Reimbursed trip',
+        totalAmount: 2000,
+        date: now,
+        categoryId: 'travel',
+        accountId: accountId,
+        splitType: SplitType.equal,
+        excludeFromCalculations: true,
+        participantInputs: const [
+          ExpenseParticipantInput(name: 'Me', isMe: true),
+          ExpenseParticipantInput(name: 'Priya'),
+        ],
+      );
+
+      await container.read(transactionsStreamProvider.future);
+      await container.read(expensesStreamProvider.future);
+
+      final result = container.read(
+        financialViewResultProvider(payPeriodConfig()),
+      );
+      expect(
+        result.amount,
+        0,
+        reason:
+            'excludeFromCalculations must zero out both my share and the shared share',
+      );
+    },
+  );
 
   test(
     'a "This Month" financial view widget (month-granular) DOES follow accountingMonth, unlike the pay-period one',
@@ -227,11 +265,14 @@ void main() {
         financialViewModule: FinancialViewModule.combinedExpenses,
       );
 
-      final result = container.read(financialViewResultProvider(thisMonthConfig));
+      final result = container.read(
+        financialViewResultProvider(thisMonthConfig),
+      );
       expect(
         result.amount,
         0,
-        reason: 'a calendar-month-granular widget must respect accountingMonth and move the expense out, '
+        reason:
+            'a calendar-month-granular widget must respect accountingMonth and move the expense out, '
             'exactly like Reports "This Month" does',
       );
     },

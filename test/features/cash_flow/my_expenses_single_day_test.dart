@@ -33,40 +33,58 @@ void main() {
     await container.read(authStateProvider.future);
   });
 
-  test('single-date pick shows a food expense entered that same day at 1:30pm', () async {
-    final accounts = container.read(accountRepositoryProvider);
-    final accountId = (await accounts.createAccount(
-      name: 'Wallet',
-      type: AccountType.cash,
-      openingBalance: 10000,
-      colorValue: 0xFF000000,
-    )).id;
+  test(
+    'single-date pick shows a food expense entered that same day at 1:30pm',
+    () async {
+      final accounts = container.read(accountRepositoryProvider);
+      final accountId = (await accounts.createAccount(
+        name: 'Wallet',
+        type: AccountType.cash,
+        openingBalance: 10000,
+        colorValue: 0xFF000000,
+      )).id;
 
-    final transactions = container.read(transactionRepositoryProvider);
-    await transactions.createTransaction(
-      type: TransactionType.expense,
-      amount: 500,
-      dateTime: DateTime(2026, 9, 5, 13, 30),
-      accountId: accountId,
-      categoryId: 'food',
-      description: 'Lunch',
-    );
-    await container.read(transactionsStreamProvider.future);
+      final transactions = container.read(transactionRepositoryProvider);
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 9, 5, 13, 30),
+        accountId: accountId,
+        categoryId: 'food',
+        description: 'Lunch',
+      );
+      await container.read(transactionsStreamProvider.future);
 
-    // Exactly what CashFlowPeriodSelector does for a single-day pick.
-    final pickedStart = DateTime(2026, 9, 5); // midnight
-    final pickedEnd = DateTime(2026, 9, 5); // midnight (same day picked twice)
-    final end = DateTime(pickedEnd.year, pickedEnd.month, pickedEnd.day, 23, 59, 59, 999);
-    container.read(cashFlowDateRangeProvider.notifier).state = CashFlowPeriod.custom(
-      DateRange(pickedStart, end),
-    );
+      // Exactly what CashFlowPeriodSelector does for a single-day pick.
+      final pickedStart = DateTime(2026, 9, 5); // midnight
+      final pickedEnd = DateTime(
+        2026,
+        9,
+        5,
+      ); // midnight (same day picked twice)
+      final end = DateTime(
+        pickedEnd.year,
+        pickedEnd.month,
+        pickedEnd.day,
+        23,
+        59,
+        59,
+        999,
+      );
+      container.read(cashFlowDateRangeProvider.notifier).state =
+          CashFlowPeriod.custom(DateRange(pickedStart, end));
 
-    final lines = container.read(myExpenseLinesForRangeProvider);
-    final total = container.read(myExpensesForRangeProvider).total;
-    final categories = container.read(myExpensesByCategoryProvider);
+      final lines = container.read(myExpenseLinesForRangeProvider);
+      final total = container.read(myExpensesForRangeProvider).total;
+      final categories = container.read(myExpensesByCategoryProvider);
 
-    expect(lines.length, 1, reason: 'the lunch transaction should be in range');
-    expect(total, 500);
-    expect(categories.any((c) => c.categoryId == 'food'), isTrue);
-  });
+      expect(
+        lines.length,
+        1,
+        reason: 'the lunch transaction should be in range',
+      );
+      expect(total, 500);
+      expect(categories.any((c) => c.categoryId == 'food'), isTrue);
+    },
+  );
 }

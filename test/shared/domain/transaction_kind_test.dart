@@ -14,7 +14,11 @@ void main() {
 
   test('every TransactionKind label is unique', () {
     final labels = TransactionKind.values.map((k) => k.label).toSet();
-    expect(labels.length, TransactionKind.values.length, reason: 'two kinds share a label');
+    expect(
+      labels.length,
+      TransactionKind.values.length,
+      reason: 'two kinds share a label',
+    );
   });
 
   test('every TransactionKind has an icon', () {
@@ -32,14 +36,21 @@ void main() {
   test('every TransactionKind has a unique, non-negative priority', () {
     final priorities = TransactionKind.values.map((k) => k.priority).toList();
     expect(priorities.every((p) => p >= 0), isTrue);
-    expect(priorities.toSet().length, priorities.length, reason: 'two kinds share a priority');
+    expect(
+      priorities.toSet().length,
+      priorities.length,
+      reason: 'two kinds share a priority',
+    );
   });
 
-  test('analyticsKey matches the enum name, independent of the display label', () {
-    for (final kind in TransactionKind.values) {
-      expect(kind.analyticsKey, kind.name);
-    }
-  });
+  test(
+    'analyticsKey matches the enum name, independent of the display label',
+    () {
+      for (final kind in TransactionKind.values) {
+        expect(kind.analyticsKey, kind.name);
+      }
+    },
+  );
 
   group('specific labels match the requested taxonomy', () {
     final expected = {

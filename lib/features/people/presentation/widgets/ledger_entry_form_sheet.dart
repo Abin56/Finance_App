@@ -27,7 +27,8 @@ class LedgerEntryFormSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<LedgerEntryFormSheet> createState() => _LedgerEntryFormSheetState();
+  ConsumerState<LedgerEntryFormSheet> createState() =>
+      _LedgerEntryFormSheetState();
 }
 
 class _LedgerEntryFormSheetState extends ConsumerState<LedgerEntryFormSheet> {
@@ -75,9 +76,9 @@ class _LedgerEntryFormSheetState extends ConsumerState<LedgerEntryFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not add entry: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not add entry: $e')));
       }
     }
   }
@@ -94,67 +95,79 @@ class _LedgerEntryFormSheetState extends ConsumerState<LedgerEntryFormSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              DropdownButtonFormField<LedgerEntryType>(
-                initialValue: _type,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Type'),
-                selectedItemBuilder: (context) => [
-                  for (final type in LedgerEntryType.values)
-                    Align(alignment: Alignment.centerLeft, child: Text(type.label)),
-                ],
-                items: [
-                  for (final type in LedgerEntryType.values)
-                    DropdownMenuItem(
-                      value: type,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(type.label),
-                            Text(
-                              type.description,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
+            DropdownButtonFormField<LedgerEntryType>(
+              initialValue: _type,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Type'),
+              selectedItemBuilder: (context) => [
+                for (final type in LedgerEntryType.values)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(type.label),
+                  ),
+              ],
+              items: [
+                for (final type in LedgerEntryType.values)
+                  DropdownMenuItem(
+                    value: type,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSizes.xs,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(type.label),
+                          Text(
+                            type.description,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
-                onChanged: (value) => setState(() => _type = value!),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _type = value!),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _amountController,
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                helperText: _type.isSignedByUser
+                    ? 'A plus (+) adds to what they owe you, a minus (-) reduces it'
+                    : null,
               ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _amountController,
-                decoration: InputDecoration(
-                  labelText: 'Amount',
-                  helperText: _type.isSignedByUser
-                      ? 'A plus (+) adds to what they owe you, a minus (-) reduces it'
-                      : null,
-                ),
-                keyboardType: TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: _type.isSignedByUser,
-                ),
-                validator: _type.isSignedByUser ? Validators.signedAmount : Validators.amount,
+              keyboardType: TextInputType.numberWithOptions(
+                decimal: true,
+                signed: _type.isSignedByUser,
               ),
-              const SizedBox(height: AppSizes.md),
-              OutlinedButton.icon(
-                onPressed: _pickDate,
-                icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
-                label: Text(_date.fullDate),
+              validator: _type.isSignedByUser
+                  ? Validators.signedAmount
+                  : Validators.amount,
+            ),
+            const SizedBox(height: AppSizes.md),
+            OutlinedButton.icon(
+              onPressed: _pickDate,
+              icon: const Icon(
+                Icons.calendar_today_outlined,
+                size: AppSizes.iconSm,
               ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-                maxLines: 2,
-                textInputAction: TextInputAction.done,
-              ),
+              label: Text(_date.fullDate),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
           ],
         ),
       ),

@@ -42,23 +42,34 @@ class AccountFormSheet extends ConsumerStatefulWidget {
 
 class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final _nameController = TextEditingController(text: widget.account?.name);
-  late final _openingBalanceController = TextEditingController(
-    text: widget.account == null ? '0' : widget.account!.openingBalance.toStringAsFixed(2),
+  late final _nameController = TextEditingController(
+    text: widget.account?.name,
   );
-  late final _accountHolderNameController = TextEditingController(text: widget.account?.accountHolderName);
-  late final _notesController = TextEditingController(text: widget.account?.notes);
-  late final _accountNumberLast4Controller = TextEditingController(text: widget.account?.accountNumberLast4)
-    ..addListener(() => setState(() {}));
+  late final _openingBalanceController = TextEditingController(
+    text: widget.account == null
+        ? '0'
+        : widget.account!.openingBalance.toStringAsFixed(2),
+  );
+  late final _accountHolderNameController = TextEditingController(
+    text: widget.account?.accountHolderName,
+  );
+  late final _notesController = TextEditingController(
+    text: widget.account?.notes,
+  );
+  late final _accountNumberLast4Controller = TextEditingController(
+    text: widget.account?.accountNumberLast4,
+  )..addListener(() => setState(() {}));
   final _openingBalanceFocusNode = FocusNode();
   late AccountType _type = widget.account?.type ?? AccountType.cash;
-  late int _colorValue = widget.account?.colorValue ?? AppColors.categoryPalette.first.toARGB32();
+  late int _colorValue =
+      widget.account?.colorValue ?? AppColors.categoryPalette.first.toARGB32();
 
   /// The bank picked for this account — resolved from the account's own
   /// [Account.bankId] if set, otherwise from a name match against the
   /// registry (the non-destructive fallback for pre-existing accounts).
   late String? _bankId =
-      widget.account?.bankId ?? BankRegistry.matchByName(widget.account?.name ?? '')?.id;
+      widget.account?.bankId ??
+      BankRegistry.matchByName(widget.account?.name ?? '')?.id;
 
   /// Tracks the color that was last applied automatically by picking a
   /// bank, so a later bank change only overwrites the swatch if the user
@@ -74,12 +85,13 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
   /// redundant label. Cash/wallet/business/other accounts have no bank to
   /// compute from, so they keep the manual name field.
   bool get _isBankLinked =>
-      (_type == AccountType.bank || _type == AccountType.card) && BankRegistry.byId(_bankId) != null;
+      (_type == AccountType.bank || _type == AccountType.card) &&
+      BankRegistry.byId(_bankId) != null;
 
   String get _computedName => bankAccountDisplayName(
-        bank: BankRegistry.byId(_bankId)!,
-        last4: _accountNumberLast4Controller.text.trim(),
-      );
+    bank: BankRegistry.byId(_bankId)!,
+    last4: _accountNumberLast4Controller.text.trim(),
+  );
 
   @override
   void dispose() {
@@ -98,7 +110,8 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
     final resolvedId = picked == BankRegistry.generic.id ? null : picked;
     setState(() {
       final bank = BankRegistry.byId(resolvedId);
-      if (bank != null && (_colorAppliedByBank == null || _colorValue == _colorAppliedByBank)) {
+      if (bank != null &&
+          (_colorAppliedByBank == null || _colorValue == _colorAppliedByBank)) {
         _colorValue = bank.primaryColor.toARGB32();
         _colorAppliedByBank = _colorValue;
       }
@@ -124,11 +137,15 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
           colorValue: _colorValue,
           bankId: _bankId,
           clearBankId: _bankId == null,
-          accountHolderName: accountHolderName.isEmpty ? null : accountHolderName,
+          accountHolderName: accountHolderName.isEmpty
+              ? null
+              : accountHolderName,
           clearAccountHolderName: accountHolderName.isEmpty,
           notes: notes.isEmpty ? null : notes,
           clearNotes: notes.isEmpty,
-          accountNumberLast4: accountNumberLast4.isEmpty ? null : accountNumberLast4,
+          accountNumberLast4: accountNumberLast4.isEmpty
+              ? null
+              : accountNumberLast4,
           clearAccountNumberLast4: accountNumberLast4.isEmpty,
         );
       } else {
@@ -138,18 +155,22 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
           openingBalance: double.parse(_openingBalanceController.text.trim()),
           colorValue: _colorValue,
           bankId: _bankId,
-          accountHolderName: accountHolderName.isEmpty ? null : accountHolderName,
+          accountHolderName: accountHolderName.isEmpty
+              ? null
+              : accountHolderName,
           notes: notes.isEmpty ? null : notes,
-          accountNumberLast4: accountNumberLast4.isEmpty ? null : accountNumberLast4,
+          accountNumberLast4: accountNumberLast4.isEmpty
+              ? null
+              : accountNumberLast4,
         );
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save account: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save account: $e')));
       }
     }
   }
@@ -160,7 +181,9 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
       key: _formKey,
       child: SectionedFormSheet(
         title: _isEditing ? 'Edit Account' : 'Add an Account',
-        description: _isEditing ? null : 'A few details to start tracking balances and transactions.',
+        description: _isEditing
+            ? null
+            : 'A few details to start tracking balances and transactions.',
         accentColor: Color(_colorValue),
         confirmLabel: _isEditing ? 'Save Changes' : 'Add Account',
         isSaving: _isSaving,
@@ -185,22 +208,37 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                 onTap: _pickBank,
                 child: Row(
                   children: [
-                    BankLogo(bankId: _bankId, fallbackName: _nameController.text, size: 28),
+                    BankLogo(
+                      bankId: _bankId,
+                      fallbackName: _nameController.text,
+                      size: 28,
+                    ),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
                       child: Text(
-                        BankRegistry.byId(_bankId)?.name ?? 'Select bank (optional)',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        BankRegistry.byId(_bankId)?.name ??
+                            'Select bank (optional)',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
                   ],
                 ),
               ),
               if (_isBankLinked)
                 Padding(
-                  padding: const EdgeInsets.only(top: AppSizes.xs, left: AppSizes.sm),
+                  padding: const EdgeInsets.only(
+                    top: AppSizes.xs,
+                    left: AppSizes.sm,
+                  ),
                   child: Text(
                     'Shown as "$_computedName"',
                     style: Theme.of(context).textTheme.bodySmall,
@@ -215,7 +253,8 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                 style: Theme.of(context).textTheme.bodyMedium,
                 validator: Validators.required,
                 textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) => _openingBalanceFocusNode.requestFocus(),
+                onFieldSubmitted: (_) =>
+                    _openingBalanceFocusNode.requestFocus(),
               ),
             ],
             const SizedBox(height: AppSizes.sm),
@@ -226,10 +265,14 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
               decoration: _premiumDecoration(
                 context,
                 label: 'Starting amount',
-                helperText: _isEditing ? 'Starting amount can\'t be changed later' : null,
+                helperText: _isEditing
+                    ? 'Starting amount can\'t be changed later'
+                    : null,
               ),
               style: Theme.of(context).textTheme.bodyMedium,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: Validators.amount,
               textInputAction: TextInputAction.done,
             ),
@@ -243,13 +286,16 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
                 Expanded(
                   child: ColorSwatchPicker(
                     value: Color(_colorValue),
-                    onChanged: (color) => setState(() => _colorValue = color.toARGB32()),
+                    onChanged: (color) =>
+                        setState(() => _colorValue = color.toARGB32()),
                   ),
                 ),
                 if (BankRegistry.byId(_bankId) != null)
                   TextButton(
                     onPressed: () => setState(() {
-                      final color = BankRegistry.byId(_bankId)!.primaryColor.toARGB32();
+                      final color = BankRegistry.byId(
+                        _bankId,
+                      )!.primaryColor.toARGB32();
                       _colorValue = color;
                       _colorAppliedByBank = color;
                     }),
@@ -260,12 +306,17 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
 
             const SizedBox(height: AppSizes.md),
             SectionLabel(
-              _type == AccountType.bank || _type == AccountType.card ? 'Additional Info' : 'Additional Info (optional)',
+              _type == AccountType.bank || _type == AccountType.card
+                  ? 'Additional Info'
+                  : 'Additional Info (optional)',
             ),
             const SizedBox(height: AppSizes.sm),
             TextFormField(
               controller: _accountHolderNameController,
-              decoration: _premiumDecoration(context, label: 'Account holder name'),
+              decoration: _premiumDecoration(
+                context,
+                label: 'Account holder name',
+              ),
               style: Theme.of(context).textTheme.bodyMedium,
               textCapitalization: TextCapitalization.words,
             ),
@@ -282,7 +333,9 @@ class _AccountFormSheetState extends ConsumerState<AccountFormSheet> {
               style: Theme.of(context).textTheme.bodyMedium,
               keyboardType: TextInputType.number,
               maxLength: 4,
-              validator: _type == AccountType.bank || _type == AccountType.card ? Validators.lastFourDigits : null,
+              validator: _type == AccountType.bank || _type == AccountType.card
+                  ? Validators.lastFourDigits
+                  : null,
             ),
             const SizedBox(height: AppSizes.sm),
             TextFormField(
@@ -313,11 +366,20 @@ InputDecoration _premiumDecoration(
     helperText: helperText,
     prefixText: prefixText,
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSizes.sm,
+      vertical: AppSizes.sm,
+    ),
     filled: true,
     fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       borderSide: BorderSide(color: colors.primary, width: 1.6),
@@ -352,7 +414,10 @@ class _PremiumTapRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.sm,
+            vertical: AppSizes.sm,
+          ),
           child: child,
         ),
       ),

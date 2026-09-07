@@ -1,5 +1,6 @@
 import '../../../smart_import/domain/detected_transaction.dart';
-import '../../../smart_import/presentation/providers/smart_import_state.dart' show ImportSummary;
+import '../../../smart_import/presentation/providers/smart_import_state.dart'
+    show ImportSummary;
 
 enum PasteImportStage { pastingText, processing, reviewing, importing, done }
 
@@ -37,8 +38,9 @@ class PasteImportState {
       )
       .length;
 
-  int get needsReviewCount =>
-      detected.where((d) => d.reviewStatus == DetectionReviewStatus.needsReview).length;
+  int get needsReviewCount => detected
+      .where((d) => d.reviewStatus == DetectionReviewStatus.needsReview)
+      .length;
 
   PasteImportState copyWith({
     PasteImportStage? stage,
@@ -57,8 +59,12 @@ class PasteImportState {
       pastedText: pastedText ?? this.pastedText,
       detected: detected ?? this.detected,
       accountId: clearAccountId ? null : (accountId ?? this.accountId),
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
-      importProgress: clearImportProgress ? null : (importProgress ?? this.importProgress),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
+      importProgress: clearImportProgress
+          ? null
+          : (importProgress ?? this.importProgress),
       importResult: importResult ?? this.importResult,
     );
   }

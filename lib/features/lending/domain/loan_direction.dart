@@ -9,16 +9,21 @@ import '../../../core/constants/app_colors.dart';
 enum LoanDirection { given, taken }
 
 extension LoanDirectionX on LoanDirection {
-  static LoanDirection fromName(String? name) =>
-      LoanDirection.values.firstWhere((d) => d.name == name, orElse: () => LoanDirection.given);
+  static LoanDirection fromName(String? name) => LoanDirection.values
+      .firstWhere((d) => d.name == name, orElse: () => LoanDirection.given);
 
   /// Label for the direction picker on the Add Loan form.
-  String get formLabel => this == LoanDirection.given ? 'I Gave Money' : 'I Borrowed Money';
+  String get formLabel =>
+      this == LoanDirection.given ? 'I Gave Money' : 'I Borrowed Money';
 
   /// Label for the direction badge shown on loan rows/detail.
-  String get badgeLabel => this == LoanDirection.given ? 'You will receive' : 'You need to pay';
+  String get badgeLabel =>
+      this == LoanDirection.given ? 'You will receive' : 'You need to pay';
 
-  Color get color => this == LoanDirection.given ? AppColors.credit : AppColors.debit;
+  Color get color =>
+      this == LoanDirection.given ? AppColors.credit : AppColors.debit;
 
-  IconData get icon => this == LoanDirection.given ? Icons.call_made_rounded : Icons.call_received_rounded;
+  IconData get icon => this == LoanDirection.given
+      ? Icons.call_made_rounded
+      : Icons.call_received_rounded;
 }

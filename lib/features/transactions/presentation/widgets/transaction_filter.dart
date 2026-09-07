@@ -93,7 +93,8 @@ class TransactionFilter {
       startDate: clearStartDate ? null : (startDate ?? this.startDate),
       endDate: clearEndDate ? null : (endDate ?? this.endDate),
       includeExcluded: includeExcluded ?? this.includeExcluded,
-      filterByAccountingMonth: filterByAccountingMonth ?? this.filterByAccountingMonth,
+      filterByAccountingMonth:
+          filterByAccountingMonth ?? this.filterByAccountingMonth,
     );
   }
 }

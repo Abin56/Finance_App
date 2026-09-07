@@ -56,25 +56,25 @@ class OnboardingIllustration extends StatelessWidget {
           _halo(accent, size, 0.06),
           _halo(accent, size * 0.76, 0.09),
           Container(
-            width: tile,
-            height: tile,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: gradient,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(tile * 0.3),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withValues(alpha: 0.35),
-                  blurRadius: AppSizes.blurMd,
-                  offset: const Offset(0, 10),
+                width: tile,
+                height: tile,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(tile * 0.3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.35),
+                      blurRadius: AppSizes.blurMd,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Icon(icon, size: tile * 0.46, color: Colors.white),
-          )
+                child: Icon(icon, size: tile * 0.46, color: Colors.white),
+              )
               .animate()
               .scale(
                 duration: const Duration(milliseconds: 450),
@@ -89,7 +89,11 @@ class OnboardingIllustration extends StatelessWidget {
               child: _Badge(badge: badge, size: size * 0.17)
                   .animate(delay: Duration(milliseconds: 220 + index * 110))
                   .fadeIn(duration: const Duration(milliseconds: 320))
-                  .scale(begin: const Offset(0.6, 0.6), end: const Offset(1, 1), curve: Curves.easeOutBack)
+                  .scale(
+                    begin: const Offset(0.6, 0.6),
+                    end: const Offset(1, 1),
+                    curve: Curves.easeOutBack,
+                  )
                   .then()
                   // A slow, small bob keeps the artwork alive without the
                   // motion ever competing with the copy for attention.
@@ -141,7 +145,9 @@ class _Badge extends StatelessWidget {
         border: Border.all(color: context.colors.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: context.isDarkMode ? 0.4 : 0.07),
+            color: Colors.black.withValues(
+              alpha: context.isDarkMode ? 0.4 : 0.07,
+            ),
             blurRadius: AppSizes.blurSm,
             offset: const Offset(0, 4),
           ),

@@ -9,7 +9,9 @@ import '../../domain/installment.dart';
 import '../../domain/installment_payment.dart';
 import '../../domain/payment_schedule.dart';
 
-final paymentScheduleRepositoryProvider = Provider<PaymentScheduleRepository>((ref) {
+final paymentScheduleRepositoryProvider = Provider<PaymentScheduleRepository>((
+  ref,
+) {
   final firestore = ref.watch(firestoreProvider);
   final uid = ref.watch(currentUserIdProvider);
   final collection = firestore
@@ -23,101 +25,142 @@ final paymentScheduleRepositoryProvider = Provider<PaymentScheduleRepository>((r
   return PaymentScheduleRepository(collection);
 });
 
-final scheduleStreamProvider = StreamProvider.autoDispose.family<PaymentSchedule?, String>((ref, scheduleId) {
-  return ref.watch(paymentScheduleRepositoryProvider).watchOne(scheduleId);
-});
+final scheduleStreamProvider = StreamProvider.autoDispose
+    .family<PaymentSchedule?, String>((ref, scheduleId) {
+      return ref.watch(paymentScheduleRepositoryProvider).watchOne(scheduleId);
+    });
 
 /// Installment repository for a single schedule's subcollection, scoped by
 /// [scheduleId] — a fresh repository per schedule, mirrors
 /// `ledgerRepositoryProvider`.
-final installmentRepositoryProvider = Provider.autoDispose.family<InstallmentRepository, String>((ref, scheduleId) {
-  final firestore = ref.watch(firestoreProvider);
-  final uid = ref.watch(currentUserIdProvider);
-  final collection = firestore
-      .collection(FirestoreCollections.users)
-      .doc(uid)
-      .collection(FirestoreCollections.paymentSchedules)
-      .doc(scheduleId)
-      .collection(FirestoreCollections.installments)
-      .withConverter<Installment>(
-        fromFirestore: Installment.fromFirestore,
-        toFirestore: (installment, _) => installment.toFirestore(),
-      );
-  return InstallmentRepository(collection);
-});
+final installmentRepositoryProvider = Provider.autoDispose
+    .family<InstallmentRepository, String>((ref, scheduleId) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      final collection = firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.paymentSchedules)
+          .doc(scheduleId)
+          .collection(FirestoreCollections.installments)
+          .withConverter<Installment>(
+            fromFirestore: Installment.fromFirestore,
+            toFirestore: (installment, _) => installment.toFirestore(),
+          );
+      return InstallmentRepository(collection);
+    });
 
-final installmentsStreamProvider = StreamProvider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
-  return ref.watch(installmentRepositoryProvider(scheduleId)).watchAll();
-});
+final installmentsStreamProvider = StreamProvider.autoDispose
+    .family<List<Installment>, String>((ref, scheduleId) {
+      return ref.watch(installmentRepositoryProvider(scheduleId)).watchAll();
+    });
 
-final installmentsTrashStreamProvider =
-    StreamProvider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
-  return ref.watch(installmentRepositoryProvider(scheduleId)).watchTrash();
-});
+final installmentsTrashStreamProvider = StreamProvider.autoDispose
+    .family<List<Installment>, String>((ref, scheduleId) {
+      return ref.watch(installmentRepositoryProvider(scheduleId)).watchTrash();
+    });
 
 /// Payment repository for a single installment's subcollection, scoped by
 /// (scheduleId, installmentId).
 final installmentPaymentRepositoryProvider = Provider.autoDispose
-    .family<InstallmentPaymentRepository, ({String scheduleId, String installmentId})>((ref, key) {
-  final firestore = ref.watch(firestoreProvider);
-  final uid = ref.watch(currentUserIdProvider);
-  final collection = firestore
-      .collection(FirestoreCollections.users)
-      .doc(uid)
-      .collection(FirestoreCollections.paymentSchedules)
-      .doc(key.scheduleId)
-      .collection(FirestoreCollections.installments)
-      .doc(key.installmentId)
-      .collection(FirestoreCollections.payments)
-      .withConverter<InstallmentPayment>(
-        fromFirestore: InstallmentPayment.fromFirestore,
-        toFirestore: (payment, _) => payment.toFirestore(),
+    .family<
+      InstallmentPaymentRepository,
+      ({String scheduleId, String installmentId})
+    >((ref, key) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      final collection = firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.paymentSchedules)
+          .doc(key.scheduleId)
+          .collection(FirestoreCollections.installments)
+          .doc(key.installmentId)
+          .collection(FirestoreCollections.payments)
+          .withConverter<InstallmentPayment>(
+            fromFirestore: InstallmentPayment.fromFirestore,
+            toFirestore: (payment, _) => payment.toFirestore(),
+          );
+      return InstallmentPaymentRepository(
+        collection,
+        ref.watch(installmentRepositoryProvider(key.scheduleId)),
       );
-  return InstallmentPaymentRepository(collection, ref.watch(installmentRepositoryProvider(key.scheduleId)));
-});
+    });
 
 final installmentPaymentsStreamProvider = StreamProvider.autoDispose
-    .family<List<InstallmentPayment>, ({String scheduleId, String installmentId})>((ref, key) {
-  return ref.watch(installmentPaymentRepositoryProvider(key)).watchAll();
-});
+    .family<
+      List<InstallmentPayment>,
+      ({String scheduleId, String installmentId})
+    >((ref, key) {
+      return ref.watch(installmentPaymentRepositoryProvider(key)).watchAll();
+    });
 
 final installmentPaymentsTrashStreamProvider = StreamProvider.autoDispose
-    .family<List<InstallmentPayment>, ({String scheduleId, String installmentId})>((ref, key) {
-  return ref.watch(installmentPaymentRepositoryProvider(key)).watchTrash();
-});
+    .family<
+      List<InstallmentPayment>,
+      ({String scheduleId, String installmentId})
+    >((ref, key) {
+      return ref.watch(installmentPaymentRepositoryProvider(key)).watchTrash();
+    });
 
 /// This calendar week's installments for [scheduleId].
-final thisWeekInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return ref.watch(installmentRepositoryProvider(scheduleId)).thisWeek(installments);
-});
+final thisWeekInstallmentsProvider = Provider.autoDispose
+    .family<List<Installment>, String>((ref, scheduleId) {
+      final installments =
+          ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+      return ref
+          .watch(installmentRepositoryProvider(scheduleId))
+          .thisWeek(installments);
+    });
 
 /// This calendar month's installments for [scheduleId].
-final thisMonthInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return ref.watch(installmentRepositoryProvider(scheduleId)).thisMonth(installments);
-});
+final thisMonthInstallmentsProvider = Provider.autoDispose
+    .family<List<Installment>, String>((ref, scheduleId) {
+      final installments =
+          ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+      return ref
+          .watch(installmentRepositoryProvider(scheduleId))
+          .thisMonth(installments);
+    });
 
 /// Next calendar month's installments for [scheduleId].
-final nextMonthInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return ref.watch(installmentRepositoryProvider(scheduleId)).nextMonth(installments);
-});
+final nextMonthInstallmentsProvider = Provider.autoDispose
+    .family<List<Installment>, String>((ref, scheduleId) {
+      final installments =
+          ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+      return ref
+          .watch(installmentRepositoryProvider(scheduleId))
+          .nextMonth(installments);
+    });
 
 /// Installments due after next calendar month for [scheduleId].
-final futureInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return ref.watch(installmentRepositoryProvider(scheduleId)).future(installments);
-});
+final futureInstallmentsProvider = Provider.autoDispose
+    .family<List<Installment>, String>((ref, scheduleId) {
+      final installments =
+          ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+      return ref
+          .watch(installmentRepositoryProvider(scheduleId))
+          .future(installments);
+    });
 
 /// Overdue installments for [scheduleId].
-final overdueInstallmentsProvider = Provider.autoDispose.family<List<Installment>, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return ref.watch(installmentRepositoryProvider(scheduleId)).overdue(installments);
-});
+final overdueInstallmentsProvider = Provider.autoDispose
+    .family<List<Installment>, String>((ref, scheduleId) {
+      final installments =
+          ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+      return ref
+          .watch(installmentRepositoryProvider(scheduleId))
+          .overdue(installments);
+    });
 
 /// Sum of remaining amounts across [scheduleId]'s non-skipped installments.
-final remainingAmountProvider = Provider.autoDispose.family<double, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return ref.watch(installmentRepositoryProvider(scheduleId)).remainingAmount(installments);
+final remainingAmountProvider = Provider.autoDispose.family<double, String>((
+  ref,
+  scheduleId,
+) {
+  final installments =
+      ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+  return ref
+      .watch(installmentRepositoryProvider(scheduleId))
+      .remainingAmount(installments);
 });

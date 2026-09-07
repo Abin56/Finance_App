@@ -8,7 +8,12 @@ import '../../../categories/domain/category.dart';
 /// Category icon, name, total spent, and its share of overall expenses for
 /// the selected period — the summary block atop the category detail screen.
 class CategorySpendingHeader extends StatelessWidget {
-  const CategorySpendingHeader({super.key, required this.category, required this.total, required this.percentOfTotal});
+  const CategorySpendingHeader({
+    super.key,
+    required this.category,
+    required this.total,
+    required this.percentOfTotal,
+  });
 
   final Category category;
   final double total;
@@ -23,7 +28,10 @@ class CategorySpendingHeader extends StatelessWidget {
         Container(
           width: 56,
           height: 56,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            shape: BoxShape.circle,
+          ),
           child: Icon(category.icon, color: color, size: AppSizes.iconLg),
         ),
         const SizedBox(width: AppSizes.md),
@@ -35,12 +43,17 @@ class CategorySpendingHeader extends StatelessWidget {
               const SizedBox(height: AppSizes.xs),
               Text(
                 CurrencyFormatter.instance.format(total),
-                style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: color),
+                style: context.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
               const SizedBox(height: AppSizes.xs),
               Text(
                 '${(percentOfTotal * 100).toStringAsFixed(1)}% of total expenses',
-                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                ),
               ),
             ],
           ),

@@ -21,8 +21,12 @@ void main() {
       ProviderScope(
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
           peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: const MaterialApp(home: AddExpenseScreen()),
@@ -31,46 +35,63 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('"Don\'t count this in my totals" toggle starts off and can be switched on', (tester) async {
-    await pump(tester);
+  testWidgets(
+    '"Don\'t count this in my totals" toggle starts off and can be switched on',
+    (tester) async {
+      await pump(tester);
 
-    final toggle = find.widgetWithText(SwitchListTile, "Don't count this in my totals");
-    expect(toggle, findsOneWidget);
-    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+      final toggle = find.widgetWithText(
+        SwitchListTile,
+        "Don't count this in my totals",
+      );
+      expect(toggle, findsOneWidget);
+      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
 
-    await tester.ensureVisible(toggle);
-    await tester.tap(toggle);
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
 
-    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
-  });
+      expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    },
+  );
 
-  testWidgets('Accounting Month starts as "counted in the transaction\'s own month" with no stepper or warning',
-      (tester) async {
-    await pump(tester);
+  testWidgets(
+    'Accounting Month starts as "counted in the transaction\'s own month" with no stepper or warning',
+    (tester) async {
+      await pump(tester);
 
-    expect(find.textContaining('Right now: counted in'), findsOneWidget);
-    expect(find.byTooltip('Next month'), findsNothing);
-    expect(find.textContaining("won't count in"), findsNothing);
-  });
+      expect(find.textContaining('Right now: counted in'), findsOneWidget);
+      expect(find.byTooltip('Next month'), findsNothing);
+      expect(find.textContaining("won't count in"), findsNothing);
+    },
+  );
 
-  testWidgets('switching to a different Accounting Month shows the stepper and the warning banner', (tester) async {
-    await pump(tester);
+  testWidgets(
+    'switching to a different Accounting Month shows the stepper and the warning banner',
+    (tester) async {
+      await pump(tester);
 
-    final accountingMonthToggle = find.widgetWithText(SwitchListTile, 'Count this in a different month?');
-    await tester.ensureVisible(accountingMonthToggle);
-    await tester.tap(accountingMonthToggle);
-    await tester.pumpAndSettle();
+      final accountingMonthToggle = find.widgetWithText(
+        SwitchListTile,
+        'Count this in a different month?',
+      );
+      await tester.ensureVisible(accountingMonthToggle);
+      await tester.tap(accountingMonthToggle);
+      await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Next month'), findsOneWidget);
-    // Still on the same month as the transaction date (today) — no warning yet.
-    expect(find.textContaining("won't count in"), findsNothing);
+      expect(find.byTooltip('Next month'), findsOneWidget);
+      // Still on the same month as the transaction date (today) — no warning yet.
+      expect(find.textContaining("won't count in"), findsNothing);
 
-    await tester.ensureVisible(find.byTooltip('Next month'));
-    await tester.tap(find.byTooltip('Next month'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byTooltip('Next month'));
+      await tester.tap(find.byTooltip('Next month'));
+      await tester.pumpAndSettle();
 
-    expect(find.textContaining("won't count in"), findsOneWidget);
-    expect(find.textContaining('Budget, Cash Flow, Dashboard, and Reports'), findsOneWidget);
-  });
+      expect(find.textContaining("won't count in"), findsOneWidget);
+      expect(
+        find.textContaining('Budget, Cash Flow, Dashboard, and Reports'),
+        findsOneWidget,
+      );
+    },
+  );
 }

@@ -61,7 +61,12 @@ class SetupWizardScaffold extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSizes.xl, AppSizes.md, AppSizes.md, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.xl,
+                AppSizes.md,
+                AppSizes.md,
+                0,
+              ),
               child: Row(
                 children: [
                   // Expanded rather than a Spacer so an inflated counter (large
@@ -85,7 +90,10 @@ class SetupWizardScaffold extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSizes.xl, vertical: AppSizes.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.xl,
+                vertical: AppSizes.sm,
+              ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radiusPill),
                 child: TweenAnimationBuilder<double>(
@@ -95,7 +103,9 @@ class SetupWizardScaffold extends StatelessWidget {
                   builder: (context, value, _) => LinearProgressIndicator(
                     value: value,
                     minHeight: 6,
-                    backgroundColor: context.colors.onSurface.withValues(alpha: 0.08),
+                    backgroundColor: context.colors.onSurface.withValues(
+                      alpha: 0.08,
+                    ),
                   ),
                 ),
               ),
@@ -143,7 +153,12 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.xl, AppSizes.md, AppSizes.xl, AppSizes.lg),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.xl,
+        AppSizes.md,
+        AppSizes.xl,
+        AppSizes.lg,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -156,7 +171,10 @@ class _ActionBar extends StatelessWidget {
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(primaryLabel, overflow: TextOverflow.ellipsis),
             ),
@@ -173,22 +191,26 @@ class _ActionBar extends StatelessWidget {
                       child: Text(
                         secondaryLabel!,
                         style: context.textTheme.labelLarge?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.6),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                     )
                   : footerCaption != null
-                      ? Center(
-                          key: ValueKey(footerCaption),
-                          child: Text(
-                            footerCaption!,
-                            textAlign: TextAlign.center,
-                            style: context.textTheme.labelMedium?.copyWith(
-                              color: context.colors.onSurface.withValues(alpha: 0.5),
-                            ),
+                  ? Center(
+                      key: ValueKey(footerCaption),
+                      child: Text(
+                        footerCaption!,
+                        textAlign: TextAlign.center,
+                        style: context.textTheme.labelMedium?.copyWith(
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.5,
                           ),
-                        )
-                      : const SizedBox.shrink(),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
             ),
           ),
         ],

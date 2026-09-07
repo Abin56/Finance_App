@@ -80,7 +80,8 @@ abstract class MerchantPreferenceResolver {
       final seenAt = lastSeenAt[entry.key]!;
       final beatsOnCount = entry.value > bestCount;
       final tiesOnCountButNewer =
-          entry.value == bestCount && (bestTime == null || seenAt.isAfter(bestTime));
+          entry.value == bestCount &&
+          (bestTime == null || seenAt.isAfter(bestTime));
       if (beatsOnCount || tiesOnCountButNewer) {
         winner = entry.key;
         bestCount = entry.value;

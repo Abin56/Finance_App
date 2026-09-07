@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/lists/flowfi_list_tile.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
 import '../../../../shared/widgets/states/transaction_flag_badge.dart';
 import '../../../../shared/widgets/states/transaction_kind_badge.dart';
@@ -30,88 +33,105 @@ class HistoryTile extends StatelessWidget {
     final sign = entry.isCredit ? '+' : '-';
     final splitDetail = entry.splitExpenseDetail;
 
-    return ClayCard(
+    return FlowFiCard(
+      padding: EdgeInsets.zero,
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              ClayIconChip(icon: entry.icon, color: color, size: 34, iconSize: AppSizes.iconSm),
-              const SizedBox(width: AppSizes.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.title,
-                      style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    TransactionKindBadge(kind: entry.kind, compact: true),
-                    if (splitDetail == null)
-                      Text(
-                        entry.subtitle.isNotEmpty ? '${entry.category.label} · ${entry.subtitle}' : entry.category.label,
-                        style: context.textTheme.bodyMedium?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.6),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    if (entry.excludeFromCalculations || entry.accountingMonth != null) ...[
-                      const SizedBox(height: 2),
-                      TransactionFlagBadge(
-                        excludeFromCalculations: entry.excludeFromCalculations,
-                        date: entry.date,
-                        accountingMonth: entry.accountingMonth,
-                        compact: true,
-                      ),
-                    ],
-                  ],
-                ),
+          FlowFiListTile(
+            leading: FlowFiIconChip(icon: entry.icon, color: color),
+            title: Text(
+              entry.title,
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              Text(
-                '$sign${CurrencyFormatter.instance.format(entry.amount)}',
-                style: context.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700, color: color),
-              ),
-            ],
-          ),
-          if (splitDetail != null) ...[
-            const SizedBox(height: AppSizes.sm),
-            Wrap(
-              spacing: AppSizes.xs,
-              runSpacing: AppSizes.xs,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _Chip(
-                  icon: Icons.call_split_rounded,
-                  label: 'Total ${CurrencyFormatter.instance.format(entry.amount)}',
-                  color: context.colors.primary,
-                ),
-                _Chip(
-                  icon: Icons.person_rounded,
-                  label: splitDetail.shares
-                      .map((s) => '${s.name} ${CurrencyFormatter.instance.format(s.share)}')
-                      .join(' · '),
-                  color: context.colors.onSurface.withValues(alpha: 0.7),
-                ),
-                if (splitDetail.collected > 0)
-                  _Chip(
-                    icon: Icons.check_circle_outline_rounded,
-                    label: '${CurrencyFormatter.instance.format(splitDetail.collected)} collected',
-                    color: AppColors.success,
+                const SizedBox(height: 2),
+                TransactionKindBadge(kind: entry.kind, compact: true),
+                if (splitDetail == null)
+                  Text(
+                    entry.subtitle.isNotEmpty
+                        ? '${entry.category.label} · ${entry.subtitle}'
+                        : entry.category.label,
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      color: context.flowfi.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                if (splitDetail.amountToCollect > 0)
-                  _Chip(
-                    icon: Icons.hourglass_top_rounded,
-                    label: '${CurrencyFormatter.instance.format(splitDetail.amountToCollect)} to collect',
-                    color: AppColors.pending,
+                if (entry.excludeFromCalculations ||
+                    entry.accountingMonth != null) ...[
+                  const SizedBox(height: 2),
+                  TransactionFlagBadge(
+                    excludeFromCalculations: entry.excludeFromCalculations,
+                    date: entry.date,
+                    accountingMonth: entry.accountingMonth,
+                    compact: true,
                   ),
-                MoneyDirectionBadge(direction: _directionFor(splitDetail.status), compact: true),
+                ],
               ],
             ),
-          ],
+            trailing: FlowFiAmountText(
+              '$sign${CurrencyFormatter.instance.format(entry.amount)}',
+              size: AmountSize.body,
+              color: color,
+            ),
+          ),
+          if (splitDetail != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.md,
+                0,
+                AppSizes.md,
+                AppSizes.sm,
+              ),
+              child: Wrap(
+                spacing: AppSizes.xs,
+                runSpacing: AppSizes.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _Chip(
+                    icon: Icons.call_split_rounded,
+                    label:
+                        'Total ${CurrencyFormatter.instance.format(entry.amount)}',
+                    color: AppColors.secondary,
+                  ),
+                  _Chip(
+                    icon: Icons.person_rounded,
+                    label: splitDetail.shares
+                        .map(
+                          (s) =>
+                              '${s.name} ${CurrencyFormatter.instance.format(s.share)}',
+                        )
+                        .join(' · '),
+                    color: context.flowfi.textTertiary,
+                  ),
+                  if (splitDetail.collected > 0)
+                    _Chip(
+                      icon: Icons.check_circle_outline_rounded,
+                      label:
+                          '${CurrencyFormatter.instance.format(splitDetail.collected)} collected',
+                      color: AppColors.success,
+                    ),
+                  if (splitDetail.amountToCollect > 0)
+                    _Chip(
+                      icon: Icons.hourglass_top_rounded,
+                      label:
+                          '${CurrencyFormatter.instance.format(splitDetail.amountToCollect)} to collect',
+                      color: AppColors.pending,
+                    ),
+                  MoneyDirectionBadge(
+                    direction: _directionFor(splitDetail.status),
+                    compact: true,
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -158,7 +178,13 @@ class _Chip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(label, style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: context.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

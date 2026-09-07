@@ -98,7 +98,9 @@ final loanDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
 /// shared `CycleEngine` (`billOccurrenceCycleViewProvider`). Fans out
 /// per-bill, same as [emiDueThisMonthBreakdownProvider]/
 /// [loanDueThisMonthBreakdownProvider] fan out per-owner.
-final billsDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
+final billsDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((
+  ref,
+) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   final now = DateTime.now();
   var due = 0.0, paid = 0.0;
@@ -106,7 +108,9 @@ final billsDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) 
     final view = ref.watch(billOccurrenceCycleViewProvider(bill.id));
     final carriedOver = view.previousCyclePending;
     final current = view.current;
-    final thisMonth = current != null && current.dueDate.isSameMonth(now) ? [current] : const [];
+    final thisMonth = current != null && current.dueDate.isSameMonth(now)
+        ? [current]
+        : const [];
     for (final o in {...carriedOver, ...thisMonth}) {
       if (o.status == BillStatus.skipped) continue;
       due += o.amount;
@@ -120,7 +124,9 @@ final billsDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) 
 /// already-paid statements, plus any still-unpaid statement carried forward
 /// from a prior cycle per the shared `CycleEngine`
 /// (`statementCycleViewProvider`).
-final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) {
+final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((
+  ref,
+) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   final now = DateTime.now();
   var due = 0.0, paid = 0.0;
@@ -128,7 +134,9 @@ final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((
     final view = ref.watch(statementCycleViewProvider(card.id));
     final carriedOver = view.previousCyclePending;
     final current = view.current;
-    final thisMonth = current != null && current.dueDate.isSameMonth(now) ? [current] : const [];
+    final thisMonth = current != null && current.dueDate.isSameMonth(now)
+        ? [current]
+        : const [];
     for (final s in {...carriedOver, ...thisMonth}) {
       if (s.status == StatementStatus.paid) continue;
       due += s.totalAmount;
@@ -142,7 +150,8 @@ final creditCardDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((
 /// as an explicit provider (always zero) so the widget's row list is
 /// stable and the row can simply be hidden when zero, per the Cash Flow
 /// Center plan's clarified UX decision, rather than being omitted here.
-final otherScheduledDueThisMonthBreakdownProvider = Provider<DueCategoryBreakdown>((ref) => _zeroBreakdown);
+final otherScheduledDueThisMonthBreakdownProvider =
+    Provider<DueCategoryBreakdown>((ref) => _zeroBreakdown);
 
 /// Overall roll-up for Section 1's headline Total Due/Paid/Remaining.
 final totalDueThisMonthProvider = Provider<DueCategoryBreakdown>((ref) {
@@ -164,10 +173,12 @@ const _zeroReceivable = (amount: 0.0, count: 0);
 /// participants linked to a [Person] already post a ledger entry counted
 /// under [peoplePendingReceivableProvider], so they're excluded here to
 /// avoid double-counting the same receivable in both rows.
-final splitExpensesReceivableProvider = Provider<ReceivableCategoryBreakdown>((ref) {
-  final pending = ref.watch(pendingSplitExpensesProvider).where(
-        (e) => e.participants.any((p) => !p.isMe && p.personId == null),
-      );
+final splitExpensesReceivableProvider = Provider<ReceivableCategoryBreakdown>((
+  ref,
+) {
+  final pending = ref
+      .watch(pendingSplitExpensesProvider)
+      .where((e) => e.participants.any((p) => !p.isMe && p.personId == null));
   final amount = ref.watch(untrackedPendingSplitAmountProvider);
   return (amount: amount, count: pending.length);
 });
@@ -175,10 +186,13 @@ final splitExpensesReceivableProvider = Provider<ReceivableCategoryBreakdown>((r
 /// No distinct "Assigned Expenses" concept exists beyond a single-
 /// participant split today — kept as an explicit zero provider, hidden by
 /// the widget when zero.
-final assignedExpensesReceivableProvider = Provider<ReceivableCategoryBreakdown>((ref) => _zeroReceivable);
+final assignedExpensesReceivableProvider =
+    Provider<ReceivableCategoryBreakdown>((ref) => _zeroReceivable);
 
 /// Money owed to me by tracked people (People/Ledger feature).
-final peoplePendingReceivableProvider = Provider<ReceivableCategoryBreakdown>((ref) {
+final peoplePendingReceivableProvider = Provider<ReceivableCategoryBreakdown>((
+  ref,
+) {
   final creditors = ref.watch(creditorsProvider);
   return (amount: ref.watch(totalReceivableProvider), count: creditors.length);
 });
@@ -186,14 +200,18 @@ final peoplePendingReceivableProvider = Provider<ReceivableCategoryBreakdown>((r
 /// Loans I've given to others, still outstanding (Lending feature) —
 /// independent of the People ledger (Loan has no link to LedgerRepository),
 /// so this never double-counts against [peoplePendingReceivableProvider].
-final loanRecoveriesReceivableProvider = Provider<ReceivableCategoryBreakdown>((ref) {
+final loanRecoveriesReceivableProvider = Provider<ReceivableCategoryBreakdown>((
+  ref,
+) {
   final loans = ref.watch(activeLoansProvider);
   return (amount: ref.watch(totalAmountToReceiveProvider), count: loans.length);
 });
 
 /// No "Other Receivables" data source exists today — hidden by the widget
 /// when zero, same rationale as [assignedExpensesReceivableProvider].
-final otherReceivablesProvider = Provider<ReceivableCategoryBreakdown>((ref) => _zeroReceivable);
+final otherReceivablesProvider = Provider<ReceivableCategoryBreakdown>(
+  (ref) => _zeroReceivable,
+);
 
 /// Overall roll-up for Section 2's headline Total.
 final totalMoneyToReceiveProvider = Provider<double>((ref) {
@@ -213,26 +231,30 @@ typedef CardStatementSummary = ({
 
 /// Every active card's current (or most recent) statement plus its running
 /// standing — Section 3's data source.
-final activeCardStatementSummariesProvider = Provider<List<CardStatementSummary>>((ref) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final result = <CardStatementSummary>[];
-  for (final card in cards.where((c) => c.status.isActive)) {
-    var latest = ref.watch(currentStatementCycleProvider(card.id));
-    if (latest == null) {
-      final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
-      if (statements.isNotEmpty) {
-        final sorted = [...statements]..sort((a, b) => b.dueDate.compareTo(a.dueDate));
-        latest = sorted.first;
+final activeCardStatementSummariesProvider =
+    Provider<List<CardStatementSummary>>((ref) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final result = <CardStatementSummary>[];
+      for (final card in cards.where((c) => c.status.isActive)) {
+        var latest = ref.watch(currentStatementCycleProvider(card.id));
+        if (latest == null) {
+          final statements = ref.watch(
+            statementsWithLiveTotalsProvider(card.id),
+          );
+          if (statements.isNotEmpty) {
+            final sorted = [...statements]
+              ..sort((a, b) => b.dueDate.compareTo(a.dueDate));
+            latest = sorted.first;
+          }
+        }
+        result.add((
+          card: card,
+          latestStatement: latest,
+          standing: ref.watch(creditCardStandingProvider(card.id)),
+        ));
       }
-    }
-    result.add((
-      card: card,
-      latestStatement: latest,
-      standing: ref.watch(creditCardStandingProvider(card.id)),
-    ));
-  }
-  return result;
-});
+      return result;
+    });
 
 /// Which domain an [UpcomingPaymentItem] came from, for routing on tap.
 enum UpcomingPaymentKind { emi, loan, bill, creditCard }
@@ -260,7 +282,9 @@ typedef UpcomingPaymentItem = ({
 /// same shared `CycleEngine`-classified set [emiDueThisMonthBreakdownProvider]
 /// and friends above read — no independent cutoff logic of this provider's
 /// own.
-final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((ref) {
+final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((
+  ref,
+) {
   final items = <UpcomingPaymentItem>[];
 
   for (final emi in ref.watch(activeEmisProvider)) {
@@ -275,7 +299,9 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
         dueDate: i.dueDate,
         amountDue: i.amountDue,
         remaining: i.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromInstallmentStatus(i.status),
+        urgency: isCarriedOver
+            ? PaymentUrgency.carriedForward
+            : PaymentUrgencyX.fromInstallmentStatus(i.status),
         isCarriedOver: isCarriedOver,
         routeId: emi.id,
       ));
@@ -294,7 +320,9 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
         dueDate: i.dueDate,
         amountDue: i.amountDue,
         remaining: i.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromInstallmentStatus(i.status),
+        urgency: isCarriedOver
+            ? PaymentUrgency.carriedForward
+            : PaymentUrgencyX.fromInstallmentStatus(i.status),
         isCarriedOver: isCarriedOver,
         routeId: loan.id,
       ));
@@ -304,9 +332,13 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   for (final bill in bills) {
     final view = ref.watch(billOccurrenceCycleViewProvider(bill.id));
-    final relevant = [...view.previousCyclePending, if (view.current != null) view.current!];
+    final relevant = [
+      ...view.previousCyclePending,
+      if (view.current != null) view.current!,
+    ];
     for (final o in relevant) {
-      if (o.status == BillStatus.paid || o.status == BillStatus.skipped) continue;
+      if (o.status == BillStatus.paid || o.status == BillStatus.skipped)
+        continue;
       final isCarriedOver = view.previousCyclePending.contains(o);
       items.add((
         kind: UpcomingPaymentKind.bill,
@@ -314,7 +346,9 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
         dueDate: o.dueDate,
         amountDue: o.amount,
         remaining: o.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromBillStatus(o.status),
+        urgency: isCarriedOver
+            ? PaymentUrgency.carriedForward
+            : PaymentUrgencyX.fromBillStatus(o.status),
         isCarriedOver: isCarriedOver,
         routeId: bill.id,
       ));
@@ -324,17 +358,24 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((re
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   for (final card in cards) {
     final view = ref.watch(statementCycleViewProvider(card.id));
-    final relevant = [...view.previousCyclePending, if (view.current != null) view.current!];
+    final relevant = [
+      ...view.previousCyclePending,
+      if (view.current != null) view.current!,
+    ];
     for (final s in relevant) {
       if (s.status == StatementStatus.paid) continue;
       final isCarriedOver = view.previousCyclePending.contains(s);
       items.add((
         kind: UpcomingPaymentKind.creditCard,
-        title: card.lastFourDigits != null ? 'Card •••• ${card.lastFourDigits}' : 'Credit Card',
+        title: card.lastFourDigits != null
+            ? 'Card •••• ${card.lastFourDigits}'
+            : 'Credit Card',
         dueDate: s.dueDate,
         amountDue: s.totalAmount,
         remaining: s.remainingAmount,
-        urgency: isCarriedOver ? PaymentUrgency.carriedForward : PaymentUrgencyX.fromStatementStatus(s.status),
+        urgency: isCarriedOver
+            ? PaymentUrgency.carriedForward
+            : PaymentUrgencyX.fromStatementStatus(s.status),
         isCarriedOver: isCarriedOver,
         routeId: card.id,
       ));
@@ -368,8 +409,12 @@ final cashFlowThisMonthProvider = Provider<CashFlowSummary>((ref) {
   const period = CashFlowPeriod.preset(CashFlowPreset.thisMonth);
   final range = period.rangeFor(now);
   final key = (period: period, range: range);
-  final moneyIn = ref.watch(moneyInLinesForRangeFamilyProvider(key)).fold(0.0, (s, l) => s + l.amount);
-  final moneyOut = ref.watch(moneyOutLinesForRangeFamilyProvider(key)).fold(0.0, (s, l) => s + l.amount);
+  final moneyIn = ref
+      .watch(moneyInLinesForRangeFamilyProvider(key))
+      .fold(0.0, (s, l) => s + l.amount);
+  final moneyOut = ref
+      .watch(moneyOutLinesForRangeFamilyProvider(key))
+      .fold(0.0, (s, l) => s + l.amount);
   return (moneyIn: moneyIn, moneyOut: moneyOut, net: moneyIn - moneyOut);
 });
 
@@ -424,53 +469,67 @@ typedef _PeriodRange = ({CashFlowPeriod period, DateRange range});
 /// bucketed by the linked transaction's own date, exactly matching
 /// [moneyReceivedForRangeProvider]'s existing rule, so this is additive
 /// with that provider rather than a second reimplementation of it.
-final moneyInLinesForRangeFamilyProvider = Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
-  final period = key.period;
-  final range = key.range;
-  final categoriesById = {for (final c in ref.watch(categoriesStreamProvider).value ?? const []) c.id: c};
-  final accountsById = {for (final a in ref.watch(accountsStreamProvider).value ?? const []) a.id: a};
+final moneyInLinesForRangeFamilyProvider =
+    Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
+      final period = key.period;
+      final range = key.range;
+      final categoriesById = {
+        for (final c in ref.watch(categoriesStreamProvider).value ?? const [])
+          c.id: c,
+      };
+      final accountsById = {
+        for (final a in ref.watch(accountsStreamProvider).value ?? const [])
+          a.id: a,
+      };
 
-  final lines = <MoneyFlowLine>[];
+      final lines = <MoneyFlowLine>[];
 
-  final transactions = ref.watch(calculableTransactionsProvider);
-  for (final t in transactions) {
-    if (t.isDeleted || t.type != TransactionType.income) continue;
-    final bucketDate = period.bucketDateFor(t);
-    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
-    lines.add((
-      kind: MoneyFlowKind.income,
-      date: t.dateTime,
-      title: t.description.isNotEmpty ? t.description : 'Income',
-      amount: t.amount,
-      categoryLabel: categoriesById[t.categoryId]?.name,
-      accountLabel: accountsById[t.accountId]?.name,
-    ));
-  }
+      final transactions = ref.watch(calculableTransactionsProvider);
+      for (final t in transactions) {
+        if (t.isDeleted || t.type != TransactionType.income) continue;
+        final bucketDate = period.bucketDateFor(t);
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+          continue;
+        lines.add((
+          kind: MoneyFlowKind.income,
+          date: t.dateTime,
+          title: t.description.isNotEmpty ? t.description : 'Income',
+          amount: t.amount,
+          categoryLabel: categoriesById[t.categoryId]?.name,
+          accountLabel: accountsById[t.accountId]?.name,
+        ));
+      }
 
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
-  final calculableById = {for (final t in transactions) t.id: t};
-  for (final expense in expenses) {
-    if (!expense.isSplit || expense.scheduleId == null) continue;
-    final transaction = calculableById[expense.transactionId];
-    if (transaction == null) continue;
-    final bucketDate = period.bucketDateFor(transaction);
-    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
-    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
-    final collected = installments.fold(0.0, (sum, i) => sum + i.amountPaid);
-    if (collected <= 0) continue;
-    lines.add((
-      kind: MoneyFlowKind.moneyReceived,
-      date: transaction.dateTime,
-      title: 'Money received: ${expense.description}',
-      amount: collected,
-      categoryLabel: categoriesById[expense.categoryId]?.name,
-      accountLabel: accountsById[expense.accountId]?.name,
-    ));
-  }
+      final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+      final calculableById = {for (final t in transactions) t.id: t};
+      for (final expense in expenses) {
+        if (!expense.isSplit || expense.scheduleId == null) continue;
+        final transaction = calculableById[expense.transactionId];
+        if (transaction == null) continue;
+        final bucketDate = period.bucketDateFor(transaction);
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+          continue;
+        final installments =
+            ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+            const [];
+        final collected = installments.fold(
+          0.0,
+          (sum, i) => sum + i.amountPaid,
+        );
+        if (collected <= 0) continue;
+        lines.add((
+          kind: MoneyFlowKind.moneyReceived,
+          date: transaction.dateTime,
+          title: 'Money received: ${expense.description}',
+          amount: collected,
+          categoryLabel: categoriesById[expense.categoryId]?.name,
+          accountLabel: accountsById[expense.accountId]?.name,
+        ));
+      }
 
-  lines.sort((a, b) => b.date.compareTo(a.date));
-  return lines;
-});
+      lines.sort((a, b) => b.date.compareTo(a.date));
+      return lines;
+    });
 
 /// Every [MoneyFlowLine] that contributes to Money Out for [key]'s range —
 /// EVERY qualifying expense transaction regardless of which [Account]/
@@ -503,82 +562,98 @@ final moneyInLinesForRangeFamilyProvider = Provider.family<List<MoneyFlowLine>, 
 /// own section, which tracks statement payment status separately and is
 /// never summed into this provider, so a purchase is never double-counted
 /// against its own later bill payment.
-final moneyOutLinesForRangeFamilyProvider = Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
-  final period = key.period;
-  final range = key.range;
-  final categoriesById = {for (final c in ref.watch(categoriesStreamProvider).value ?? const []) c.id: c};
-  final accountsById = {for (final a in ref.watch(accountsStreamProvider).value ?? const []) a.id: a};
+final moneyOutLinesForRangeFamilyProvider =
+    Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
+      final period = key.period;
+      final range = key.range;
+      final categoriesById = {
+        for (final c in ref.watch(categoriesStreamProvider).value ?? const [])
+          c.id: c,
+      };
+      final accountsById = {
+        for (final a in ref.watch(accountsStreamProvider).value ?? const [])
+          a.id: a,
+      };
 
-  final lines = <MoneyFlowLine>[];
+      final lines = <MoneyFlowLine>[];
 
-  final transactions = ref.watch(calculableTransactionsProvider);
-  for (final t in transactions) {
-    if (t.isDeleted || t.type != TransactionType.expense) continue;
-    final bucketDate = period.bucketDateFor(t);
-    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
-    lines.add((
-      kind: MoneyFlowKind.expense,
-      date: t.dateTime,
-      title: t.description.isNotEmpty ? t.description : 'Expense',
-      amount: t.amount,
-      categoryLabel: categoriesById[t.categoryId]?.name,
-      accountLabel: accountsById[t.accountId]?.name,
-    ));
-  }
+      final transactions = ref.watch(calculableTransactionsProvider);
+      for (final t in transactions) {
+        if (t.isDeleted || t.type != TransactionType.expense) continue;
+        final bucketDate = period.bucketDateFor(t);
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+          continue;
+        lines.add((
+          kind: MoneyFlowKind.expense,
+          date: t.dateTime,
+          title: t.description.isNotEmpty ? t.description : 'Expense',
+          amount: t.amount,
+          categoryLabel: categoriesById[t.categoryId]?.name,
+          accountLabel: accountsById[t.accountId]?.name,
+        ));
+      }
 
-  for (final emi in ref.watch(activeEmisProvider)) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-    for (final i in installments) {
-      if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) continue;
-      if (i.amountPaid <= 0) continue;
-      lines.add((
-        kind: MoneyFlowKind.emi,
-        date: i.dueDate,
-        title: emi.name,
-        amount: i.amountPaid,
-        categoryLabel: 'EMI',
-        accountLabel: null,
-      ));
-    }
-  }
+      for (final emi in ref.watch(activeEmisProvider)) {
+        final installments =
+            ref.watch(installmentsStreamProvider(emi.scheduleId)).value ??
+            const [];
+        for (final i in installments) {
+          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
+            continue;
+          if (i.amountPaid <= 0) continue;
+          lines.add((
+            kind: MoneyFlowKind.emi,
+            date: i.dueDate,
+            title: emi.name,
+            amount: i.amountPaid,
+            categoryLabel: 'EMI',
+            accountLabel: null,
+          ));
+        }
+      }
 
-  for (final loan in ref.watch(activeLoansProvider)) {
-    final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
-    for (final i in installments) {
-      if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) continue;
-      if (i.amountPaid <= 0) continue;
-      lines.add((
-        kind: MoneyFlowKind.loan,
-        date: i.dueDate,
-        title: loan.name ?? 'Loan',
-        amount: i.amountPaid,
-        categoryLabel: 'Loan',
-        accountLabel: null,
-      ));
-    }
-  }
+      for (final loan in ref.watch(activeLoansProvider)) {
+        final installments =
+            ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+            const [];
+        for (final i in installments) {
+          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
+            continue;
+          if (i.amountPaid <= 0) continue;
+          lines.add((
+            kind: MoneyFlowKind.loan,
+            date: i.dueDate,
+            title: loan.name ?? 'Loan',
+            amount: i.amountPaid,
+            categoryLabel: 'Loan',
+            accountLabel: null,
+          ));
+        }
+      }
 
-  final bills = ref.watch(billsStreamProvider).value ?? const [];
-  for (final bill in bills) {
-    final occurrences = ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
-    for (final o in occurrences) {
-      if (o.status == BillStatus.skipped) continue;
-      if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end)) continue;
-      if (o.amountPaid <= 0) continue;
-      lines.add((
-        kind: MoneyFlowKind.bill,
-        date: o.dueDate,
-        title: bill.name,
-        amount: o.amountPaid,
-        categoryLabel: 'Bill',
-        accountLabel: null,
-      ));
-    }
-  }
+      final bills = ref.watch(billsStreamProvider).value ?? const [];
+      for (final bill in bills) {
+        final occurrences =
+            ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
+        for (final o in occurrences) {
+          if (o.status == BillStatus.skipped) continue;
+          if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end))
+            continue;
+          if (o.amountPaid <= 0) continue;
+          lines.add((
+            kind: MoneyFlowKind.bill,
+            date: o.dueDate,
+            title: bill.name,
+            amount: o.amountPaid,
+            categoryLabel: 'Bill',
+            accountLabel: null,
+          ));
+        }
+      }
 
-  lines.sort((a, b) => b.date.compareTo(a.date));
-  return lines;
-});
+      lines.sort((a, b) => b.date.compareTo(a.date));
+      return lines;
+    });
 
 /// [moneyInLinesForRangeFamilyProvider] bound to the Cash Flow screen's own
 /// selected [cashFlowDateRangeProvider] — what the Cash Flow screen and its
@@ -586,7 +661,9 @@ final moneyOutLinesForRangeFamilyProvider = Provider.family<List<MoneyFlowLine>,
 final moneyInLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
   final period = ref.watch(cashFlowDateRangeProvider);
   final range = ref.watch(resolvedCashFlowRangeProvider);
-  return ref.watch(moneyInLinesForRangeFamilyProvider((period: period, range: range)));
+  return ref.watch(
+    moneyInLinesForRangeFamilyProvider((period: period, range: range)),
+  );
 });
 
 /// [moneyOutLinesForRangeFamilyProvider] bound to the Cash Flow screen's own
@@ -595,7 +672,9 @@ final moneyInLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
 final moneyOutLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
   final period = ref.watch(cashFlowDateRangeProvider);
   final range = ref.watch(resolvedCashFlowRangeProvider);
-  return ref.watch(moneyOutLinesForRangeFamilyProvider((period: period, range: range)));
+  return ref.watch(
+    moneyOutLinesForRangeFamilyProvider((period: period, range: range)),
+  );
 });
 
 /// Cash Flow Summary (Section 5), generalized from
@@ -608,8 +687,12 @@ final moneyOutLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
 /// place) so nothing else that still depends on strict "this calendar
 /// month" behavior is affected.
 final cashFlowForRangeProvider = Provider<CashFlowSummary>((ref) {
-  final moneyIn = ref.watch(moneyInLinesForRangeProvider).fold(0.0, (sum, l) => sum + l.amount);
-  final moneyOut = ref.watch(moneyOutLinesForRangeProvider).fold(0.0, (sum, l) => sum + l.amount);
+  final moneyIn = ref
+      .watch(moneyInLinesForRangeProvider)
+      .fold(0.0, (sum, l) => sum + l.amount);
+  final moneyOut = ref
+      .watch(moneyOutLinesForRangeProvider)
+      .fold(0.0, (sum, l) => sum + l.amount);
   return (moneyIn: moneyIn, moneyOut: moneyOut, net: moneyIn - moneyOut);
 });
 
@@ -639,7 +722,9 @@ final myExpensesForRangeProvider = Provider<MyExpenseBreakdown>((ref) {
     final bucketDate = period.bucketDateFor(t);
     return !bucketDate.isBefore(range.start) && !bucketDate.isAfter(range.end);
   }).toList();
-  return ref.watch(myExpenseBreakdownForTransactionsProvider(rangeTransactions));
+  return ref.watch(
+    myExpenseBreakdownForTransactionsProvider(rangeTransactions),
+  );
 });
 
 /// Every individual [MyExpenseLine] behind [myExpensesForRangeProvider]'s
@@ -654,10 +739,17 @@ final myExpensesForRangeProvider = Provider<MyExpenseBreakdown>((ref) {
 final myExpenseLinesForRangeProvider = Provider<List<MyExpenseLine>>((ref) {
   final period = ref.watch(cashFlowDateRangeProvider);
   final range = ref.watch(resolvedCashFlowRangeProvider);
-  final categoriesById = {for (final c in ref.watch(categoriesStreamProvider).value ?? const []) c.id: c};
-  final accountsById = {for (final a in ref.watch(accountsStreamProvider).value ?? const []) a.id: a};
+  final categoriesById = {
+    for (final c in ref.watch(categoriesStreamProvider).value ?? const [])
+      c.id: c,
+  };
+  final accountsById = {
+    for (final a in ref.watch(accountsStreamProvider).value ?? const [])
+      a.id: a,
+  };
   final expenseByTransactionId = {
-    for (final e in ref.watch(expensesStreamProvider).value ?? const []) e.transactionId: e,
+    for (final e in ref.watch(expensesStreamProvider).value ?? const [])
+      e.transactionId: e,
   };
 
   final lines = <MyExpenseLine>[];
@@ -665,7 +757,8 @@ final myExpenseLinesForRangeProvider = Provider<List<MyExpenseLine>>((ref) {
   for (final t in transactions) {
     if (t.isDeleted || t.type != TransactionType.expense) continue;
     final bucketDate = period.bucketDateFor(t);
-    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
+    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+      continue;
 
     final expense = expenseByTransactionId[t.id];
     final myShare = expense?.myShare ?? t.amount;
@@ -675,7 +768,9 @@ final myExpenseLinesForRangeProvider = Provider<List<MyExpenseLine>>((ref) {
     lines.add((
       transactionId: t.id,
       date: t.dateTime,
-      title: expense?.description.isNotEmpty == true ? expense!.description : (t.description.isNotEmpty ? t.description : 'Expense'),
+      title: expense?.description.isNotEmpty == true
+          ? expense!.description
+          : (t.description.isNotEmpty ? t.description : 'Expense'),
       myShare: myShare,
       totalAmount: expense?.isSplit == true ? expense!.totalAmount : null,
       isSplit: expense?.isSplit ?? false,
@@ -692,12 +787,18 @@ final myExpenseLinesForRangeProvider = Provider<List<MyExpenseLine>>((ref) {
 
 /// One category's total within [myExpenseLinesForRangeProvider] — sorted
 /// highest amount first for the My Expenses history's category list.
-typedef MyExpenseCategoryTotal = ({String categoryId, String categoryLabel, double amount});
+typedef MyExpenseCategoryTotal = ({
+  String categoryId,
+  String categoryLabel,
+  double amount,
+});
 
 /// [myExpenseLinesForRangeProvider] grouped by category and summed — always
 /// reconciles with [myExpensesForRangeProvider].total by construction, since
 /// both fold over the exact same line list.
-final myExpensesByCategoryProvider = Provider<List<MyExpenseCategoryTotal>>((ref) {
+final myExpensesByCategoryProvider = Provider<List<MyExpenseCategoryTotal>>((
+  ref,
+) {
   final lines = ref.watch(myExpenseLinesForRangeProvider);
   final totals = <String, double>{};
   final labels = <String, String>{};
@@ -706,7 +807,12 @@ final myExpensesByCategoryProvider = Provider<List<MyExpenseCategoryTotal>>((ref
     labels[line.categoryId] = line.categoryLabel ?? 'Uncategorized';
   }
   final result = [
-    for (final entry in totals.entries) (categoryId: entry.key, categoryLabel: labels[entry.key]!, amount: entry.value),
+    for (final entry in totals.entries)
+      (
+        categoryId: entry.key,
+        categoryLabel: labels[entry.key]!,
+        amount: entry.value,
+      ),
   ];
   result.sort((a, b) => b.amount.compareTo(a.amount));
   return result;
@@ -715,6 +821,10 @@ final myExpensesByCategoryProvider = Provider<List<MyExpenseCategoryTotal>>((ref
 /// [myExpenseLinesForRangeProvider] filtered to a single [categoryId] — the
 /// My Expenses category drill-down's data source, sorted newest first same
 /// as the parent list.
-final myExpensesForCategoryProvider = Provider.family<List<MyExpenseLine>, String>((ref, categoryId) {
-  return ref.watch(myExpenseLinesForRangeProvider).where((l) => l.categoryId == categoryId).toList();
-});
+final myExpensesForCategoryProvider =
+    Provider.family<List<MyExpenseLine>, String>((ref, categoryId) {
+      return ref
+          .watch(myExpenseLinesForRangeProvider)
+          .where((l) => l.categoryId == categoryId)
+          .toList();
+    });

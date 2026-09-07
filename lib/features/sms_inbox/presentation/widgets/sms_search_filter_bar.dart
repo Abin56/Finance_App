@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
 import '../providers/sms_inbox_providers.dart';
 import 'sms_filter_sheet.dart';
 
@@ -43,7 +43,9 @@ class SmsSearchFilterBar extends ConsumerWidget {
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
             border: Border.all(
               color: active
-                  ? AppClay.primaryAccent(context)
+                  ? (context.isDarkMode
+                        ? AppColors.primaryDark
+                        : context.colors.onSurface)
                   : context.colors.onSurface.withValues(alpha: 0.15),
               width: active ? 1.5 : 1,
             ),
@@ -62,16 +64,23 @@ class SmsSearchFilterBar extends ConsumerWidget {
                       size: AppSizes.iconMd,
                       color: context.colors.onSurface.withValues(alpha: 0.5),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: AppSizes.md),
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: AppSizes.md,
+                    ),
                     filled: false,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                   ),
-                  onChanged: (value) => ref.read(smsSearchQueryProvider.notifier).state = value,
+                  onChanged: (value) =>
+                      ref.read(smsSearchQueryProvider.notifier).state = value,
                 ),
               ),
-              Container(width: 1, height: 24, color: context.colors.onSurface.withValues(alpha: 0.12)),
+              Container(
+                width: 1,
+                height: 24,
+                color: context.colors.onSurface.withValues(alpha: 0.12),
+              ),
               _FilterButton(
                 activeCount: activeCount,
                 onPressed: () => SmsFilterSheet.show(context),
@@ -96,9 +105,14 @@ class _FilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = activeCount > 0;
+    final accent = context.isDarkMode
+        ? AppColors.primaryDark
+        : context.colors.onSurface;
     return InkWell(
       onTap: onPressed,
-      borderRadius: const BorderRadius.horizontal(right: Radius.circular(AppSizes.radiusMd)),
+      borderRadius: const BorderRadius.horizontal(
+        right: Radius.circular(AppSizes.radiusMd),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
         child: Row(
@@ -107,19 +121,24 @@ class _FilterButton extends StatelessWidget {
             Icon(
               Icons.tune_rounded,
               size: AppSizes.iconMd,
-              color: active ? AppClay.primaryAccent(context) : context.colors.onSurface.withValues(alpha: 0.6),
+              color: active
+                  ? accent
+                  : context.colors.onSurface.withValues(alpha: 0.6),
             ),
             if (active) ...[
               const SizedBox(width: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: AppClay.primaryAccent(context),
+                  color: context.colors.primary,
                   borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                 ),
                 child: Text(
                   '$activeCount',
-                  style: context.textTheme.labelSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: context.colors.onPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],

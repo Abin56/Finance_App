@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../shared/widgets/dialogs/add_entry_menu.dart';
+import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
-import '../theme/clay_theme.dart';
 import 'fab_visibility.dart';
 
 /// Bottom-navigation shell wrapping the five screen tabs (Dashboard,
@@ -26,7 +26,11 @@ class AppShell extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   static const _destinations = [
-    NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Dashboard'),
+    NavigationDestination(
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home_rounded),
+      label: 'Dashboard',
+    ),
     NavigationDestination(
       icon: Icon(Icons.receipt_long_outlined),
       selectedIcon: Icon(Icons.receipt_long_rounded),
@@ -42,7 +46,11 @@ class AppShell extends ConsumerWidget {
       selectedIcon: Icon(Icons.people_rounded),
       label: 'People',
     ),
-    NavigationDestination(icon: Icon(Icons.more_horiz_rounded), selectedIcon: Icon(Icons.more_horiz_rounded), label: 'More'),
+    NavigationDestination(
+      icon: Icon(Icons.more_horiz_rounded),
+      selectedIcon: Icon(Icons.more_horiz_rounded),
+      label: 'More',
+    ),
   ];
 
   /// Branch index of the People tab, which has its own "add person" FAB —
@@ -52,7 +60,9 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fabVisible = ref.watch(fabVisibleProvider) && navigationShell.currentIndex != _peopleBranchIndex;
+    final fabVisible =
+        ref.watch(fabVisibleProvider) &&
+        navigationShell.currentIndex != _peopleBranchIndex;
 
     return Scaffold(
       body: navigationShell,
@@ -82,18 +92,22 @@ class AppShell extends ConsumerWidget {
       // navigationBarTheme so both themes stay in one place.
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (index) =>
-            navigationShell.goBranch(index, initialLocation: index == navigationShell.currentIndex),
+        onDestinationSelected: (index) => navigationShell.goBranch(
+          index,
+          initialLocation: index == navigationShell.currentIndex,
+        ),
         destinations: _destinations,
       ),
     );
   }
 }
 
-/// Modern gradient FAB — soft shadow, slightly larger than the stock
-/// Material FAB, styled to read as an iOS-style "add" button. Wraps the
-/// same [onPressed]/[heroTag] the plain [FloatingActionButton] used, so
-/// the add-entry sheet logic is unchanged.
+/// The shell's central "add" action — a solid lime circle with a near-black
+/// icon, matching the primary-button convention (lime fill, dark
+/// foreground) so the FAB reads as part of the same brand system as CTAs,
+/// selected nav state, and other primary actions, rather than a separate
+/// gradient/glow treatment. Wraps the same [onPressed]/[heroTag] the
+/// previous gradient FAB used, so the add-entry sheet logic is unchanged.
 class _GradientFab extends StatelessWidget {
   const _GradientFab({required this.heroTag, required this.onPressed});
 
@@ -104,25 +118,21 @@ class _GradientFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Hero(
       tag: heroTag,
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: AppClay.primaryGradient,
-          ),
-          boxShadow: AppClay.elevated(context),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onPressed,
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: AppSizes.iconLg),
+      child: Material(
+        color: AppColors.primary,
+        shape: const CircleBorder(),
+        elevation: 1,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: const SizedBox(
+            width: 64,
+            height: 64,
+            child: Icon(
+              Icons.add_rounded,
+              color: AppColors.onLime,
+              size: AppSizes.iconLg,
+            ),
           ),
         ),
       ),

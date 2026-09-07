@@ -54,7 +54,9 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
     }
     if (_statusFilter == EmiListFilter.all) return filtered;
     if (_statusFilter == EmiListFilter.upcoming) {
-      return filtered.where((e) => ref.watch(dueThisMonthEmisProvider).contains(e)).toList();
+      return filtered
+          .where((e) => ref.watch(dueThisMonthEmisProvider).contains(e))
+          .toList();
     }
     return filtered.where((e) {
       final status = ref.watch(emiStatusProvider(e));
@@ -87,7 +89,10 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(hintText: 'Search EMIs…', border: InputBorder.none),
+                decoration: const InputDecoration(
+                  hintText: 'Search EMIs…',
+                  border: InputBorder.none,
+                ),
                 onChanged: (value) => setState(() => _query = value),
               )
             : const Text('EMIs'),
@@ -106,9 +111,9 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             tooltip: 'Trash',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const EmisTrashScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const EmisTrashScreen())),
           ),
         ],
       ),
@@ -119,7 +124,8 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
       ),
       body: emisAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
+        error: (error, _) =>
+            Center(child: Text('Something went wrong: $error')),
         data: (emis) {
           if (emis.isEmpty) {
             return EmptyState(
@@ -138,93 +144,132 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
 
           return SafeArea(
             child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, 0),
-                sliver: SliverList.list(
-                  children: [
-                    EmiStatusFilterChips(
-                      selected: _statusFilter,
-                      onChanged: (filter) => setState(() => _statusFilter = filter),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(right: AppSizes.xs),
-                            child: ChoiceChip(
-                              label: const Text('All loan types'),
-                              selected: _loanTypeFilter == null,
-                              onSelected: (_) => setState(() => _loanTypeFilter = null),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
-                            ),
-                          ),
-                          for (final type in EmiLoanType.values)
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSizes.lg,
+                    AppSizes.lg,
+                    AppSizes.lg,
+                    0,
+                  ),
+                  sliver: SliverList.list(
+                    children: [
+                      EmiStatusFilterChips(
+                        selected: _statusFilter,
+                        onChanged: (filter) =>
+                            setState(() => _statusFilter = filter),
+                      ),
+                      const SizedBox(height: AppSizes.sm),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
                             Padding(
-                              padding: const EdgeInsets.only(right: AppSizes.xs),
+                              padding: const EdgeInsets.only(
+                                right: AppSizes.xs,
+                              ),
                               child: ChoiceChip(
-                                label: Text(type.label),
-                                selected: _loanTypeFilter == type,
-                                onSelected: (_) => setState(() => _loanTypeFilter = type),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                                label: const Text('All loan types'),
+                                selected: _loanTypeFilter == null,
+                                onSelected: (_) =>
+                                    setState(() => _loanTypeFilter = null),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    AppSizes.radiusPill,
+                                  ),
+                                ),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppSizes.lg),
-                    if (visible.isEmpty)
-                      const EmptyState(
-                        icon: Icons.search_off_rounded,
-                        title: 'No matching EMIs',
-                        subtitle: 'Try a different search or filter.',
-                      ),
-                  ],
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.md),
-                sliver: SliverList.builder(
-                  itemCount: visible.length,
-                  itemBuilder: (context, index) {
-                    final emi = visible[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                      child: Dismissible(
-                        key: ValueKey(emi.id),
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (_) => confirmDelete(context, entityName: 'EMI'),
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                          ),
-                          child: Icon(Icons.archive_outlined, color: Theme.of(context).colorScheme.error),
+                            for (final type in EmiLoanType.values)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  right: AppSizes.xs,
+                                ),
+                                child: ChoiceChip(
+                                  label: Text(type.label),
+                                  selected: _loanTypeFilter == type,
+                                  onSelected: (_) =>
+                                      setState(() => _loanTypeFilter = type),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      AppSizes.radiusPill,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        onDismissed: (_) async {
-                          await repository.softDelete(emi);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('EMI archived'),
-                              action: SnackBarAction(label: 'Undo', onPressed: () => repository.restore(emi)),
+                      ),
+                      const SizedBox(height: AppSizes.lg),
+                      if (visible.isEmpty)
+                        const EmptyState(
+                          icon: Icons.search_off_rounded,
+                          title: 'No matching EMIs',
+                          subtitle: 'Try a different search or filter.',
+                        ),
+                    ],
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSizes.lg,
+                    0,
+                    AppSizes.lg,
+                    AppSizes.md,
+                  ),
+                  sliver: SliverList.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (context, index) {
+                      final emi = visible[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                        child: Dismissible(
+                          key: ValueKey(emi.id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) =>
+                              confirmDelete(context, entityName: 'EMI'),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSizes.lg,
                             ),
-                          );
-                        },
-                        child: EmiTile(
-                          emi: emi,
-                          onTap: () => context.push('${AppRoutes.emis}/${emi.id}'),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusLg,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.archive_outlined,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                          onDismissed: (_) async {
+                            await repository.softDelete(emi);
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('EMI archived'),
+                                action: SnackBarAction(
+                                  label: 'Undo',
+                                  onPressed: () => repository.restore(emi),
+                                ),
+                              ),
+                            );
+                          },
+                          child: EmiTile(
+                            emi: emi,
+                            onTap: () =>
+                                context.push('${AppRoutes.emis}/${emi.id}'),
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
             ),
           );
         },

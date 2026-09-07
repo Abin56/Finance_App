@@ -13,7 +13,11 @@ import 'package:finance_app/features/sms_inbox/domain/sms_transaction_direction.
 
 FieldConfidence<T> _fc<T>(T? value) => value == null
     ? FieldConfidence<T>.unknown()
-    : FieldConfidence<T>(value: value, confidence: 0.9, source: EvidenceSource.regexOnly);
+    : FieldConfidence<T>(
+        value: value,
+        confidence: 0.9,
+        source: EvidenceSource.regexOnly,
+      );
 
 /// Builds a [FinancialEvent] with sensible defaults so a linking test case
 /// only has to name the fields it actually cares about — mirrors the

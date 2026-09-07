@@ -11,20 +11,26 @@ import '../../../expense/presentation/providers/expense_providers.dart';
 /// provider's remaining-amount filter. Skips `participant.isMe` (no
 /// installment tracks the payer's own share, mirrors
 /// `_ParticipantCard`'s null-safety on `TransactionDetailScreen`).
-final personSplitParticipantsProvider =
-    Provider.autoDispose.family<List<PendingSplitParticipant>, String>((ref, personId) {
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
-  final result = <PendingSplitParticipant>[];
-  for (final expense in expenses) {
-    if (!expense.isSplit || expense.scheduleId == null) continue;
-    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
-    final installmentsById = {for (final i in installments) i.id: i};
-    for (final participant in expense.participants) {
-      if (participant.isMe || participant.personId != personId) continue;
-      final installment = installmentsById[participant.installmentId];
-      if (installment == null) continue;
-      result.add((expense: expense, participant: participant, installment: installment));
-    }
-  }
-  return result;
-});
+final personSplitParticipantsProvider = Provider.autoDispose
+    .family<List<PendingSplitParticipant>, String>((ref, personId) {
+      final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+      final result = <PendingSplitParticipant>[];
+      for (final expense in expenses) {
+        if (!expense.isSplit || expense.scheduleId == null) continue;
+        final installments =
+            ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+            const [];
+        final installmentsById = {for (final i in installments) i.id: i};
+        for (final participant in expense.participants) {
+          if (participant.isMe || participant.personId != personId) continue;
+          final installment = installmentsById[participant.installmentId];
+          if (installment == null) continue;
+          result.add((
+            expense: expense,
+            participant: participant,
+            installment: installment,
+          ));
+        }
+      }
+      return result;
+    });

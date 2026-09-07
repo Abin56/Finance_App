@@ -51,7 +51,8 @@ class FinanceApp extends ConsumerStatefulWidget {
   ConsumerState<FinanceApp> createState() => _FinanceAppState();
 }
 
-class _FinanceAppState extends ConsumerState<FinanceApp> with WidgetsBindingObserver {
+class _FinanceAppState extends ConsumerState<FinanceApp>
+    with WidgetsBindingObserver {
   DateTime? _backgroundedAt;
 
   @override
@@ -71,7 +72,8 @@ class _FinanceAppState extends ConsumerState<FinanceApp> with WidgetsBindingObse
     final lockState = ref.read(appLockProvider);
     if (!lockState.pinEnabled) return;
 
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       _backgroundedAt ??= DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
       final backgroundedAt = _backgroundedAt;
@@ -112,4 +114,3 @@ class _FinanceAppState extends ConsumerState<FinanceApp> with WidgetsBindingObse
     );
   }
 }
-   

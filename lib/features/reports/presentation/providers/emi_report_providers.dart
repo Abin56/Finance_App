@@ -14,21 +14,32 @@ import '../../../emi/presentation/providers/emi_providers.dart';
 /// charge-total provider below needs, so each doesn't independently re-walk
 /// installments/payments/breakdowns.
 Iterable<
-    ({
-      double amountDue,
-      double amountPaid,
-      double? principalPortion,
-      double? interestPortion,
-      EmiPaymentBreakdown? breakdown,
-    })> _paymentsWithBreakdown(Ref ref, Emi emi) sync* {
-  final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-  final breakdowns = ref.watch(emiPaymentBreakdownsStreamProvider(emi.id)).value ?? const [];
+  ({
+    double amountDue,
+    double amountPaid,
+    double? principalPortion,
+    double? interestPortion,
+    EmiPaymentBreakdown? breakdown,
+  })
+>
+_paymentsWithBreakdown(Ref ref, Emi emi) sync* {
+  final installments =
+      ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+  final breakdowns =
+      ref.watch(emiPaymentBreakdownsStreamProvider(emi.id)).value ?? const [];
   final breakdownByPaymentId = {for (final b in breakdowns) b.paymentId: b};
 
   for (final installment in installments) {
     final payments =
-        ref.watch(installmentPaymentsStreamProvider((scheduleId: emi.scheduleId, installmentId: installment.id))).value ??
-            const [];
+        ref
+            .watch(
+              installmentPaymentsStreamProvider((
+                scheduleId: emi.scheduleId,
+                installmentId: installment.id,
+              )),
+            )
+            .value ??
+        const [];
     for (final payment in payments) {
       yield (
         amountDue: installment.amountDue,
@@ -49,14 +60,17 @@ Iterable<
 final totalEmiPaidProvider = Provider<double>((ref) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   return emis.fold(0.0, (sum, emi) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+    final installments =
+        ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
     return sum + installments.fold(0.0, (s, i) => s + i.amountPaid);
   });
 });
 
 /// Sum of remaining amounts across every non-closed EMI — reuses
 /// `totalRemainingEmiBalanceProvider` directly rather than recomputing it.
-final remainingEmiProvider = Provider<double>((ref) => ref.watch(totalRemainingEmiBalanceProvider));
+final remainingEmiProvider = Provider<double>(
+  (ref) => ref.watch(totalRemainingEmiBalanceProvider),
+);
 
 /// Sum of interest paid so far. Prefers each payment's explicit
 /// `EmiPaymentBreakdown.interestPaid` when recorded (the real split from
@@ -97,18 +111,26 @@ final principalPaidProvider = Provider<double>((ref) {
 final upcomingEmiCountProvider = Provider<int>((ref) {
   final emis = ref.watch(activeEmisProvider);
   return emis.fold(0, (count, emi) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-    return count + installments.where((i) => i.status == InstallmentStatus.upcoming).length;
+    final installments =
+        ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+    return count +
+        installments
+            .where((i) => i.status == InstallmentStatus.upcoming)
+            .length;
   });
 });
 
 /// Count of distinct EMIs with an overdue installment — matches the
 /// dashboard's `overdueEmisProvider.length` for consistency.
-final overdueEmiReportCountProvider = Provider<int>((ref) => ref.watch(overdueEmisProvider).length);
+final overdueEmiReportCountProvider = Provider<int>(
+  (ref) => ref.watch(overdueEmisProvider).length,
+);
 
 /// Sum of remaining amounts across every overdue installment — reuses
 /// `emiOverdueAmountProvider` directly rather than recomputing it.
-final overdueEmiAmountProvider = Provider<double>((ref) => ref.watch(emiOverdueAmountProvider));
+final overdueEmiAmountProvider = Provider<double>(
+  (ref) => ref.watch(emiOverdueAmountProvider),
+);
 
 /// Count of every non-deleted EMI, regardless of status.
 final totalEmisCountProvider = Provider<int>((ref) {
@@ -118,26 +140,44 @@ final totalEmisCountProvider = Provider<int>((ref) {
 /// Count of EMIs whose derived status is closed.
 final closedEmisCountProvider = Provider<int>((ref) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
-  return emis.where((e) => ref.watch(emiStatusProvider(e)) == EmiStatus.closed).length;
+  return emis
+      .where((e) => ref.watch(emiStatusProvider(e)) == EmiStatus.closed)
+      .length;
 });
 
 /// Sums [selector] across every `EmiPaymentBreakdown` for every EMI —
 /// payments with no breakdown simply contribute 0 for these charge types
 /// (there's nothing to fall back to, unlike principal/interest).
-double _sumBreakdownField(Ref ref, double Function(EmiPaymentBreakdown) selector) {
+double _sumBreakdownField(
+  Ref ref,
+  double Function(EmiPaymentBreakdown) selector,
+) {
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   return emis.fold(0.0, (sum, emi) {
-    final breakdowns = ref.watch(emiPaymentBreakdownsStreamProvider(emi.id)).value ?? const [];
+    final breakdowns =
+        ref.watch(emiPaymentBreakdownsStreamProvider(emi.id)).value ?? const [];
     return sum + breakdowns.fold(0.0, (s, b) => s + selector(b));
   });
 }
 
-final totalGstPaidProvider = Provider<double>((ref) => _sumBreakdownField(ref, (b) => b.gst));
-final totalIgstPaidProvider = Provider<double>((ref) => _sumBreakdownField(ref, (b) => b.igst));
-final totalInsuranceChargePaidProvider = Provider<double>((ref) => _sumBreakdownField(ref, (b) => b.insuranceCharge));
-final totalProcessingFeePaidProvider = Provider<double>((ref) => _sumBreakdownField(ref, (b) => b.processingFee));
-final totalPenaltyPaidProvider = Provider<double>((ref) => _sumBreakdownField(ref, (b) => b.penalty));
-final totalOtherChargesPaidProvider = Provider<double>((ref) => _sumBreakdownField(ref, (b) => b.otherCharges));
+final totalGstPaidProvider = Provider<double>(
+  (ref) => _sumBreakdownField(ref, (b) => b.gst),
+);
+final totalIgstPaidProvider = Provider<double>(
+  (ref) => _sumBreakdownField(ref, (b) => b.igst),
+);
+final totalInsuranceChargePaidProvider = Provider<double>(
+  (ref) => _sumBreakdownField(ref, (b) => b.insuranceCharge),
+);
+final totalProcessingFeePaidProvider = Provider<double>(
+  (ref) => _sumBreakdownField(ref, (b) => b.processingFee),
+);
+final totalPenaltyPaidProvider = Provider<double>(
+  (ref) => _sumBreakdownField(ref, (b) => b.penalty),
+);
+final totalOtherChargesPaidProvider = Provider<double>(
+  (ref) => _sumBreakdownField(ref, (b) => b.otherCharges),
+);
 
 /// Sum of every breakdown's `totalAmountPaid`, plus every payment with no
 /// breakdown contributing its plain `InstallmentPayment.amount` — so this

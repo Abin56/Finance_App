@@ -35,7 +35,10 @@ class LoanInstallmentTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Payment ${installment.sequenceNumber}', style: context.textTheme.titleMedium),
+                    Text(
+                      'Payment ${installment.sequenceNumber}',
+                      style: context.textTheme.titleMedium,
+                    ),
                     Text(
                       installment.dueDate.fullDate,
                       style: context.textTheme.bodySmall?.copyWith(
@@ -47,7 +50,9 @@ class LoanInstallmentTile extends StatelessWidget {
                         'Amount: ${CurrencyFormatter.instance.format(installment.principalPortion!)}'
                         ' · Interest: ${CurrencyFormatter.instance.format(installment.interestPortion ?? 0)}',
                         style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.6),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                         ),
                       ),
                   ],
@@ -58,14 +63,25 @@ class LoanInstallmentTile extends StatelessWidget {
                 children: [
                   Text(
                     CurrencyFormatter.instance.format(installment.amountDue),
-                    style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: context.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(status.icon, size: AppSizes.iconSm, color: status.color),
+                      Icon(
+                        status.icon,
+                        size: AppSizes.iconSm,
+                        color: status.color,
+                      ),
                       const SizedBox(width: AppSizes.xs),
-                      Text(status.label, style: context.textTheme.bodySmall?.copyWith(color: status.color)),
+                      Text(
+                        status.label,
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: status.color,
+                        ),
+                      ),
                     ],
                   ),
                 ],

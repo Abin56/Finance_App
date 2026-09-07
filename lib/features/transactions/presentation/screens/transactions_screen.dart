@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/theme/clay_theme.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/dialogs/add_entry_menu.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
@@ -43,7 +45,11 @@ import 'transactions_trash_screen.dart';
 /// instead, since those entries don't live in the Transactions collection
 /// and so can't be edited/trashed the same way.
 class TransactionsScreen extends ConsumerStatefulWidget {
-  const TransactionsScreen({super.key, this.initialFilterName, this.initialAccountId});
+  const TransactionsScreen({
+    super.key,
+    this.initialFilterName,
+    this.initialAccountId,
+  });
 
   /// A [HistoryFilter] enum name (e.g. `'splitExpenses'`) supplied via the
   /// `?filter=` query param — lets other screens (the dashboard's "Money to
@@ -65,7 +71,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   final _searchController = TextEditingController();
   bool _searching = false;
   String _query = '';
-  late TransactionFilter _filter = TransactionFilter(accountId: widget.initialAccountId);
+  late TransactionFilter _filter = TransactionFilter(
+    accountId: widget.initialAccountId,
+  );
   TransactionSort _sort = TransactionSort.dateDesc;
   late HistoryFilter _historyFilter = HistoryFilter.values.firstWhere(
     (f) => f.name == widget.initialFilterName,
@@ -98,7 +106,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           : null,
     );
     if (picked == null) return;
-    setState(() => _filter = _filter.copyWith(startDate: picked.start, endDate: picked.end));
+    setState(
+      () => _filter = _filter.copyWith(
+        startDate: picked.start,
+        endDate: picked.end,
+      ),
+    );
   }
 
   @override
@@ -113,20 +126,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final peopleById = {for (final p in people) p.id: p};
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: AppClay.primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+        // Flat near-black hero surface, not a gradient — Theme V2 keeps
+        // gradients minimal (see AppColors.primaryGradient's doc comment).
+        flexibleSpace: ColoredBox(color: context.flowfi.heroSurface),
         title: _searching
             ? TextField(
                 controller: _searchController,
@@ -150,15 +156,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       color: Colors.white.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.receipt_long_rounded, size: AppSizes.iconSm, color: Colors.white),
+                    child: const Icon(
+                      Icons.receipt_long_rounded,
+                      size: AppSizes.iconSm,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(width: AppSizes.sm),
                   Text(
                     'History',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
                   ),
                 ],
               ),
@@ -179,7 +189,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             // "ghost" icons on the gradient rather than repeated solid white
             // circles, which read as heavy/repetitive in a row of four.
             IconButton(
-              icon: const Icon(Icons.manage_search_rounded, color: Colors.white),
+              icon: const Icon(
+                Icons.manage_search_rounded,
+                color: Colors.white,
+              ),
               tooltip: 'Search',
               onPressed: () => setState(() => _searching = true),
             ),
@@ -188,7 +201,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 count: _filter.activeCount,
                 isLabelVisible: _filter.activeCount > 0,
                 backgroundColor: Colors.white,
-                textColor: AppClay.primary,
+                textColor: AppColors.primary,
                 child: const Icon(Icons.tune_rounded, color: Colors.white),
               ),
               tooltip: 'Filters',
@@ -205,7 +218,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     count: pendingCount,
                     isLabelVisible: pendingCount > 0,
                     backgroundColor: Colors.white,
-                    textColor: AppClay.primary,
+                    textColor: AppColors.primary,
                     child: const Icon(Icons.sms_outlined, color: Colors.white),
                   ),
                   tooltip: 'SMS Inbox',
@@ -227,7 +240,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 ),
               ],
               onSelected: (_) => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const TransactionsTrashScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const TransactionsTrashScreen(),
+                ),
               ),
             ),
             const SizedBox(width: AppSizes.xs),
@@ -237,7 +252,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSizes.lg,
+              AppSizes.lg,
+              AppSizes.lg,
+              0,
+            ),
             child: Row(
               children: [
                 Expanded(
@@ -263,27 +283,55 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           ),
           if (_filter.isActive)
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.xs, AppSizes.lg, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.lg,
+                AppSizes.xs,
+                AppSizes.lg,
+                0,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: () => setState(() => _filter = TransactionFilter(accountId: widget.initialAccountId)),
+                  onPressed: () => setState(
+                    () => _filter = TransactionFilter(
+                      accountId: widget.initialAccountId,
+                    ),
+                  ),
                   icon: const Icon(Icons.close_rounded, size: AppSizes.iconSm),
-                  label: Text('Clear ${_filter.activeCount} filter${_filter.activeCount == 1 ? '' : 's'}'),
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 32)),
+                  label: Text(
+                    'Clear ${_filter.activeCount} filter${_filter.activeCount == 1 ? '' : 's'}',
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 32),
+                  ),
                 ),
               ),
             ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, 0),
+            padding: const EdgeInsets.fromLTRB(
+              AppSizes.lg,
+              AppSizes.md,
+              AppSizes.lg,
+              0,
+            ),
             child: HistoryFilterChips(
               selected: _historyFilter,
               onChanged: (filter) => setState(() => _historyFilter = filter),
             ),
           ),
           Expanded(
-            child: _historyFilter == HistoryFilter.all || _historyFilter == HistoryFilter.transactions
-                ? _buildTransactionsBody(context, transactionsAsync, accountsById, categoriesById, peopleById, repository)
+            child:
+                _historyFilter == HistoryFilter.all ||
+                    _historyFilter == HistoryFilter.transactions
+                ? _buildTransactionsBody(
+                    context,
+                    transactionsAsync,
+                    accountsById,
+                    categoriesById,
+                    peopleById,
+                    repository,
+                  )
                 : _buildUnifiedHistoryBody(context),
           ),
         ],
@@ -295,7 +343,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final start = _filter.startDate;
     final end = _filter.endDate;
     if (start == null && end == null) return 'All Time';
-    if (start != null && end != null) return '${start.shortDate} – ${end.shortDate}';
+    if (start != null && end != null)
+      return '${start.shortDate} – ${end.shortDate}';
     return (start ?? end)!.shortDate;
   }
 
@@ -333,7 +382,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           return EmptyState(
             icon: Icons.receipt_long_outlined,
             title: 'No transactions yet',
-            subtitle: 'Add your first income or expense to start tracking your money.',
+            subtitle:
+                'Add your first income or expense to start tracking your money.',
             action: FilledButton(
               onPressed: () => showAddEntryMenu(context),
               child: const Text('Add your first transaction'),
@@ -341,7 +391,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           );
         }
 
-        final visible = _applyFilters(transactions, accountsById, categoriesById);
+        final visible = _applyFilters(
+          transactions,
+          accountsById,
+          categoriesById,
+        );
 
         if (visible.isEmpty) {
           return const EmptyState(
@@ -352,9 +406,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         }
 
         final sorted = _applySort(visible);
-        final grouped = groupBy(sorted, (domain.Transaction t) => t.dateTime.dateOnly);
+        final grouped = groupBy(
+          sorted,
+          (domain.Transaction t) => t.dateTime.dateOnly,
+        );
         final sortedDates = grouped.keys.toList()
-          ..sort((a, b) => _sort == TransactionSort.dateAsc ? a.compareTo(b) : b.compareTo(a));
+          ..sort(
+            (a, b) => _sort == TransactionSort.dateAsc
+                ? a.compareTo(b)
+                : b.compareTo(a),
+          );
 
         // Flatten to header/row slots once per build so itemBuilder stays
         // O(1) and only visible rows get built (mirrors SearchScreen's
@@ -362,19 +423,33 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         // instead of re-folding it inside the header widget every rebuild.
         final slots = <Object>[];
         for (final date in sortedDates) {
-          slots.add((date: date, netTotal: grouped[date]!.fold(0.0, (sum, t) => sum + t.signedAmount)));
+          slots.add((
+            date: date,
+            netTotal: grouped[date]!.fold(
+              0.0,
+              (sum, t) => sum + t.signedAmount,
+            ),
+          ));
           slots.addAll(grouped[date]!);
         }
 
         return ListView.builder(
           // Bottom padding clears the shell's floating "+" button, same
           // convention as the Dashboard's scrollable body.
-          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            AppSizes.lg,
+            AppSizes.lg,
+            AppSizes.fabClearance,
+          ),
           itemCount: slots.length,
           itemBuilder: (context, index) {
             final slot = slots[index];
             if (slot is ({DateTime date, double netTotal})) {
-              return TransactionDateGroupHeader(date: slot.date, netTotal: slot.netTotal);
+              return TransactionDateGroupHeader(
+                date: slot.date,
+                netTotal: slot.netTotal,
+              );
             }
             final transaction = slot as domain.Transaction;
             return Padding(
@@ -382,12 +457,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               child: Dismissible(
                 key: ValueKey(transaction.id),
                 direction: DismissDirection.endToStart,
-                confirmDismiss: (_) => _confirmAndDelete(repository, transaction),
+                confirmDismiss: (_) =>
+                    _confirmAndDelete(repository, transaction),
                 background: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.error.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(AppSizes.radiusLg),
                   ),
                   child: Icon(
@@ -399,8 +477,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   transaction: transaction,
                   category: categoriesById[transaction.categoryId],
                   account: accountsById[transaction.accountId],
-                  linkedPersonName: peopleById[transaction.linkedPersonId]?.name,
-                  onTap: () => context.push('${AppRoutes.transactions}/${transaction.id}'),
+                  linkedPersonName:
+                      peopleById[transaction.linkedPersonId]?.name,
+                  onTap: () => context.push(
+                    '${AppRoutes.transactions}/${transaction.id}',
+                  ),
                 ),
               ),
             );
@@ -411,19 +492,27 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   Widget _buildUnifiedHistoryBody(BuildContext context) {
-    final entries = ref.watch(historyEntriesProvider).where(_historyFilter.matches).toList();
+    final entries = ref
+        .watch(historyEntriesProvider)
+        .where(_historyFilter.matches)
+        .toList();
     final query = _query.trim().toLowerCase();
     final visible = query.isEmpty
         ? entries
         : entries
-            .where((e) => e.title.toLowerCase().contains(query) || e.subtitle.toLowerCase().contains(query))
-            .toList();
+              .where(
+                (e) =>
+                    e.title.toLowerCase().contains(query) ||
+                    e.subtitle.toLowerCase().contains(query),
+              )
+              .toList();
 
     if (visible.isEmpty) {
       return EmptyState(
         icon: Icons.receipt_long_outlined,
         title: 'No ${_historyFilter.label.toLowerCase()} yet',
-        subtitle: 'Activity in this category will show up here once you add some.',
+        subtitle:
+            'Activity in this category will show up here once you add some.',
       );
     }
 
@@ -437,7 +526,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     for (final date in sortedDates) {
       slots.add((
         date: date,
-        netTotal: grouped[date]!.fold(0.0, (sum, e) => sum + (e.isCredit ? e.amount : -e.amount)),
+        netTotal: grouped[date]!.fold(
+          0.0,
+          (sum, e) => sum + (e.isCredit ? e.amount : -e.amount),
+        ),
       ));
       slots.addAll(grouped[date]!);
     }
@@ -448,14 +540,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       itemBuilder: (context, index) {
         final slot = slots[index];
         if (slot is ({DateTime date, double netTotal})) {
-          return TransactionDateGroupHeader(date: slot.date, netTotal: slot.netTotal);
+          return TransactionDateGroupHeader(
+            date: slot.date,
+            netTotal: slot.netTotal,
+          );
         }
         final entry = slot as HistoryEntry;
         return Padding(
           padding: const EdgeInsets.only(bottom: AppSizes.xs),
           child: HistoryTile(
             entry: entry,
-            onTap: entry.routePath == null ? null : () => context.push(entry.routePath!),
+            onTap: entry.routePath == null
+                ? null
+                : () => context.push(entry.routePath!),
           ),
         );
       },
@@ -465,8 +562,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   /// Swipe-to-delete's `confirmDismiss`: asks Trash-vs-Permanent, then
   /// performs the chosen delete itself (rather than in `onDismissed`) so a
   /// cancelled/permanent choice can each report the right dismiss result.
-  Future<bool> _confirmAndDelete(TransactionRepository repository, domain.Transaction transaction) async {
-    final choice = await confirmDeleteWithPermanentOption(context, entityName: 'Transaction');
+  Future<bool> _confirmAndDelete(
+    TransactionRepository repository,
+    domain.Transaction transaction,
+  ) async {
+    final choice = await confirmDeleteWithPermanentOption(
+      context,
+      entityName: 'Transaction',
+    );
     // A transaction that's "owed" to a linked Person is really the
     // account-balance effect of an Expense (see `AddExpenseScreen`'s owed
     // toggle / `ExpenseRepository.assignToPerson`) — deleting it here must
@@ -517,7 +620,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     }
   }
 
-  Future<bool> _softDeleteWithUndo(TransactionRepository repository, domain.Transaction transaction) async {
+  Future<bool> _softDeleteWithUndo(
+    TransactionRepository repository,
+    domain.Transaction transaction,
+  ) async {
     try {
       await repository.softDeleteTransaction(transaction);
     } catch (e) {
@@ -548,15 +654,18 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   /// snackbar-undone "owed" expense comes back owed — ledger entry,
   /// schedule/installments and all — instead of reverting to a plain
   /// transaction.
-  Future<bool> _deleteExpenseWithUndo(Expense expense, domain.Transaction transaction) async {
+  Future<bool> _deleteExpenseWithUndo(
+    Expense expense,
+    domain.Transaction transaction,
+  ) async {
     final expenseRepository = ref.read(expenseRepositoryProvider);
     try {
       await expenseRepository.deleteExpense(expense);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not delete expense: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not delete expense: $e')));
       }
       return false;
     }
@@ -583,11 +692,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     return transactions.where((t) {
       if (!_filter.includeExcluded && t.excludeFromCalculations) return false;
       if (_filter.type != null && t.type != _filter.type) return false;
-      if (_filter.accountId != null && t.accountId != _filter.accountId) return false;
-      if (_filter.categoryId != null && t.categoryId != _filter.categoryId) return false;
-      final filterDate = _filter.filterByAccountingMonth ? t.effectiveMonth : t.dateTime;
-      if (_filter.startDate != null && filterDate.isBefore(_filter.startDate!)) return false;
-      if (_filter.endDate != null && filterDate.isAfter(_filter.endDate!)) return false;
+      if (_filter.accountId != null && t.accountId != _filter.accountId)
+        return false;
+      if (_filter.categoryId != null && t.categoryId != _filter.categoryId)
+        return false;
+      final filterDate = _filter.filterByAccountingMonth
+          ? t.effectiveMonth
+          : t.dateTime;
+      if (_filter.startDate != null && filterDate.isBefore(_filter.startDate!))
+        return false;
+      if (_filter.endDate != null && filterDate.isAfter(_filter.endDate!))
+        return false;
 
       if (query.isEmpty) return true;
       final categoryName = categoriesById[t.categoryId]?.name ?? '';
@@ -661,46 +776,51 @@ class _DropdownField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    // A soft floating well rather than a bordered box — matches the
-    // ClayCard-style surfaces the rest of this screen now uses instead of
-    // a flat Material outline.
-    return Container(
-      decoration: BoxDecoration(color: AppClay.card(context), boxShadow: AppClay.nested(context)),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelSmall?.copyWith(color: colors.onSurface.withValues(alpha: 0.6)),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(icon, size: AppSizes.iconSm, color: colors.onSurface.withValues(alpha: 0.7)),
-                    const SizedBox(width: AppSizes.xs),
-                    Expanded(
-                      child: Text(
-                        value,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Icon(Icons.expand_more_rounded, size: AppSizes.iconSm, color: colors.onSurface.withValues(alpha: 0.5)),
-                  ],
-                ),
-              ],
+    // Background separation via a thin neutral border, not a floating
+    // shadow — matches the rest of Theme V2's bordered/rounded card
+    // language (see FlowFiCard).
+    return FlowFiCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.md,
+        vertical: AppSizes.sm,
+      ),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: colors.onSurface.withValues(alpha: 0.6),
             ),
           ),
-        ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Icon(
+                icon,
+                size: AppSizes.iconSm,
+                color: colors.onSurface.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: AppSizes.xs),
+              Expanded(
+                child: Text(
+                  value,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(
+                Icons.expand_more_rounded,
+                size: AppSizes.iconSm,
+                color: colors.onSurface.withValues(alpha: 0.5),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

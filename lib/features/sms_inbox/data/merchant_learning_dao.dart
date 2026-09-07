@@ -64,7 +64,10 @@ class MerchantLearningDao {
     final existing = await getProfile(userId, merchantKey);
     if (existing != null) return existing;
 
-    final blank = MerchantLearningProfile(userId: userId, merchantKey: merchantKey);
+    final blank = MerchantLearningProfile(
+      userId: userId,
+      merchantKey: merchantKey,
+    );
     await _database.insert(
       SmsInboxDatabase.merchantLearningProfilesTableName,
       _toRow(blank),
@@ -156,7 +159,9 @@ class MerchantLearningDao {
   ) {
     final root = _root;
     if (root == null) {
-      throw StateError('Cannot start a nested transaction on a transactional DAO.');
+      throw StateError(
+        'Cannot start a nested transaction on a transactional DAO.',
+      );
     }
     return root.transaction((txn) {
       return action(MerchantLearningDao._(txn, null, uuid: _uuid));
@@ -171,7 +176,12 @@ class MerchantLearningDao {
     _writeField(row, 'merchant_type', profile.merchantType, (v) => v.name);
     _writeField(row, 'category', profile.category, (v) => v);
     _writeField(row, 'subcategory', profile.subcategory, (v) => v);
-    _writeField(row, 'payment_provider', profile.paymentProvider, (v) => v.name);
+    _writeField(
+      row,
+      'payment_provider',
+      profile.paymentProvider,
+      (v) => v.name,
+    );
     _writeField(row, 'payment_method', profile.paymentMethod, (v) => v.name);
     return row;
   }
@@ -186,7 +196,8 @@ class MerchantLearningDao {
     row['${prefix}_source'] = field.source.name;
     row['${prefix}_confirmations'] = field.confirmations;
     row['${prefix}_corrections'] = field.corrections;
-    row['${prefix}_last_updated_at'] = field.lastUpdatedAt?.millisecondsSinceEpoch;
+    row['${prefix}_last_updated_at'] =
+        field.lastUpdatedAt?.millisecondsSinceEpoch;
   }
 
   MerchantLearningProfile _fromRow(Map<String, Object?> row) {
@@ -196,7 +207,11 @@ class MerchantLearningDao {
       merchantType: _readField(row, 'merchant_type', MerchantTypeX.fromName),
       category: _readField(row, 'category', (v) => v),
       subcategory: _readField(row, 'subcategory', (v) => v),
-      paymentProvider: _readField(row, 'payment_provider', PaymentProviderX.fromName),
+      paymentProvider: _readField(
+        row,
+        'payment_provider',
+        PaymentProviderX.fromName,
+      ),
       paymentMethod: _readField(row, 'payment_method', PaymentMethodX.fromName),
     );
   }
@@ -247,8 +262,9 @@ class MerchantLearningDao {
     );
   }
 
-  LearnedFieldType _fieldFromName(String name) => LearnedFieldType.values.firstWhere(
-    (f) => f.name == name,
-    orElse: () => LearnedFieldType.category,
-  );
+  LearnedFieldType _fieldFromName(String name) =>
+      LearnedFieldType.values.firstWhere(
+        (f) => f.name == name,
+        orElse: () => LearnedFieldType.category,
+      );
 }

@@ -45,6 +45,10 @@ class PersonOverallTotals {
         youOwe += -signed;
       }
     }
-    return PersonOverallTotals(totalYouOwe: youOwe, totalTheyOwe: theyOwe, netBalance: theyOwe - youOwe);
+    return PersonOverallTotals(
+      totalYouOwe: youOwe,
+      totalTheyOwe: theyOwe,
+      netBalance: theyOwe - youOwe,
+    );
   }
 }

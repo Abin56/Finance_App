@@ -55,16 +55,16 @@ class Person extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Person(
-      id: snapshot.id,
-      name: data['name'] as String,
-      phone: data['phone'] as String?,
-      email: data['email'] as String?,
-      notes: data['notes'] as String? ?? '',
-      avatarColorValue: data['avatarColorValue'] as int,
-      openingBalance: (data['openingBalance'] as num).toDouble(),
-      currentBalance: (data['currentBalance'] as num).toDouble(),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        name: data['name'] as String,
+        phone: data['phone'] as String?,
+        email: data['email'] as String?,
+        notes: data['notes'] as String? ?? '',
+        avatarColorValue: data['avatarColorValue'] as int,
+        openingBalance: (data['openingBalance'] as num).toDouble(),
+        currentBalance: (data['currentBalance'] as num).toDouble(),
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -83,7 +83,9 @@ class Person extends SoftDeletableEntity {
       'currentBalance': currentBalance,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

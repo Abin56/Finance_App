@@ -44,28 +44,43 @@ Transaction _txn({
   );
 }
 
-Category _category({String id = 'c1', String name = 'Food'}) =>
-    Category(id: id, name: name, type: CategoryType.expense, iconKey: 'food', colorValue: 0, createdAt: _now);
+Category _category({String id = 'c1', String name = 'Food'}) => Category(
+  id: id,
+  name: name,
+  type: CategoryType.expense,
+  iconKey: 'food',
+  colorValue: 0,
+  createdAt: _now,
+);
 
-Account _account({String id = 'a1', String name = 'HDFC', double currentBalance = 1000}) => Account(
-      id: id,
-      name: name,
-      type: AccountType.bank,
-      openingBalance: 0,
-      currentBalance: currentBalance,
-      colorValue: 0,
-      createdAt: _now,
-    );
+Account _account({
+  String id = 'a1',
+  String name = 'HDFC',
+  double currentBalance = 1000,
+}) => Account(
+  id: id,
+  name: name,
+  type: AccountType.bank,
+  openingBalance: 0,
+  currentBalance: currentBalance,
+  colorValue: 0,
+  createdAt: _now,
+);
 
-Person _person({String id = 'p1', String name = 'Ravi', String? phone, double currentBalance = 0}) => Person(
-      id: id,
-      name: name,
-      avatarColorValue: 0,
-      openingBalance: 0,
-      currentBalance: currentBalance,
-      createdAt: _now,
-      phone: phone,
-    );
+Person _person({
+  String id = 'p1',
+  String name = 'Ravi',
+  String? phone,
+  double currentBalance = 0,
+}) => Person(
+  id: id,
+  name: name,
+  avatarColorValue: 0,
+  openingBalance: 0,
+  currentBalance: currentBalance,
+  createdAt: _now,
+  phone: phone,
+);
 
 Expense _splitExpense({
   String id = 'e1',
@@ -122,8 +137,14 @@ List<SearchResult> _build(
 void main() {
   group('SearchQuery', () {
     test('matches text case-insensitively', () {
-      expect(SearchQuery.parse('COFFEE').matchesText(['Morning coffee run']), isTrue);
-      expect(SearchQuery.parse('tea').matchesText(['Morning coffee run']), isFalse);
+      expect(
+        SearchQuery.parse('COFFEE').matchesText(['Morning coffee run']),
+        isTrue,
+      );
+      expect(
+        SearchQuery.parse('tea').matchesText(['Morning coffee run']),
+        isFalse,
+      );
     });
 
     test('ignores null fields', () {
@@ -151,13 +172,27 @@ void main() {
   });
 
   group('SearchBuilder', () {
-    test('returns nothing for a blank query rather than the whole database', () {
-      expect(_build('', transactions: [_txn()], categories: [_category()]), isEmpty);
-      expect(_build('   ', transactions: [_txn()], categories: [_category()]), isEmpty);
-    });
+    test(
+      'returns nothing for a blank query rather than the whole database',
+      () {
+        expect(
+          _build('', transactions: [_txn()], categories: [_category()]),
+          isEmpty,
+        );
+        expect(
+          _build('   ', transactions: [_txn()], categories: [_category()]),
+          isEmpty,
+        );
+      },
+    );
 
     test('finds a transaction by description', () {
-      final results = _build('coffee', transactions: [_txn()], categories: [_category()], accounts: [_account()]);
+      final results = _build(
+        'coffee',
+        transactions: [_txn()],
+        categories: [_category()],
+        accounts: [_account()],
+      );
       expect(results, hasLength(1));
       expect(results.single.title, 'Coffee');
       expect(results.single.group, SearchResultGroup.transactions);
@@ -165,33 +200,62 @@ void main() {
     });
 
     test('finds a transaction by its category name', () {
-      final results = _build('food', transactions: [_txn()], categories: [_category()], accounts: [_account()]);
+      final results = _build(
+        'food',
+        transactions: [_txn()],
+        categories: [_category()],
+        accounts: [_account()],
+      );
       // The Food category itself also matches, so scope to the group.
-      final txn = results.singleWhere((r) => r.group == SearchResultGroup.transactions);
+      final txn = results.singleWhere(
+        (r) => r.group == SearchResultGroup.transactions,
+      );
       expect(txn.title, 'Coffee');
       expect(txn.subtitle, 'Food · HDFC');
     });
 
     test('finds a transaction by its account name', () {
-      final results = _build('hdfc', transactions: [_txn()], categories: [_category()], accounts: [_account()]);
+      final results = _build(
+        'hdfc',
+        transactions: [_txn()],
+        categories: [_category()],
+        accounts: [_account()],
+      );
       // The account itself also matches its own name, so scope to the group.
-      final txns = results.where((r) => r.group == SearchResultGroup.transactions);
+      final txns = results.where(
+        (r) => r.group == SearchResultGroup.transactions,
+      );
       expect(txns.single.title, 'Coffee');
     });
 
     test('finds a transaction by amount', () {
-      final results = _build('250', transactions: [_txn()], categories: [_category()], accounts: [_account()]);
-      expect(results.where((r) => r.group == SearchResultGroup.transactions), hasLength(1));
+      final results = _build(
+        '250',
+        transactions: [_txn()],
+        categories: [_category()],
+        accounts: [_account()],
+      );
+      expect(
+        results.where((r) => r.group == SearchResultGroup.transactions),
+        hasLength(1),
+      );
     });
 
     test('finds a transaction by notes', () {
-      final results = _build('refund', transactions: [_txn(notes: 'pending refund')], categories: [_category()]);
+      final results = _build(
+        'refund',
+        transactions: [_txn(notes: 'pending refund')],
+        categories: [_category()],
+      );
       expect(results, hasLength(1));
     });
 
     test('excludes soft-deleted records', () {
       final deleted = _txn()..markDeleted();
-      expect(_build('coffee', transactions: [deleted], categories: [_category()]), isEmpty);
+      expect(
+        _build('coffee', transactions: [deleted], categories: [_category()]),
+        isEmpty,
+      );
     });
 
     test('lists a split expense once, not also as its balance transaction', () {
@@ -212,15 +276,25 @@ void main() {
     });
 
     test('finds a split expense by a participant name', () {
-      final results = _build('ravi', expenses: [_splitExpense()], categories: [_category()], accounts: [_account()]);
-      final split = results.where((r) => r.group == SearchResultGroup.splitExpenses);
+      final results = _build(
+        'ravi',
+        expenses: [_splitExpense()],
+        categories: [_category()],
+        accounts: [_account()],
+      );
+      final split = results.where(
+        (r) => r.group == SearchResultGroup.splitExpenses,
+      );
       expect(split.single.title, 'Dinner');
       expect(split.single.subtitle, contains('Split with 1 person'));
     });
 
     test('finds a person by name and by phone', () {
       final person = _person(phone: '9876543210');
-      expect(_build('ravi', people: [person]).single.group, SearchResultGroup.people);
+      expect(
+        _build('ravi', people: [person]).single.group,
+        SearchResultGroup.people,
+      );
       expect(_build('98765', people: [person]).single.title, 'Ravi');
     });
 
@@ -275,7 +349,9 @@ void main() {
         createdAt: _now,
       );
       final results = _build('ravi', people: [_person()], loans: [loan]);
-      final loanResults = results.where((r) => r.group == SearchResultGroup.loans);
+      final loanResults = results.where(
+        (r) => r.group == SearchResultGroup.loans,
+      );
       expect(loanResults.single.routePath, '/loans/l1');
       expect(loanResults.single.title, 'Ravi');
     });
@@ -298,25 +374,40 @@ void main() {
       expect(results.single.routePath, '/emis/m1');
     });
 
-    test('finds a credit card by its last four digits, named by its account', () {
-      final card = CreditCardProfile(
-        id: 'cc1',
-        accountId: 'a1',
-        statementDay: 5,
-        paymentDueDay: 25,
-        creditLimit: 100000,
-        createdAt: _now,
-        lastFourDigits: '4321',
-      );
-      final results = _build('4321', creditCards: [card], accounts: [_account()]);
-      final cards = results.where((r) => r.group == SearchResultGroup.creditCards);
-      expect(cards.single.title, 'HDFC');
-      expect(cards.single.routePath, '/creditCards/cc1');
-    });
+    test(
+      'finds a credit card by its last four digits, named by its account',
+      () {
+        final card = CreditCardProfile(
+          id: 'cc1',
+          accountId: 'a1',
+          statementDay: 5,
+          paymentDueDay: 25,
+          creditLimit: 100000,
+          createdAt: _now,
+          lastFourDigits: '4321',
+        );
+        final results = _build(
+          '4321',
+          creditCards: [card],
+          accounts: [_account()],
+        );
+        final cards = results.where(
+          (r) => r.group == SearchResultGroup.creditCards,
+        );
+        expect(cards.single.title, 'HDFC');
+        expect(cards.single.routePath, '/creditCards/cc1');
+      },
+    );
 
     test('finds an account and a category by name', () {
-      expect(_build('hdfc', accounts: [_account()]).single.group, SearchResultGroup.accounts);
-      expect(_build('food', categories: [_category()]).single.group, SearchResultGroup.categories);
+      expect(
+        _build('hdfc', accounts: [_account()]).single.group,
+        SearchResultGroup.accounts,
+      );
+      expect(
+        _build('food', categories: [_category()]).single.group,
+        SearchResultGroup.categories,
+      );
     });
   });
 
@@ -402,14 +493,27 @@ void main() {
         createdAt: _now,
         lastFourDigits: '4321',
       );
-      final results = _build('4321', creditCards: [card], accounts: [_account()]);
-      expect(results.where((r) => r.group == SearchResultGroup.creditCards).single.kind, TransactionKind.creditCard);
+      final results = _build(
+        '4321',
+        creditCards: [card],
+        accounts: [_account()],
+      );
+      expect(
+        results
+            .where((r) => r.group == SearchResultGroup.creditCards)
+            .single
+            .kind,
+        TransactionKind.creditCard,
+      );
     });
 
-    test('people/accounts/categories have no TransactionKind — they are not money movements', () {
-      expect(_build('ravi', people: [_person()]).single.kind, isNull);
-      expect(_build('hdfc', accounts: [_account()]).single.kind, isNull);
-      expect(_build('food', categories: [_category()]).single.kind, isNull);
-    });
+    test(
+      'people/accounts/categories have no TransactionKind — they are not money movements',
+      () {
+        expect(_build('ravi', people: [_person()]).single.kind, isNull);
+        expect(_build('hdfc', accounts: [_account()]).single.kind, isNull);
+        expect(_build('food', categories: [_category()]).single.kind, isNull);
+      },
+    );
   });
 }

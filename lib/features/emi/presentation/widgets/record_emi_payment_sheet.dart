@@ -32,7 +32,12 @@ import '../providers/emi_providers.dart';
 /// changes with every payment (unlike Bills/Loans, which only reschedule on
 /// create/edit).
 class RecordEmiPaymentSheet extends ConsumerStatefulWidget {
-  const RecordEmiPaymentSheet({super.key, required this.emi, required this.installment, this.smsPrefill});
+  const RecordEmiPaymentSheet({
+    super.key,
+    required this.emi,
+    required this.installment,
+    this.smsPrefill,
+  });
 
   final Emi emi;
   final Installment installment;
@@ -43,17 +48,27 @@ class RecordEmiPaymentSheet extends ConsumerStatefulWidget {
   /// its theoretical default and remains user-editable either way.
   final SmsPrefill? smsPrefill;
 
-  static Future<void> show(BuildContext context, Emi emi, Installment installment, {SmsPrefill? smsPrefill}) {
+  static Future<void> show(
+    BuildContext context,
+    Emi emi,
+    Installment installment, {
+    SmsPrefill? smsPrefill,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
-      builder: (_) => RecordEmiPaymentSheet(emi: emi, installment: installment, smsPrefill: smsPrefill),
+      builder: (_) => RecordEmiPaymentSheet(
+        emi: emi,
+        installment: installment,
+        smsPrefill: smsPrefill,
+      ),
     );
   }
 
   @override
-  ConsumerState<RecordEmiPaymentSheet> createState() => _RecordEmiPaymentSheetState();
+  ConsumerState<RecordEmiPaymentSheet> createState() =>
+      _RecordEmiPaymentSheetState();
 }
 
 class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
@@ -61,7 +76,9 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
   late final _principalController = TextEditingController(
     text: (widget.smsPrefill?.amount ?? _defaultPrincipal).toStringAsFixed(2),
   );
-  late final _interestController = TextEditingController(text: _defaultInterest.toStringAsFixed(2));
+  late final _interestController = TextEditingController(
+    text: _defaultInterest.toStringAsFixed(2),
+  );
   final _gstController = TextEditingController();
   final _igstController = TextEditingController();
   final _processingFeeController = TextEditingController();
@@ -69,7 +86,9 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
   final _serviceChargeController = TextEditingController();
   final _penaltyController = TextEditingController();
   final _otherChargesController = TextEditingController();
-  late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
+  late final _noteController = TextEditingController(
+    text: widget.smsPrefill?.note ?? '',
+  );
   late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   bool _isSaving = false;
   bool _someoneElsePaid = false;
@@ -85,7 +104,9 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
     final remaining = widget.installment.remainingAmount;
     final due = widget.installment.amountDue;
     if (due == 0) return remaining;
-    return (remaining * (principalPortion / due)).clamp(0, remaining).toDouble();
+    return (remaining * (principalPortion / due))
+        .clamp(0, remaining)
+        .toDouble();
   }
 
   double get _defaultInterest {
@@ -136,11 +157,13 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
   String _resolveNote(PayerSource payer) {
     final typed = _noteController.text.trim();
     if (typed.isNotEmpty) return typed;
-    if (payer case PersonPayerSource(:final person)) return 'Paid by ${person.name}';
+    if (payer case PersonPayerSource(:final person))
+      return 'Paid by ${person.name}';
     return '';
   }
 
-  double _parsed(TextEditingController controller) => double.tryParse(controller.text.trim()) ?? 0;
+  double _parsed(TextEditingController controller) =>
+      double.tryParse(controller.text.trim()) ?? 0;
 
   double get _totalAmountPaid =>
       _parsed(_principalController) +
@@ -157,12 +180,17 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
   /// `_save`'s `installmentAmount`) — charges/fees are tracked separately
   /// and legitimately can push [_totalAmountPaid] above [remainingAmount],
   /// so the overpayment check applies to this sum, not the grand total.
-  double get _installmentAmount => _parsed(_principalController) + _parsed(_interestController);
+  double get _installmentAmount =>
+      _parsed(_principalController) + _parsed(_interestController);
 
-  bool get _isAmountValid => _installmentAmount > 0 && _installmentAmount <= widget.installment.remainingAmount;
+  bool get _isAmountValid =>
+      _installmentAmount > 0 &&
+      _installmentAmount <= widget.installment.remainingAmount;
 
   String? get _overpaymentError =>
-      _installmentAmount > widget.installment.remainingAmount ? 'Payment amount cannot exceed the remaining balance.' : null;
+      _installmentAmount > widget.installment.remainingAmount
+      ? 'Payment amount cannot exceed the remaining balance.'
+      : null;
 
   /// Principal is required (> 0), same as every other amount field.
   String? _validatePrincipal(String? value) {
@@ -174,7 +202,9 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
   /// Interest can legitimately be 0 (a non-interest EMI) — only rejects
   /// non-numeric input and the combined overpayment.
   String? _validateInterest(String? value) {
-    if (value != null && value.trim().isNotEmpty && double.tryParse(value.trim()) == null) {
+    if (value != null &&
+        value.trim().isNotEmpty &&
+        double.tryParse(value.trim()) == null) {
       return 'Enter a valid number';
     }
     return _overpaymentError;
@@ -186,9 +216,10 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
 
     try {
       final paymentRepository = ref.read(
-        installmentPaymentRepositoryProvider(
-          (scheduleId: widget.installment.scheduleId, installmentId: widget.installment.id),
-        ),
+        installmentPaymentRepositoryProvider((
+          scheduleId: widget.installment.scheduleId,
+          installmentId: widget.installment.id,
+        )),
       );
       final principalPaid = _parsed(_principalController);
       final interestPaid = _parsed(_interestController);
@@ -208,60 +239,75 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
       final installmentAmount = principalPaid + interestPaid;
       final payer = _resolvePayer();
 
-      await ref.read(paymentAttributionServiceProvider).apply(
-        items: [
-          PaymentAttributionItem(
-            obligationLabel: 'your ${widget.emi.name}',
-            amount: installmentAmount,
-            record: ({required amount, required date, required note}) async {
-              final payment = await paymentRepository.recordPayment(
-                widget.installment,
-                amount: amount,
-                date: date,
-                note: note,
-              );
-              await ref.read(emiPaymentBreakdownRepositoryProvider(widget.emi.id)).createBreakdown(
-                    paymentId: payment.id,
-                    scheduleId: widget.installment.scheduleId,
-                    installmentId: widget.installment.id,
-                    principalPaid: principalPaid,
-                    interestPaid: interestPaid,
-                    gst: gst,
-                    igst: igst,
-                    processingFee: processingFee,
-                    insuranceCharge: insuranceCharge,
-                    serviceCharge: serviceCharge,
-                    penalty: penalty,
-                    otherCharges: otherCharges,
-                    notes: notes,
-                  );
-            },
-          ),
-        ],
-        payer: payer,
-        date: _date,
-        note: _resolveNote(payer),
-      );
+      await ref
+          .read(paymentAttributionServiceProvider)
+          .apply(
+            items: [
+              PaymentAttributionItem(
+                obligationLabel: 'your ${widget.emi.name}',
+                amount: installmentAmount,
+                record:
+                    ({required amount, required date, required note}) async {
+                      final payment = await paymentRepository.recordPayment(
+                        widget.installment,
+                        amount: amount,
+                        date: date,
+                        note: note,
+                      );
+                      await ref
+                          .read(
+                            emiPaymentBreakdownRepositoryProvider(
+                              widget.emi.id,
+                            ),
+                          )
+                          .createBreakdown(
+                            paymentId: payment.id,
+                            scheduleId: widget.installment.scheduleId,
+                            installmentId: widget.installment.id,
+                            principalPaid: principalPaid,
+                            interestPaid: interestPaid,
+                            gst: gst,
+                            igst: igst,
+                            processingFee: processingFee,
+                            insuranceCharge: insuranceCharge,
+                            serviceCharge: serviceCharge,
+                            penalty: penalty,
+                            otherCharges: otherCharges,
+                            notes: notes,
+                          );
+                    },
+              ),
+            ],
+            payer: payer,
+            date: _date,
+            note: _resolveNote(payer),
+          );
 
-      final installments = ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ?? const [];
-      final nextUnpaid = installments.where((i) => i.status != InstallmentStatus.paid).toList()
-        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final installments =
+          ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ??
+          const [];
+      final nextUnpaid =
+          installments.where((i) => i.status != InstallmentStatus.paid).toList()
+            ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
       if (nextUnpaid.isNotEmpty) {
-        ref.read(emiRepositoryProvider).rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
+        ref
+            .read(emiRepositoryProvider)
+            .rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
       }
 
       await completeSmsImport(
         ref,
         smsPrefill: widget.smsPrefill,
-        linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
+        linkedEntityId:
+            '${widget.installment.scheduleId}:${widget.installment.id}',
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record payment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
@@ -279,127 +325,159 @@ class _RecordEmiPaymentSheetState extends ConsumerState<RecordEmiPaymentSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              const SectionLabel('Payment'),
-              const SizedBox(height: AppSizes.sm),
-              TextFormField(
-                controller: _principalController,
-                decoration: const InputDecoration(labelText: 'Principal paid'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: _validatePrincipal,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                onChanged: (_) => setState(() {}),
+            const SectionLabel('Payment'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _principalController,
+              decoration: const InputDecoration(labelText: 'Principal paid'),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _interestController,
-                decoration: const InputDecoration(labelText: 'Interest paid'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: _validateInterest,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-                onChanged: (_) => setState(() {}),
+              validator: _validatePrincipal,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _interestController,
+              decoration: const InputDecoration(labelText: 'Interest paid'),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-              const SizedBox(height: AppSizes.md),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Date'),
-                subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
-                trailing: const Icon(Icons.calendar_today_outlined),
-                onTap: _pickDate,
+              validator: _validateInterest,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppSizes.md),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Date'),
+              subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
+              trailing: const Icon(Icons.calendar_today_outlined),
+              onTap: _pickDate,
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Charges'),
+            const SizedBox(height: AppSizes.sm),
+            Theme(
+              data: Theme.of(
+                context,
+              ).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                title: const Text('GST, fees & other charges (optional)'),
+                tilePadding: EdgeInsets.zero,
+                initiallyExpanded: _showCharges,
+                onExpansionChanged: (expanded) =>
+                    setState(() => _showCharges = expanded),
+                childrenPadding: EdgeInsets.zero,
+                children: [
+                  TextFormField(
+                    controller: _gstController,
+                    decoration: const InputDecoration(labelText: 'GST'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  TextFormField(
+                    controller: _igstController,
+                    decoration: const InputDecoration(labelText: 'IGST'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  TextFormField(
+                    controller: _processingFeeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Processing fee',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  TextFormField(
+                    controller: _insuranceChargeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Insurance charge',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  TextFormField(
+                    controller: _serviceChargeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Service charge',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  TextFormField(
+                    controller: _penaltyController,
+                    decoration: const InputDecoration(labelText: 'Penalty'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  TextFormField(
+                    controller: _otherChargesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Other charges',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSizes.lg),
-              const SectionLabel('Charges'),
-              const SizedBox(height: AppSizes.sm),
-              Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ExpansionTile(
-                  title: const Text('GST, fees & other charges (optional)'),
-                  tilePadding: EdgeInsets.zero,
-                  initiallyExpanded: _showCharges,
-                  onExpansionChanged: (expanded) => setState(() => _showCharges = expanded),
-                  childrenPadding: EdgeInsets.zero,
-                  children: [
-                    TextFormField(
-                      controller: _gstController,
-                      decoration: const InputDecoration(labelText: 'GST'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    TextFormField(
-                      controller: _igstController,
-                      decoration: const InputDecoration(labelText: 'IGST'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    TextFormField(
-                      controller: _processingFeeController,
-                      decoration: const InputDecoration(labelText: 'Processing fee'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    TextFormField(
-                      controller: _insuranceChargeController,
-                      decoration: const InputDecoration(labelText: 'Insurance charge'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    TextFormField(
-                      controller: _serviceChargeController,
-                      decoration: const InputDecoration(labelText: 'Service charge'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    TextFormField(
-                      controller: _penaltyController,
-                      decoration: const InputDecoration(labelText: 'Penalty'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    TextFormField(
-                      controller: _otherChargesController,
-                      decoration: const InputDecoration(labelText: 'Other charges'),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (_) => setState(() {}),
-                    ),
-                  ],
-                ),
+            ),
+            const SizedBox(height: AppSizes.md),
+            Container(
+              padding: const EdgeInsets.all(AppSizes.md),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               ),
-              const SizedBox(height: AppSizes.md),
-              Container(
-                padding: const EdgeInsets.all(AppSizes.md),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                ),
-                child: Text(
-                  'Total amount paid: ${CurrencyFormatter.instance.format(_totalAmountPaid)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-                ),
+              child: Text(
+                'Total amount paid: ${CurrencyFormatter.instance.format(_totalAmountPaid)}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
-              const SizedBox(height: AppSizes.lg),
-              const SectionLabel('Note & Payer'),
-              const SizedBox(height: AppSizes.sm),
-              TextFormField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-                maxLines: 2,
-                textInputAction: TextInputAction.done,
-              ),
-              const SizedBox(height: AppSizes.md),
-              PayerPicker(
-                isSomeoneElse: _someoneElsePaid,
-                onModeChanged: (value) => setState(() {
-                  _someoneElsePaid = value;
-                  if (!value) _selectedPersonId = null;
-                }),
-                selectedPersonId: _selectedPersonId,
-                onPersonChanged: (value) => setState(() => _selectedPersonId = value),
-              ),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Note & Payer'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'Note (optional)'),
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSizes.md),
+            PayerPicker(
+              isSomeoneElse: _someoneElsePaid,
+              onModeChanged: (value) => setState(() {
+                _someoneElsePaid = value;
+                if (!value) _selectedPersonId = null;
+              }),
+              selectedPersonId: _selectedPersonId,
+              onPersonChanged: (value) =>
+                  setState(() => _selectedPersonId = value),
+            ),
           ],
         ),
       ),

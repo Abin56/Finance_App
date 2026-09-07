@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/account_display_name.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
@@ -21,7 +24,10 @@ class TransactionFilterSheet extends ConsumerStatefulWidget {
 
   final TransactionFilter initialFilter;
 
-  static Future<TransactionFilter?> show(BuildContext context, TransactionFilter current) {
+  static Future<TransactionFilter?> show(
+    BuildContext context,
+    TransactionFilter current,
+  ) {
     return showModalBottomSheet<TransactionFilter>(
       context: context,
       isScrollControlled: true,
@@ -30,17 +36,20 @@ class TransactionFilterSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<TransactionFilterSheet> createState() => _TransactionFilterSheetState();
+  ConsumerState<TransactionFilterSheet> createState() =>
+      _TransactionFilterSheetState();
 }
 
-class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet> {
+class _TransactionFilterSheetState
+    extends ConsumerState<TransactionFilterSheet> {
   late TransactionType? _type = widget.initialFilter.type;
   late String? _accountId = widget.initialFilter.accountId;
   late String? _categoryId = widget.initialFilter.categoryId;
   late DateTime? _startDate = widget.initialFilter.startDate;
   late DateTime? _endDate = widget.initialFilter.endDate;
   late bool _includeExcluded = widget.initialFilter.includeExcluded;
-  late bool _filterByAccountingMonth = widget.initialFilter.filterByAccountingMonth;
+  late bool _filterByAccountingMonth =
+      widget.initialFilter.filterByAccountingMonth;
 
   final _typeFieldKey = GlobalKey();
   final _accountFieldKey = GlobalKey();
@@ -69,8 +78,9 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
     final categories = _type == null
         ? ref.watch(categoriesStreamProvider).value ?? const []
         : ref.watch(categoriesForTypeProvider(_type!));
-    final selectedCategory =
-        categories.any((c) => c.id == _categoryId) ? categories.firstWhere((c) => c.id == _categoryId) : null;
+    final selectedCategory = categories.any((c) => c.id == _categoryId)
+        ? categories.firstWhere((c) => c.id == _categoryId)
+        : null;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -86,31 +96,27 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
           children: [
             Row(
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: AppClay.primaryGradient,
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: AppClay.glow(AppClay.primary),
-                  ),
-                  child: const Icon(Icons.tune_rounded, size: AppSizes.iconSm, color: Colors.white),
+                FlowFiIconChip(
+                  icon: Icons.tune_rounded,
+                  color: context.colors.primary,
+                  size: 36,
                 ),
                 const SizedBox(width: AppSizes.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Filters', style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        'Filters',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       Text(
                         'Narrow down your history',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
                       ),
                     ],
                   ),
@@ -141,20 +147,30 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
               label: 'Type',
               value: _type?.label ?? 'All',
               onTap: () async {
-                final result = await showAnchoredSortMenu<({TransactionType? value})>(
-                  context: context,
-                  anchorKey: _typeFieldKey,
-                  selectedValue: (value: _type),
-                  options: [
-                    const SortMenuOption(value: (value: null), icon: Icons.apps_rounded, label: 'All'),
-                    for (final type in TransactionType.values)
-                      SortMenuOption(value: (value: type), icon: type.icon, label: type.label),
-                  ],
-                );
+                final result =
+                    await showAnchoredSortMenu<({TransactionType? value})>(
+                      context: context,
+                      anchorKey: _typeFieldKey,
+                      selectedValue: (value: _type),
+                      options: [
+                        const SortMenuOption(
+                          value: (value: null),
+                          icon: Icons.apps_rounded,
+                          label: 'All',
+                        ),
+                        for (final type in TransactionType.values)
+                          SortMenuOption(
+                            value: (value: type),
+                            icon: type.icon,
+                            label: type.label,
+                          ),
+                      ],
+                    );
                 if (result != null) {
                   setState(() {
                     _type = result.value;
-                    if (_categoryId != null && !categories.any((c) => c.id == _categoryId)) {
+                    if (_categoryId != null &&
+                        !categories.any((c) => c.id == _categoryId)) {
                       _categoryId = null;
                     }
                   });
@@ -170,15 +186,26 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
                 icon: Icons.account_balance_wallet_outlined,
                 label: 'Account',
                 value: accounts.any((a) => a.id == _accountId)
-                    ? accountPickerLabel(accounts.firstWhere((a) => a.id == _accountId), creditCards)
+                    ? accountPickerLabel(
+                        accounts.firstWhere((a) => a.id == _accountId),
+                        creditCards,
+                      )
                     : 'All',
                 onTap: () async {
                   final result = await showAnchoredSortMenu<({String? value})>(
                     context: context,
                     anchorKey: _accountFieldKey,
-                    selectedValue: (value: accounts.any((a) => a.id == _accountId) ? _accountId : null),
+                    selectedValue: (
+                      value: accounts.any((a) => a.id == _accountId)
+                          ? _accountId
+                          : null,
+                    ),
                     options: [
-                      const SortMenuOption(value: (value: null), icon: Icons.apps_rounded, label: 'All'),
+                      const SortMenuOption(
+                        value: (value: null),
+                        icon: Icons.apps_rounded,
+                        label: 'All',
+                      ),
                       for (final account in accounts)
                         SortMenuOption(
                           value: (value: account.id),
@@ -195,16 +222,26 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
             _FilterPickerField(
               fieldKey: _categoryFieldKey,
               icon: selectedCategory?.icon ?? Icons.label_outline_rounded,
-              iconColor: selectedCategory != null ? Color(selectedCategory.colorValue) : null,
+              iconColor: selectedCategory != null
+                  ? Color(selectedCategory.colorValue)
+                  : null,
               label: 'Category',
               value: selectedCategory?.name ?? 'All',
               onTap: () async {
                 final result = await showAnchoredSortMenu<({String? value})>(
                   context: context,
                   anchorKey: _categoryFieldKey,
-                  selectedValue: (value: categories.any((c) => c.id == _categoryId) ? _categoryId : null),
+                  selectedValue: (
+                    value: categories.any((c) => c.id == _categoryId)
+                        ? _categoryId
+                        : null,
+                  ),
                   options: [
-                    const SortMenuOption(value: (value: null), icon: Icons.apps_rounded, label: 'All'),
+                    const SortMenuOption(
+                      value: (value: null),
+                      icon: Icons.apps_rounded,
+                      label: 'All',
+                    ),
                     for (final category in categories)
                       SortMenuOption(
                         value: (value: category.id),
@@ -218,75 +255,81 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
               },
             ),
             const SizedBox(height: AppSizes.md),
-            Container(
-              decoration: BoxDecoration(
-                color: AppClay.card(context),
-                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                boxShadow: AppClay.nested(context),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Material(
-                color: Colors.transparent,
-                child: SwitchListTile(
-                  title: const Text('Include Excluded Transactions'),
-                  subtitle: const Text('Turn off to hide transactions marked "Exclude from Financial Calculations".'),
-                  value: _includeExcluded,
-                  onChanged: (value) => setState(() => _includeExcluded = value),
-                  activeThumbColor: AppClay.primary,
+            FlowFiCard(
+              padding: EdgeInsets.zero,
+              child: SwitchListTile(
+                title: const Text('Include Excluded Transactions'),
+                subtitle: const Text(
+                  'Turn off to hide transactions marked "Exclude from Financial Calculations".',
                 ),
+                value: _includeExcluded,
+                onChanged: (value) => setState(() => _includeExcluded = value),
+                activeThumbColor: context.colors.primary,
               ),
             ),
             const SizedBox(height: AppSizes.md),
             Row(
               children: [
-                Icon(Icons.event_repeat_rounded, size: AppSizes.iconSm, color: AppClay.primaryAccent(context)),
+                Icon(
+                  Icons.event_repeat_rounded,
+                  size: AppSizes.iconSm,
+                  color: context.colors.onSurface.withValues(alpha: 0.7),
+                ),
                 const SizedBox(width: AppSizes.xs),
-                Text('Filter dates by', style: Theme.of(context).textTheme.labelLarge),
+                Text(
+                  'Filter dates by',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
               ],
             ),
             const SizedBox(height: AppSizes.xs),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('Transaction Date')),
-                ButtonSegment(value: true, label: Text('Accounting Month')),
+            Row(
+              children: [
+                _DateFilterPill(
+                  label: 'Transaction Date',
+                  selected: !_filterByAccountingMonth,
+                  onTap: () => setState(() => _filterByAccountingMonth = false),
+                ),
+                const SizedBox(width: AppSizes.sm),
+                _DateFilterPill(
+                  label: 'Accounting Month',
+                  selected: _filterByAccountingMonth,
+                  onTap: () => setState(() => _filterByAccountingMonth = true),
+                ),
               ],
-              selected: {_filterByAccountingMonth},
-              onSelectionChanged: (selection) => setState(() => _filterByAccountingMonth = selection.first),
-              style: SegmentedButton.styleFrom(
-                selectedBackgroundColor: AppClay.primaryAccent(context),
-                selectedForegroundColor: Colors.white,
-              ),
             ),
             const SizedBox(height: AppSizes.md),
-            Container(
-              decoration: BoxDecoration(
-                color: AppClay.card(context),
-                borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                boxShadow: AppClay.nested(context),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _pickDateRange,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-                    child: Row(
-                      children: [
-                        Icon(Icons.date_range_outlined, size: AppSizes.iconSm, color: AppClay.primaryAccent(context)),
-                        const SizedBox(width: AppSizes.sm),
-                        Expanded(
-                          child: Text(
-                            _startDate != null && _endDate != null
-                                ? '${_startDate!.shortDate} - ${_endDate!.shortDate}'
-                                : 'Date range',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                        Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
-                      ],
+            FlowFiCard(
+              padding: EdgeInsets.zero,
+              onTap: _pickDateRange,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.md,
+                  vertical: AppSizes.sm,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.date_range_outlined,
+                      size: AppSizes.iconSm,
+                      color: context.colors.onSurface.withValues(alpha: 0.7),
                     ),
-                  ),
+                    const SizedBox(width: AppSizes.sm),
+                    Expanded(
+                      child: Text(
+                        _startDate != null && _endDate != null
+                            ? '${_startDate!.shortDate} - ${_endDate!.shortDate}'
+                            : 'Date range',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -341,52 +384,91 @@ class _FilterPickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final tint = iconColor ?? AppClay.primary;
-    return Container(
+    final tint = iconColor ?? colors.primary;
+    return FlowFiCard(
       key: fieldKey,
-      decoration: BoxDecoration(
-        color: AppClay.card(context),
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        boxShadow: AppClay.nested(context),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sm,
+        vertical: AppSizes.xs,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
-            child: Row(
+      onTap: onTap,
+      child: Row(
+        children: [
+          FlowFiIconChip(icon: icon, color: tint, size: 32),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(gradient: AppClay.iconChipGradient(tint), shape: BoxShape.circle),
-                  child: Icon(icon, size: AppSizes.iconSm, color: tint),
-                ),
-                const SizedBox(width: AppSizes.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        label,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: colors.onSurface.withValues(alpha: 0.6),
-                            ),
-                      ),
-                      Text(
-                        value,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
-                Icon(Icons.expand_more_rounded, color: colors.onSurface.withValues(alpha: 0.5)),
+                Text(
+                  value,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
+            ),
+          ),
+          Icon(
+            Icons.expand_more_rounded,
+            color: colors.onSurface.withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single Theme V2 "Filter Chips" pill for the "Filter dates by" choice —
+/// unselected: neutral surface + thin border; selected: solid lime fill +
+/// near-black text. Only two mutually-exclusive options, so a plain [Row] of
+/// these reads more consistently with the rest of the app's pill-chip
+/// language than a [SegmentedButton].
+class _DateFilterPill extends StatelessWidget {
+  const _DateFilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final foreground = selected ? AppColors.onLime : colors.onSurface;
+
+    return Material(
+      color: selected ? colors.primary : colors.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        side: BorderSide(color: selected ? Colors.transparent : colors.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.md,
+            vertical: AppSizes.sm,
+          ),
+          child: Text(
+            label,
+            style: context.textTheme.labelLarge?.copyWith(
+              fontSize: 13,
+              color: foreground,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
         ),

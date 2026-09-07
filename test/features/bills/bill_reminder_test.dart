@@ -6,31 +6,64 @@ void main() {
 
   group('BillReminder.daysUntilDue', () {
     test('is 0 when due today', () {
-      expect(BillReminder(dueDate: DateTime(2026, 3, 10), reminderOffsets: const [], now: now).daysUntilDue, 0);
+      expect(
+        BillReminder(
+          dueDate: DateTime(2026, 3, 10),
+          reminderOffsets: const [],
+          now: now,
+        ).daysUntilDue,
+        0,
+      );
     });
 
     test('is positive for a future due date', () {
-      expect(BillReminder(dueDate: DateTime(2026, 3, 17), reminderOffsets: const [], now: now).daysUntilDue, 7);
+      expect(
+        BillReminder(
+          dueDate: DateTime(2026, 3, 17),
+          reminderOffsets: const [],
+          now: now,
+        ).daysUntilDue,
+        7,
+      );
     });
 
     test('is negative for a past due date', () {
-      expect(BillReminder(dueDate: DateTime(2026, 3, 5), reminderOffsets: const [], now: now).daysUntilDue, -5);
+      expect(
+        BillReminder(
+          dueDate: DateTime(2026, 3, 5),
+          reminderOffsets: const [],
+          now: now,
+        ).daysUntilDue,
+        -5,
+      );
     });
   });
 
   group('BillReminder.isDueToday', () {
     test('is true when an offset matches daysUntilDue exactly', () {
-      final reminder = BillReminder(dueDate: DateTime(2026, 3, 13), reminderOffsets: const [1, 3, 7], now: now);
+      final reminder = BillReminder(
+        dueDate: DateTime(2026, 3, 13),
+        reminderOffsets: const [1, 3, 7],
+        now: now,
+      );
       expect(reminder.isDueToday, isTrue);
     });
 
     test('is false when no offset matches', () {
-      final reminder = BillReminder(dueDate: DateTime(2026, 3, 20), reminderOffsets: const [1, 3, 7], now: now);
+      final reminder = BillReminder(
+        dueDate: DateTime(2026, 3, 20),
+        reminderOffsets: const [1, 3, 7],
+        now: now,
+      );
       expect(reminder.isDueToday, isFalse);
     });
 
     test('is false when reminderOffsets is empty', () {
-      final reminder = BillReminder(dueDate: DateTime(2026, 3, 10), reminderOffsets: const [], now: now);
+      final reminder = BillReminder(
+        dueDate: DateTime(2026, 3, 10),
+        reminderOffsets: const [],
+        now: now,
+      );
       expect(reminder.isDueToday, isFalse);
     });
   });
@@ -52,12 +85,20 @@ void main() {
 
   group('BillReminder.dueOffsetLabels', () {
     test('returns every offset label due today', () {
-      final reminder = BillReminder(dueDate: DateTime(2026, 3, 10), reminderOffsets: const [0], now: now);
+      final reminder = BillReminder(
+        dueDate: DateTime(2026, 3, 10),
+        reminderOffsets: const [0],
+        now: now,
+      );
       expect(reminder.dueOffsetLabels, ['Today']);
     });
 
     test('returns an empty list when nothing is due today', () {
-      final reminder = BillReminder(dueDate: DateTime(2026, 4, 1), reminderOffsets: const [0, 1, 3, 7], now: now);
+      final reminder = BillReminder(
+        dueDate: DateTime(2026, 4, 1),
+        reminderOffsets: const [0, 1, 3, 7],
+        now: now,
+      );
       expect(reminder.dueOffsetLabels, isEmpty);
     });
   });

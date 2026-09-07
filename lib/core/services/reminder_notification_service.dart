@@ -22,7 +22,9 @@ class ReminderNotificationService {
     if (_initialized) return;
     tz_data.initializeTimeZones();
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     // Permission is deliberately NOT requested here (hence the `request*:
     // false` flags): [init] runs during app startup, which would put the OS
     // dialog on screen before the user has been told what the reminders are
@@ -50,14 +52,18 @@ class ReminderNotificationService {
 
     if (Platform.isAndroid) {
       final granted = await _plugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
       return granted ?? false;
     }
 
     if (Platform.isIOS || Platform.isMacOS) {
       final granted = await _plugin
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
       return granted ?? false;
     }
@@ -89,7 +95,12 @@ class ReminderNotificationService {
 
     for (final offset in offsets) {
       final fireDate = dueDate.subtract(Duration(days: offset));
-      final scheduledFor = DateTime(fireDate.year, fireDate.month, fireDate.day, 9);
+      final scheduledFor = DateTime(
+        fireDate.year,
+        fireDate.month,
+        fireDate.day,
+        9,
+      );
       if (scheduledFor.isBefore(DateTime.now())) continue;
 
       await _plugin.zonedSchedule(
@@ -109,7 +120,8 @@ class ReminderNotificationService {
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.dateAndTime,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }
@@ -133,5 +145,6 @@ class ReminderNotificationService {
   /// Deterministic notification id from an owner id + offset — Dart's
   /// `hashCode` is stable within a single run, which is sufficient since
   /// ids only need to be unique among currently-scheduled notifications.
-  static int _notificationId(String ownerId, int offset) => Object.hash(ownerId, offset) & 0x7fffffff;
+  static int _notificationId(String ownerId, int offset) =>
+      Object.hash(ownerId, offset) & 0x7fffffff;
 }

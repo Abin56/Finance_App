@@ -70,7 +70,11 @@ extension SplitExpenseHistoryStatusX on SplitExpenseHistoryStatus {
 /// projection of `ExpenseParticipant`, decoupled from the expense domain
 /// layer the same way the rest of [HistoryEntry] is.
 class SplitShare {
-  const SplitShare({required this.name, required this.share, required this.isMe});
+  const SplitShare({
+    required this.name,
+    required this.share,
+    required this.isMe,
+  });
 
   final String name;
   final double share;

@@ -17,7 +17,11 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: ReportsMyExpenseCard(
-            breakdown: (personal: 1234567.89, split: 987654.32, total: 2222222.21),
+            breakdown: (
+              personal: 1234567.89,
+              split: 987654.32,
+              total: 2222222.21,
+            ),
             moneyToReceive: 1234567.89,
             moneyReceived: 999999.99,
           ),

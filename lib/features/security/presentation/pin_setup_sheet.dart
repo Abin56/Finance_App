@@ -82,9 +82,16 @@ class _PinSetupSheetState extends ConsumerState<PinSetupSheet> {
             ),
             const SizedBox(height: AppSizes.sm),
             if (_error != null)
-              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             const SizedBox(height: AppSizes.lg),
-            PinDotsIndicator(length: 6, filled: _input.length, hasError: _error != null),
+            PinDotsIndicator(
+              length: 6,
+              filled: _input.length,
+              hasError: _error != null,
+            ),
             const SizedBox(height: AppSizes.xl),
             PinPad(onDigit: _onDigit, onBackspace: _onBackspace),
             TextButton(

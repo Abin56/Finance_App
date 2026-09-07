@@ -24,23 +24,39 @@ void main() {
     // Case 6: a person can owe you on some transactions and you owe them on
     // others, at the same time — totals must split by direction rather than
     // netting, while netBalance still matches the netted sign convention.
-    test('splits mixed-direction entries into independent You Owe / They Owe totals', () {
-      final entries = [
-        _entry(id: 'l1', type: LedgerEntryType.gave, amount: 300), // they owe you +300
-        _entry(id: 'l2', type: LedgerEntryType.borrowed, amount: 120), // you owe them +120 (signed -120)
-      ];
+    test(
+      'splits mixed-direction entries into independent You Owe / They Owe totals',
+      () {
+        final entries = [
+          _entry(
+            id: 'l1',
+            type: LedgerEntryType.gave,
+            amount: 300,
+          ), // they owe you +300
+          _entry(
+            id: 'l2',
+            type: LedgerEntryType.borrowed,
+            amount: 120,
+          ), // you owe them +120 (signed -120)
+        ];
 
-      final totals = PersonOverallTotals.from(entries);
+        final totals = PersonOverallTotals.from(entries);
 
-      expect(totals.totalTheyOwe, 300);
-      expect(totals.totalYouOwe, 120);
-      expect(totals.netBalance, 180);
-    });
+        expect(totals.totalTheyOwe, 300);
+        expect(totals.totalYouOwe, 120);
+        expect(totals.netBalance, 180);
+      },
+    );
 
     test('excludes soft-deleted entries from every total', () {
       final entries = [
         _entry(id: 'l1', type: LedgerEntryType.gave, amount: 300),
-        _entry(id: 'l2', type: LedgerEntryType.gave, amount: 999, deletedAt: DateTime(2026, 1, 2)),
+        _entry(
+          id: 'l2',
+          type: LedgerEntryType.gave,
+          amount: 999,
+          deletedAt: DateTime(2026, 1, 2),
+        ),
       ];
 
       final totals = PersonOverallTotals.from(entries);
@@ -74,7 +90,11 @@ void main() {
     test('repaid/receivedBack entries reduce/build the correct direction', () {
       final entries = [
         _entry(id: 'l1', type: LedgerEntryType.gave, amount: 300),
-        _entry(id: 'l2', type: LedgerEntryType.receivedBack, amount: 100), // -100
+        _entry(
+          id: 'l2',
+          type: LedgerEntryType.receivedBack,
+          amount: 100,
+        ), // -100
       ];
 
       final totals = PersonOverallTotals.from(entries);

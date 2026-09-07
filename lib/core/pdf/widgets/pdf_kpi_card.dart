@@ -37,18 +37,30 @@ class PdfKpiCard extends pw.StatelessWidget {
         children: [
           pw.Text(
             title,
-            style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontCaption, color: PdfTokens.textSecondary),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: PdfTokens.fontCaption,
+              color: PdfTokens.textSecondary,
+            ),
           ),
           pw.SizedBox(height: PdfTokens.xs),
           pw.Text(
             value,
-            style: pw.TextStyle(font: fonts.bold, fontSize: PdfTokens.fontHeading, color: valueColor),
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: PdfTokens.fontHeading,
+              color: valueColor,
+            ),
           ),
           if (subtitle != null) ...[
             pw.SizedBox(height: 2),
             pw.Text(
               subtitle!,
-              style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontCaption, color: PdfTokens.textSecondary),
+              style: pw.TextStyle(
+                font: fonts.regular,
+                fontSize: PdfTokens.fontCaption,
+                color: PdfTokens.textSecondary,
+              ),
             ),
           ],
         ],

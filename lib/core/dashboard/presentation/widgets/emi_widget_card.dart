@@ -43,17 +43,31 @@ class EmiWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.push(AppRoutes.emis),
-                child: Text('See all ›', style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+                child: Text(
+                  'See all ›',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSizes.sm),
           if (items.isEmpty)
-            Text('No EMIs due this cycle.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
+            Text(
+              'No EMIs due this cycle.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            )
           else
             UpcomingDueList(items: items),
         ],

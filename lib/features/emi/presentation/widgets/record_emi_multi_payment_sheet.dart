@@ -23,7 +23,11 @@ import '../providers/emi_providers.dart';
 /// installment is paid in full for its own remaining amount; no partial
 /// amount entry here (use the single-installment sheet for that).
 class RecordEmiMultiPaymentSheet extends ConsumerStatefulWidget {
-  const RecordEmiMultiPaymentSheet({super.key, required this.emi, required this.installments});
+  const RecordEmiMultiPaymentSheet({
+    super.key,
+    required this.emi,
+    required this.installments,
+  });
 
   final Emi emi;
 
@@ -31,20 +35,27 @@ class RecordEmiMultiPaymentSheet extends ConsumerStatefulWidget {
   /// unpaid/partially paid ones.
   final List<Installment> installments;
 
-  static Future<void> show(BuildContext context, Emi emi, List<Installment> installments) {
+  static Future<void> show(
+    BuildContext context,
+    Emi emi,
+    List<Installment> installments,
+  ) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
-      builder: (_) => RecordEmiMultiPaymentSheet(emi: emi, installments: installments),
+      builder: (_) =>
+          RecordEmiMultiPaymentSheet(emi: emi, installments: installments),
     );
   }
 
   @override
-  ConsumerState<RecordEmiMultiPaymentSheet> createState() => _RecordEmiMultiPaymentSheetState();
+  ConsumerState<RecordEmiMultiPaymentSheet> createState() =>
+      _RecordEmiMultiPaymentSheetState();
 }
 
-class _RecordEmiMultiPaymentSheetState extends ConsumerState<RecordEmiMultiPaymentSheet> {
+class _RecordEmiMultiPaymentSheetState
+    extends ConsumerState<RecordEmiMultiPaymentSheet> {
   final Set<String> _selectedIds = {};
   DateTime _date = DateTime.now();
   bool _isSaving = false;
@@ -76,73 +87,93 @@ class _RecordEmiMultiPaymentSheetState extends ConsumerState<RecordEmiMultiPayme
   /// someone else paid, since there's no free-text note field in this
   /// sheet (each installment already carries its own label).
   String _noteFor(PayerSource payer) {
-    if (payer case PersonPayerSource(:final person)) return 'Paid by ${person.name}';
+    if (payer case PersonPayerSource(:final person))
+      return 'Paid by ${person.name}';
     return '';
   }
 
   Future<void> _save() async {
     if (_selectedIds.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose at least 2 payments to pay together')),
+        const SnackBar(
+          content: Text('Choose at least 2 payments to pay together'),
+        ),
       );
       return;
     }
     if (_someoneElsePaid && _selectedPersonId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose who paid')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Choose who paid')));
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
-      final selected = widget.installments.where((i) => _selectedIds.contains(i.id)).toList();
+      final selected = widget.installments
+          .where((i) => _selectedIds.contains(i.id))
+          .toList();
 
       final items = [
         for (final installment in selected)
           PaymentAttributionItem(
-            obligationLabel: 'your ${widget.emi.name} (payment ${installment.sequenceNumber})',
+            obligationLabel:
+                'your ${widget.emi.name} (payment ${installment.sequenceNumber})',
             amount: installment.remainingAmount,
             record: ({required amount, required date, required note}) => ref
                 .read(
-                  installmentPaymentRepositoryProvider(
-                    (scheduleId: installment.scheduleId, installmentId: installment.id),
-                  ),
+                  installmentPaymentRepositoryProvider((
+                    scheduleId: installment.scheduleId,
+                    installmentId: installment.id,
+                  )),
                 )
-                .recordPayment(installment, amount: amount, date: date, note: note),
+                .recordPayment(
+                  installment,
+                  amount: amount,
+                  date: date,
+                  note: note,
+                ),
           ),
       ];
 
       final payer = _resolvePayer();
-      await ref.read(paymentAttributionServiceProvider).apply(
-        items: items,
-        payer: payer,
-        date: _date,
-        note: _noteFor(payer),
-      );
+      await ref
+          .read(paymentAttributionServiceProvider)
+          .apply(
+            items: items,
+            payer: payer,
+            date: _date,
+            note: _noteFor(payer),
+          );
 
-      final installments = ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ?? const [];
-      final nextUnpaid = installments.where((i) => i.status != InstallmentStatus.paid).toList()
-        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final installments =
+          ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ??
+          const [];
+      final nextUnpaid =
+          installments.where((i) => i.status != InstallmentStatus.paid).toList()
+            ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
       if (nextUnpaid.isNotEmpty) {
-        ref.read(emiRepositoryProvider).rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
+        ref
+            .read(emiRepositoryProvider)
+            .rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
       }
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record payment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final sorted = [...widget.installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+    final sorted = [...widget.installments]
+      ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
 
     return SectionedFormSheet(
       title: 'Pay multiple payments together',
@@ -158,7 +189,9 @@ class _RecordEmiMultiPaymentSheetState extends ConsumerState<RecordEmiMultiPayme
               contentPadding: EdgeInsets.zero,
               value: _selectedIds.contains(installment.id),
               title: Text('Payment ${installment.sequenceNumber}'),
-              subtitle: Text(CurrencyFormatter.instance.format(installment.remainingAmount)),
+              subtitle: Text(
+                CurrencyFormatter.instance.format(installment.remainingAmount),
+              ),
               onChanged: (checked) => setState(() {
                 if (checked == true) {
                   _selectedIds.add(installment.id);
@@ -183,7 +216,8 @@ class _RecordEmiMultiPaymentSheetState extends ConsumerState<RecordEmiMultiPayme
               if (!value) _selectedPersonId = null;
             }),
             selectedPersonId: _selectedPersonId,
-            onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+            onPersonChanged: (value) =>
+                setState(() => _selectedPersonId = value),
           ),
           const SizedBox(height: AppSizes.md),
           Row(
@@ -192,7 +226,9 @@ class _RecordEmiMultiPaymentSheetState extends ConsumerState<RecordEmiMultiPayme
               Text('Total', style: context.textTheme.titleMedium),
               Text(
                 CurrencyFormatter.instance.format(_total),
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: context.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),

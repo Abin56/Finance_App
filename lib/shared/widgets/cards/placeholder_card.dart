@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/extensions/context_extensions.dart';
-import '../../../core/theme/clay_widgets.dart';
+import 'flowfi_card.dart';
 
 /// Shared empty-state shell used by any feature's dashboard-style section
 /// that has nothing to show yet — an icon, a title, a short message, and
@@ -29,7 +30,14 @@ class PlaceholderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClayCard(
+    // A plain lime text/icon on this card's light/white surface would have
+    // weak contrast (lime only reads well as a fill or on a dark surface) —
+    // use near-black in light mode, lime itself in dark mode where it pops.
+    final accent = context.isDarkMode
+        ? AppColors.primaryDark
+        : AppColors.nearBlack;
+
+    return FlowFiCard(
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +53,11 @@ class PlaceholderCard extends StatelessWidget {
                   color: context.colors.surfaceContainerHighest,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: AppSizes.iconMd, color: context.colors.onSurface.withValues(alpha: 0.5)),
+                child: Icon(
+                  icon,
+                  size: AppSizes.iconMd,
+                  color: context.colors.onSurface.withValues(alpha: 0.5),
+                ),
               ),
               const SizedBox(width: AppSizes.md),
               Expanded(
@@ -66,11 +78,15 @@ class PlaceholderCard extends StatelessWidget {
                 Text(
                   actionLabel!,
                   style: context.textTheme.labelLarge?.copyWith(
-                    color: context.colors.primary,
+                    color: accent,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: AppSizes.iconSm,
+                  color: accent,
+                ),
               ],
             ),
           ],

@@ -39,7 +39,8 @@ abstract class AppRoutes {
   static const String billDetail = '/bills/:billId';
   static const String creditCards = '/creditCards';
   static const String creditCardDetail = '/creditCards/:cardId';
-  static const String statementDetail = '/creditCards/:cardId/statements/:statementId';
+  static const String statementDetail =
+      '/creditCards/:cardId/statements/:statementId';
   static const String transactionDetail = '/transactions/:transactionId';
   static const String calendar = '/calendar';
   static const String search = '/search';

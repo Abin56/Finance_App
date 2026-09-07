@@ -10,7 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// source feature (plain expense, split expense, loan, bill, EMI, credit
 /// card statement) built the entry.
 void main() {
-  HistoryEntry entryWith({required TransactionKind kind, required HistoryCategory category}) {
+  HistoryEntry entryWith({
+    required TransactionKind kind,
+    required HistoryCategory category,
+  }) {
     return HistoryEntry(
       id: 'e1',
       date: DateTime(2026, 1, 1),
@@ -26,7 +29,9 @@ void main() {
 
   Future<void> pump(WidgetTester tester, HistoryEntry entry) {
     return tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: HistoryTile(entry: entry))),
+      MaterialApp(
+        home: Scaffold(body: HistoryTile(entry: entry)),
+      ),
     );
   }
 
@@ -40,7 +45,9 @@ void main() {
   };
 
   for (final entry in cases.entries) {
-    testWidgets('shows a ${entry.key.label} badge for a ${entry.value} entry', (tester) async {
+    testWidgets('shows a ${entry.key.label} badge for a ${entry.value} entry', (
+      tester,
+    ) async {
       await pump(tester, entryWith(kind: entry.key, category: entry.value));
 
       expect(find.text(entry.key.label), findsOneWidget);

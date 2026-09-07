@@ -9,7 +9,8 @@ import '../domain/emi_payment_breakdown.dart';
 /// (mirrors `Statement`'s optional manually-logged fees) — the total isn't
 /// cross-checked against the underlying payment's `amount` since the user
 /// may record charges paid through a separate transaction.
-class EmiPaymentBreakdownRepository extends FirestoreCrudRepository<EmiPaymentBreakdown> {
+class EmiPaymentBreakdownRepository
+    extends FirestoreCrudRepository<EmiPaymentBreakdown> {
   EmiPaymentBreakdownRepository(super.collection);
 
   Future<EmiPaymentBreakdown> createBreakdown({

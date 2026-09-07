@@ -74,7 +74,10 @@ class PinPad extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               for (final digit in row)
-                _PadButton(label: digit, onTap: enabled ? () => onDigit(digit) : null),
+                _PadButton(
+                  label: digit,
+                  onTap: enabled ? () => onDigit(digit) : null,
+                ),
             ],
           ),
         Row(
@@ -85,7 +88,10 @@ class PinPad extends StatelessWidget {
               onTap: enabled ? onLeadingAction : null,
             ),
             _PadButton(label: '0', onTap: enabled ? () => onDigit('0') : null),
-            _PadButton(icon: Icons.backspace_outlined, onTap: enabled ? onBackspace : null),
+            _PadButton(
+              icon: Icons.backspace_outlined,
+              onTap: enabled ? onBackspace : null,
+            ),
           ],
         ),
       ],
@@ -115,8 +121,8 @@ class _PadButton extends StatelessWidget {
             child: label != null
                 ? Text(label!, style: Theme.of(context).textTheme.headlineSmall)
                 : icon != null
-                    ? Icon(icon, size: AppSizes.iconLg)
-                    : null,
+                ? Icon(icon, size: AppSizes.iconLg)
+                : null,
           ),
         ),
       ),

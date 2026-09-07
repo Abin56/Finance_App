@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
 import '../../../reports/domain/reports_period.dart';
 import '../../domain/cash_flow_period.dart';
 import '../providers/cash_flow_providers.dart';
@@ -29,43 +29,32 @@ class MyExpensesHistoryScreen extends ConsumerWidget {
     final total = categories.fold(0.0, (sum, c) => sum + c.amount);
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: AppClay.primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Text(
-          'My Expenses',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-        ),
-      ),
+      appBar: AppBar(title: const Text('My Expenses')),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.md),
-              child: ClayCard(
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.md,
+              ),
+              child: FlowFiCard(
                 padding: const EdgeInsets.all(AppSizes.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _rangeLabel(period, range),
-                      style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                     const SizedBox(height: AppSizes.xs),
-                    Text(
+                    FlowFiAmountText(
                       CurrencyFormatter.instance.format(total),
-                      style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                      size: AmountSize.large,
                     ),
                   ],
                 ),
@@ -79,7 +68,12 @@ class MyExpensesHistoryScreen extends ConsumerWidget {
                       subtitle: 'No expenses found for this period.',
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.fabClearance),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSizes.lg,
+                        0,
+                        AppSizes.lg,
+                        AppSizes.fabClearance,
+                      ),
                       itemCount: categories.length,
                       itemBuilder: (context, index) {
                         final category = categories[index];
@@ -93,18 +87,30 @@ class MyExpensesHistoryScreen extends ConsumerWidget {
             ),
             if (categories.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.lg,
+                  vertical: AppSizes.md,
+                ),
                 decoration: BoxDecoration(
                   color: context.colors.surface,
-                  border: Border(top: BorderSide(color: context.colors.outlineVariant)),
+                  border: Border(
+                    top: BorderSide(color: context.colors.outlineVariant),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total', style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'Total',
+                      style: context.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     Text(
                       CurrencyFormatter.instance.format(total),
-                      style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                      style: context.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ],
                 ),
@@ -122,7 +128,11 @@ class MyExpensesHistoryScreen extends ConsumerWidget {
 }
 
 class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({required this.categoryId, required this.label, required this.amount});
+  const _CategoryTile({
+    required this.categoryId,
+    required this.label,
+    required this.amount,
+  });
 
   final String categoryId;
   final String label;
@@ -135,7 +145,10 @@ class _CategoryTile extends StatelessWidget {
       child: InkWell(
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => MyExpensesCategoryScreen(categoryId: categoryId, categoryLabel: label),
+            builder: (_) => MyExpensesCategoryScreen(
+              categoryId: categoryId,
+              categoryLabel: label,
+            ),
           ),
         ),
         child: Padding(
@@ -143,14 +156,25 @@ class _CategoryTile extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(label, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                child: Text(
+                  label,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               Text(
                 CurrencyFormatter.instance.format(amount),
-                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(width: AppSizes.xs),
-              Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.4)),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: AppSizes.iconSm,
+                color: context.colors.onSurface.withValues(alpha: 0.4),
+              ),
             ],
           ),
         ),

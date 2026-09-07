@@ -112,11 +112,12 @@ class EventRelationshipEngine {
       return _newEvent(candidate: candidate, id: id);
     }
 
-    final scored = pool.values
-        .map((target) => _score(candidate, target))
-        .where((c) => c.confidence != MatchConfidence.noMatch)
-        .toList()
-      ..sort((a, b) => b.score.compareTo(a.score));
+    final scored =
+        pool.values
+            .map((target) => _score(candidate, target))
+            .where((c) => c.confidence != MatchConfidence.noMatch)
+            .toList()
+          ..sort((a, b) => b.score.compareTo(a.score));
 
     if (scored.isEmpty) {
       return _newEvent(candidate: candidate, id: id);
@@ -255,7 +256,10 @@ class EventRelationshipEngine {
     }
   }
 
-  EventRelationshipCandidate _score(FinancialEvent candidate, FinancialEvent target) {
+  EventRelationshipCandidate _score(
+    FinancialEvent candidate,
+    FinancialEvent target,
+  ) {
     final signals = <MatchedSignal>[];
     var score = 0.0;
 
@@ -511,7 +515,10 @@ class EventRelationshipEngine {
     return null;
   }
 
-  EventRelationshipType _resolveType(FinancialEvent candidate, FinancialEvent target) {
+  EventRelationshipType _resolveType(
+    FinancialEvent candidate,
+    FinancialEvent target,
+  ) {
     final semanticType = _semanticTypeFromCandidate(candidate, target);
     if (semanticType != null) return semanticType;
 
@@ -600,7 +607,10 @@ class EventRelationshipEngine {
     return EventRelationshipType.relatedEvent;
   }
 
-  String _reasonFor(EventRelationshipType type, EventRelationshipCandidate best) {
+  String _reasonFor(
+    EventRelationshipType type,
+    EventRelationshipCandidate best,
+  ) {
     switch (type) {
       case EventRelationshipType.duplicate:
         return 'Same underlying event, reported again with no status change.';
@@ -623,7 +633,10 @@ class EventRelationshipEngine {
     }
   }
 
-  EventRelationship _newEvent({required FinancialEvent candidate, required String id}) {
+  EventRelationship _newEvent({
+    required FinancialEvent candidate,
+    required String id,
+  }) {
     return EventRelationship(
       id: id,
       sourceEventId: candidate.id,

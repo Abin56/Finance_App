@@ -45,15 +45,15 @@ class StatementPayment extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return StatementPayment(
-      id: snapshot.id,
-      statementId: data['statementId'] as String,
-      amount: (data['amount'] as num).toDouble(),
-      date: (data['date'] as Timestamp).toDate(),
-      sourceAccountId: data['sourceAccountId'] as String,
-      transactionId: data['transactionId'] as String,
-      note: data['note'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        statementId: data['statementId'] as String,
+        amount: (data['amount'] as num).toDouble(),
+        date: (data['date'] as Timestamp).toDate(),
+        sourceAccountId: data['sourceAccountId'] as String,
+        transactionId: data['transactionId'] as String,
+        note: data['note'] as String? ?? '',
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -71,7 +71,9 @@ class StatementPayment extends SoftDeletableEntity {
       'note': note,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

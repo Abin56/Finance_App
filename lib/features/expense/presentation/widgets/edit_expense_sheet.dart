@@ -32,7 +32,10 @@ class EditExpenseSheet extends ConsumerStatefulWidget {
   /// success confirmation on an actual save.
   static Future<bool?> show(BuildContext context, {required Expense expense}) {
     return Navigator.of(context).push<bool>(
-      MaterialPageRoute(fullscreenDialog: true, builder: (_) => EditExpenseSheet(expense: expense)),
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => EditExpenseSheet(expense: expense),
+      ),
     );
   }
 
@@ -42,9 +45,15 @@ class EditExpenseSheet extends ConsumerStatefulWidget {
 
 class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final _titleController = TextEditingController(text: widget.expense.description);
-  late final _amountController = TextEditingController(text: widget.expense.totalAmount.toStringAsFixed(2));
-  late final _noteController = TextEditingController(text: widget.expense.notes);
+  late final _titleController = TextEditingController(
+    text: widget.expense.description,
+  );
+  late final _amountController = TextEditingController(
+    text: widget.expense.totalAmount.toStringAsFixed(2),
+  );
+  late final _noteController = TextEditingController(
+    text: widget.expense.notes,
+  );
   late DateTime _date = widget.expense.date;
   late String _categoryId = widget.expense.categoryId;
   final _amountFocusNode = FocusNode();
@@ -81,11 +90,19 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
             for (final category in categories)
               ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Color(category.colorValue).withValues(alpha: 0.15),
-                  child: Icon(category.icon, color: Color(category.colorValue), size: AppSizes.iconSm),
+                  backgroundColor: Color(
+                    category.colorValue,
+                  ).withValues(alpha: 0.15),
+                  child: Icon(
+                    category.icon,
+                    color: Color(category.colorValue),
+                    size: AppSizes.iconSm,
+                  ),
                 ),
                 title: Text(category.name),
-                trailing: category.id == _categoryId ? Icon(Icons.check_rounded, color: context.colors.primary) : null,
+                trailing: category.id == _categoryId
+                    ? Icon(Icons.check_rounded, color: context.colors.primary)
+                    : null,
                 onTap: () => Navigator.of(sheetContext).pop(category.id),
               ),
           ],
@@ -102,10 +119,14 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
     final oldTotal = widget.expense.totalAmount;
     final participants = widget.expense.participants;
     final scaled = <double>[
-      for (final p in participants) ((p.share / oldTotal * newTotal) * 100).round() / 100,
+      for (final p in participants)
+        ((p.share / oldTotal * newTotal) * 100).round() / 100,
     ];
-    final remainder = ((newTotal - scaled.fold(0.0, (s, v) => s + v)) * 100).round() / 100;
-    if (scaled.isNotEmpty) scaled[scaled.length - 1] = ((scaled.last + remainder) * 100).round() / 100;
+    final remainder =
+        ((newTotal - scaled.fold(0.0, (s, v) => s + v)) * 100).round() / 100;
+    if (scaled.isNotEmpty)
+      scaled[scaled.length - 1] =
+          ((scaled.last + remainder) * 100).round() / 100;
     return [
       for (var i = 0; i < participants.length; i++)
         ExpenseParticipantInput(
@@ -125,7 +146,8 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
       final scheduleId = widget.expense.scheduleId;
       final currentInstallments = scheduleId == null
           ? const <Installment>[]
-          : ref.read(installmentsStreamProvider(scheduleId)).value ?? const <Installment>[];
+          : ref.read(installmentsStreamProvider(scheduleId)).value ??
+                const <Installment>[];
       final newTotal = double.parse(_amountController.text.trim());
       final amountChanged = newTotal != widget.expense.totalAmount;
 
@@ -137,14 +159,20 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
         categoryId: _categoryId,
         notes: _noteController.text.trim(),
         totalAmount: amountChanged ? newTotal : null,
-        splitType: amountChanged && widget.expense.isSplit ? SplitType.custom : null,
-        participantInputs: amountChanged && widget.expense.isSplit ? _rescaledInputs(newTotal) : null,
+        splitType: amountChanged && widget.expense.isSplit
+            ? SplitType.custom
+            : null,
+        participantInputs: amountChanged && widget.expense.isSplit
+            ? _rescaledInputs(newTotal)
+            : null,
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save expense: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save expense: $e')));
       }
     }
   }
@@ -157,26 +185,41 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
       if (mounted) Navigator.of(context).pop(false);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not delete expense: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not delete expense: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
-    final selectedCategory = categories.where((c) => c.id == _categoryId).firstOrNull;
+    final categories = ref.watch(
+      categoriesForTypeProvider(TransactionType.expense),
+    );
+    final selectedCategory = categories
+        .where((c) => c.id == _categoryId)
+        .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(
-        leading: TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        leading: TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
         leadingWidth: 80,
         title: const Text('Edit Expense'),
         centerTitle: true,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _save,
-            child: Text('Save', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -195,8 +238,14 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
                     : Padding(
                         padding: const EdgeInsets.all(AppSizes.sm),
                         child: CircleAvatar(
-                          backgroundColor: Color(selectedCategory.colorValue).withValues(alpha: 0.15),
-                          child: Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
+                          backgroundColor: Color(
+                            selectedCategory.colorValue,
+                          ).withValues(alpha: 0.15),
+                          child: Icon(
+                            selectedCategory.icon,
+                            color: Color(selectedCategory.colorValue),
+                            size: AppSizes.iconSm,
+                          ),
                         ),
                       ),
               ),
@@ -210,8 +259,12 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
             TextFormField(
               controller: _amountController,
               focusNode: _amountFocusNode,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.currency_rupee_rounded)),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.currency_rupee_rounded),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: Validators.amount,
               textInputAction: TextInputAction.done,
             ),
@@ -222,7 +275,9 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               child: InputDecorator(
-                decoration: const InputDecoration(suffixIcon: Icon(Icons.calendar_today_outlined)),
+                decoration: const InputDecoration(
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
+                ),
                 child: Text(_date.fullDate),
               ),
             ),
@@ -237,10 +292,18 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
                 child: Row(
                   children: [
                     if (selectedCategory != null) ...[
-                      Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
+                      Icon(
+                        selectedCategory.icon,
+                        color: Color(selectedCategory.colorValue),
+                        size: AppSizes.iconSm,
+                      ),
                       const SizedBox(width: AppSizes.sm),
                     ],
-                    Expanded(child: Text(selectedCategory?.name ?? 'Select a category')),
+                    Expanded(
+                      child: Text(
+                        selectedCategory?.name ?? 'Select a category',
+                      ),
+                    ),
                     const Icon(Icons.chevron_right_rounded),
                   ],
                 ),

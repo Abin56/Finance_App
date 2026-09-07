@@ -36,9 +36,17 @@ final authSideEffectsProvider = Provider<void>((ref) {
     if (previous?.value?.uid == user.uid) return;
 
     ref.read(userProfileRepositoryProvider).upsertOnSignIn(user);
-    ref.read(accountRepositoryProvider).purgeExpiredTrash(AppConfig.trashRetention);
-    ref.read(categoryRepositoryProvider).purgeExpiredTrash(AppConfig.trashRetention);
-    ref.read(transactionRepositoryProvider).purgeExpiredTrash(AppConfig.trashRetention);
-    ref.read(billRepositoryProvider).purgeExpiredTrash(AppConfig.trashRetention);
+    ref
+        .read(accountRepositoryProvider)
+        .purgeExpiredTrash(AppConfig.trashRetention);
+    ref
+        .read(categoryRepositoryProvider)
+        .purgeExpiredTrash(AppConfig.trashRetention);
+    ref
+        .read(transactionRepositoryProvider)
+        .purgeExpiredTrash(AppConfig.trashRetention);
+    ref
+        .read(billRepositoryProvider)
+        .purgeExpiredTrash(AppConfig.trashRetention);
   }, fireImmediately: true);
 });

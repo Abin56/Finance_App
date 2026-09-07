@@ -13,13 +13,20 @@ import 'package:finance_app/features/people/presentation/providers/people_provid
 /// [SplitExpenseFormSheet] via [AddExpenseDraftPrefill], fully editable, and
 /// never lost.
 void main() {
-  Future<void> pump(WidgetTester tester, {AddExpenseDraftPrefill? draft}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    AddExpenseDraftPrefill? draft,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
           peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: MaterialApp(
@@ -39,33 +46,53 @@ void main() {
     accountingMonth: DateTime(2026, 6),
   );
 
-  testWidgets('draft prefill populates description, amount, and notes, still editable', (tester) async {
-    await pump(tester, draft: draft);
+  testWidgets(
+    'draft prefill populates description, amount, and notes, still editable',
+    (tester) async {
+      await pump(tester, draft: draft);
 
-    expect(find.text('Dinner with friends'), findsOneWidget);
-    expect(find.text('450.75'), findsOneWidget);
-    expect(find.text('Split the bill'), findsOneWidget);
+      expect(find.text('Dinner with friends'), findsOneWidget);
+      expect(find.text('450.75'), findsOneWidget);
+      expect(find.text('Split the bill'), findsOneWidget);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Description'), 'Updated description');
-    await tester.pumpAndSettle();
-    expect(find.text('Updated description'), findsOneWidget);
-  });
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Description'),
+        'Updated description',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Updated description'), findsOneWidget);
+    },
+  );
 
-  testWidgets('draft prefill turns on "Don\'t count this in my totals" and the accounting month switch', (tester) async {
-    await pump(tester, draft: draft);
+  testWidgets(
+    'draft prefill turns on "Don\'t count this in my totals" and the accounting month switch',
+    (tester) async {
+      await pump(tester, draft: draft);
 
-    final excludeToggle = find.widgetWithText(SwitchListTile, "Don't count this in my totals");
-    expect(tester.widget<SwitchListTile>(excludeToggle).value, isTrue);
+      final excludeToggle = find.widgetWithText(
+        SwitchListTile,
+        "Don't count this in my totals",
+      );
+      expect(tester.widget<SwitchListTile>(excludeToggle).value, isTrue);
 
-    final monthToggle = find.widgetWithText(SwitchListTile, 'Count this in a different month?');
-    expect(tester.widget<SwitchListTile>(monthToggle).value, isTrue);
-  });
+      final monthToggle = find.widgetWithText(
+        SwitchListTile,
+        'Count this in a different month?',
+      );
+      expect(tester.widget<SwitchListTile>(monthToggle).value, isTrue);
+    },
+  );
 
-  testWidgets('with no draft, fields start blank and switches start off', (tester) async {
+  testWidgets('with no draft, fields start blank and switches start off', (
+    tester,
+  ) async {
     await pump(tester);
 
     expect(find.text('Dinner with friends'), findsNothing);
-    final excludeToggle = find.widgetWithText(SwitchListTile, "Don't count this in my totals");
+    final excludeToggle = find.widgetWithText(
+      SwitchListTile,
+      "Don't count this in my totals",
+    );
     expect(tester.widget<SwitchListTile>(excludeToggle).value, isFalse);
   });
 }

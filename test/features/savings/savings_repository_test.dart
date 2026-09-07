@@ -9,7 +9,9 @@ void main() {
 
   setUp(() {
     final firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('savingsGoals').withConverter<SavingsGoal>(
+    final collection = firestore
+        .collection('savingsGoals')
+        .withConverter<SavingsGoal>(
           fromFirestore: SavingsGoal.fromFirestore,
           toFirestore: (g, _) => g.toFirestore(),
         );
@@ -27,7 +29,10 @@ void main() {
 
   group('SavingsRepository.contribute', () {
     test('accumulates currentAmount and records an audit entry', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
 
       await repository.contribute(goal, 300);
 
@@ -37,22 +42,40 @@ void main() {
     });
 
     test('rejects a non-positive contribution', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
-      await expectLater(repository.contribute(goal, 0), throwsA(isA<AppException>()));
-      await expectLater(repository.contribute(goal, -50), throwsA(isA<AppException>()));
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
+      await expectLater(
+        repository.contribute(goal, 0),
+        throwsA(isA<AppException>()),
+      );
+      await expectLater(
+        repository.contribute(goal, -50),
+        throwsA(isA<AppException>()),
+      );
     });
 
     test('auto-completes the goal once the target is reached', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
 
       await repository.contribute(goal, 1000);
 
       expect(goal.isCompleted, isTrue);
-      expect(goal.editHistory.map((e) => e.field), containsAll(['currentAmount', 'isCompleted']));
+      expect(
+        goal.editHistory.map((e) => e.field),
+        containsAll(['currentAmount', 'isCompleted']),
+      );
     });
 
     test('auto-completes when a contribution overshoots the target', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
 
       await repository.contribute(goal, 1500);
 
@@ -60,33 +83,51 @@ void main() {
       expect(goal.currentAmount, 1500);
     });
 
-    test('does not re-flip isCompleted on a later contribution past target', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
-      await repository.contribute(goal, 1000);
-      final historyLengthAfterFirst = goal.editHistory.length;
+    test(
+      'does not re-flip isCompleted on a later contribution past target',
+      () async {
+        final goal = await repository.createGoal(
+          name: 'Laptop',
+          targetAmount: 1000,
+        );
+        await repository.contribute(goal, 1000);
+        final historyLengthAfterFirst = goal.editHistory.length;
 
-      await repository.contribute(goal, 100);
+        await repository.contribute(goal, 100);
 
-      final completedEntries = goal.editHistory.where((e) => e.field == 'isCompleted');
-      expect(completedEntries, hasLength(1));
-      expect(goal.editHistory.length, greaterThan(historyLengthAfterFirst));
-    });
+        final completedEntries = goal.editHistory.where(
+          (e) => e.field == 'isCompleted',
+        );
+        expect(completedEntries, hasLength(1));
+        expect(goal.editHistory.length, greaterThan(historyLengthAfterFirst));
+      },
+    );
   });
 
   group('SavingsRepository.markCompleted / markIncomplete', () {
     test('markCompleted flips isCompleted and is idempotent', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
 
       await repository.markCompleted(goal);
       expect(goal.isCompleted, isTrue);
 
       final historyLength = goal.editHistory.length;
       await repository.markCompleted(goal);
-      expect(goal.editHistory.length, historyLength, reason: 'no-op when already completed');
+      expect(
+        goal.editHistory.length,
+        historyLength,
+        reason: 'no-op when already completed',
+      );
     });
 
     test('markIncomplete reverses a completed goal', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
       await repository.markCompleted(goal);
 
       await repository.markIncomplete(goal);
@@ -97,7 +138,10 @@ void main() {
 
   group('SavingsRepository.archive / unarchive', () {
     test('archive hides the goal without soft-deleting it', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
 
       await repository.archive(goal);
 
@@ -106,7 +150,10 @@ void main() {
     });
 
     test('unarchive reverses archiving', () async {
-      final goal = await repository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await repository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
       await repository.archive(goal);
 
       await repository.unarchive(goal);

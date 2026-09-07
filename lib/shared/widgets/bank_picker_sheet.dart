@@ -41,7 +41,11 @@ class _BankPickerSheetState extends State<BankPickerSheet> {
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return const [];
     return BankRegistry.all
-        .where((b) => b.name.toLowerCase().contains(query) || b.shortCode.toLowerCase().contains(query))
+        .where(
+          (b) =>
+              b.name.toLowerCase().contains(query) ||
+              b.shortCode.toLowerCase().contains(query),
+        )
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
   }
@@ -64,7 +68,10 @@ class _BankPickerSheetState extends State<BankPickerSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: AppSizes.lg),
-              Text('Select bank', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Select bank',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: AppSizes.md),
               TextField(
                 controller: _searchController,
@@ -88,7 +95,10 @@ class _BankPickerSheetState extends State<BankPickerSheet> {
                       onTap: () => _select(BankRegistry.generic.id),
                     ),
                     const Divider(),
-                    if (showingSearch) ..._buildSearchResults() else ..._buildBrowseList(),
+                    if (showingSearch)
+                      ..._buildSearchResults()
+                    else
+                      ..._buildBrowseList(),
                   ],
                 ),
               ),
@@ -110,7 +120,10 @@ class _BankPickerSheetState extends State<BankPickerSheet> {
         ),
       ];
     }
-    return [for (final bank in results) _BankRow(bank: bank, onTap: () => _select(bank.id))];
+    return [
+      for (final bank in results)
+        _BankRow(bank: bank, onTap: () => _select(bank.id)),
+    ];
   }
 
   List<Widget> _buildBrowseList() {
@@ -118,12 +131,18 @@ class _BankPickerSheetState extends State<BankPickerSheet> {
     final frequent = BankRegistry.frequent;
     if (frequent.isNotEmpty) {
       widgets.add(const _SectionHeader('Frequently used'));
-      widgets.addAll([for (final bank in frequent) _BankRow(bank: bank, onTap: () => _select(bank.id))]);
+      widgets.addAll([
+        for (final bank in frequent)
+          _BankRow(bank: bank, onTap: () => _select(bank.id)),
+      ]);
     }
     final grouped = BankRegistry.groupedByLetter;
     for (final letter in grouped.keys.toList()..sort()) {
       widgets.add(_SectionHeader(letter));
-      widgets.addAll([for (final bank in grouped[letter]!) _BankRow(bank: bank, onTap: () => _select(bank.id))]);
+      widgets.addAll([
+        for (final bank in grouped[letter]!)
+          _BankRow(bank: bank, onTap: () => _select(bank.id)),
+      ]);
     }
     return widgets;
   }
@@ -141,9 +160,9 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
-            ),
+          color: Theme.of(context).colorScheme.primary,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

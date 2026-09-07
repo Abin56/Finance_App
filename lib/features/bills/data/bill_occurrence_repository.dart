@@ -16,12 +16,18 @@ import 'bill_repository.dart';
 /// no longer parses, since they're not template concerns. Only meaningful
 /// once, the first time a legacy bill is read after this migration ships.
 class LegacyBillOccurrenceState {
-  const LegacyBillOccurrenceState({required this.amountPaid, required this.isSkipped});
+  const LegacyBillOccurrenceState({
+    required this.amountPaid,
+    required this.isSkipped,
+  });
 
   final double amountPaid;
   final bool isSkipped;
 
-  static const none = LegacyBillOccurrenceState(amountPaid: 0, isSkipped: false);
+  static const none = LegacyBillOccurrenceState(
+    amountPaid: 0,
+    isSkipped: false,
+  );
 
   bool get hasProgress => amountPaid > 0 || isSkipped;
 
@@ -29,7 +35,9 @@ class LegacyBillOccurrenceState {
   /// [billDoc], if it exists — a pre-migration document written before
   /// [BillOccurrence] existed always has these fields; a bill created after
   /// this migration never does, so this returns [none] for it.
-  static Future<LegacyBillOccurrenceState> readFrom(DocumentReference<Map<String, dynamic>> billDoc) async {
+  static Future<LegacyBillOccurrenceState> readFrom(
+    DocumentReference<Map<String, dynamic>> billDoc,
+  ) async {
     final snapshot = await billDoc.get();
     final data = snapshot.data();
     if (data == null) return none;
@@ -84,8 +92,12 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
     DateTime? now,
   }) async {
     if (existing.isNotEmpty) {
-      final latest = existing.reduce((a, b) => a.dueDate.isAfter(b.dueDate) ? a : b);
-      final isSettled = latest.status == BillStatus.paid || latest.status == BillStatus.skipped;
+      final latest = existing.reduce(
+        (a, b) => a.dueDate.isAfter(b.dueDate) ? a : b,
+      );
+      final isSettled =
+          latest.status == BillStatus.paid ||
+          latest.status == BillStatus.skipped;
       if (!isSettled) return latest;
       if (bill.recurrence == BillRecurrence.oneTime) return latest;
       return _rollForward(bill, latest, now: now);
@@ -121,7 +133,9 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
 
     for (final payment in legacyPayments) {
       if (payment.occurrenceId != null) continue;
-      await legacyPaymentsCollection.doc(payment.id).update({'occurrenceId': occurrence.id});
+      await legacyPaymentsCollection.doc(payment.id).update({
+        'occurrenceId': occurrence.id,
+      });
     }
 
     _scheduleReminders(bill, occurrence);
@@ -149,8 +163,15 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
   /// that new date. Unlike [_materializeFirst], advancing happens *before*
   /// creating the new occurrence, since [settled]'s own due date is what's
   /// being advanced past, not the occurrence about to be created.
-  Future<BillOccurrence> _rollForward(Bill bill, BillOccurrence settled, {DateTime? now}) async {
-    final next = bill.recurrence.nextDueDate(settled.dueDate, customDays: bill.customIntervalDays);
+  Future<BillOccurrence> _rollForward(
+    Bill bill,
+    BillOccurrence settled, {
+    DateTime? now,
+  }) async {
+    final next = bill.recurrence.nextDueDate(
+      settled.dueDate,
+      customDays: bill.customIntervalDays,
+    );
     await billRepository.advanceNextDueDate(bill, next);
 
     final occurrence = BillOccurrence(
@@ -172,7 +193,9 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
   /// rolling this document over in place.
   Future<void> applyPayment(BillOccurrence occurrence, double delta) async {
     if (delta == 0) return;
-    final newAmountPaid = (occurrence.amountPaid + delta).clamp(0, occurrence.amount).toDouble();
+    final newAmountPaid = (occurrence.amountPaid + delta)
+        .clamp(0, occurrence.amount)
+        .toDouble();
     occurrence.recordEdit(
       field: 'amountPaid',
       oldValue: occurrence.amountPaid.toString(),
@@ -200,7 +223,11 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
   /// Marks [occurrence] skipped (not paid, not counted as overdue).
   Future<void> skipOccurrence(BillOccurrence occurrence) async {
     if (occurrence.isSkipped) return;
-    occurrence.recordEdit(field: 'isSkipped', oldValue: 'false', newValue: 'true');
+    occurrence.recordEdit(
+      field: 'isSkipped',
+      oldValue: 'false',
+      newValue: 'true',
+    );
     occurrence.isSkipped = true;
     await update(occurrence);
     _cancelReminders(occurrence.id);
@@ -208,7 +235,11 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
 
   Future<void> unskip(BillOccurrence occurrence) async {
     if (!occurrence.isSkipped) return;
-    occurrence.recordEdit(field: 'isSkipped', oldValue: 'true', newValue: 'false');
+    occurrence.recordEdit(
+      field: 'isSkipped',
+      oldValue: 'true',
+      newValue: 'false',
+    );
     occurrence.isSkipped = false;
     await update(occurrence);
   }
@@ -218,11 +249,14 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
   /// the bill's id), since multiple occurrences can now coexist and each
   /// needs its own independently cancellable reminder.
   void _scheduleReminders(Bill bill, BillOccurrence occurrence) {
-    if (occurrence.status == BillStatus.paid || occurrence.status == BillStatus.skipped) return;
+    if (occurrence.status == BillStatus.paid ||
+        occurrence.status == BillStatus.skipped)
+      return;
     ReminderNotificationService.reschedule(
       ownerId: occurrence.id,
       title: bill.name,
-      bodyBuilder: (offset) => '${reminderOffsetLabel(offset)} — due ${occurrence.dueDate.day}/${occurrence.dueDate.month}',
+      bodyBuilder: (offset) =>
+          '${reminderOffsetLabel(offset)} — due ${occurrence.dueDate.day}/${occurrence.dueDate.month}',
       dueDate: occurrence.dueDate,
       offsets: bill.reminderOffsets,
     ).catchError((_) {});

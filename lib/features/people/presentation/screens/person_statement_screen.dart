@@ -9,7 +9,6 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
@@ -58,7 +57,8 @@ class PersonStatementScreen extends ConsumerStatefulWidget {
   final String personId;
 
   @override
-  ConsumerState<PersonStatementScreen> createState() => _PersonStatementScreenState();
+  ConsumerState<PersonStatementScreen> createState() =>
+      _PersonStatementScreenState();
 }
 
 class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
@@ -87,11 +87,16 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
 
   /// The entries visible in the current tab — History/Payments split on
   /// settlement, both narrowed by the active search query and date range.
-  List<PersonTimelineEntry> _visibleFor(_LedgerTab tab, List<PersonTimelineEntry> entries) {
+  List<PersonTimelineEntry> _visibleFor(
+    _LedgerTab tab,
+    List<PersonTimelineEntry> entries,
+  ) {
     final query = _query.trim().toLowerCase();
     return entries.where((e) {
       if (e.isSettlement != (tab == _LedgerTab.payments)) return false;
-      if (query.isNotEmpty && !e.note.toLowerCase().contains(query) && !e.title.toLowerCase().contains(query)) {
+      if (query.isNotEmpty &&
+          !e.note.toLowerCase().contains(query) &&
+          !e.title.toLowerCase().contains(query)) {
         return false;
       }
       if (_dateRange != null) {
@@ -99,8 +104,16 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
         // `showDateRangePicker`), but loan-payment/referenced-transaction
         // entries carry a real time-of-day — comparing against end-of-day
         // instead of midnight keeps "today" actually including today.
-        final endOfRangeDay = DateTime(_dateRange!.end.year, _dateRange!.end.month, _dateRange!.end.day, 23, 59, 59);
-        if (e.date.isBefore(_dateRange!.start) || e.date.isAfter(endOfRangeDay)) return false;
+        final endOfRangeDay = DateTime(
+          _dateRange!.end.year,
+          _dateRange!.end.month,
+          _dateRange!.end.day,
+          23,
+          59,
+          59,
+        );
+        if (e.date.isBefore(_dateRange!.start) || e.date.isAfter(endOfRangeDay))
+          return false;
       }
       if (_dismissedEntryIds.contains(e.id)) return false;
       return true;
@@ -112,10 +125,13 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     final peopleAsync = ref.watch(peopleStreamProvider);
     final timeline = ref.watch(personTimelineProvider(widget.personId));
     final cycleView = ref.watch(personCycleViewProvider(widget.personId));
-    final ledgerEntries = ref.watch(ledgerStreamProvider(widget.personId)).value ?? const [];
+    final ledgerEntries =
+        ref.watch(ledgerStreamProvider(widget.personId)).value ?? const [];
     final ledgerEntryById = {for (final e in ledgerEntries) e.id: e};
 
-    final person = peopleAsync.value?.where((p) => p.id == widget.personId).firstOrNull;
+    final person = peopleAsync.value
+        ?.where((p) => p.id == widget.personId)
+        .firstOrNull;
     // Oldest-first, matching the mockup's within-month ordering.
     final sortedAll = [...timeline]..sort((a, b) => a.date.compareTo(b.date));
 
@@ -125,7 +141,10 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(hintText: 'Search…', border: InputBorder.none),
+                decoration: const InputDecoration(
+                  hintText: 'Search…',
+                  border: InputBorder.none,
+                ),
                 onChanged: (value) => setState(() => _query = value),
               )
             : Text(person?.name ?? 'Statement'),
@@ -145,46 +164,46 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
               Padding(
                 padding: const EdgeInsets.only(right: AppSizes.xs),
                 child: Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                      boxShadow: AppClay.glow(AppClay.primary),
-                    ),
-                    child: Material(
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                      clipBehavior: Clip.antiAlias,
-                      child: Ink(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: AppClay.primaryGradient,
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                  child: Material(
+                    color: context.colors.primary,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () =>
+                          AddExpenseChooser.show(context, forPerson: person),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.md,
+                          vertical: AppSizes.sm,
                         ),
-                        child: InkWell(
-                          onTap: () => AddExpenseChooser.show(context, forPerson: person),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.add_rounded, size: AppSizes.iconSm, color: Colors.white),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Add',
-                                  style: context.textTheme.labelLarge
-                                      ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-                                ),
-                              ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.add_rounded,
+                              size: AppSizes.iconSm,
+                              color: context.colors.onPrimary,
                             ),
-                          ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Add',
+                              style: context.textTheme.labelLarge?.copyWith(
+                                color: context.colors.onPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            _OverflowMenu(person: person, entries: sortedAll, onAction: _handleMenuAction),
+            _OverflowMenu(
+              person: person,
+              entries: sortedAll,
+              onAction: _handleMenuAction,
+            ),
           ],
         ],
       ),
@@ -197,43 +216,67 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
             ),
       body: SafeArea(
         child: person == null
-          ? const Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSizes.lg,
-                    AppSizes.lg,
-                    AppSizes.lg,
-                    _tab == _LedgerTab.summary ? AppSizes.lg : 0,
-                  ),
-                  sliver: SliverList.list(
-                    children: [
-                      PersonExpenseStatsCard(stats: ref.watch(personExpenseStatsProvider(widget.personId))),
-                      const SizedBox(height: AppSizes.lg),
-                      SegmentedButton<_LedgerTab>(
-                        segments: const [
-                          ButtonSegment(value: _LedgerTab.history, label: Text('History')),
-                          ButtonSegment(value: _LedgerTab.summary, label: Text('Summary')),
-                          ButtonSegment(value: _LedgerTab.payments, label: Text('Payments')),
-                        ],
-                        selected: {_tab},
-                        onSelectionChanged: (selection) => setState(() => _tab = selection.first),
-                        style: SegmentedButton.styleFrom(
-                          selectedBackgroundColor: AppClay.primaryAccent(context),
-                          selectedForegroundColor: Colors.white,
+            ? const Center(child: CircularProgressIndicator())
+            : CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSizes.lg,
+                      AppSizes.lg,
+                      AppSizes.lg,
+                      _tab == _LedgerTab.summary ? AppSizes.lg : 0,
+                    ),
+                    sliver: SliverList.list(
+                      children: [
+                        PersonExpenseStatsCard(
+                          stats: ref.watch(
+                            personExpenseStatsProvider(widget.personId),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSizes.lg),
-                      if (_tab == _LedgerTab.summary)
-                        _SummaryTab(person: person, entries: sortedAll, personId: widget.personId),
-                    ],
+                        const SizedBox(height: AppSizes.lg),
+                        SegmentedButton<_LedgerTab>(
+                          segments: const [
+                            ButtonSegment(
+                              value: _LedgerTab.history,
+                              label: Text('History'),
+                            ),
+                            ButtonSegment(
+                              value: _LedgerTab.summary,
+                              label: Text('Summary'),
+                            ),
+                            ButtonSegment(
+                              value: _LedgerTab.payments,
+                              label: Text('Payments'),
+                            ),
+                          ],
+                          selected: {_tab},
+                          onSelectionChanged: (selection) =>
+                              setState(() => _tab = selection.first),
+                          style: SegmentedButton.styleFrom(
+                            selectedBackgroundColor: context.colors.primary,
+                            selectedForegroundColor: context.colors.onPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: AppSizes.lg),
+                        if (_tab == _LedgerTab.summary)
+                          _SummaryTab(
+                            person: person,
+                            entries: sortedAll,
+                            personId: widget.personId,
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                if (_tab != _LedgerTab.summary)
-                  ..._historyOrPaymentsSlivers(context, person, sortedAll, ledgerEntryById, cycleView),
-              ],
-            ),
+                  if (_tab != _LedgerTab.summary)
+                    ..._historyOrPaymentsSlivers(
+                      context,
+                      person,
+                      sortedAll,
+                      ledgerEntryById,
+                      cycleView,
+                    ),
+                ],
+              ),
       ),
     );
   }
@@ -286,22 +329,32 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
             }
             if (slot is String) {
               return Padding(
-                padding: const EdgeInsets.only(top: AppSizes.sm, bottom: AppSizes.sm),
+                padding: const EdgeInsets.only(
+                  top: AppSizes.sm,
+                  bottom: AppSizes.sm,
+                ),
                 child: Text(
                   slot,
-                  style: context.textTheme.titleSmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                  style: context.textTheme.titleSmall?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.7),
+                  ),
                 ),
               );
             }
             final entry = slot as PersonTimelineEntry;
             if (entry.isSectionHeader) {
               return Padding(
-                padding: const EdgeInsets.only(top: AppSizes.xs, bottom: AppSizes.xs),
+                padding: const EdgeInsets.only(
+                  top: AppSizes.xs,
+                  bottom: AppSizes.xs,
+                ),
                 child: Text(
                   entry.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               );
             }
@@ -320,7 +373,12 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
       ),
       if (_tab == _LedgerTab.history)
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, AppSizes.lg),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            AppSizes.md,
+            AppSizes.lg,
+            AppSizes.lg,
+          ),
           sliver: SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.all(AppSizes.md),
@@ -330,13 +388,18 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: AppSizes.iconSm,
+                    color: context.colors.primary,
+                  ),
                   const SizedBox(width: AppSizes.sm),
                   Expanded(
                     child: Text(
                       'Tap on any expense to view details, edit, add payment or split.',
-                      style:
-                          context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: context.colors.onSurface.withValues(alpha: 0.7),
+                      ),
                     ),
                   ),
                 ],
@@ -371,12 +434,19 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
   /// every other visible entry (current-cycle expense-linked entries plus
   /// every uncycled running-balance entry — lending, settlements,
   /// adjustments, references — month-grouped exactly as before).
-  List<Object> _cycleSectionedSlots(List<PersonTimelineEntry> visible, PersonCycleView cycleView) {
+  List<Object> _cycleSectionedSlots(
+    List<PersonTimelineEntry> visible,
+    PersonCycleView cycleView,
+  ) {
     final visibleIds = visible.map((e) => e.id).toSet();
-    final previousPending = cycleView.previousCyclePending.where((e) => visibleIds.contains(e.id)).toList();
+    final previousPending = cycleView.previousCyclePending
+        .where((e) => visibleIds.contains(e.id))
+        .toList();
     final carriedForward = previousPending.toList();
     final carriedForwardIds = carriedForward.map((e) => e.id).toSet();
-    final rest = visible.where((e) => !carriedForwardIds.contains(e.id)).toList();
+    final rest = visible
+        .where((e) => !carriedForwardIds.contains(e.id))
+        .toList();
 
     final slots = <Object>[];
     if (previousPending.isNotEmpty) {
@@ -402,8 +472,11 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
       onTap: entry.category == PersonTimelineCategory.reference
           ? () => context.push('${AppRoutes.transactions}/${entry.id}')
           : transactionRef == null
-              ? null
-              : () => PersonExpenseDetailScreen.open(context, transactionId: transactionRef),
+          ? null
+          : () => PersonExpenseDetailScreen.open(
+              context,
+              transactionId: transactionRef,
+            ),
     );
 
     // Loan-derived entries have no editable ledger document, so they can't be
@@ -411,11 +484,16 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     final ledgerEntry = ledgerEntryById[entry.id];
     if (ledgerEntry == null) return tile;
 
-    final ledgerRepository = ref.read(ledgerRepositoryProvider(widget.personId));
+    final ledgerRepository = ref.read(
+      ledgerRepositoryProvider(widget.personId),
+    );
     return Dismissible(
       key: ValueKey(entry.id),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => confirmDelete(context, entityName: transactionRef == null ? 'Entry' : 'Expense'),
+      confirmDismiss: (_) => confirmDelete(
+        context,
+        entityName: transactionRef == null ? 'Entry' : 'Expense',
+      ),
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
@@ -434,14 +512,18 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
           // Transaction/Expense docs stay live and keep counting toward
           // Dashboard/report totals and the person's cached balance.
           final expenses = await ref.read(expenseRepositoryProvider).getAll();
-          final expense = expenses.firstWhereOrNull((e) => e.transactionId == transactionRef);
+          final expense = expenses.firstWhereOrNull(
+            (e) => e.transactionId == transactionRef,
+          );
           if (expense != null) {
             await ref.read(expenseRepositoryProvider).deleteExpense(expense);
           } else {
             await ledgerRepository.softDeleteEntry(person, ledgerEntry);
           }
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Expense deleted')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Expense deleted')));
           return;
         }
         await ledgerRepository.softDeleteEntry(person, ledgerEntry);
@@ -466,14 +548,22 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
   /// The linked `Expense.transactionId` behind an expense/assigned-expense
   /// timeline entry (via its `LedgerEntry.transactionRef`), or null for a
   /// plain lending/adjustment/loan entry that has no expense detail to open.
-  String? _transactionRefFor(PersonTimelineEntry entry, Map<String, LedgerEntry> ledgerEntryById) {
+  String? _transactionRefFor(
+    PersonTimelineEntry entry,
+    Map<String, LedgerEntry> ledgerEntryById,
+  ) {
     final isExpenseLinked =
-        entry.category == PersonTimelineCategory.splitExpense || entry.category == PersonTimelineCategory.assignedExpense;
+        entry.category == PersonTimelineCategory.splitExpense ||
+        entry.category == PersonTimelineCategory.assignedExpense;
     if (!isExpenseLinked) return null;
     return ledgerEntryById[entry.id]?.transactionRef;
   }
 
-  void _handleMenuAction(_MenuAction action, Person person, List<PersonTimelineEntry> entries) {
+  void _handleMenuAction(
+    _MenuAction action,
+    Person person,
+    List<PersonTimelineEntry> entries,
+  ) {
     switch (action) {
       case _MenuAction.recordPayment:
         SettleUpSheet.show(context, person);
@@ -493,7 +583,9 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
         PersonFormSheet.show(context, person: person);
       case _MenuAction.trash:
         Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => PersonLedgerTrashScreen(personId: widget.personId)),
+          MaterialPageRoute(
+            builder: (_) => PersonLedgerTrashScreen(personId: widget.personId),
+          ),
         );
       case _MenuAction.settleAll:
         _confirmSettleAll(context, ref, person);
@@ -504,8 +596,13 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
   /// filtered rows (History/Payments honor search + date range; Summary
   /// exports the full timeline, matching what [_SummaryTab] itself displays,
   /// since its aggregates are never narrowed by search/date range either).
-  void _exportPdf(Person person, {required List<PersonTimelineEntry> sortedAllFor}) {
-    final visible = _tab == _LedgerTab.summary ? sortedAllFor : _visibleFor(_tab, sortedAllFor);
+  void _exportPdf(
+    Person person, {
+    required List<PersonTimelineEntry> sortedAllFor,
+  }) {
+    final visible = _tab == _LedgerTab.summary
+        ? sortedAllFor
+        : _visibleFor(_tab, sortedAllFor);
 
     // Running balance is a chronological fold over the person's *entire*
     // ledger, not just the visible subset — so the balance carried into the
@@ -516,9 +613,9 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     final openingBalanceForRange = visible.isEmpty
         ? person.openingBalance
         : person.openingBalance +
-            sortedAllFor
-                .where((e) => e.date.isBefore(visible.first.date))
-                .fold(0.0, (sum, e) => sum + e.signedAmount);
+              sortedAllFor
+                  .where((e) => e.date.isBefore(visible.first.date))
+                  .fold(0.0, (sum, e) => sum + e.signedAmount);
 
     final currentUser = ref.read(authRepositoryProvider).currentUser;
     StatementPdfPreviewScreen.open(
@@ -539,7 +636,9 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
   /// for the person's full history. Empty when nothing is filtered.
   String _filterDescription() {
     if (_tab == _LedgerTab.summary) return '';
-    final parts = <String>[_tab == _LedgerTab.payments ? 'Payments' : 'History'];
+    final parts = <String>[
+      _tab == _LedgerTab.payments ? 'Payments' : 'History',
+    ];
     if (_dateRange != null) {
       parts.add('${_dateRange!.start.fullDate} – ${_dateRange!.end.fullDate}');
     }
@@ -551,9 +650,15 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
   /// balance out across the person's outstanding installments oldest-first
   /// via [ExpenseRepository.settleAcrossPending], so every dollar produces a
   /// traceable settlement instead of one undifferentiated ledger entry.
-  Future<void> _confirmSettleAll(BuildContext context, WidgetRef ref, Person person) async {
+  Future<void> _confirmSettleAll(
+    BuildContext context,
+    WidgetRef ref,
+    Person person,
+  ) async {
     if (person.currentBalance == 0) return;
-    final amount = CurrencyFormatter.instance.format(person.currentBalance.abs());
+    final amount = CurrencyFormatter.instance.format(
+      person.currentBalance.abs(),
+    );
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -564,35 +669,55 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
               : 'Mark $amount to ${person.name} as fully paid? This clears your whole pending balance.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Settle All')),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Settle All'),
+          ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
 
     try {
-      final pending = ref.read(personSplitParticipantsProvider(person.id)).where(
-            (p) => p.installment.remainingAmount > 0,
-          ).toList()
-        ..sort((a, b) => a.installment.dueDate.compareTo(b.installment.dueDate));
+      final pending =
+          ref
+              .read(personSplitParticipantsProvider(person.id))
+              .where((p) => p.installment.remainingAmount > 0)
+              .toList()
+            ..sort(
+              (a, b) => a.installment.dueDate.compareTo(b.installment.dueDate),
+            );
 
-      await ref.read(expenseRepositoryProvider).settleAcrossPending(
+      await ref
+          .read(expenseRepositoryProvider)
+          .settleAcrossPending(
             person: person,
             pending: pending,
             amount: person.currentBalance.abs(),
             date: DateTime.now(),
-            installmentPaymentRepositoryFor: (scheduleId, installmentId) => ref.read(
-              installmentPaymentRepositoryProvider((scheduleId: scheduleId, installmentId: installmentId)),
-            ),
+            installmentPaymentRepositoryFor: (scheduleId, installmentId) =>
+                ref.read(
+                  installmentPaymentRepositoryProvider((
+                    scheduleId: scheduleId,
+                    installmentId: installmentId,
+                  )),
+                ),
             note: 'Settled all',
           );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${person.name}\'s balance is settled')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${person.name}\'s balance is settled')),
+        );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not settle: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not settle: $e')));
       }
     }
   }
@@ -602,7 +727,11 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
 /// breakdown, and the credit-card statement grouping, all kept from the
 /// pre-redesign screen so nothing analytical is lost.
 class _SummaryTab extends ConsumerWidget {
-  const _SummaryTab({required this.person, required this.entries, required this.personId});
+  const _SummaryTab({
+    required this.person,
+    required this.entries,
+    required this.personId,
+  });
 
   final Person person;
   final List<PersonTimelineEntry> entries;
@@ -614,13 +743,17 @@ class _SummaryTab extends ConsumerWidget {
       children: [
         PersonStatementHeader(person: person, entries: entries),
         const SizedBox(height: AppSizes.lg),
-        PersonCycleSummaryCard(summary: ref.watch(personCycleSummaryProvider(personId))),
+        PersonCycleSummaryCard(
+          summary: ref.watch(personCycleSummaryProvider(personId)),
+        ),
         const SizedBox(height: AppSizes.lg),
         PersonPendingBreakdown(entries: entries),
         const SizedBox(height: AppSizes.lg),
         PersonLoansSummaryCard(person: person),
         const SizedBox(height: AppSizes.lg),
-        PersonStatementGroupsCard(groups: ref.watch(personStatementGroupsProvider(personId))),
+        PersonStatementGroupsCard(
+          groups: ref.watch(personStatementGroupsProvider(personId)),
+        ),
       ],
     );
   }
@@ -640,7 +773,11 @@ enum _MenuAction {
 }
 
 class _OverflowMenu extends StatelessWidget {
-  const _OverflowMenu({required this.person, required this.entries, required this.onAction});
+  const _OverflowMenu({
+    required this.person,
+    required this.entries,
+    required this.onAction,
+  });
 
   final Person person;
   final List<PersonTimelineEntry> entries;
@@ -652,17 +789,59 @@ class _OverflowMenu extends StatelessWidget {
       tooltip: 'More',
       onSelected: (action) => onAction(action, person, entries),
       itemBuilder: (context) => [
-        const PopupMenuItem(value: _MenuAction.recordPayment, child: _MenuTile(icon: Icons.swap_horiz_rounded, label: 'Record Payment')),
-        const PopupMenuItem(value: _MenuAction.request, child: _MenuTile(icon: Icons.chat_bubble_outline_rounded, label: 'Send Reminder')),
-        const PopupMenuItem(value: _MenuAction.search, child: _MenuTile(icon: Icons.search_rounded, label: 'Search')),
-        const PopupMenuItem(value: _MenuAction.dateFilter, child: _MenuTile(icon: Icons.date_range_outlined, label: 'Date Filter')),
-        const PopupMenuItem(value: _MenuAction.correctBalance, child: _MenuTile(icon: Icons.tune_rounded, label: 'Correct Balance')),
-        const PopupMenuItem(value: _MenuAction.share, child: _MenuTile(icon: Icons.notes_rounded, label: 'Share as Text')),
-        const PopupMenuItem(value: _MenuAction.exportPdf, child: _MenuTile(icon: Icons.picture_as_pdf_outlined, label: 'Export PDF')),
-        const PopupMenuItem(value: _MenuAction.editPerson, child: _MenuTile(icon: Icons.edit_outlined, label: 'Edit Person')),
-        const PopupMenuItem(value: _MenuAction.trash, child: _MenuTile(icon: Icons.delete_outline_rounded, label: 'Trash')),
+        const PopupMenuItem(
+          value: _MenuAction.recordPayment,
+          child: _MenuTile(
+            icon: Icons.swap_horiz_rounded,
+            label: 'Record Payment',
+          ),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.request,
+          child: _MenuTile(
+            icon: Icons.chat_bubble_outline_rounded,
+            label: 'Send Reminder',
+          ),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.search,
+          child: _MenuTile(icon: Icons.search_rounded, label: 'Search'),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.dateFilter,
+          child: _MenuTile(
+            icon: Icons.date_range_outlined,
+            label: 'Date Filter',
+          ),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.correctBalance,
+          child: _MenuTile(icon: Icons.tune_rounded, label: 'Correct Balance'),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.share,
+          child: _MenuTile(icon: Icons.notes_rounded, label: 'Share as Text'),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.exportPdf,
+          child: _MenuTile(
+            icon: Icons.picture_as_pdf_outlined,
+            label: 'Export PDF',
+          ),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.editPerson,
+          child: _MenuTile(icon: Icons.edit_outlined, label: 'Edit Person'),
+        ),
+        const PopupMenuItem(
+          value: _MenuAction.trash,
+          child: _MenuTile(icon: Icons.delete_outline_rounded, label: 'Trash'),
+        ),
         if (person.currentBalance != 0)
-          const PopupMenuItem(value: _MenuAction.settleAll, child: _MenuTile(icon: Icons.done_all_rounded, label: 'Settle All')),
+          const PopupMenuItem(
+            value: _MenuAction.settleAll,
+            child: _MenuTile(icon: Icons.done_all_rounded, label: 'Settle All'),
+          ),
       ],
     );
   }
@@ -690,7 +869,11 @@ class _MenuTile extends StatelessWidget {
 /// a tinted category/type icon, the expense description, its date and money
 /// direction, the signed amount, and — for expense entries — a status pill.
 class _ContactLedgerTile extends StatelessWidget {
-  const _ContactLedgerTile({required this.entry, required this.onTap, this.carriedForward = false});
+  const _ContactLedgerTile({
+    required this.entry,
+    required this.onTap,
+    this.carriedForward = false,
+  });
 
   final PersonTimelineEntry entry;
   final VoidCallback? onTap;
@@ -705,8 +888,10 @@ class _ContactLedgerTile extends StatelessWidget {
 
   String get _title {
     final note = entry.note;
-    if (note.startsWith(_splitSettlementPrefix)) return note.substring(_splitSettlementPrefix.length).trim();
-    if (note.startsWith(_splitGivenPrefix)) return note.substring(_splitGivenPrefix.length).trim();
+    if (note.startsWith(_splitSettlementPrefix))
+      return note.substring(_splitSettlementPrefix.length).trim();
+    if (note.startsWith(_splitGivenPrefix))
+      return note.substring(_splitGivenPrefix.length).trim();
     return note.isNotEmpty ? note : entry.title;
   }
 
@@ -724,28 +909,46 @@ class _ContactLedgerTile extends StatelessWidget {
     final signed = entry.signedAmount;
     final positive = signed >= 0;
     final amountColor = entry.color;
-    final directionLabel = signed == 0 ? null : (positive ? 'To Receive' : 'To Pay');
+    final directionLabel = signed == 0
+        ? null
+        : (positive ? 'To Receive' : 'To Pay');
     final directionColor = positive ? AppColors.success : AppColors.error;
 
     return Material(
-      color: carriedForward ? AppColors.warning.withValues(alpha: 0.08) : context.colors.surface,
+      color: carriedForward
+          ? AppColors.warning.withValues(alpha: 0.08)
+          : context.colors.surface,
       borderRadius: BorderRadius.circular(AppSizes.radiusLg),
       clipBehavior: Clip.antiAlias,
       child: Container(
         decoration: carriedForward
-            ? BoxDecoration(border: Border(left: BorderSide(color: AppColors.warning, width: 3)))
+            ? BoxDecoration(
+                border: Border(
+                  left: BorderSide(color: AppColors.warning, width: 3),
+                ),
+              )
             : null,
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.md,
+              vertical: AppSizes.sm,
+            ),
             child: Row(
               children: [
                 Container(
                   width: 32,
                   height: 32,
-                  decoration: BoxDecoration(color: amountColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
-                  child: Icon(entry.icon, color: amountColor, size: AppSizes.iconSm),
+                  decoration: BoxDecoration(
+                    color: amountColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  ),
+                  child: Icon(
+                    entry.icon,
+                    color: amountColor,
+                    size: AppSizes.iconSm,
+                  ),
                 ),
                 const SizedBox(width: AppSizes.sm),
                 Expanded(
@@ -771,7 +974,9 @@ class _ContactLedgerTile extends StatelessWidget {
                           Expanded(
                             child: Text(
                               _title,
-                              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                              style: context.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -781,14 +986,22 @@ class _ContactLedgerTile extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                CurrencyFormatter.instance.format(entry.remainingDisplayAmount.abs()),
-                                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: amountColor),
+                                CurrencyFormatter.instance.format(
+                                  entry.remainingDisplayAmount.abs(),
+                                ),
+                                style: context.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: amountColor,
+                                ),
                               ),
                               if (_hasPartialPayment)
                                 Text(
                                   'of ${CurrencyFormatter.instance.format(entry.totalAmount!.abs())}',
-                                  style: context.textTheme.labelSmall
-                                      ?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                                  style: context.textTheme.labelSmall?.copyWith(
+                                    color: context.colors.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
+                                  ),
                                 ),
                             ],
                           ),
@@ -799,15 +1012,22 @@ class _ContactLedgerTile extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              directionLabel == null ? entry.date.fullDate : '${entry.date.fullDate} · $directionLabel',
+                              directionLabel == null
+                                  ? entry.date.fullDate
+                                  : '${entry.date.fullDate} · $directionLabel',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: context.textTheme.bodySmall?.copyWith(
-                                color: directionLabel == null ? context.colors.onSurface.withValues(alpha: 0.6) : directionColor,
+                                color: directionLabel == null
+                                    ? context.colors.onSurface.withValues(
+                                        alpha: 0.6,
+                                      )
+                                    : directionColor,
                               ),
                             ),
                           ),
-                          if (entry.category == PersonTimelineCategory.reference) ...[
+                          if (entry.category ==
+                              PersonTimelineCategory.reference) ...[
                             const SizedBox(width: AppSizes.sm),
                             const _ReferenceOnlyPill(),
                           ] else if (entry.status != null) ...[
@@ -848,7 +1068,9 @@ class _CycleSectionHeaderTile extends StatelessWidget {
       padding: const EdgeInsets.only(top: AppSizes.md, bottom: AppSizes.xs),
       child: Text(
         header.label,
-        style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        style: context.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -879,8 +1101,17 @@ class _StatusPill extends StatelessWidget {
     final (label, color) = _display;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusSm)),
-      child: Text(label, style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      ),
+      child: Text(
+        label,
+        style: context.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -899,7 +1130,10 @@ class _ReferenceOnlyPill extends StatelessWidget {
     return Tooltip(
       message: 'Reference only — does not affect balance',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.sm,
+          vertical: 2,
+        ),
         decoration: BoxDecoration(
           color: context.colors.onSurface.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppSizes.radiusSm),

@@ -44,7 +44,9 @@ class EmiDetailScreen extends ConsumerWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final installmentsAsync = ref.watch(installmentsStreamProvider(emi.scheduleId));
+    final installmentsAsync = ref.watch(
+      installmentsStreamProvider(emi.scheduleId),
+    );
     final status = ref.watch(emiStatusProvider(emi));
     final remaining = ref.watch(emiRemainingAmountProvider(emi));
     final paid = ref.watch(emiTotalPaidProvider(emi));
@@ -59,9 +61,11 @@ class EmiDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.checklist_rounded),
             tooltip: 'Pay multiple payments together',
             onPressed: () {
-              final unpaid = (ref.read(installmentsStreamProvider(emi.scheduleId)).value ?? const [])
-                  .where((i) => i.remainingAmount > 0)
-                  .toList();
+              final unpaid =
+                  (ref.read(installmentsStreamProvider(emi.scheduleId)).value ??
+                          const [])
+                      .where((i) => i.remainingAmount > 0)
+                      .toList();
               RecordEmiMultiPaymentSheet.show(context, emi, unpaid);
             },
           ),
@@ -107,26 +111,45 @@ class EmiDetailScreen extends ConsumerWidget {
                   return;
                 }
                 if (!context.mounted) return;
-                final confirmed = await _confirmEarlyClosure(context, remaining);
+                final confirmed = await _confirmEarlyClosure(
+                  context,
+                  remaining,
+                );
                 if (confirmed != true) return;
-                final installments = ref.read(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+                final installments =
+                    ref
+                        .read(installmentsStreamProvider(emi.scheduleId))
+                        .value ??
+                    const [];
                 await repository.closeEmiEarly(emi, installments);
               },
               itemBuilder: (_) => [
-                const PopupMenuItem(value: _CloseAction.close, child: Text('Close EMI')),
+                const PopupMenuItem(
+                  value: _CloseAction.close,
+                  child: Text('Close EMI'),
+                ),
                 if (remaining > 0)
                   const PopupMenuItem(
                     value: _CloseAction.closeEarly,
                     child: Text('Finish EMI (clear amount left)'),
                   ),
                 if (status == EmiStatus.defaulted)
-                  const PopupMenuItem(value: _CloseAction.clearDefaulted, child: Text('Clear defaulted'))
+                  const PopupMenuItem(
+                    value: _CloseAction.clearDefaulted,
+                    child: Text('Clear defaulted'),
+                  )
                 else
-                  const PopupMenuItem(value: _CloseAction.markDefaulted, child: Text('Mark as defaulted')),
+                  const PopupMenuItem(
+                    value: _CloseAction.markDefaulted,
+                    child: Text('Mark as defaulted'),
+                  ),
                 const PopupMenuDivider(),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: _CloseAction.delete,
-                  child: Text('Delete EMI', style: TextStyle(color: Colors.red)),
+                  child: Text(
+                    'Delete EMI',
+                    style: TextStyle(color: context.colors.error),
+                  ),
                 ),
               ],
             ),
@@ -134,16 +157,29 @@ class EmiDetailScreen extends ConsumerWidget {
       ),
       body: installmentsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
+        error: (error, _) =>
+            Center(child: Text('Something went wrong: $error')),
         data: (installments) {
-          final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-          final thisWeek = ref.watch(thisWeekInstallmentsProvider(emi.scheduleId));
-          final thisMonth = ref.watch(thisMonthInstallmentsProvider(emi.scheduleId));
-          final nextMonth = ref.watch(nextMonthInstallmentsProvider(emi.scheduleId));
-          final overdue = ref.watch(overdueInstallmentsProvider(emi.scheduleId));
+          final sorted = [...installments]
+            ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+          final thisWeek = ref.watch(
+            thisWeekInstallmentsProvider(emi.scheduleId),
+          );
+          final thisMonth = ref.watch(
+            thisMonthInstallmentsProvider(emi.scheduleId),
+          );
+          final nextMonth = ref.watch(
+            nextMonthInstallmentsProvider(emi.scheduleId),
+          );
+          final overdue = ref.watch(
+            overdueInstallmentsProvider(emi.scheduleId),
+          );
 
-          final nextDueInstallment = sorted.where((i) => i.remainingAmount > 0).firstOrNull;
-          final emiAmount = (nextDueInstallment ?? sorted.lastOrNull)?.amountDue ?? 0.0;
+          final nextDueInstallment = sorted
+              .where((i) => i.remainingAmount > 0)
+              .firstOrNull;
+          final emiAmount =
+              (nextDueInstallment ?? sorted.lastOrNull)?.amountDue ?? 0.0;
           final installmentsPaid = ref.watch(emiInstallmentsPaidProvider(emi));
           final remainingTenure = ref.watch(emiRemainingTenureProvider(emi));
           final progress = ref.watch(emiLoanProgressProvider(emi));
@@ -151,7 +187,15 @@ class EmiDetailScreen extends ConsumerWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSizes.lg),
             children: [
-              _heroCard(context, emi, status, emiAmount, installmentsPaid, progress, nextDueInstallment),
+              _heroCard(
+                context,
+                emi,
+                status,
+                emiAmount,
+                installmentsPaid,
+                progress,
+                nextDueInstallment,
+              ),
               const SizedBox(height: AppSizes.lg),
               _loanOverviewCard(context, emi, emiAmount, remainingTenure),
               if (emi.interest != null) ...[
@@ -165,7 +209,16 @@ class EmiDetailScreen extends ConsumerWidget {
                 _creditCardLinkCard(context, ref, emi),
               ],
               const SizedBox(height: AppSizes.lg),
-              _timelineSection(context, ref, emi, cycleView, overdue, thisWeek, thisMonth, nextMonth),
+              _timelineSection(
+                context,
+                ref,
+                emi,
+                cycleView,
+                overdue,
+                thisWeek,
+                thisMonth,
+                nextMonth,
+              ),
               if (emi.interest != null) ...[
                 const SizedBox(height: AppSizes.lg),
                 _statisticsCard(context, ref, emi),
@@ -175,26 +228,29 @@ class EmiDetailScreen extends ConsumerWidget {
               const SizedBox(height: AppSizes.lg),
               Text('Payment Records', style: context.textTheme.titleMedium),
               const SizedBox(height: AppSizes.sm),
-              Builder(builder: (context) {
-                final history = ref.watch(emiPaymentHistoryProvider(emi));
-                if (history.isEmpty) {
-                  return const EmptyState(
-                    icon: Icons.event_note_outlined,
-                    title: 'No payments',
-                    subtitle: 'Record a payment to see it appear here.',
+              Builder(
+                builder: (context) {
+                  final history = ref.watch(emiPaymentHistoryProvider(emi));
+                  if (history.isEmpty) {
+                    return const EmptyState(
+                      icon: Icons.event_note_outlined,
+                      title: 'No payments',
+                      subtitle: 'Record a payment to see it appear here.',
+                    );
+                  }
+                  final sortedHistory = [...history]
+                    ..sort((a, b) => b.date.compareTo(a.date));
+                  return Column(
+                    children: [
+                      for (final entry in sortedHistory)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                          child: EmiPaymentHistoryTile(entry: entry),
+                        ),
+                    ],
                   );
-                }
-                final sortedHistory = [...history]..sort((a, b) => b.date.compareTo(a.date));
-                return Column(
-                  children: [
-                    for (final entry in sortedHistory)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                        child: EmiPaymentHistoryTile(entry: entry),
-                      ),
-                  ],
-                );
-              }),
+                },
+              ),
             ],
           );
         },
@@ -202,15 +258,24 @@ class EmiDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _card(BuildContext context, {required List<Widget> children, bool elevated = false}) {
+  Widget _card(
+    BuildContext context, {
+    required List<Widget> children,
+    bool elevated = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppSizes.lg),
       decoration: BoxDecoration(
         color: context.colors.surface,
         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        boxShadow: elevated ? AppShadows.elevated(context) : AppShadows.soft(context),
+        boxShadow: elevated
+            ? AppShadows.elevated(context)
+            : AppShadows.soft(context),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
     );
   }
 
@@ -229,13 +294,24 @@ class EmiDetailScreen extends ConsumerWidget {
       children: [
         Row(
           children: [
-            Icon(emi.loanType.icon, size: AppSizes.iconMd, color: context.colors.primary),
+            Icon(
+              emi.loanType.icon,
+              size: AppSizes.iconMd,
+              color: context.colors.primary,
+            ),
             const SizedBox(width: AppSizes.sm),
             Expanded(
-              child: Text(emi.loanType.label, style: context.textTheme.titleMedium),
+              child: Text(
+                emi.loanType.label,
+                style: context.textTheme.titleMedium,
+              ),
             ),
             Chip(
-              avatar: Icon(status.icon, size: AppSizes.iconSm, color: status.color),
+              avatar: Icon(
+                status.icon,
+                size: AppSizes.iconSm,
+                color: status.color,
+              ),
               label: Text(status.label),
               labelStyle: TextStyle(color: status.color),
               visualDensity: VisualDensity.compact,
@@ -245,10 +321,15 @@ class EmiDetailScreen extends ConsumerWidget {
         const SizedBox(height: AppSizes.md),
         Text(
           '${CurrencyFormatter.instance.format(emiAmount)} / month',
-          style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: context.textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: AppSizes.md),
-        ProgressBar(progress: progress, label: '$installmentsPaid / ${emi.installmentCount} EMIs Paid'),
+        ProgressBar(
+          progress: progress,
+          label: '$installmentsPaid / ${emi.installmentCount} EMIs Paid',
+        ),
         if (nextDue != null) ...[
           const SizedBox(height: AppSizes.md),
           _statRow(context, 'Next EMI', nextDue.dueDate.fullDate, isDate: true),
@@ -257,18 +338,35 @@ class EmiDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _loanOverviewCard(BuildContext context, Emi emi, double emiAmount, int remainingTenure) {
+  Widget _loanOverviewCard(
+    BuildContext context,
+    Emi emi,
+    double emiAmount,
+    int remainingTenure,
+  ) {
     final bookedOn = emi.sanctionDate ?? emi.disbursementDate ?? emi.startDate;
     return _card(
       context,
       children: [
         Text('Loan Overview', style: context.textTheme.titleMedium),
         const SizedBox(height: AppSizes.sm),
-        _statRow(context, 'Loan Amount', CurrencyFormatter.instance.format(emi.principalAmount)),
+        _statRow(
+          context,
+          'Loan Amount',
+          CurrencyFormatter.instance.format(emi.principalAmount),
+        ),
         _statRow(context, 'Booked On', bookedOn.fullDate, isDate: true),
         if (emi.interest != null)
-          _statRow(context, 'Interest', '${emi.interest!.ratePercent}% ${emi.interest!.period.label}'),
-        _statRow(context, 'Tenure', '${emi.installmentCount} ${_unitLabel(emi)}'),
+          _statRow(
+            context,
+            'Interest',
+            '${emi.interest!.ratePercent}% ${emi.interest!.period.label}',
+          ),
+        _statRow(
+          context,
+          'Tenure',
+          '${emi.installmentCount} ${_unitLabel(emi)}',
+        ),
         _statRow(context, 'EMI', CurrencyFormatter.instance.format(emiAmount)),
         _statRow(context, 'Remaining', '$remainingTenure ${_unitLabel(emi)}'),
       ],
@@ -276,36 +374,60 @@ class EmiDetailScreen extends ConsumerWidget {
   }
 
   Widget _outstandingCard(BuildContext context, WidgetRef ref, Emi emi) {
-    final principalOutstanding = ref.watch(emiPrincipalOutstandingProvider(emi));
+    final principalOutstanding = ref.watch(
+      emiPrincipalOutstandingProvider(emi),
+    );
     final interestOutstanding = ref.watch(emiInterestOutstandingProvider(emi));
     return _card(
       context,
       children: [
         Text('Outstanding', style: context.textTheme.titleMedium),
         const SizedBox(height: AppSizes.sm),
-        _statRow(context, 'Outstanding Principal', CurrencyFormatter.instance.format(principalOutstanding)),
-        _statRow(context, 'Outstanding Interest', CurrencyFormatter.instance.format(interestOutstanding)),
+        _statRow(
+          context,
+          'Outstanding Principal',
+          CurrencyFormatter.instance.format(principalOutstanding),
+        ),
+        _statRow(
+          context,
+          'Outstanding Interest',
+          CurrencyFormatter.instance.format(interestOutstanding),
+        ),
         const Divider(height: AppSizes.lg),
         _statRow(
           context,
           'Total Outstanding',
-          CurrencyFormatter.instance.format(principalOutstanding + interestOutstanding),
+          CurrencyFormatter.instance.format(
+            principalOutstanding + interestOutstanding,
+          ),
           emphasize: true,
         ),
       ],
     );
   }
 
-  Widget _progressCard(BuildContext context, double paid, double remaining, double progress) {
+  Widget _progressCard(
+    BuildContext context,
+    double paid,
+    double remaining,
+    double progress,
+  ) {
     return _card(
       context,
       children: [
         Text('Progress', style: context.textTheme.titleMedium),
         const SizedBox(height: AppSizes.sm),
         _statRow(context, 'Paid', CurrencyFormatter.instance.format(paid)),
-        _statRow(context, 'Remaining', CurrencyFormatter.instance.format(remaining)),
+        _statRow(
+          context,
+          'Remaining',
+          CurrencyFormatter.instance.format(remaining),
+        ),
         const SizedBox(height: AppSizes.sm),
-        ProgressBar(progress: progress, label: 'Progress · ${progress.asPercent}'),
+        ProgressBar(
+          progress: progress,
+          label: 'Progress · ${progress.asPercent}',
+        ),
       ],
     );
   }
@@ -321,12 +443,22 @@ class EmiDetailScreen extends ConsumerWidget {
         Text('Linked Credit Card', style: context.textTheme.titleMedium),
         const SizedBox(height: AppSizes.sm),
         _statRow(context, 'Card', cardName),
-        _statRow(context, 'Reserved Credit', CurrencyFormatter.instance.format(reserved)),
-        _statRow(context, 'Credit Restored', CurrencyFormatter.instance.format(restored)),
+        _statRow(
+          context,
+          'Reserved Credit',
+          CurrencyFormatter.instance.format(reserved),
+        ),
+        _statRow(
+          context,
+          'Credit Restored',
+          CurrencyFormatter.instance.format(restored),
+        ),
         _statRow(
           context,
           'Remaining Reserved',
-          CurrencyFormatter.instance.format((reserved - restored).clamp(0, reserved)),
+          CurrencyFormatter.instance.format(
+            (reserved - restored).clamp(0, reserved),
+          ),
           emphasize: true,
         ),
       ],
@@ -349,27 +481,54 @@ class EmiDetailScreen extends ConsumerWidget {
         Text('Installment Timeline', style: context.textTheme.titleMedium),
         const SizedBox(height: AppSizes.sm),
         if (cycleView.previousCyclePending.isNotEmpty)
-          _group(context, ref, emi, 'Previous Cycle Pending', cycleView.previousCyclePending),
-        if (overdue.isNotEmpty) _group(context, ref, emi, 'Missed Payment', overdue),
-        if (thisWeek.isNotEmpty) _group(context, ref, emi, 'This week', thisWeek),
-        if (thisMonth.isNotEmpty) _group(context, ref, emi, 'This month', thisMonth),
-        if (nextMonth.isNotEmpty) _group(context, ref, emi, 'Next month', nextMonth),
+          _group(
+            context,
+            ref,
+            emi,
+            'Previous Cycle Pending',
+            cycleView.previousCyclePending,
+          ),
+        if (overdue.isNotEmpty)
+          _group(context, ref, emi, 'Missed Payment', overdue),
+        if (thisWeek.isNotEmpty)
+          _group(context, ref, emi, 'This week', thisWeek),
+        if (thisMonth.isNotEmpty)
+          _group(context, ref, emi, 'This month', thisMonth),
+        if (nextMonth.isNotEmpty)
+          _group(context, ref, emi, 'Next month', nextMonth),
       ],
     );
   }
 
   Widget _statisticsCard(BuildContext context, WidgetRef ref, Emi emi) {
-    final totalInterestPayable = ref.watch(emiTotalInterestPayableProvider(emi));
+    final totalInterestPayable = ref.watch(
+      emiTotalInterestPayableProvider(emi),
+    );
     final interestOutstanding = ref.watch(emiInterestOutstandingProvider(emi));
-    final interestPaid = (totalInterestPayable - interestOutstanding).clamp(0, totalInterestPayable);
+    final interestPaid = (totalInterestPayable - interestOutstanding).clamp(
+      0,
+      totalInterestPayable,
+    );
     return _card(
       context,
       children: [
         Text('Statistics', style: context.textTheme.titleMedium),
         const SizedBox(height: AppSizes.sm),
-        _statRow(context, 'Total Interest', CurrencyFormatter.instance.format(totalInterestPayable)),
-        _statRow(context, 'Interest Paid', CurrencyFormatter.instance.format(interestPaid)),
-        _statRow(context, 'Interest Remaining', CurrencyFormatter.instance.format(interestOutstanding)),
+        _statRow(
+          context,
+          'Total Interest',
+          CurrencyFormatter.instance.format(totalInterestPayable),
+        ),
+        _statRow(
+          context,
+          'Interest Paid',
+          CurrencyFormatter.instance.format(interestPaid),
+        ),
+        _statRow(
+          context,
+          'Interest Remaining',
+          CurrencyFormatter.instance.format(interestOutstanding),
+        ),
       ],
     );
   }
@@ -411,8 +570,15 @@ class EmiDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _group(BuildContext context, WidgetRef ref, Emi emi, String title, List<Installment> installments) {
-    final descending = [...installments]..sort((a, b) => b.sequenceNumber.compareTo(a.sequenceNumber));
+  Widget _group(
+    BuildContext context,
+    WidgetRef ref,
+    Emi emi,
+    String title,
+    List<Installment> installments,
+  ) {
+    final descending = [...installments]
+      ..sort((a, b) => b.sequenceNumber.compareTo(a.sequenceNumber));
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.lg),
       child: Column(
@@ -424,12 +590,17 @@ class EmiDetailScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: AppSizes.sm),
               child: GestureDetector(
-                onLongPress: () => _showInstallmentActions(context, ref, emi, installment),
+                onLongPress: () =>
+                    _showInstallmentActions(context, ref, emi, installment),
                 child: EmiInstallmentTile(
                   installment: installment,
                   onTap: installment.remainingAmount <= 0
                       ? null
-                      : () => RecordEmiPaymentSheet.show(context, emi, installment),
+                      : () => RecordEmiPaymentSheet.show(
+                          context,
+                          emi,
+                          installment,
+                        ),
                 ),
               ),
             ),
@@ -460,7 +631,8 @@ class EmiDetailScreen extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.undo_rounded),
                 title: const Text('Undo Skip'),
-                onTap: () => Navigator.of(context).pop(_InstallmentAction.unskip),
+                onTap: () =>
+                    Navigator.of(context).pop(_InstallmentAction.unskip),
               ),
           ],
         ),
@@ -468,7 +640,9 @@ class EmiDetailScreen extends ConsumerWidget {
     );
     if (action == null) return;
 
-    final installmentRepository = ref.read(installmentRepositoryProvider(emi.scheduleId));
+    final installmentRepository = ref.read(
+      installmentRepositoryProvider(emi.scheduleId),
+    );
     if (action == _InstallmentAction.skip) {
       await installmentRepository.skipInstallment(installment);
     } else {
@@ -486,8 +660,14 @@ class EmiDetailScreen extends ConsumerWidget {
           'Unpaid monthly payments will no longer show as to pay.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Finish Early')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Finish Early'),
+          ),
         ],
       ),
     );
@@ -503,17 +683,29 @@ class EmiDetailScreen extends ConsumerWidget {
           'Use this if the loan was added by mistake. Any credit reserved against a linked card is released.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: context.colors.error),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _statRow(BuildContext context, String label, String value, {bool isDate = false, bool emphasize = false}) {
+  Widget _statRow(
+    BuildContext context,
+    String label,
+    String value, {
+    bool isDate = false,
+    bool emphasize = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.sm),
       child: Row(
@@ -521,7 +713,9 @@ class EmiDetailScreen extends ConsumerWidget {
         children: [
           Text(
             label,
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           Flexible(
             child: Text(

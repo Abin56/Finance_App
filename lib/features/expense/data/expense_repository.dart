@@ -65,7 +65,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
 
   /// Resolves an `InstallmentRepository` scoped to a given schedule id —
   /// supplied by the provider layer, mirrors `EmiRepository`'s dependency shape.
-  final InstallmentRepository Function(String scheduleId) _installmentRepositoryFor;
+  final InstallmentRepository Function(String scheduleId)
+  _installmentRepositoryFor;
 
   /// Resolves a `LedgerRepository` scoped to a given person id.
   final LedgerRepository Function(String personId) _ledgerRepositoryFor;
@@ -91,7 +92,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
         throw AppException('${input.name} is already in this split');
       }
       final nameKey = input.name.trim().toLowerCase();
-      if (nameKey.isNotEmpty && input.personId == null && !seenNames.add(nameKey)) {
+      if (nameKey.isNotEmpty &&
+          input.personId == null &&
+          !seenNames.add(nameKey)) {
         throw AppException('${input.name} is already in this split');
       }
     }
@@ -135,15 +138,21 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
         return participants;
 
       case SplitType.percentage:
-        final totalPercent = _round2(inputs.fold(0.0, (s, i) => s + _requireValue(i, 'a percentage')));
+        final totalPercent = _round2(
+          inputs.fold(0.0, (s, i) => s + _requireValue(i, 'a percentage')),
+        );
         if (totalPercent != 100) {
           throw AppException(
             'Percentages add up to $totalPercent%, but must total 100%. '
             'Percentage left to assign: ${_round2(100 - totalPercent)}%',
           );
         }
-        final shares = inputs.map((i) => _round2(total * (i.value! / 100))).toList();
-        final roundingRemainder = _round2(total - shares.fold(0.0, (s, v) => s + v));
+        final shares = inputs
+            .map((i) => _round2(total * (i.value! / 100)))
+            .toList();
+        final roundingRemainder = _round2(
+          total - shares.fold(0.0, (s, v) => s + v),
+        );
         shares[shares.length - 1] = _round2(shares.last + roundingRemainder);
         return [
           for (var i = 0; i < inputs.length; i++)
@@ -178,7 +187,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
   /// except Me. Shared by [createExpense] and [convertToSplit] — both need
   /// the exact same schedule/installment/ledger sequence, only the
   /// transaction-creation step around it differs.
-  Future<(String scheduleId, List<ExpenseParticipant> participants)> _generateScheduleAndLedger({
+  Future<(String scheduleId, List<ExpenseParticipant> participants)>
+  _generateScheduleAndLedger({
     required String expenseId,
     required List<ExpenseParticipant> participants,
     required double totalAmount,
@@ -204,10 +214,13 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       installmentCount: collectible.length,
     );
 
-    final installments = await _installmentRepositoryFor(schedule.id).generateInstallments(
-      schedule,
-      precomputedAmounts: collectible.map((p) => PrecomputedInstallmentAmount(amountDue: p.share)).toList(),
-    );
+    final installments = await _installmentRepositoryFor(schedule.id)
+        .generateInstallments(
+          schedule,
+          precomputedAmounts: collectible
+              .map((p) => PrecomputedInstallmentAmount(amountDue: p.share))
+              .toList(),
+        );
 
     var collectibleIndex = 0;
     final resolvedParticipants = [
@@ -215,7 +228,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
         if (participant.isMe)
           participant
         else
-          participant.copyWith(installmentId: installments[collectibleIndex++].id),
+          participant.copyWith(
+            installmentId: installments[collectibleIndex++].id,
+          ),
     ];
 
     for (final participant in resolvedParticipants) {
@@ -261,7 +276,11 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       throw const AppException('Total amount must be greater than 0');
     }
 
-    var participants = resolveShares(type: splitType, total: totalAmount, inputs: participantInputs);
+    var participants = resolveShares(
+      type: splitType,
+      total: totalAmount,
+      inputs: participantInputs,
+    );
 
     final transaction = await transactionRepository.createTransaction(
       type: TransactionType.expense,
@@ -335,7 +354,11 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       accountId: accountId,
       splitType: SplitType.custom,
       participantInputs: [
-        ExpenseParticipantInput(personId: personId, name: personName, value: totalAmount),
+        ExpenseParticipantInput(
+          personId: personId,
+          name: personName,
+          value: totalAmount,
+        ),
       ],
       notes: notes,
       dueDate: dueDate,
@@ -379,7 +402,11 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       throw const AppException('This expense has already been shared');
     }
 
-    var participants = resolveShares(type: splitType, total: totalAmount, inputs: participantInputs);
+    var participants = resolveShares(
+      type: splitType,
+      total: totalAmount,
+      inputs: participantInputs,
+    );
     if (participants.isEmpty) {
       throw const AppException('Choose at least one person to share with');
     }
@@ -466,7 +493,11 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       splitType: SplitType.custom,
       participantInputs: [
         ExpenseParticipantInput(name: 'Me', isMe: true, value: meShare),
-        ExpenseParticipantInput(personId: personId, name: personName, value: personShare),
+        ExpenseParticipantInput(
+          personId: personId,
+          name: personName,
+          value: personShare,
+        ),
       ],
       dueDate: dueDate,
     );
@@ -488,7 +519,11 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     required List<ExpenseParticipantInput> participantInputs,
     DateTime? dueDate,
   }) async {
-    final newParticipants = resolveShares(type: splitType, total: expense.totalAmount, inputs: participantInputs);
+    final newParticipants = resolveShares(
+      type: splitType,
+      total: expense.totalAmount,
+      inputs: participantInputs,
+    );
     if (newParticipants.where((p) => !p.isMe).isEmpty) {
       throw const AppException('Choose at least one person to share with');
     }
@@ -506,7 +541,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
         await installmentRepository.softDelete(installment);
       }
       final schedule = await paymentScheduleRepository.getByKey(oldScheduleId);
-      if (schedule != null) await paymentScheduleRepository.softDelete(schedule);
+      if (schedule != null)
+        await paymentScheduleRepository.softDelete(schedule);
     }
 
     // Reverse + soft-delete the original per-person "gave" entries so their
@@ -516,8 +552,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linked = (await ledgerRepository.getByTransactionRef(expense.transactionId))
-          .where((e) => e.type == LedgerEntryType.gave);
+      final linked = (await ledgerRepository.getByTransactionRef(
+        expense.transactionId,
+      )).where((e) => e.type == LedgerEntryType.gave);
       for (final entry in linked) {
         await ledgerRepository.softDeleteEntry(person, entry);
       }
@@ -533,7 +570,11 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       dueDate: dueDate,
     );
 
-    expense.recordEdit(field: 'splitType', oldValue: expense.splitType.name, newValue: splitType.name);
+    expense.recordEdit(
+      field: 'splitType',
+      oldValue: expense.splitType.name,
+      newValue: splitType.name,
+    );
     expense.splitType = splitType;
     expense.participants = result.$2;
     expense.scheduleId = result.$1;
@@ -607,7 +648,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       apply: (v) => expense.notes = v,
     );
 
-    final resplitting = expense.isSplit &&
+    final resplitting =
+        expense.isSplit &&
         (totalAmount != null || splitType != null || participantInputs != null);
     double? syncedTransactionAmount = totalAmount;
 
@@ -619,17 +661,25 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final newSplitType = splitType ?? expense.splitType;
       final installmentById = {for (final i in currentInstallments) i.id: i};
 
-      final newParticipants = resolveShares(type: newSplitType, total: newTotal, inputs: participantInputs);
+      final newParticipants = resolveShares(
+        type: newSplitType,
+        total: newTotal,
+        inputs: participantInputs,
+      );
       if (newParticipants.isEmpty) {
         throw const AppException('Choose at least one person to share with');
       }
 
-      final oldByKey = {for (final p in expense.participants) _participantKey(p): p};
+      final oldByKey = {
+        for (final p in expense.participants) _participantKey(p): p,
+      };
 
       for (final participant in newParticipants) {
         if (participant.isMe) continue;
         final old = oldByKey[_participantKey(participant)];
-        final installment = old?.installmentId == null ? null : installmentById[old!.installmentId];
+        final installment = old?.installmentId == null
+            ? null
+            : installmentById[old!.installmentId];
         if (installment == null) continue;
         if (participant.share < installment.amountPaid) {
           throw AppException(
@@ -641,7 +691,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
 
       final scheduleId = expense.scheduleId;
       if (scheduleId == null) {
-        throw const AppException('This expense has no tracking schedule to update');
+        throw const AppException(
+          'This expense has no tracking schedule to update',
+        );
       }
       final installmentRepository = _installmentRepositoryFor(scheduleId);
 
@@ -652,27 +704,40 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
           continue;
         }
         final old = oldByKey[_participantKey(participant)];
-        final installment = old?.installmentId == null ? null : installmentById[old!.installmentId];
+        final installment = old?.installmentId == null
+            ? null
+            : installmentById[old!.installmentId];
         if (installment == null) {
           resolvedParticipants.add(participant);
           continue;
         }
 
-        await installmentRepository.editInstallmentAmount(installment, participant.share);
+        await installmentRepository.editInstallmentAmount(
+          installment,
+          participant.share,
+        );
 
         final delta = _round2(participant.share - (old?.share ?? 0));
         if (delta != 0 && participant.personId != null) {
           final person = await personRepository.getByKey(participant.personId!);
           if (person != null) {
             final ledgerRepository = _ledgerRepositoryFor(person.id);
-            final entries = await ledgerRepository.getByTransactionRef(expense.transactionId);
-            final LedgerEntry? originalEntry = entries.where((e) => e.type == LedgerEntryType.gave).firstOrNull;
+            final entries = await ledgerRepository.getByTransactionRef(
+              expense.transactionId,
+            );
+            final LedgerEntry? originalEntry = entries
+                .where((e) => e.type == LedgerEntryType.gave)
+                .firstOrNull;
             if (originalEntry != null) {
               // Corrects the same "Split: ..."/"gave" entry the person's
               // statement already shows, so its displayed amount moves in
               // step with the just-synced Transaction/Installment instead
               // of staying stale next to a separate "Correct Balance" line.
-              await ledgerRepository.editEntryAmount(person, originalEntry, participant.share);
+              await ledgerRepository.editEntryAmount(
+                person,
+                originalEntry,
+                participant.share,
+              );
             } else {
               // The original entry is gone (e.g. manually deleted from the
               // person's timeline) — fall back to a standalone correction
@@ -689,12 +754,22 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
           }
         }
 
-        resolvedParticipants.add(participant.copyWith(installmentId: installment.id));
+        resolvedParticipants.add(
+          participant.copyWith(installmentId: installment.id),
+        );
       }
 
-      expense.recordEdit(field: 'totalAmount', oldValue: expense.totalAmount.toString(), newValue: newTotal.toString());
+      expense.recordEdit(
+        field: 'totalAmount',
+        oldValue: expense.totalAmount.toString(),
+        newValue: newTotal.toString(),
+      );
       expense.totalAmount = newTotal;
-      expense.recordEdit(field: 'splitType', oldValue: expense.splitType.name, newValue: newSplitType.name);
+      expense.recordEdit(
+        field: 'splitType',
+        oldValue: expense.splitType.name,
+        newValue: newSplitType.name,
+      );
       expense.splitType = newSplitType;
       expense.participants = resolvedParticipants;
       syncedTransactionAmount = newTotal;
@@ -707,7 +782,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       );
     }
 
-    final transaction = await transactionRepository.getByKey(expense.transactionId);
+    final transaction = await transactionRepository.getByKey(
+      expense.transactionId,
+    );
     if (transaction != null) {
       await transactionRepository.editTransaction(
         transaction,
@@ -720,9 +797,14 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     }
 
     if (dueDate != null && expense.scheduleId != null) {
-      final installmentRepository = _installmentRepositoryFor(expense.scheduleId!);
+      final installmentRepository = _installmentRepositoryFor(
+        expense.scheduleId!,
+      );
       for (final installment in currentInstallments) {
-        await installmentRepository.editInstallmentDueDate(installment, dueDate);
+        await installmentRepository.editInstallmentDueDate(
+          installment,
+          dueDate,
+        );
       }
     }
 
@@ -733,7 +815,8 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
   /// Matches a participant across an edit — by [personId] when tracked as a
   /// [Person], otherwise by [name] (the same identity a free-text
   /// participant has always had, since they have no other stable key).
-  static String _participantKey(ExpenseParticipant p) => p.personId ?? 'name:${p.name}';
+  static String _participantKey(ExpenseParticipant p) =>
+      p.personId ?? 'name:${p.name}';
 
   /// Marks one [participant] as settled: records an `InstallmentPayment`
   /// against their tracking installment (via [installmentPaymentRepository],
@@ -797,10 +880,21 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
   /// opinion about ordering beyond "process in the order given."
   Future<void> settleAcrossPending({
     required Person person,
-    required List<({Expense expense, ExpenseParticipant participant, Installment installment})> pending,
+    required List<
+      ({
+        Expense expense,
+        ExpenseParticipant participant,
+        Installment installment,
+      })
+    >
+    pending,
     required double amount,
     required DateTime date,
-    required InstallmentPaymentRepository Function(String scheduleId, String installmentId) installmentPaymentRepositoryFor,
+    required InstallmentPaymentRepository Function(
+      String scheduleId,
+      String installmentId,
+    )
+    installmentPaymentRepositoryFor,
     String note = '',
     String? settlementMethod,
   }) async {
@@ -833,7 +927,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     if (remaining > 0) {
       await _ledgerRepositoryFor(person.id).addEntry(
         person,
-        type: person.isCreditor ? LedgerEntryType.receivedBack : LedgerEntryType.repaid,
+        type: person.isCreditor
+            ? LedgerEntryType.receivedBack
+            : LedgerEntryType.repaid,
         amount: remaining,
         date: date,
         note: note.isEmpty ? 'Settled all' : note,
@@ -874,7 +970,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linkedEntries = await ledgerRepository.getByTransactionRef(expense.transactionId);
+      final linkedEntries = await ledgerRepository.getByTransactionRef(
+        expense.transactionId,
+      );
       for (final entry in linkedEntries) {
         await ledgerRepository.softDeleteEntry(person, entry);
       }
@@ -894,7 +992,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
   ///
   /// See [restoreExpense] for the matching cascade back out of trash.
   Future<void> deleteExpense(Expense expense) async {
-    final transaction = await transactionRepository.getByKey(expense.transactionId);
+    final transaction = await transactionRepository.getByKey(
+      expense.transactionId,
+    );
     if (transaction != null) {
       await transactionRepository.softDeleteTransaction(transaction);
     }
@@ -916,7 +1016,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linkedEntries = await ledgerRepository.getByTransactionRef(expense.transactionId);
+      final linkedEntries = await ledgerRepository.getByTransactionRef(
+        expense.transactionId,
+      );
       for (final entry in linkedEntries) {
         await ledgerRepository.softDeleteEntry(person, entry);
       }
@@ -942,8 +1044,12 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       if (person == null) continue;
 
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final activeEntries = await ledgerRepository.getByTransactionRef(expense.transactionId);
-      final trashedEntries = await ledgerRepository.getTrashByTransactionRef(expense.transactionId);
+      final activeEntries = await ledgerRepository.getByTransactionRef(
+        expense.transactionId,
+      );
+      final trashedEntries = await ledgerRepository.getTrashByTransactionRef(
+        expense.transactionId,
+      );
       for (final entry in activeEntries) {
         await ledgerRepository.softDeleteEntry(person, entry);
         await ledgerRepository.permanentlyDeleteEntry(entry);
@@ -956,14 +1062,19 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     final scheduleId = expense.scheduleId;
     if (scheduleId != null) {
       final installmentRepository = _installmentRepositoryFor(scheduleId);
-      final installments = [...await installmentRepository.getAll(), ...await installmentRepository.getTrash()];
+      final installments = [
+        ...await installmentRepository.getAll(),
+        ...await installmentRepository.getTrash(),
+      ];
       for (final installment in installments) {
         await installmentRepository.permanentlyDelete(installment);
       }
       await paymentScheduleRepository.collection.doc(scheduleId).delete();
     }
 
-    final transaction = await transactionRepository.getByKey(expense.transactionId);
+    final transaction = await transactionRepository.getByKey(
+      expense.transactionId,
+    );
     if (transaction != null) {
       await transactionRepository.permanentlyDeleteTransaction(transaction);
     }
@@ -982,7 +1093,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
   /// effect if that piece was already independently restored first (e.g. via
   /// a granular trash screen, or a second call for the same expense).
   Future<void> restoreExpense(Expense expense) async {
-    final transaction = await transactionRepository.getByKey(expense.transactionId);
+    final transaction = await transactionRepository.getByKey(
+      expense.transactionId,
+    );
     if (transaction != null && transaction.isDeleted) {
       await transactionRepository.restoreTransaction(transaction);
     }
@@ -1004,7 +1117,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       final person = await personRepository.getByKey(participant.personId!);
       if (person == null) continue;
       final ledgerRepository = _ledgerRepositoryFor(person.id);
-      final linkedEntries = await ledgerRepository.getTrashByTransactionRef(expense.transactionId);
+      final linkedEntries = await ledgerRepository.getTrashByTransactionRef(
+        expense.transactionId,
+      );
       for (final entry in linkedEntries) {
         await ledgerRepository.restoreEntry(person, entry);
       }

@@ -68,13 +68,17 @@ void main() {
     });
 
     test('handles a single participant (auto)', () {
-      final r = resolveMixedSplit(500, const [MixedParticipantInput(key: 'A', locked: false, value: 0)]);
+      final r = resolveMixedSplit(500, const [
+        MixedParticipantInput(key: 'A', locked: false, value: 0),
+      ]);
       expect(r.error, isNull);
       expect(r.shares.single.share, 500);
     });
 
     test('handles a single participant fully manual', () {
-      final r = resolveMixedSplit(500, const [MixedParticipantInput(key: 'A', locked: true, value: 500)]);
+      final r = resolveMixedSplit(500, const [
+        MixedParticipantInput(key: 'A', locked: true, value: 500),
+      ]);
       expect(r.error, isNull);
       expect(r.shares.single.share, 500);
     });
@@ -94,38 +98,47 @@ void main() {
       expect(r.shares.map((s) => s.share), [0, 0]);
     });
 
-    test('handles decimal / paise remainders, pushing the odd cent onto the last auto participant', () {
-      final r = resolveMixedSplit(10, const [
-        MixedParticipantInput(key: 'A', locked: false, value: 0),
-        MixedParticipantInput(key: 'B', locked: false, value: 0),
-        MixedParticipantInput(key: 'C', locked: false, value: 0),
-      ]);
-      expect(r.error, isNull);
-      expect(r.shares.map((s) => s.share), [3.33, 3.33, 3.34]);
-      expect(r.shares.fold(0.0, (sum, s) => sum + s.share), 10);
-    });
+    test(
+      'handles decimal / paise remainders, pushing the odd cent onto the last auto participant',
+      () {
+        final r = resolveMixedSplit(10, const [
+          MixedParticipantInput(key: 'A', locked: false, value: 0),
+          MixedParticipantInput(key: 'B', locked: false, value: 0),
+          MixedParticipantInput(key: 'C', locked: false, value: 0),
+        ]);
+        expect(r.error, isNull);
+        expect(r.shares.map((s) => s.share), [3.33, 3.33, 3.34]);
+        expect(r.shares.fold(0.0, (sum, s) => sum + s.share), 10);
+      },
+    );
 
-    test('re-splits correctly after a participant is added post manual-assignment', () {
-      var r = resolveMixedSplit(5000, const [
-        MixedParticipantInput(key: 'A', locked: true, value: 2000),
-        MixedParticipantInput(key: 'B', locked: false, value: 0),
-      ]);
-      expect(r.shares.map((s) => s.share), [2000, 3000]);
+    test(
+      're-splits correctly after a participant is added post manual-assignment',
+      () {
+        var r = resolveMixedSplit(5000, const [
+          MixedParticipantInput(key: 'A', locked: true, value: 2000),
+          MixedParticipantInput(key: 'B', locked: false, value: 0),
+        ]);
+        expect(r.shares.map((s) => s.share), [2000, 3000]);
 
-      r = resolveMixedSplit(5000, const [
-        MixedParticipantInput(key: 'A', locked: true, value: 2000),
-        MixedParticipantInput(key: 'B', locked: false, value: 0),
-        MixedParticipantInput(key: 'C', locked: false, value: 0),
-      ]);
-      expect(r.shares.map((s) => s.share), [2000, 1500, 1500]);
-    });
+        r = resolveMixedSplit(5000, const [
+          MixedParticipantInput(key: 'A', locked: true, value: 2000),
+          MixedParticipantInput(key: 'B', locked: false, value: 0),
+          MixedParticipantInput(key: 'C', locked: false, value: 0),
+        ]);
+        expect(r.shares.map((s) => s.share), [2000, 1500, 1500]);
+      },
+    );
 
-    test('re-splits correctly after a participant is removed post manual-assignment', () {
-      final r = resolveMixedSplit(5000, const [
-        MixedParticipantInput(key: 'A', locked: true, value: 2000),
-        MixedParticipantInput(key: 'C', locked: false, value: 0),
-      ]);
-      expect(r.shares.map((s) => s.share), [2000, 3000]);
-    });
+    test(
+      're-splits correctly after a participant is removed post manual-assignment',
+      () {
+        final r = resolveMixedSplit(5000, const [
+          MixedParticipantInput(key: 'A', locked: true, value: 2000),
+          MixedParticipantInput(key: 'C', locked: false, value: 0),
+        ]);
+        expect(r.shares.map((s) => s.share), [2000, 3000]);
+      },
+    );
   });
 }

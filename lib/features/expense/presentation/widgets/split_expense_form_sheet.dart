@@ -217,13 +217,15 @@ class SplitExpenseFormSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SplitExpenseFormSheet> createState() => _SplitExpenseFormSheetState();
+  ConsumerState<SplitExpenseFormSheet> createState() =>
+      _SplitExpenseFormSheetState();
 }
 
 class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _descriptionController = TextEditingController(
-    text: widget.editing?.description ??
+    text:
+        widget.editing?.description ??
         widget.convertFrom?.description ??
         widget.smsPrefill?.merchantOrSender ??
         widget.draft?.description ??
@@ -233,29 +235,44 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
     text: widget.editing != null
         ? widget.editing!.totalAmount.toStringAsFixed(2)
         : widget.convertFrom != null
-            ? widget.convertFrom!.totalAmount.toStringAsFixed(2)
-            : widget.smsPrefill != null
-                ? widget.smsPrefill!.amount.toStringAsFixed(2)
-                : (widget.draft?.amount == null ? '' : widget.draft!.amount!.toStringAsFixed(2)),
+        ? widget.convertFrom!.totalAmount.toStringAsFixed(2)
+        : widget.smsPrefill != null
+        ? widget.smsPrefill!.amount.toStringAsFixed(2)
+        : (widget.draft?.amount == null
+              ? ''
+              : widget.draft!.amount!.toStringAsFixed(2)),
   );
   late final _notesController = TextEditingController(
-    text: widget.editing?.notes ?? widget.convertFrom?.notes ?? widget.smsPrefill?.note ?? widget.draft?.notes ?? '',
+    text:
+        widget.editing?.notes ??
+        widget.convertFrom?.notes ??
+        widget.smsPrefill?.note ??
+        widget.draft?.notes ??
+        '',
   );
   final _amountFocusNode = FocusNode();
   late DateTime _date =
-      widget.editing?.date ?? widget.convertFrom?.date ?? widget.smsPrefill?.dateTime ?? widget.draft?.date ?? DateTime.now();
+      widget.editing?.date ??
+      widget.convertFrom?.date ??
+      widget.smsPrefill?.dateTime ??
+      widget.draft?.date ??
+      DateTime.now();
 
   /// Null while editing means "leave every current installment's due date
   /// alone" (see `ExpenseRepository.editExpense`'s `dueDate` param) — only
   /// set once the user actively picks a new one via [_pickDueDate]. For a
   /// brand-new schedule (create/convert), always non-null so a real due
   /// date — not the expense's own date — is threaded through from the start.
-  late DateTime? _dueDate = widget.editing == null ? _date.add(const Duration(days: 7)) : null;
-  late String? _accountId = widget.editing?.accountId ??
+  late DateTime? _dueDate = widget.editing == null
+      ? _date.add(const Duration(days: 7))
+      : null;
+  late String? _accountId =
+      widget.editing?.accountId ??
       widget.convertFrom?.accountId ??
       widget.smsPrefill?.suggestedAccountId ??
       widget.draft?.accountId;
-  late String? _categoryId = widget.editing?.categoryId ??
+  late String? _categoryId =
+      widget.editing?.categoryId ??
       widget.convertFrom?.categoryId ??
       widget.smsPrefill?.suggestedCategoryId ??
       widget.draft?.categoryId;
@@ -265,13 +282,17 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   /// Mirrors the same-named switch on [AddExpenseScreen] — only meaningful
   /// on the plain-create path (editing/converting already have a real
   /// [Transaction] with its own values, which this sheet never touches).
-  late bool _excludeFromCalculations = widget.draft?.excludeFromCalculations ?? false;
+  late bool _excludeFromCalculations =
+      widget.draft?.excludeFromCalculations ?? false;
   late bool _customAccountingMonth = widget.draft?.accountingMonth != null;
-  late DateTime _accountingMonth = widget.draft?.accountingMonth ?? DateTime(_date.year, _date.month);
+  late DateTime _accountingMonth =
+      widget.draft?.accountingMonth ?? DateTime(_date.year, _date.month);
 
   /// Assigning is always a 2-way custom split (Me + one person) — never
   /// Equal/Percentage, since there's no "how to share" choice to make.
-  late SplitType _splitType = widget.editing?.splitType ?? (widget.assignOnly ? SplitType.custom : SplitType.equal);
+  late SplitType _splitType =
+      widget.editing?.splitType ??
+      (widget.assignOnly ? SplitType.custom : SplitType.equal);
 
   /// Whether "Me" participates in this expense at all — Milestone 14 Task 1
   /// replaced the old mandatory/locked "Me" row with this checkbox, checked
@@ -281,7 +302,8 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   /// row in [_participants] (kept structurally separate so "how many other
   /// people am I sharing with" and "do I participate" are independent
   /// questions the UI never conflates).
-  late bool _includeMe = widget.editing == null || widget.editing!.meParticipant != null;
+  late bool _includeMe =
+      widget.editing == null || widget.editing!.meParticipant != null;
 
   /// A re-opened [SplitType.custom] expense had every amount hand-typed, so every row
   /// starts locked in the mixed manual/auto engine — otherwise it would treat them all
@@ -291,7 +313,8 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   bool get _reopenedAsLocked => widget.editing?.splitType == SplitType.custom;
 
   late final _meRow = _ParticipantRow(initialName: 'Me')
-    ..valueController.text = widget.editing?.meParticipant?.share.toStringAsFixed(2) ?? ''
+    ..valueController.text =
+        widget.editing?.meParticipant?.share.toStringAsFixed(2) ?? ''
     ..locked = _reopenedAsLocked;
 
   /// The dynamic "share with" rows — ordinary participants only, Me is
@@ -302,7 +325,8 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   late final List<_ParticipantRow> _participants = widget.editing == null
       ? [
           if (widget.initialParticipant != null)
-            _ParticipantRow(initialName: widget.initialParticipant!.name)..personId = widget.initialParticipant!.id
+            _ParticipantRow(initialName: widget.initialParticipant!.name)
+              ..personId = widget.initialParticipant!.id
           else
             _ParticipantRow(),
         ]
@@ -395,10 +419,10 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   /// participant row with a non-blank name. Shared by [_buildInputs],
   /// [_resolveMixed], and the "Custom" mode UI (toggle buttons, live banner).
   List<_ParticipantRow> get _includedRows => [
-        if (_includeMe) _meRow,
-        for (final row in _participants)
-          if (row.nameController.text.trim().isNotEmpty) row,
-      ];
+    if (_includeMe) _meRow,
+    for (final row in _participants)
+      if (row.nameController.text.trim().isNotEmpty) row,
+  ];
 
   /// [SplitType.custom] only: locked rows keep their typed amount, unlocked
   /// rows auto-share whatever's left of [total] equally — see
@@ -434,7 +458,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
             name: row == _meRow ? 'Me' : row.nameController.text.trim(),
             isMe: row == _meRow,
             value: mixed?.error == null
-                ? mixed?.shares.firstWhereOrNull((s) => s.key == row.mixedKey)?.share
+                ? mixed?.shares
+                      .firstWhereOrNull((s) => s.key == row.mixedKey)
+                      ?.share
                 : double.tryParse(row.valueController.text.trim()),
           ),
       ];
@@ -489,7 +515,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
       // internal state) — setting `.text` doesn't fire `onChanged`, so this can't loop.
       for (final row in _includedRows) {
         if (row.locked) continue;
-        final share = mixed.shares.firstWhereOrNull((s) => s.key == row.mixedKey)?.share;
+        final share = mixed.shares
+            .firstWhereOrNull((s) => s.key == row.mixedKey)
+            ?.share;
         if (share != null) row.valueController.text = share.toStringAsFixed(2);
       }
     }
@@ -502,7 +530,11 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
       return;
     }
     try {
-      final resolved = ExpenseRepository.resolveShares(type: _splitType, total: total, inputs: inputs);
+      final resolved = ExpenseRepository.resolveShares(
+        type: _splitType,
+        total: total,
+        inputs: inputs,
+      );
       setState(() {
         _splitError = null;
         _preview = resolved;
@@ -517,11 +549,15 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
 
   Future<void> _save() async {
     final formValid = _formKey.currentState!.validate();
-    final assignedPersonId = widget.assignOnly ? _participants[0].personId : null;
+    final assignedPersonId = widget.assignOnly
+        ? _participants[0].personId
+        : null;
     setState(() {
       _accountError = _accountId == null ? 'Select an account' : null;
       _categoryError = _categoryId == null ? 'Select a category' : null;
-      _personError = widget.assignOnly && assignedPersonId == null ? 'Select a person' : null;
+      _personError = widget.assignOnly && assignedPersonId == null
+          ? 'Select a person'
+          : null;
     });
     if (!formValid || _accountId == null || _categoryId == null) return;
     if (widget.assignOnly && assignedPersonId == null) return;
@@ -535,7 +571,8 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
         final scheduleId = editing.scheduleId;
         final currentInstallments = scheduleId == null
             ? const <Installment>[]
-            : ref.read(installmentsStreamProvider(scheduleId)).value ?? const <Installment>[];
+            : ref.read(installmentsStreamProvider(scheduleId)).value ??
+                  const <Installment>[];
         await repository.editExpense(
           expense: editing,
           currentInstallments: currentInstallments,
@@ -553,8 +590,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
         final person = _participants[0];
         // Me's remainder only applies when Me is included; otherwise the
         // person owes the full amount (no `partialAmount` = full assign).
-        final partialAmount =
-            _includeMe ? double.tryParse(person.valueController.text.trim()) : null;
+        final partialAmount = _includeMe
+            ? double.tryParse(person.valueController.text.trim())
+            : null;
         await repository.convertToAssigned(
           existingExpense: widget.existingExpense,
           transactionId: convertFrom.transactionId,
@@ -599,15 +637,19 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
           source: widget.smsPrefill == null ? null : 'sms',
         );
 
-        await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: expense.transactionId);
+        await completeSmsImport(
+          ref,
+          smsPrefill: widget.smsPrefill,
+          linkedEntityId: expense.transactionId,
+        );
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save expense: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save expense: $e')));
       }
     }
   }
@@ -626,9 +668,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
       if (mounted) Navigator.of(context).pop(false);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not delete expense: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not delete expense: $e')));
       }
     }
   }
@@ -637,7 +679,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
-    final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
+    final categories = ref.watch(
+      categoriesForTypeProvider(TransactionType.expense),
+    );
     final peopleAsync = ref.watch(peopleStreamProvider);
     final people = peopleAsync.value ?? const [];
 
@@ -645,330 +689,393 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
       key: _formKey,
       child: SectionedFormSheet(
         title: _isEditing
-            ? (widget.assignOnly ? 'Edit assigned expense' : 'Edit shared expense')
+            ? (widget.assignOnly
+                  ? 'Edit assigned expense'
+                  : 'Edit shared expense')
             : widget.assignOnly
-                ? 'Assign to a person'
-                : (_isConverting ? 'Turn into a shared expense' : 'Share an expense'),
+            ? 'Assign to a person'
+            : (_isConverting
+                  ? 'Turn into a shared expense'
+                  : 'Share an expense'),
         description: !_isConverting
             ? null
             : widget.assignOnly
-                ? 'The amount, category, account, and date stay the same as the original expense — just choose who it was really for.'
-                : 'The amount, category, account, and date stay the same as the original expense — just add who you shared it with.',
+            ? 'The amount, category, account, and date stay the same as the original expense — just choose who it was really for.'
+            : 'The amount, category, account, and date stay the same as the original expense — just add who you shared it with.',
         confirmLabel: _isEditing
             ? 'Save changes'
             : widget.assignOnly
-                ? 'Assign to person'
-                : (_isConverting ? 'Turn into a shared expense' : 'Save shared expense'),
+            ? 'Assign to person'
+            : (_isConverting
+                  ? 'Turn into a shared expense'
+                  : 'Save shared expense'),
         isSaving: _isSaving,
         onConfirm: _save,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              const SectionLabel('Expense Details'),
+            const SectionLabel('Expense Details'),
+            const SizedBox(height: AppSizes.sm),
+            if (_isConverting)
+              _ReadOnlyExpenseSummary(prefill: widget.convertFrom!)
+            else ...[
+              TextFormField(
+                controller: _descriptionController,
+                decoration: _premiumDecoration(context, label: 'Description'),
+                style: Theme.of(context).textTheme.bodyMedium,
+                validator: Validators.required,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
+              ),
               const SizedBox(height: AppSizes.sm),
-              if (_isConverting)
-                _ReadOnlyExpenseSummary(prefill: widget.convertFrom!)
-              else ...[
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: _premiumDecoration(context, label: 'Description'),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  validator: Validators.required,
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
+              TextFormField(
+                controller: _amountController,
+                focusNode: _amountFocusNode,
+                decoration: _premiumDecoration(context, label: 'Total amount'),
+                style: Theme.of(context).textTheme.bodyMedium,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
                 ),
-                const SizedBox(height: AppSizes.sm),
-                TextFormField(
-                  controller: _amountController,
-                  focusNode: _amountFocusNode,
-                  decoration: _premiumDecoration(context, label: 'Total amount'),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  validator: Validators.amount,
-                  textInputAction: TextInputAction.done,
-                  onChanged: (_) => _revalidateSplit(),
-                ),
-                const SizedBox(height: AppSizes.sm),
-                accountsAsync.when(
-                  loading: () => const LinearProgressIndicator(),
-                  error: (error, _) => Text('Could not load accounts: $error'),
-                  data: (accounts) {
-                    final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
-                    return DropdownButtonFormField<String>(
-                      initialValue: validId,
-                      decoration: _premiumDecoration(context, label: 'Account', errorText: _accountError),
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      items: [
-                        for (final account in accounts)
-                          DropdownMenuItem(
-                            value: account.id,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                BankLogo(bankId: account.bankId, fallbackName: account.name, size: 20),
-                                const SizedBox(width: AppSizes.sm),
-                                Flexible(
-                                  child: Text(
-                                    accountPickerLabel(account, creditCards),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                validator: Validators.amount,
+                textInputAction: TextInputAction.done,
+                onChanged: (_) => _revalidateSplit(),
+              ),
+              const SizedBox(height: AppSizes.sm),
+              accountsAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (error, _) => Text('Could not load accounts: $error'),
+                data: (accounts) {
+                  final validId = accounts.any((a) => a.id == _accountId)
+                      ? _accountId
+                      : null;
+                  return DropdownButtonFormField<String>(
+                    initialValue: validId,
+                    decoration: _premiumDecoration(
+                      context,
+                      label: 'Account',
+                      errorText: _accountError,
+                    ),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                    items: [
+                      for (final account in accounts)
+                        DropdownMenuItem(
+                          value: account.id,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              BankLogo(
+                                bankId: account.bankId,
+                                fallbackName: account.name,
+                                size: 20,
+                              ),
+                              const SizedBox(width: AppSizes.sm),
+                              Flexible(
+                                child: Text(
+                                  accountPickerLabel(account, creditCards),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                      ],
-                      onChanged: (value) => setState(() {
-                        _accountId = value;
-                        _accountError = null;
-                      }),
-                    );
-                  },
-                ),
-                const SizedBox(height: AppSizes.sm),
-                DropdownButtonFormField<String>(
-                  initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-                  decoration: _premiumDecoration(context, label: 'Category', errorText: _categoryError),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  items: [
-                    for (final category in categories)
-                      DropdownMenuItem(value: category.id, child: Text(category.name)),
-                  ],
-                  onChanged: (value) => setState(() {
-                    _categoryId = value;
-                    _categoryError = null;
-                  }),
-                ),
-                const SizedBox(height: AppSizes.sm),
-                _PremiumTapButton(onTap: _pickDate, icon: Icons.calendar_today_outlined, label: _date.fullDate),
-              ],
-              const SizedBox(height: AppSizes.sm),
-              const SectionLabel('Due Date'),
-              const SizedBox(height: AppSizes.xs),
-              Builder(
-                builder: (context) {
-                  final scheduleId = widget.editing?.scheduleId;
-                  final currentInstallments = scheduleId == null
-                      ? const <Installment>[]
-                      : ref.watch(installmentsStreamProvider(scheduleId)).value ?? const <Installment>[];
-                  final effectiveDueDate =
-                      _dueDate ?? currentInstallments.firstOrNull?.dueDate ?? _date.add(const Duration(days: 7));
-                  return _PremiumTapButton(
-                    onTap: () => _pickDueDate(effectiveDueDate),
-                    icon: Icons.event_outlined,
-                    label: effectiveDueDate.fullDate,
+                        ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _accountId = value;
+                      _accountError = null;
+                    }),
                   );
                 },
               ),
               const SizedBox(height: AppSizes.sm),
-              const SectionLabel('How to Share'),
-              const SizedBox(height: AppSizes.sm),
-              if (!widget.assignOnly) ...[
-                SegmentedButton<SplitType>(
-                  style: const ButtonStyle(visualDensity: VisualDensity.compact),
-                  segments: const [
-                    ButtonSegment(
-                      value: SplitType.equal,
-                      label: Text('Equal'),
-                      icon: Icon(Icons.balance_rounded, size: AppSizes.iconSm),
-                    ),
-                    ButtonSegment(
-                      value: SplitType.custom,
-                      label: Text('Custom'),
-                      icon: Icon(Icons.tune_rounded, size: AppSizes.iconSm),
-                    ),
-                    ButtonSegment(
-                      value: SplitType.percentage,
-                      label: Text('Percentage'),
-                      icon: Icon(Icons.percent_rounded, size: AppSizes.iconSm),
-                    ),
-                  ],
-                  selected: {_splitType},
-                  onSelectionChanged: (selection) {
-                    setState(() => _splitType = selection.first);
-                    _revalidateSplit();
-                  },
+              DropdownButtonFormField<String>(
+                initialValue: categories.any((c) => c.id == _categoryId)
+                    ? _categoryId
+                    : null,
+                decoration: _premiumDecoration(
+                  context,
+                  label: 'Category',
+                  errorText: _categoryError,
                 ),
-              ],
+                style: Theme.of(context).textTheme.bodyMedium,
+                items: [
+                  for (final category in categories)
+                    DropdownMenuItem(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
+                ],
+                onChanged: (value) => setState(() {
+                  _categoryId = value;
+                  _categoryError = null;
+                }),
+              ),
               const SizedBox(height: AppSizes.sm),
-              CheckboxListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                value: _includeMe,
-                title: const Text('Include myself in this expense'),
-                subtitle: const Text(
-                  "Uncheck this if you paid for others only — like a gift or someone else's bill.",
-                ),
-                onChanged: (value) {
-                  setState(() => _includeMe = value ?? true);
+              _PremiumTapButton(
+                onTap: _pickDate,
+                icon: Icons.calendar_today_outlined,
+                label: _date.fullDate,
+              ),
+            ],
+            const SizedBox(height: AppSizes.sm),
+            const SectionLabel('Due Date'),
+            const SizedBox(height: AppSizes.xs),
+            Builder(
+              builder: (context) {
+                final scheduleId = widget.editing?.scheduleId;
+                final currentInstallments = scheduleId == null
+                    ? const <Installment>[]
+                    : ref.watch(installmentsStreamProvider(scheduleId)).value ??
+                          const <Installment>[];
+                final effectiveDueDate =
+                    _dueDate ??
+                    currentInstallments.firstOrNull?.dueDate ??
+                    _date.add(const Duration(days: 7));
+                return _PremiumTapButton(
+                  onTap: () => _pickDueDate(effectiveDueDate),
+                  icon: Icons.event_outlined,
+                  label: effectiveDueDate.fullDate,
+                );
+              },
+            ),
+            const SizedBox(height: AppSizes.sm),
+            const SectionLabel('How to Share'),
+            const SizedBox(height: AppSizes.sm),
+            if (!widget.assignOnly) ...[
+              SegmentedButton<SplitType>(
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                segments: const [
+                  ButtonSegment(
+                    value: SplitType.equal,
+                    label: Text('Equal'),
+                    icon: Icon(Icons.balance_rounded, size: AppSizes.iconSm),
+                  ),
+                  ButtonSegment(
+                    value: SplitType.custom,
+                    label: Text('Custom'),
+                    icon: Icon(Icons.tune_rounded, size: AppSizes.iconSm),
+                  ),
+                  ButtonSegment(
+                    value: SplitType.percentage,
+                    label: Text('Percentage'),
+                    icon: Icon(Icons.percent_rounded, size: AppSizes.iconSm),
+                  ),
+                ],
+                selected: {_splitType},
+                onSelectionChanged: (selection) {
+                  setState(() => _splitType = selection.first);
                   _revalidateSplit();
                 },
               ),
-              if (_includeMe && (_splitType == SplitType.custom || _splitType == SplitType.percentage)) ...[
-                const SizedBox(height: AppSizes.sm),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const _PersonAvatar(name: 'Me'),
-                    const SizedBox(width: AppSizes.sm),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _meRow.valueController,
-                        decoration: _premiumDecoration(
-                          context,
-                          label: 'My share (${_splitType == SplitType.percentage ? 'percent' : 'amount'})',
-                        ),
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        onChanged: (_) {
-                          if (_splitType == SplitType.custom) _meRow.locked = true;
-                          _revalidateSplit();
-                        },
+            ],
+            const SizedBox(height: AppSizes.sm),
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              value: _includeMe,
+              title: const Text('Include myself in this expense'),
+              subtitle: const Text(
+                "Uncheck this if you paid for others only — like a gift or someone else's bill.",
+              ),
+              onChanged: (value) {
+                setState(() => _includeMe = value ?? true);
+                _revalidateSplit();
+              },
+            ),
+            if (_includeMe &&
+                (_splitType == SplitType.custom ||
+                    _splitType == SplitType.percentage)) ...[
+              const SizedBox(height: AppSizes.sm),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const _PersonAvatar(name: 'Me'),
+                  const SizedBox(width: AppSizes.sm),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _meRow.valueController,
+                      decoration: _premiumDecoration(
+                        context,
+                        label:
+                            'My share (${_splitType == SplitType.percentage ? 'percent' : 'amount'})',
                       ),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      onChanged: (_) {
+                        if (_splitType == SplitType.custom)
+                          _meRow.locked = true;
+                        _revalidateSplit();
+                      },
                     ),
-                    if (_splitType == SplitType.custom)
-                      _LockToggle(
-                        locked: _meRow.locked,
-                        onTap: () {
-                          setState(() => _meRow.locked = !_meRow.locked);
-                          _revalidateSplit();
-                        },
-                      ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: AppSizes.sm),
-              SectionLabel(widget.assignOnly ? 'Who was this for' : 'Split Between'),
-              if (widget.assignOnly && _personError != null) ...[
-                const SizedBox(height: AppSizes.xs),
-                Text(_personError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              ],
-              const SizedBox(height: AppSizes.sm),
-              for (var i = 0; i < _participants.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                  child: _ParticipantField(
-                    row: _participants[i],
-                    people: people,
-                    showValueField: _splitType == SplitType.custom || _splitType == SplitType.percentage,
-                    valueLabel: _splitType == SplitType.percentage ? 'Percent' : 'Amount',
-                    mixedMode: _splitType == SplitType.custom,
-                    onValueChanged: () {
-                      if (_splitType == SplitType.custom) _participants[i].locked = true;
-                      _revalidateSplit();
-                    },
-                    onToggleLock: () {
-                      setState(() => _participants[i].locked = !_participants[i].locked);
-                      _revalidateSplit();
-                    },
-                    onChanged: _revalidateSplit,
-                    onRemove: widget.assignOnly || _participants.length <= 1
-                        ? null
-                        : () => _removeParticipant(i),
-                    onCreateNewPerson: _createNewPerson,
                   ),
-                ),
-              if (_splitType == SplitType.custom) ...[
-                Builder(
-                  builder: (context) {
-                    final total = double.tryParse(_amountController.text.trim());
-                    final mixed = total == null ? null : _resolveMixed(total);
-                    if (mixed == null) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: AppSizes.xs, bottom: AppSizes.sm),
-                      child: _MixedSplitSummary(total: total!, mixed: mixed),
-                    );
-                  },
-                ),
-              ],
-              if (!widget.assignOnly)
-                TextButton.icon(
-                  onPressed: _addParticipant,
-                  icon: const Icon(Icons.person_add_alt_1_outlined),
-                  label: const Text('Add person'),
-                ),
-              if (_splitError != null) ...[
-                const SizedBox(height: AppSizes.sm),
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.md),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                  ),
-                  child: Text(
-                    _splitError!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
-                  ),
-                ),
-              ],
-              if (_preview != null) ...[
-                const SizedBox(height: AppSizes.sm),
-                _SplitPreviewCard(participants: _preview!),
-              ],
-              if (!_isConverting) ...[
-                const SizedBox(height: AppSizes.sm),
-                const SectionLabel('Notes'),
-                const SizedBox(height: AppSizes.sm),
-                TextFormField(
-                  controller: _notesController,
-                  decoration: _premiumDecoration(context, label: 'Notes (optional)'),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  maxLines: 3,
-                  textInputAction: TextInputAction.done,
-                ),
-              ],
-              if (!_isConverting && !_isEditing) ...[
-                const SizedBox(height: AppSizes.sm),
-                const SectionLabel('Advanced Options'),
-                const SizedBox(height: AppSizes.xs),
-                SwitchListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text("Don't count this in my totals"),
-                  subtitle: const Text(
-                    "Still shows in your history — just won't affect your balance, budgets, or reports.",
-                  ),
-                  value: _excludeFromCalculations,
-                  onChanged: (value) => setState(() => _excludeFromCalculations = value),
-                ),
-                const SizedBox(height: AppSizes.sm),
-                SwitchListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Count this in a different month?'),
-                  subtitle: Text(
-                    _customAccountingMonth
-                        ? 'Choose which month it should count toward below.'
-                        : 'Right now: counted in ${_date.monthYear} (same as the date above)',
-                  ),
-                  value: _customAccountingMonth,
-                  onChanged: (value) => setState(() {
-                    _customAccountingMonth = value;
-                    if (!value) _accountingMonth = DateTime(_date.year, _date.month);
-                  }),
-                ),
-                if (_customAccountingMonth) ...[
-                  const SizedBox(height: AppSizes.sm),
-                  MonthYearStepper(
-                    value: _accountingMonth,
-                    min: DateTime(DateTime.now().year - 5, DateTime.now().month),
-                    max: DateTime(DateTime.now().year + 2, DateTime.now().month),
-                    onChanged: (month) => setState(() => _accountingMonth = month),
-                  ),
+                  if (_splitType == SplitType.custom)
+                    _LockToggle(
+                      locked: _meRow.locked,
+                      onTap: () {
+                        setState(() => _meRow.locked = !_meRow.locked);
+                        _revalidateSplit();
+                      },
+                    ),
                 ],
-              ],
-              if (_isEditing) ...[
-                const SizedBox(height: AppSizes.sm),
-                OutlinedButton.icon(
-                  onPressed: _isSaving ? null : _deleteExpense,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                    side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: AppSizes.sm),
+            SectionLabel(
+              widget.assignOnly ? 'Who was this for' : 'Split Between',
+            ),
+            if (widget.assignOnly && _personError != null) ...[
+              const SizedBox(height: AppSizes.xs),
+              Text(
+                _personError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: AppSizes.sm),
+            for (var i = 0; i < _participants.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                child: _ParticipantField(
+                  row: _participants[i],
+                  people: people,
+                  showValueField:
+                      _splitType == SplitType.custom ||
+                      _splitType == SplitType.percentage,
+                  valueLabel: _splitType == SplitType.percentage
+                      ? 'Percent'
+                      : 'Amount',
+                  mixedMode: _splitType == SplitType.custom,
+                  onValueChanged: () {
+                    if (_splitType == SplitType.custom)
+                      _participants[i].locked = true;
+                    _revalidateSplit();
+                  },
+                  onToggleLock: () {
+                    setState(
+                      () => _participants[i].locked = !_participants[i].locked,
+                    );
+                    _revalidateSplit();
+                  },
+                  onChanged: _revalidateSplit,
+                  onRemove: widget.assignOnly || _participants.length <= 1
+                      ? null
+                      : () => _removeParticipant(i),
+                  onCreateNewPerson: _createNewPerson,
+                ),
+              ),
+            if (_splitType == SplitType.custom) ...[
+              Builder(
+                builder: (context) {
+                  final total = double.tryParse(_amountController.text.trim());
+                  final mixed = total == null ? null : _resolveMixed(total);
+                  if (mixed == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                      top: AppSizes.xs,
+                      bottom: AppSizes.sm,
+                    ),
+                    child: _MixedSplitSummary(total: total!, mixed: mixed),
+                  );
+                },
+              ),
+            ],
+            if (!widget.assignOnly)
+              TextButton.icon(
+                onPressed: _addParticipant,
+                icon: const Icon(Icons.person_add_alt_1_outlined),
+                label: const Text('Add person'),
+              ),
+            if (_splitError != null) ...[
+              const SizedBox(height: AppSizes.sm),
+              Container(
+                padding: const EdgeInsets.all(AppSizes.md),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                ),
+                child: Text(
+                  _splitError!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
                   ),
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  label: const Text('Delete Expense'),
+                ),
+              ),
+            ],
+            if (_preview != null) ...[
+              const SizedBox(height: AppSizes.sm),
+              _SplitPreviewCard(participants: _preview!),
+            ],
+            if (!_isConverting) ...[
+              const SizedBox(height: AppSizes.sm),
+              const SectionLabel('Notes'),
+              const SizedBox(height: AppSizes.sm),
+              TextFormField(
+                controller: _notesController,
+                decoration: _premiumDecoration(
+                  context,
+                  label: 'Notes (optional)',
+                ),
+                style: Theme.of(context).textTheme.bodyMedium,
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+            ],
+            if (!_isConverting && !_isEditing) ...[
+              const SizedBox(height: AppSizes.sm),
+              const SectionLabel('Advanced Options'),
+              const SizedBox(height: AppSizes.xs),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text("Don't count this in my totals"),
+                subtitle: const Text(
+                  "Still shows in your history — just won't affect your balance, budgets, or reports.",
+                ),
+                value: _excludeFromCalculations,
+                onChanged: (value) =>
+                    setState(() => _excludeFromCalculations = value),
+              ),
+              const SizedBox(height: AppSizes.sm),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Count this in a different month?'),
+                subtitle: Text(
+                  _customAccountingMonth
+                      ? 'Choose which month it should count toward below.'
+                      : 'Right now: counted in ${_date.monthYear} (same as the date above)',
+                ),
+                value: _customAccountingMonth,
+                onChanged: (value) => setState(() {
+                  _customAccountingMonth = value;
+                  if (!value)
+                    _accountingMonth = DateTime(_date.year, _date.month);
+                }),
+              ),
+              if (_customAccountingMonth) ...[
+                const SizedBox(height: AppSizes.sm),
+                MonthYearStepper(
+                  value: _accountingMonth,
+                  min: DateTime(DateTime.now().year - 5, DateTime.now().month),
+                  max: DateTime(DateTime.now().year + 2, DateTime.now().month),
+                  onChanged: (month) =>
+                      setState(() => _accountingMonth = month),
                 ),
               ],
+            ],
+            if (_isEditing) ...[
+              const SizedBox(height: AppSizes.sm),
+              OutlinedButton.icon(
+                onPressed: _isSaving ? null : _deleteExpense,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(color: Theme.of(context).colorScheme.error),
+                ),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Delete Expense'),
+              ),
+            ],
           ],
         ),
       ),
@@ -988,8 +1095,12 @@ class _SplitPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final yourSpending = participants.where((p) => p.isMe).fold(0.0, (sum, p) => sum + p.share);
-    final moneyBack = participants.where((p) => !p.isMe).fold(0.0, (sum, p) => sum + p.share);
+    final yourSpending = participants
+        .where((p) => p.isMe)
+        .fold(0.0, (sum, p) => sum + p.share);
+    final moneyBack = participants
+        .where((p) => !p.isMe)
+        .fold(0.0, (sum, p) => sum + p.share);
     final total = yourSpending + moneyBack;
 
     return AppCard(
@@ -1000,10 +1111,24 @@ class _SplitPreviewCard extends StatelessWidget {
           Text("Here's how it works out", style: context.textTheme.titleSmall),
           const SizedBox(height: AppSizes.md),
           _PreviewRow(label: 'Total Expense', value: total, emphasize: true),
-          _PreviewRow(label: 'Your Spending', value: yourSpending, color: AppColors.debit),
-          if (moneyBack > 0) _PreviewRow(label: "Money You'll Get Back", value: moneyBack, color: AppColors.success),
+          _PreviewRow(
+            label: 'Your Spending',
+            value: yourSpending,
+            color: AppColors.debit,
+          ),
+          if (moneyBack > 0)
+            _PreviewRow(
+              label: "Money You'll Get Back",
+              value: moneyBack,
+              color: AppColors.success,
+            ),
           const Divider(height: AppSizes.lg),
-          Text('Split Between', style: context.textTheme.labelMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6))),
+          Text(
+            'Split Between',
+            style: context.textTheme.labelMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
           const SizedBox(height: AppSizes.xs),
           for (final p in participants)
             Padding(
@@ -1011,8 +1136,16 @@ class _SplitPreviewCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(p.isMe ? 'You' : p.name, style: context.textTheme.bodyMedium),
-                  Text(CurrencyFormatter.instance.format(p.share), style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    p.isMe ? 'You' : p.name,
+                    style: context.textTheme.bodyMedium,
+                  ),
+                  Text(
+                    CurrencyFormatter.instance.format(p.share),
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1023,7 +1156,12 @@ class _SplitPreviewCard extends StatelessWidget {
 }
 
 class _PreviewRow extends StatelessWidget {
-  const _PreviewRow({required this.label, required this.value, this.color, this.emphasize = false});
+  const _PreviewRow({
+    required this.label,
+    required this.value,
+    this.color,
+    this.emphasize = false,
+  });
 
   final String label;
   final double value;
@@ -1033,14 +1171,25 @@ class _PreviewRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = emphasize
-        ? context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color)
-        : context.textTheme.bodyLarge?.copyWith(color: color, fontWeight: FontWeight.w600);
+        ? context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          )
+        : context.textTheme.bodyLarge?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7))),
+          Text(
+            label,
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
           Text(CurrencyFormatter.instance.format(value), style: style),
         ],
       ),
@@ -1061,8 +1210,12 @@ class _ReadOnlyExpenseSummary extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
-    final accountName = accounts.where((a) => a.id == prefill.accountId).firstOrNull?.name ?? 'Unknown account';
-    final categoryName = categories.where((c) => c.id == prefill.categoryId).firstOrNull?.name ?? 'Uncategorized';
+    final accountName =
+        accounts.where((a) => a.id == prefill.accountId).firstOrNull?.name ??
+        'Unknown account';
+    final categoryName =
+        categories.where((c) => c.id == prefill.categoryId).firstOrNull?.name ??
+        'Uncategorized';
 
     return AppCard(
       child: Column(
@@ -1072,13 +1225,16 @@ class _ReadOnlyExpenseSummary extends ConsumerWidget {
           const SizedBox(height: AppSizes.xs),
           Text(
             CurrencyFormatter.instance.format(prefill.totalAmount),
-            style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: context.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: AppSizes.sm),
           _SummaryRow(label: 'Date', value: prefill.date.fullDate),
           _SummaryRow(label: 'Account', value: accountName),
           _SummaryRow(label: 'Category', value: categoryName),
-          if (prefill.notes.isNotEmpty) _SummaryRow(label: 'Notes', value: prefill.notes),
+          if (prefill.notes.isNotEmpty)
+            _SummaryRow(label: 'Notes', value: prefill.notes),
         ],
       ),
     );
@@ -1100,9 +1256,17 @@ class _SummaryRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
-          Flexible(child: Text(value, style: context.textTheme.bodyMedium, textAlign: TextAlign.end)),
+          Flexible(
+            child: Text(
+              value,
+              style: context.textTheme.bodyMedium,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );
@@ -1133,11 +1297,20 @@ class _LockToggle extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.sm,
+              vertical: 8,
+            ),
             decoration: BoxDecoration(
-              color: locked ? colors.primary.withValues(alpha: 0.12) : colors.onSurface.withValues(alpha: 0.05),
+              color: locked
+                  ? colors.primary.withValues(alpha: 0.12)
+                  : colors.onSurface.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-              border: Border.all(color: locked ? colors.primary.withValues(alpha: 0.3) : Colors.transparent),
+              border: Border.all(
+                color: locked
+                    ? colors.primary.withValues(alpha: 0.3)
+                    : Colors.transparent,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1145,7 +1318,12 @@ class _LockToggle extends StatelessWidget {
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
                   child: locked
-                      ? Icon(Icons.lock_outline_rounded, key: const ValueKey('locked'), size: 12, color: colors.primary)
+                      ? Icon(
+                          Icons.lock_outline_rounded,
+                          key: const ValueKey('locked'),
+                          size: 12,
+                          color: colors.primary,
+                        )
                       : Icon(
                           Icons.balance_rounded,
                           key: const ValueKey('unlocked'),
@@ -1157,7 +1335,9 @@ class _LockToggle extends StatelessWidget {
                 Text(
                   locked ? 'Manual' : 'Equal',
                   style: context.textTheme.labelSmall?.copyWith(
-                    color: locked ? colors.primary : colors.onSurface.withValues(alpha: 0.6),
+                    color: locked
+                        ? colors.primary
+                        : colors.onSurface.withValues(alpha: 0.6),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1184,15 +1364,22 @@ class _PersonAvatar extends StatelessWidget {
     final trimmed = name.trim();
     final initial = trimmed.isEmpty ? '?' : trimmed[0].toUpperCase();
     final palette = AppColors.categoryPalette;
-    final color = palette[trimmed.isEmpty ? 0 : trimmed.codeUnitAt(0) % palette.length];
+    final color =
+        palette[trimmed.isEmpty ? 0 : trimmed.codeUnitAt(0) % palette.length];
     return Container(
       width: 32,
       height: 32,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        shape: BoxShape.circle,
+      ),
       child: Text(
         initial,
-        style: context.textTheme.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w700),
+        style: context.textTheme.labelMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -1211,23 +1398,36 @@ class _MixedSplitSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final lockedFraction = total > 0 ? (mixed.lockedTotal / total).clamp(0.0, 1.0) : 0.0;
+    final lockedFraction = total > 0
+        ? (mixed.lockedTotal / total).clamp(0.0, 1.0)
+        : 0.0;
     return AppCard(
       color: colors.surfaceContainerHighest.withValues(alpha: 0.4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SummaryRow(label: 'Expense total', value: CurrencyFormatter.instance.format(total)),
+          _SummaryRow(
+            label: 'Expense total',
+            value: CurrencyFormatter.instance.format(total),
+          ),
           if (mixed.lockedTotal > 0)
-            _SummaryRow(label: 'Manually assigned', value: CurrencyFormatter.instance.format(mixed.lockedTotal)),
+            _SummaryRow(
+              label: 'Manually assigned',
+              value: CurrencyFormatter.instance.format(mixed.lockedTotal),
+            ),
           const SizedBox(height: 2),
           Text(
             CurrencyFormatter.instance.format(mixed.remaining),
-            style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: AppColors.primary),
+            style: context.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
           ),
           Text(
             'Remaining balance',
-            style: context.textTheme.bodySmall?.copyWith(color: colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           const SizedBox(height: AppSizes.sm),
           ClipRRect(
@@ -1252,13 +1452,20 @@ class _MixedSplitSummary extends StatelessWidget {
                 child: Text(
                   mixed.autoCount > 0
                       ? '${mixed.autoCount} ${mixed.autoCount == 1 ? 'person shares' : 'people share'} equally · '
-                          '${CurrencyFormatter.instance.format(mixed.remaining)} ÷ ${mixed.autoCount} = '
-                          '${CurrencyFormatter.instance.format(mixed.autoShare)} each'
+                            '${CurrencyFormatter.instance.format(mixed.remaining)} ÷ ${mixed.autoCount} = '
+                            '${CurrencyFormatter.instance.format(mixed.autoShare)} each'
                       : 'All participants are manually assigned',
-                  style: context.textTheme.bodySmall?.copyWith(color: AppColors.success, fontWeight: FontWeight.w600),
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconSm, color: AppColors.success),
+              Icon(
+                Icons.check_circle_outline_rounded,
+                size: AppSizes.iconSm,
+                color: AppColors.success,
+              ),
             ],
           ),
         ],
@@ -1319,7 +1526,9 @@ class _ParticipantFieldState extends State<_ParticipantField> {
     // free-text input without a second "Name" column.
     void handleTextChanged(String text) {
       if (row.personId != null) {
-        final linked = widget.people.where((p) => p.id == row.personId).firstOrNull;
+        final linked = widget.people
+            .where((p) => p.id == row.personId)
+            .firstOrNull;
         if (linked == null || linked.name != text) row.personId = null;
       }
       widget.onChanged();
@@ -1362,7 +1571,10 @@ class _ParticipantFieldState extends State<_ParticipantField> {
                 children: [
                   ListTile(
                     dense: true,
-                    leading: const Icon(Icons.person_add_alt_1_rounded, size: AppSizes.iconSm),
+                    leading: const Icon(
+                      Icons.person_add_alt_1_rounded,
+                      size: AppSizes.iconSm,
+                    ),
                     title: const Text('Add new person'),
                     onTap: widget.onCreateNewPerson,
                   ),
@@ -1403,11 +1615,16 @@ class _ParticipantFieldState extends State<_ParticipantField> {
               controller: row.valueController,
               decoration: _premiumDecoration(context, label: widget.valueLabel),
               style: Theme.of(context).textTheme.bodyMedium,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => widget.mixedMode ? widget.onValueChanged?.call() : widget.onChanged(),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: (_) => widget.mixedMode
+                  ? widget.onValueChanged?.call()
+                  : widget.onChanged(),
             ),
           ),
-          if (widget.mixedMode) _LockToggle(locked: row.locked, onTap: widget.onToggleLock),
+          if (widget.mixedMode)
+            _LockToggle(locked: row.locked, onTap: widget.onToggleLock),
         ],
         if (widget.onRemove != null)
           IconButton(
@@ -1429,7 +1646,12 @@ class _ParticipantFieldState extends State<_ParticipantField> {
       padding: const EdgeInsets.all(AppSizes.sm),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
-        border: Border(left: BorderSide(color: row.locked ? colors.primary : Colors.transparent, width: 3)),
+        border: Border(
+          left: BorderSide(
+            color: row.locked ? colors.primary : Colors.transparent,
+            width: 3,
+          ),
+        ),
       ),
       child: content,
     );
@@ -1454,11 +1676,20 @@ InputDecoration _premiumDecoration(
     errorText: errorText,
     prefixIcon: prefixIcon,
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSizes.sm,
+      vertical: AppSizes.sm,
+    ),
     filled: true,
     fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       borderSide: BorderSide(color: colors.primary, width: 1.6),
@@ -1479,7 +1710,11 @@ InputDecoration _premiumDecoration(
 /// this sheet's filled-field language instead of standing out as the one
 /// outlined control on the page.
 class _PremiumTapButton extends StatelessWidget {
-  const _PremiumTapButton({required this.onTap, required this.icon, required this.label});
+  const _PremiumTapButton({
+    required this.onTap,
+    required this.icon,
+    required this.label,
+  });
 
   final VoidCallback onTap;
   final IconData icon;
@@ -1495,13 +1730,21 @@ class _PremiumTapButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.sm,
+            vertical: AppSizes.sm,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: AppSizes.iconSm, color: colors.primary),
               const SizedBox(width: AppSizes.xs),
-              Text(label, style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                label,
+                style: context.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -1509,4 +1752,3 @@ class _PremiumTapButton extends StatelessWidget {
     );
   }
 }
-

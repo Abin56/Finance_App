@@ -23,7 +23,9 @@ void main() {
         merchantType: LearnedField<MerchantType>(value: MerchantType.business),
         category: LearnedField<String>(value: 'cat-food'),
         subcategory: LearnedField<String>(value: 'Food Delivery'),
-        paymentProvider: LearnedField<PaymentProvider>(value: PaymentProvider.phonePe),
+        paymentProvider: LearnedField<PaymentProvider>(
+          value: PaymentProvider.phonePe,
+        ),
         paymentMethod: LearnedField<PaymentMethod>(value: PaymentMethod.upi),
       );
 
@@ -37,20 +39,23 @@ void main() {
   });
 
   group('CorrectionEvent never stores raw SMS text or hard facts', () {
-    test('fields are restricted to structured merchant/category/provider identifiers', () {
-      final event = CorrectionEvent(
-        merchantKey: 'swiggy',
-        field: LearnedFieldType.category,
-        oldValue: 'cat-shopping',
-        newValue: 'cat-food',
-        timestamp: DateTime(2026, 8, 1),
-        source: LearningSource.user,
-      );
+    test(
+      'fields are restricted to structured merchant/category/provider identifiers',
+      () {
+        final event = CorrectionEvent(
+          merchantKey: 'swiggy',
+          field: LearnedFieldType.category,
+          oldValue: 'cat-shopping',
+          newValue: 'cat-food',
+          timestamp: DateTime(2026, 8, 1),
+          source: LearningSource.user,
+        );
 
-      expect(event.merchantKey, isNot(contains('rs.')));
-      expect(event.oldValue, isNot(contains('a/c')));
-      expect(event.newValue, 'cat-food');
-    });
+        expect(event.merchantKey, isNot(contains('rs.')));
+        expect(event.oldValue, isNot(contains('a/c')));
+        expect(event.newValue, 'cat-food');
+      },
+    );
 
     test('correction log is append-only and preserves every entry', () {
       final log = MerchantCorrectionLog();
@@ -79,40 +84,48 @@ void main() {
   });
 
   group('payment method history yields to real SMS evidence', () {
-    test('a learned payment-method preference is only ever a suggestion input, never authoritative', () {
-      // The learning layer only ever produces a LearnedField<PaymentMethod>
-      // as historical context. It is the caller's (FinancialEventExtractor's)
-      // responsibility to keep hard evidence authoritative; this test
-      // documents that a learned method disagreeing with fresh evidence is
-      // representable and does not, by itself, mutate anything.
-      final learned = LearnedField<PaymentMethod>(
-        value: PaymentMethod.upi,
-        source: LearningSource.user,
-        confirmations: 10,
-        lastUpdatedAt: DateTime(2026, 1, 1),
-      );
+    test(
+      'a learned payment-method preference is only ever a suggestion input, never authoritative',
+      () {
+        // The learning layer only ever produces a LearnedField<PaymentMethod>
+        // as historical context. It is the caller's (FinancialEventExtractor's)
+        // responsibility to keep hard evidence authoritative; this test
+        // documents that a learned method disagreeing with fresh evidence is
+        // representable and does not, by itself, mutate anything.
+        final learned = LearnedField<PaymentMethod>(
+          value: PaymentMethod.upi,
+          source: LearningSource.user,
+          confirmations: 10,
+          lastUpdatedAt: DateTime(2026, 1, 1),
+        );
 
-      const actualSmsEvidence = PaymentMethod.creditCard;
+        const actualSmsEvidence = PaymentMethod.creditCard;
 
-      // The learned value and the fresh evidence can simply disagree — nothing
-      // in this layer forces or blocks that; there is no `apply`/`override`
-      // method on LearnedField at all.
-      expect(learned.value, isNot(actualSmsEvidence));
-    });
+        // The learned value and the fresh evidence can simply disagree — nothing
+        // in this layer forces or blocks that; there is no `apply`/`override`
+        // method on LearnedField at all.
+        expect(learned.value, isNot(actualSmsEvidence));
+      },
+    );
   });
 
   group('provider vs merchant stays structurally distinct', () {
-    test('MerchantLearningProfile.paymentProvider and merchantKey are separate fields/types', () {
-      const profile = MerchantLearningProfile(
-        userId: 'u1',
-        merchantKey: 'swiggy',
-        paymentProvider: LearnedField<PaymentProvider>(value: PaymentProvider.phonePe),
-      );
+    test(
+      'MerchantLearningProfile.paymentProvider and merchantKey are separate fields/types',
+      () {
+        const profile = MerchantLearningProfile(
+          userId: 'u1',
+          merchantKey: 'swiggy',
+          paymentProvider: LearnedField<PaymentProvider>(
+            value: PaymentProvider.phonePe,
+          ),
+        );
 
-      expect(profile.merchantKey, 'swiggy');
-      expect(profile.paymentProvider.value, PaymentProvider.phonePe);
-      // A PaymentProvider enum value can never itself equal a merchant key
-      // string — they are different types entirely, which is the guarantee.
-    });
+        expect(profile.merchantKey, 'swiggy');
+        expect(profile.paymentProvider.value, PaymentProvider.phonePe);
+        // A PaymentProvider enum value can never itself equal a merchant key
+        // string — they are different types entirely, which is the guarantee.
+      },
+    );
   });
 }

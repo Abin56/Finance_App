@@ -8,7 +8,8 @@ import '../domain/schedule_type.dart';
 /// Schedule-specific persistence on top of the generic CRUD/soft-delete
 /// repository. Never mutates on payment — only its child `Installment`
 /// documents do (see `InstallmentRepository`).
-class PaymentScheduleRepository extends FirestoreCrudRepository<PaymentSchedule> {
+class PaymentScheduleRepository
+    extends FirestoreCrudRepository<PaymentSchedule> {
   PaymentScheduleRepository(super.collection);
 
   Future<PaymentSchedule> createSchedule({
@@ -24,8 +25,11 @@ class PaymentScheduleRepository extends FirestoreCrudRepository<PaymentSchedule>
     if (totalAmount <= 0) {
       throw const AppException('Total amount must be greater than 0');
     }
-    if (scheduleType == ScheduleType.custom && (customIntervalDays == null || customIntervalDays <= 0)) {
-      throw const AppException('Custom schedules need a repeat interval greater than 0 days');
+    if (scheduleType == ScheduleType.custom &&
+        (customIntervalDays == null || customIntervalDays <= 0)) {
+      throw const AppException(
+        'Custom schedules need a repeat interval greater than 0 days',
+      );
     }
 
     final schedule = PaymentSchedule(
@@ -35,7 +39,9 @@ class PaymentScheduleRepository extends FirestoreCrudRepository<PaymentSchedule>
       totalAmount: totalAmount,
       scheduleType: scheduleType,
       firstDueDate: firstDueDate,
-      customIntervalDays: scheduleType == ScheduleType.custom ? customIntervalDays : null,
+      customIntervalDays: scheduleType == ScheduleType.custom
+          ? customIntervalDays
+          : null,
       installmentCount: installmentCount,
       notes: notes,
       createdAt: DateTime.now(),

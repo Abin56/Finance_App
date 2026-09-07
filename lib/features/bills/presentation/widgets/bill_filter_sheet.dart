@@ -88,46 +88,85 @@ class _BillFilterSheetState extends ConsumerState<BillFilterSheet> {
               ],
             ),
             const SizedBox(height: AppSizes.md),
-            DropdownButtonFormField<BillStatus?>(
-              initialValue: _status,
-              decoration: const InputDecoration(labelText: 'Status'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('All')),
-                for (final status in BillStatus.values)
-                  DropdownMenuItem(value: status, child: Text(status.label)),
-              ],
-              onChanged: (value) => setState(() => _status = value),
+            Text('Status', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: AppSizes.xs),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSizes.xs),
+                    child: ChoiceChip(
+                      label: const Text('All'),
+                      selected: _status == null,
+                      onSelected: (_) => setState(() => _status = null),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(
+                          AppSizes.radiusPill,
+                        ),
+                      ),
+                    ),
+                  ),
+                  for (final status in BillStatus.values)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppSizes.xs),
+                      child: ChoiceChip(
+                        label: Text(status.label),
+                        selected: _status == status,
+                        onSelected: (_) => setState(() => _status = status),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusPill,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: AppSizes.md),
             accountsAsync.when(
               loading: () => const LinearProgressIndicator(),
               error: (error, _) => Text('Could not load accounts: $error'),
               data: (accounts) => DropdownButtonFormField<String?>(
-                initialValue: accounts.any((a) => a.id == _accountId) ? _accountId : null,
+                initialValue: accounts.any((a) => a.id == _accountId)
+                    ? _accountId
+                    : null,
                 decoration: const InputDecoration(labelText: 'Account'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All')),
                   for (final account in accounts)
-                    DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
+                    DropdownMenuItem(
+                      value: account.id,
+                      child: Text(accountPickerLabel(account, creditCards)),
+                    ),
                 ],
                 onChanged: (value) => setState(() => _accountId = value),
               ),
             ),
             const SizedBox(height: AppSizes.md),
             DropdownButtonFormField<String?>(
-              initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
+              initialValue: categories.any((c) => c.id == _categoryId)
+                  ? _categoryId
+                  : null,
               decoration: const InputDecoration(labelText: 'Category'),
               items: [
                 const DropdownMenuItem(value: null, child: Text('All')),
                 for (final category in categories)
-                  DropdownMenuItem(value: category.id, child: Text(category.name)),
+                  DropdownMenuItem(
+                    value: category.id,
+                    child: Text(category.name),
+                  ),
               ],
               onChanged: (value) => setState(() => _categoryId = value),
             ),
             const SizedBox(height: AppSizes.md),
             OutlinedButton.icon(
               onPressed: _pickDateRange,
-              icon: const Icon(Icons.date_range_outlined, size: AppSizes.iconSm),
+              icon: const Icon(
+                Icons.date_range_outlined,
+                size: AppSizes.iconSm,
+              ),
               label: Text(
                 _startDate != null && _endDate != null
                     ? '${_startDate!.shortDate} - ${_endDate!.shortDate}'

@@ -18,12 +18,16 @@ class PasteDetectedTransactionEditSheet extends ConsumerStatefulWidget {
 
   final DetectedTransaction transaction;
 
-  static Future<void> show(BuildContext context, DetectedTransaction transaction) {
+  static Future<void> show(
+    BuildContext context,
+    DetectedTransaction transaction,
+  ) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => PasteDetectedTransactionEditSheet._(transaction: transaction),
+      builder: (_) =>
+          PasteDetectedTransactionEditSheet._(transaction: transaction),
     );
   }
 
@@ -35,7 +39,8 @@ class PasteDetectedTransactionEditSheet extends ConsumerStatefulWidget {
 class _PasteDetectedTransactionEditSheetState
     extends ConsumerState<PasteDetectedTransactionEditSheet> {
   late DateTime _date = widget.transaction.date ?? DateTime.now();
-  late TransactionType _type = widget.transaction.type ?? TransactionType.expense;
+  late TransactionType _type =
+      widget.transaction.type ?? TransactionType.expense;
   late final _descriptionController = TextEditingController(
     text: widget.transaction.rawDescription ?? '',
   );
@@ -64,7 +69,9 @@ class _PasteDetectedTransactionEditSheetState
 
   void _save() {
     final amount = double.tryParse(_amountController.text.trim());
-    ref.read(pasteImportControllerProvider.notifier).updateTransaction(
+    ref
+        .read(pasteImportControllerProvider.notifier)
+        .updateTransaction(
           widget.transaction.id,
           date: _date,
           description: _descriptionController.text.trim(),
@@ -127,26 +134,41 @@ class _PasteDetectedTransactionEditSheetState
 
               TextField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description', isDense: true),
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  isDense: true,
+                ),
                 textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: AppSizes.md),
 
               TextField(
                 controller: _amountController,
-                decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹', isDense: true),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: '₹',
+                  isDense: true,
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
               const SizedBox(height: AppSizes.md),
 
               DropdownButtonFormField<String>(
                 initialValue: _categoryId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Category', isDense: true),
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  isDense: true,
+                ),
                 hint: const Text('Select a category'),
                 items: [
                   for (final category in categories)
-                    DropdownMenuItem(value: category.id, child: Text(category.name)),
+                    DropdownMenuItem(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
                 ],
                 onChanged: (value) => setState(() => _categoryId = value),
               ),

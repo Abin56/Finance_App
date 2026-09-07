@@ -32,23 +32,44 @@ class ReportsMyExpenseCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: _Stat(label: 'My Total Expense', value: breakdown.total)),
+              Expanded(
+                child: _Stat(label: 'My Total Expense', value: breakdown.total),
+              ),
               const SizedBox(width: AppSizes.md),
-              Expanded(child: _Stat(label: 'Personal Expense', value: breakdown.personal)),
+              Expanded(
+                child: _Stat(
+                  label: 'Personal Expense',
+                  value: breakdown.personal,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSizes.md),
           Row(
             children: [
-              Expanded(child: _Stat(label: 'Split Expense', value: breakdown.split)),
+              Expanded(
+                child: _Stat(label: 'Split Expense', value: breakdown.split),
+              ),
               const SizedBox(width: AppSizes.md),
-              Expanded(child: _Stat(label: 'Money To Receive', value: moneyToReceive, color: AppColors.pending)),
+              Expanded(
+                child: _Stat(
+                  label: 'Money To Receive',
+                  value: moneyToReceive,
+                  color: AppColors.pending,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSizes.md),
           Row(
             children: [
-              Expanded(child: _Stat(label: 'Money Received', value: moneyReceived, color: AppColors.success)),
+              Expanded(
+                child: _Stat(
+                  label: 'Money Received',
+                  value: moneyReceived,
+                  color: AppColors.success,
+                ),
+              ),
               const SizedBox(width: AppSizes.md),
               // Holds the two-column grid so "Money Received" stays in its
               // column rather than stretching across the card.
@@ -75,12 +96,17 @@ class _Stat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
         const SizedBox(height: AppSizes.xs),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

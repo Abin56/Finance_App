@@ -42,15 +42,15 @@ class Category extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Category(
-      id: snapshot.id,
-      name: data['name'] as String,
-      type: CategoryTypeX.fromName(data['type'] as String),
-      iconKey: data['iconKey'] as String? ?? CategoryIcons.fallback,
-      colorValue: data['colorValue'] as int,
-      isDefault: data['isDefault'] as bool? ?? false,
-      isActive: data['isActive'] as bool? ?? true,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        name: data['name'] as String,
+        type: CategoryTypeX.fromName(data['type'] as String),
+        iconKey: data['iconKey'] as String? ?? CategoryIcons.fallback,
+        colorValue: data['colorValue'] as int,
+        isDefault: data['isDefault'] as bool? ?? false,
+        isActive: data['isActive'] as bool? ?? true,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -68,7 +68,9 @@ class Category extends SoftDeletableEntity {
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

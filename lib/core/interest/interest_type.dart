@@ -2,8 +2,10 @@
 enum InterestType { flat, reducingBalance }
 
 extension InterestTypeX on InterestType {
-  static InterestType fromName(String name) =>
-      InterestType.values.firstWhere((t) => t.name == name, orElse: () => InterestType.flat);
+  static InterestType fromName(String name) => InterestType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => InterestType.flat,
+  );
 
   String get label {
     switch (this) {

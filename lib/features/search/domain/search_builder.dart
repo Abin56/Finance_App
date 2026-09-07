@@ -58,7 +58,8 @@ class SearchQuery {
   bool matchesAmount(double? value) {
     final digits = this.digits;
     if (digits == null || value == null) return false;
-    return value.toStringAsFixed(0).contains(digits) || value.toStringAsFixed(2).contains(digits);
+    return value.toStringAsFixed(0).contains(digits) ||
+        value.toStringAsFixed(2).contains(digits);
   }
 
   /// Convenience for the common "text fields OR amount" rule.
@@ -99,10 +100,19 @@ abstract class SearchBuilder {
     final q = SearchQuery.parse(query);
     if (q.isEmpty) return const [];
 
-    final splitExpenseTransactionIds = {for (final e in expenses) if (e.isSplit) e.transactionId};
+    final splitExpenseTransactionIds = {
+      for (final e in expenses)
+        if (e.isSplit) e.transactionId,
+    };
 
     final results = <SearchResult>[
-      ..._transactions(q, transactions, splitExpenseTransactionIds, accountNameById, categoryById),
+      ..._transactions(
+        q,
+        transactions,
+        splitExpenseTransactionIds,
+        accountNameById,
+        categoryById,
+      ),
       ..._splitExpenses(q, expenses, accountNameById, categoryById),
       ..._people(q, people),
       ..._bills(q, bills, accountNameById, categoryById),
@@ -142,7 +152,13 @@ abstract class SearchBuilder {
 
       final category = categoryById[t.categoryId];
       final accountName = accountNameById[t.accountId];
-      if (!q.matches([t.description, t.notes, category?.name, accountName, t.type.label], amount: t.amount)) {
+      if (!q.matches([
+        t.description,
+        t.notes,
+        category?.name,
+        accountName,
+        t.type.label,
+      ], amount: t.amount)) {
         continue;
       }
 
@@ -151,8 +167,12 @@ abstract class SearchBuilder {
         group: SearchResultGroup.transactions,
         title: t.description.isNotEmpty ? t.description : t.type.label,
         subtitle: [category?.name, accountName].whereType<String>().join(' · '),
-        icon: category != null ? CategoryIcons.iconFor(category.iconKey) : t.type.icon,
-        kind: t.type == TransactionType.income ? TransactionKind.myIncome : TransactionKind.myExpense,
+        icon: category != null
+            ? CategoryIcons.iconFor(category.iconKey)
+            : t.type.icon,
+        kind: t.type == TransactionType.income
+            ? TransactionKind.myIncome
+            : TransactionKind.myExpense,
         amount: t.amount,
         date: t.dateTime,
         routePath: '${AppRoutes.transactions}/${t.id}',
@@ -172,10 +192,13 @@ abstract class SearchBuilder {
       final category = categoryById[e.categoryId];
       final accountName = accountNameById[e.accountId];
       final participantNames = [for (final p in e.participants) p.name];
-      if (!q.matches(
-        [e.description, e.notes, category?.name, accountName, ...participantNames],
-        amount: e.totalAmount,
-      )) {
+      if (!q.matches([
+        e.description,
+        e.notes,
+        category?.name,
+        accountName,
+        ...participantNames,
+      ], amount: e.totalAmount)) {
         continue;
       }
 
@@ -185,10 +208,13 @@ abstract class SearchBuilder {
         group: SearchResultGroup.splitExpenses,
         title: e.description,
         subtitle: [
-          if (others > 0) 'Split with $others ${others == 1 ? 'person' : 'people'}',
+          if (others > 0)
+            'Split with $others ${others == 1 ? 'person' : 'people'}',
           if (category != null) category.name,
         ].join(' · '),
-        icon: category != null ? CategoryIcons.iconFor(category.iconKey) : Icons.call_split_rounded,
+        icon: category != null
+            ? CategoryIcons.iconFor(category.iconKey)
+            : Icons.call_split_rounded,
         kind: TransactionKind.splitExpense,
         amount: e.totalAmount,
         date: e.date,
@@ -197,10 +223,19 @@ abstract class SearchBuilder {
     }
   }
 
-  static Iterable<SearchResult> _people(SearchQuery q, List<Person> people) sync* {
+  static Iterable<SearchResult> _people(
+    SearchQuery q,
+    List<Person> people,
+  ) sync* {
     for (final p in people) {
       if (p.isDeleted) continue;
-      if (!q.matches([p.name, p.phone, p.email, p.notes], amount: p.currentBalance.abs())) continue;
+      if (!q.matches([
+        p.name,
+        p.phone,
+        p.email,
+        p.notes,
+      ], amount: p.currentBalance.abs()))
+        continue;
 
       yield SearchResult(
         id: 'person-${p.id}',
@@ -222,15 +257,28 @@ abstract class SearchBuilder {
     for (final b in bills) {
       if (b.isDeleted) continue;
 
-      final category = b.categoryId == null ? null : categoryById[b.categoryId!];
-      final accountName = b.accountId == null ? null : accountNameById[b.accountId!];
-      if (!q.matches([b.name, b.notes, category?.name, accountName], amount: b.amount)) continue;
+      final category = b.categoryId == null
+          ? null
+          : categoryById[b.categoryId!];
+      final accountName = b.accountId == null
+          ? null
+          : accountNameById[b.accountId!];
+      if (!q.matches([
+        b.name,
+        b.notes,
+        category?.name,
+        accountName,
+      ], amount: b.amount))
+        continue;
 
       yield SearchResult(
         id: 'bill-${b.id}',
         group: SearchResultGroup.bills,
         title: b.name,
-        subtitle: [if (category != null) category.name, b.recurrence.label].join(' · '),
+        subtitle: [
+          if (category != null) category.name,
+          b.recurrence.label,
+        ].join(' · '),
         icon: Icons.receipt_long_outlined,
         kind: TransactionKind.bill,
         amount: b.amount,
@@ -247,7 +295,8 @@ abstract class SearchBuilder {
   static Iterable<SearchResult> _emis(SearchQuery q, List<Emi> emis) sync* {
     for (final e in emis) {
       if (e.isDeleted) continue;
-      if (!q.matches([e.name, e.lenderName], amount: e.principalAmount)) continue;
+      if (!q.matches([e.name, e.lenderName], amount: e.principalAmount))
+        continue;
 
       yield SearchResult(
         id: 'emi-${e.id}',
@@ -274,7 +323,12 @@ abstract class SearchBuilder {
       final isInstitutional = l.category == LoanCategory.institutional;
       final personName = personNameById[l.personId];
       final counterpartyName = isInstitutional ? l.institutionName : personName;
-      if (!q.matches([l.name, counterpartyName, if (isInstitutional) l.loanNumber], amount: l.loanAmount)) continue;
+      if (!q.matches([
+        l.name,
+        counterpartyName,
+        if (isInstitutional) l.loanNumber,
+      ], amount: l.loanAmount))
+        continue;
 
       yield SearchResult(
         id: 'loan-${l.id}',
@@ -301,7 +355,12 @@ abstract class SearchBuilder {
       if (c.isDeleted) continue;
 
       final name = accountNameById[c.accountId] ?? 'Card';
-      if (!q.matches([name, c.lastFourDigits, c.cardNetwork?.label], amount: c.creditLimit)) continue;
+      if (!q.matches([
+        name,
+        c.lastFourDigits,
+        c.cardNetwork?.label,
+      ], amount: c.creditLimit))
+        continue;
 
       yield SearchResult(
         id: 'card-${c.id}',
@@ -318,10 +377,14 @@ abstract class SearchBuilder {
     }
   }
 
-  static Iterable<SearchResult> _accounts(SearchQuery q, List<Account> accounts) sync* {
+  static Iterable<SearchResult> _accounts(
+    SearchQuery q,
+    List<Account> accounts,
+  ) sync* {
     for (final a in accounts) {
       if (a.isDeleted) continue;
-      if (!q.matches([a.name, a.type.label], amount: a.currentBalance)) continue;
+      if (!q.matches([a.name, a.type.label], amount: a.currentBalance))
+        continue;
 
       yield SearchResult(
         id: 'account-${a.id}',
@@ -335,7 +398,10 @@ abstract class SearchBuilder {
     }
   }
 
-  static Iterable<SearchResult> _categories(SearchQuery q, List<Category> categories) sync* {
+  static Iterable<SearchResult> _categories(
+    SearchQuery q,
+    List<Category> categories,
+  ) sync* {
     for (final c in categories) {
       if (c.isDeleted) continue;
       if (!q.matchesText([c.name])) continue;

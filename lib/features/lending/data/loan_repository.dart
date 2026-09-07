@@ -22,7 +22,11 @@ import '../domain/loan_repayment_type.dart';
 /// (interest math) — neither of those core engines knows what a "loan" is;
 /// this repository is where the two are composed.
 class LoanRepository extends FirestoreCrudRepository<Loan> {
-  LoanRepository(super.collection, this.paymentScheduleRepository, this._installmentRepositoryFor);
+  LoanRepository(
+    super.collection,
+    this.paymentScheduleRepository,
+    this._installmentRepositoryFor,
+  );
 
   final PaymentScheduleRepository paymentScheduleRepository;
 
@@ -30,7 +34,8 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
   /// installment collections are schedule-scoped, so this is supplied by
   /// the provider layer (which owns Riverpod's per-schedule repository
   /// instances) rather than constructed directly here.
-  final InstallmentRepository Function(String scheduleId) _installmentRepositoryFor;
+  final InstallmentRepository Function(String scheduleId)
+  _installmentRepositoryFor;
 
   Future<Loan> createLoan({
     required double loanAmount,
@@ -55,10 +60,12 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     if (loanAmount <= 0) {
       throw const AppException('Loan amount must be greater than 0');
     }
-    if (category == LoanCategory.personal && (personId == null || personId.isEmpty)) {
+    if (category == LoanCategory.personal &&
+        (personId == null || personId.isEmpty)) {
       throw const AppException('Choose a person');
     }
-    if (category == LoanCategory.institutional && (institutionName == null || institutionName.trim().isEmpty)) {
+    if (category == LoanCategory.institutional &&
+        (institutionName == null || institutionName.trim().isEmpty)) {
       throw const AppException('Institution name is required');
     }
     if (repaymentType == LoanRepaymentType.oneTime && dueDate == null) {
@@ -66,10 +73,14 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     }
     if (repaymentType == LoanRepaymentType.installment) {
       if (installmentFrequency == null) {
-        throw const AppException('Monthly payment loans need a repayment frequency');
+        throw const AppException(
+          'Monthly payment loans need a repayment frequency',
+        );
       }
       if (installmentCount == null || installmentCount < 1) {
-        throw const AppException('Monthly payment loans need at least 1 payment');
+        throw const AppException(
+          'Monthly payment loans need at least 1 payment',
+        );
       }
     }
     if (interest != null && interest.ratePercent < 0) {
@@ -79,11 +90,16 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     // An institutional loan is never person-linked, regardless of what's
     // passed — structurally prevents the invalid "both" combination rather
     // than relying on the caller/UI alone.
-    final effectivePersonId = category == LoanCategory.personal ? personId : null;
+    final effectivePersonId = category == LoanCategory.personal
+        ? personId
+        : null;
 
-    final effectiveInstallmentCount = repaymentType == LoanRepaymentType.oneTime ? 1 : installmentCount!;
-    final effectiveScheduleType =
-        repaymentType == LoanRepaymentType.oneTime ? ScheduleType.oneTime : installmentFrequency!;
+    final effectiveInstallmentCount = repaymentType == LoanRepaymentType.oneTime
+        ? 1
+        : installmentCount!;
+    final effectiveScheduleType = repaymentType == LoanRepaymentType.oneTime
+        ? ScheduleType.oneTime
+        : installmentFrequency!;
 
     List<PrecomputedInstallmentAmount>? precomputed;
     if (interest != null) {
@@ -97,37 +113,49 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         installmentsPerYear: _installmentsPerYearFor(effectiveScheduleType),
       );
       precomputed = breakdown.periods
-          .map((p) => PrecomputedInstallmentAmount(
-                amountDue: p.paymentAmount,
-                principalPortion: p.principalPortion,
-                interestPortion: p.interestPortion,
-              ))
+          .map(
+            (p) => PrecomputedInstallmentAmount(
+              amountDue: p.paymentAmount,
+              principalPortion: p.principalPortion,
+              interestPortion: p.interestPortion,
+            ),
+          )
           .toList();
     }
 
     final loanId = IdGenerator.generate();
-    final totalAmount = precomputed == null ? loanAmount : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
+    final totalAmount = precomputed == null
+        ? loanAmount
+        : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
 
     final schedule = await paymentScheduleRepository.createSchedule(
       ownerType: OwnerType.loan,
       ownerId: loanId,
       totalAmount: totalAmount,
       scheduleType: effectiveScheduleType,
-      firstDueDate: repaymentType == LoanRepaymentType.oneTime ? dueDate! : loanDate,
+      firstDueDate: repaymentType == LoanRepaymentType.oneTime
+          ? dueDate!
+          : loanDate,
       installmentCount: effectiveInstallmentCount,
     );
 
-    await _installmentRepositoryFor(schedule.id).generateInstallments(schedule, precomputedAmounts: precomputed);
+    await _installmentRepositoryFor(
+      schedule.id,
+    ).generateInstallments(schedule, precomputedAmounts: precomputed);
 
     final loan = Loan(
       id: loanId,
       personId: effectivePersonId,
       direction: direction,
       category: category,
-      institutionName: category == LoanCategory.institutional ? institutionName!.trim() : null,
+      institutionName: category == LoanCategory.institutional
+          ? institutionName!.trim()
+          : null,
       loanType: category == LoanCategory.institutional ? loanType : null,
       loanNumber: category == LoanCategory.institutional ? loanNumber : null,
-      accountNumber: category == LoanCategory.institutional ? accountNumber : null,
+      accountNumber: category == LoanCategory.institutional
+          ? accountNumber
+          : null,
       branch: category == LoanCategory.institutional ? branch : null,
       payerPersonId: payerPersonId,
       name: name,
@@ -136,8 +164,12 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       loanDate: loanDate,
       repaymentType: repaymentType,
       dueDate: repaymentType == LoanRepaymentType.oneTime ? dueDate : null,
-      installmentFrequency: repaymentType == LoanRepaymentType.installment ? installmentFrequency : null,
-      installmentCount: repaymentType == LoanRepaymentType.installment ? installmentCount : null,
+      installmentFrequency: repaymentType == LoanRepaymentType.installment
+          ? installmentFrequency
+          : null,
+      installmentCount: repaymentType == LoanRepaymentType.installment
+          ? installmentCount
+          : null,
       notes: notes,
       scheduleId: schedule.id,
       createdAt: DateTime.now(),
@@ -172,21 +204,33 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         throw const AppException('Loan amount must be greater than 0');
       }
       if (hasPayments) {
-        throw const AppException('Loan amount cannot be changed after a payment has been recorded');
+        throw const AppException(
+          'Loan amount cannot be changed after a payment has been recorded',
+        );
       }
     }
     if (dueDate != null && loan.repaymentType != LoanRepaymentType.oneTime) {
       throw const AppException('Only one-time loans have an editable due date');
     }
 
-    loan.updateField(field: 'name', oldValue: loan.name, newValue: name, apply: (v) => loan.name = v);
+    loan.updateField(
+      field: 'name',
+      oldValue: loan.name,
+      newValue: name,
+      apply: (v) => loan.name = v,
+    );
     loan.updateField(
       field: 'loanAmount',
       oldValue: loan.loanAmount,
       newValue: loanAmount,
       apply: (v) => loan.loanAmount = v,
     );
-    loan.updateField(field: 'notes', oldValue: loan.notes, newValue: notes, apply: (v) => loan.notes = v);
+    loan.updateField(
+      field: 'notes',
+      oldValue: loan.notes,
+      newValue: notes,
+      apply: (v) => loan.notes = v,
+    );
     loan.updateField(
       field: 'institutionName',
       oldValue: loan.institutionName,
@@ -211,7 +255,12 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       newValue: accountNumber,
       apply: (v) => loan.accountNumber = v,
     );
-    loan.updateField(field: 'branch', oldValue: loan.branch, newValue: branch, apply: (v) => loan.branch = v);
+    loan.updateField(
+      field: 'branch',
+      oldValue: loan.branch,
+      newValue: branch,
+      apply: (v) => loan.branch = v,
+    );
     loan.updateField(
       field: 'payerPersonId',
       oldValue: loan.payerPersonId,
@@ -250,12 +299,19 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       throw const AppException('Interest rate cannot be negative');
     }
 
-    final sorted = [...currentInstallments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-    final settled = sorted.where((i) => i.amountPaid > 0 || i.isSkipped).toList();
-    final untouched = sorted.where((i) => i.amountPaid == 0 && !i.isSkipped).toList();
+    final sorted = [...currentInstallments]
+      ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+    final settled = sorted
+        .where((i) => i.amountPaid > 0 || i.isSkipped)
+        .toList();
+    final untouched = sorted
+        .where((i) => i.amountPaid == 0 && !i.isSkipped)
+        .toList();
 
     if (newInstallmentCount < settled.length) {
-      throw const AppException('Number of payments can\'t be less than the payments already made');
+      throw const AppException(
+        'Number of payments can\'t be less than the payments already made',
+      );
     }
 
     final principalPaid = settled.fold(0.0, (sum, i) {
@@ -269,10 +325,13 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       if (i.amountPaid >= i.amountDue) return sum + principalShare;
       return sum + principalShare * (i.amountPaid / i.amountDue);
     });
-    final outstandingPrincipal = (loan.loanAmount - principalPaid).clamp(0, loan.loanAmount).toDouble();
+    final outstandingPrincipal = (loan.loanAmount - principalPaid)
+        .clamp(0, loan.loanAmount)
+        .toDouble();
     final remainingCount = newInstallmentCount - settled.length;
 
-    final effectiveFrequency = installmentFrequency ?? loan.installmentFrequency!;
+    final effectiveFrequency =
+        installmentFrequency ?? loan.installmentFrequency!;
 
     List<Installment> newTail = const [];
     if (remainingCount > 0 && outstandingPrincipal > 0) {
@@ -288,11 +347,13 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
           installmentsPerYear: _installmentsPerYearFor(effectiveFrequency),
         );
         precomputed = breakdown.periods
-            .map((p) => PrecomputedInstallmentAmount(
-                  amountDue: p.paymentAmount,
-                  principalPortion: p.principalPortion,
-                  interestPortion: p.interestPortion,
-                ))
+            .map(
+              (p) => PrecomputedInstallmentAmount(
+                amountDue: p.paymentAmount,
+                principalPortion: p.principalPortion,
+                interestPortion: p.interestPortion,
+              ),
+            )
             .toList();
       }
 
@@ -303,7 +364,9 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       final nextDueDate = lastSettled == null
           ? effectiveFrequency.nextDueDate(loan.loanDate)
           : effectiveFrequency.nextDueDate(lastSettled.dueDate);
-      final tailTotal = precomputed == null ? outstandingPrincipal : precomputed.fold(0.0, (s, p) => s + p.amountDue);
+      final tailTotal = precomputed == null
+          ? outstandingPrincipal
+          : precomputed.fold(0.0, (s, p) => s + p.amountDue);
 
       final tailScheduleShape = PaymentSchedule(
         id: loan.scheduleId,
@@ -324,8 +387,10 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
 
     loan.recordEdit(
       field: 'loanTerms',
-      oldValue: '${loan.interest?.ratePercent}/${loan.installmentFrequency?.name}/${loan.installmentCount}',
-      newValue: '${interest?.ratePercent}/${effectiveFrequency.name}/$newInstallmentCount',
+      oldValue:
+          '${loan.interest?.ratePercent}/${loan.installmentFrequency?.name}/${loan.installmentCount}',
+      newValue:
+          '${interest?.ratePercent}/${effectiveFrequency.name}/$newInstallmentCount',
     );
     loan.interest = interest;
     loan.installmentFrequency = effectiveFrequency;
@@ -357,10 +422,14 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     required List<Installment> currentInstallments,
   }) async {
     if (loan.repaymentType != LoanRepaymentType.installment) {
-      throw const AppException('Only installment loans have an editable loan date');
+      throw const AppException(
+        'Only installment loans have an editable loan date',
+      );
     }
     if (hasPayments) {
-      throw const AppException('Loan date can\'t be changed after a payment has been recorded');
+      throw const AppException(
+        'Loan date can\'t be changed after a payment has been recorded',
+      );
     }
 
     final installmentRepository = _installmentRepositoryFor(loan.scheduleId);
@@ -378,20 +447,25 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         period: interest.period,
         installmentCount: loan.installmentCount!,
         installmentFrequency: InterestPeriod.monthly,
-        installmentsPerYear: _installmentsPerYearFor(loan.installmentFrequency!),
+        installmentsPerYear: _installmentsPerYearFor(
+          loan.installmentFrequency!,
+        ),
       );
       precomputed = breakdown.periods
-          .map((p) => PrecomputedInstallmentAmount(
-                amountDue: p.paymentAmount,
-                principalPortion: p.principalPortion,
-                interestPortion: p.interestPortion,
-              ))
+          .map(
+            (p) => PrecomputedInstallmentAmount(
+              amountDue: p.paymentAmount,
+              principalPortion: p.principalPortion,
+              interestPortion: p.interestPortion,
+            ),
+          )
           .toList();
     }
 
     final schedule = await paymentScheduleRepository.getByKey(loan.scheduleId);
-    final totalAmount =
-        precomputed == null ? loan.loanAmount : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
+    final totalAmount = precomputed == null
+        ? loan.loanAmount
+        : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
     if (schedule != null) {
       await paymentScheduleRepository.editSchedule(
         schedule,

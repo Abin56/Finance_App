@@ -46,26 +46,36 @@ class PaymentRepository extends FirestoreCrudRepository<PaymentRecord> {
 
   /// Reverses the payment's effect on [occurrence], then soft-deletes it —
   /// mirrors [LedgerRepository.softDeleteEntry].
-  Future<void> softDeletePayment(BillOccurrence occurrence, PaymentRecord payment) async {
+  Future<void> softDeletePayment(
+    BillOccurrence occurrence,
+    PaymentRecord payment,
+  ) async {
     await billOccurrenceRepository.applyPayment(occurrence, -payment.amount);
     await softDelete(payment);
   }
 
   /// Re-applies the payment's effect on [occurrence], then restores it —
   /// mirrors [LedgerRepository.restoreEntry].
-  Future<void> restorePayment(BillOccurrence occurrence, PaymentRecord payment) async {
+  Future<void> restorePayment(
+    BillOccurrence occurrence,
+    PaymentRecord payment,
+  ) async {
     await billOccurrenceRepository.applyPayment(occurrence, payment.amount);
     await restore(payment);
   }
 
   /// No balance change — already reversed at soft-delete time.
-  Future<void> permanentlyDeletePayment(PaymentRecord payment) => permanentlyDelete(payment);
+  Future<void> permanentlyDeletePayment(PaymentRecord payment) =>
+      permanentlyDelete(payment);
 
   /// One-time correction setting [payment]'s `occurrenceId`, for a record
   /// written before this field existed. Not a user-facing edit — no audit
   /// entry — since it's a migration backfill, not a change to what the
   /// payment represents (see `BillOccurrenceRepository._adoptLegacy`).
-  Future<void> backfillOccurrenceId(PaymentRecord payment, String occurrenceId) async {
+  Future<void> backfillOccurrenceId(
+    PaymentRecord payment,
+    String occurrenceId,
+  ) async {
     await collection.doc(payment.id).update({'occurrenceId': occurrenceId});
   }
 }

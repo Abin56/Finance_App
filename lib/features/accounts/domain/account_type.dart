@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 enum AccountType { cash, bank, card, wallet, business, other }
 
 extension AccountTypeX on AccountType {
-  static AccountType fromName(String name) =>
-      AccountType.values.firstWhere((t) => t.name == name, orElse: () => AccountType.other);
+  static AccountType fromName(String name) => AccountType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => AccountType.other,
+  );
 
   String get label {
     switch (this) {

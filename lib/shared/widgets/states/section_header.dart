@@ -6,7 +6,12 @@ import '../../../core/extensions/context_extensions.dart';
 /// Title + optional trailing "See all" action, used to head every
 /// horizontally-grouped section (recent transactions, upcoming dues, etc.).
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({super.key, required this.title, this.actionLabel, this.onActionTap});
+  const SectionHeader({
+    super.key,
+    required this.title,
+    this.actionLabel,
+    this.onActionTap,
+  });
 
   final String title;
   final String? actionLabel;
@@ -19,13 +24,14 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(title, style: context.textTheme.titleMedium, overflow: TextOverflow.ellipsis),
+            child: Text(
+              title,
+              style: context.textTheme.titleMedium,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           if (actionLabel != null)
-            TextButton(
-              onPressed: onActionTap,
-              child: Text(actionLabel!),
-            ),
+            TextButton(onPressed: onActionTap, child: Text(actionLabel!)),
         ],
       ),
     );

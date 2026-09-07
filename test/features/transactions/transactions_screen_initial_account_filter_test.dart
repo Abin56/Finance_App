@@ -80,49 +80,75 @@ void main() {
   /// never reads the signed-in user here.
   TransactionRepository fakeTransactionRepository() {
     final firestore = FakeFirebaseFirestore();
-    final accountCollection = firestore.collection('accounts').withConverter<Account>(
+    final accountCollection = firestore
+        .collection('accounts')
+        .withConverter<Account>(
           fromFirestore: Account.fromFirestore,
           toFirestore: (a, _) => a.toFirestore(),
         );
-    final transactionCollection = firestore.collection('transactions').withConverter<Transaction>(
+    final transactionCollection = firestore
+        .collection('transactions')
+        .withConverter<Transaction>(
           fromFirestore: Transaction.fromFirestore,
           toFirestore: (t, _) => t.toFirestore(),
         );
-    return TransactionRepository(transactionCollection, AccountRepository(accountCollection));
+    return TransactionRepository(
+      transactionCollection,
+      AccountRepository(accountCollection),
+    );
   }
 
-  testWidgets('shows only the pre-selected account\'s transactions, hiding other accounts\'', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          transactionRepositoryProvider.overrideWithValue(fakeTransactionRepository()),
-          accountsStreamProvider.overrideWith((ref) => Stream.value([accountA, accountB])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value([category])),
-          peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          smsPendingCountProvider.overrideWithValue(0),
-          transactionsStreamProvider.overrideWith(
-            (ref) => Stream.value([
-              transactionFor('t1', accountA.id, 'Coffee in Cash'),
-              transactionFor('t2', accountB.id, 'Groceries in Bank'),
-            ]),
+  testWidgets(
+    'shows only the pre-selected account\'s transactions, hiding other accounts\'',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transactionRepositoryProvider.overrideWithValue(
+              fakeTransactionRepository(),
+            ),
+            accountsStreamProvider.overrideWith(
+              (ref) => Stream.value([accountA, accountB]),
+            ),
+            categoriesStreamProvider.overrideWith(
+              (ref) => Stream.value([category]),
+            ),
+            peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
+            smsPendingCountProvider.overrideWithValue(0),
+            transactionsStreamProvider.overrideWith(
+              (ref) => Stream.value([
+                transactionFor('t1', accountA.id, 'Coffee in Cash'),
+                transactionFor('t2', accountB.id, 'Groceries in Bank'),
+              ]),
+            ),
+          ],
+          child: MaterialApp(
+            home: TransactionsScreen(initialAccountId: accountA.id),
           ),
-        ],
-        child: MaterialApp(home: TransactionsScreen(initialAccountId: accountA.id)),
-      ),
-    );
-    await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Coffee in Cash'), findsOneWidget);
-    expect(find.text('Groceries in Bank'), findsNothing);
-  });
+      expect(find.text('Coffee in Cash'), findsOneWidget);
+      expect(find.text('Groceries in Bank'), findsNothing);
+    },
+  );
 
-  testWidgets('with no initialAccountId, both accounts\' transactions show', (tester) async {
+  testWidgets('with no initialAccountId, both accounts\' transactions show', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          transactionRepositoryProvider.overrideWithValue(fakeTransactionRepository()),
-          accountsStreamProvider.overrideWith((ref) => Stream.value([accountA, accountB])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value([category])),
+          transactionRepositoryProvider.overrideWithValue(
+            fakeTransactionRepository(),
+          ),
+          accountsStreamProvider.overrideWith(
+            (ref) => Stream.value([accountA, accountB]),
+          ),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value([category]),
+          ),
           peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
           smsPendingCountProvider.overrideWithValue(0),
           transactionsStreamProvider.overrideWith(

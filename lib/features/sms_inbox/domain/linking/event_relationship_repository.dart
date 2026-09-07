@@ -34,7 +34,8 @@ class InMemoryEventRelationshipRepository implements EventRelationshipLookup {
 
   FinancialEvent? getEvent(String id) => _events[id];
 
-  List<EventRelationship> get relationships => List.unmodifiable(_relationships);
+  List<EventRelationship> get relationships =>
+      List.unmodifiable(_relationships);
 
   void recordRelationship(EventRelationship relationship) {
     _relationships.add(relationship);

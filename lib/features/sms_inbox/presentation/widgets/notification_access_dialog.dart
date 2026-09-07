@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 
 /// "Catch messages SMS misses" popup — the blocking dialog
 /// `SmsInboxScreen._maybeShowNotificationAccessDialog` shows as soon as SMS
@@ -18,7 +20,10 @@ class NotificationAccessDialog extends StatelessWidget {
 
   /// [onEnable] fires after the dialog has already closed itself, so callers
   /// never need to pop it themselves.
-  static Future<void> show(BuildContext context, {required VoidCallback onEnable}) {
+  static Future<void> show(
+    BuildContext context, {
+    required VoidCallback onEnable,
+  }) {
     return showDialog<void>(
       context: context,
       builder: (dialogContext) => NotificationAccessDialog(
@@ -45,11 +50,16 @@ class NotificationAccessDialog extends StatelessWidget {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: AppSizes.xl),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, AppSizes.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          AppSizes.md,
+          AppSizes.lg,
+          AppSizes.lg,
+        ),
         decoration: BoxDecoration(
-          color: AppClay.card(context),
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(_cardRadius),
-          boxShadow: AppClay.elevated(context),
+          boxShadow: AppShadows.elevated(context),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -66,27 +76,25 @@ class NotificationAccessDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSizes.xs),
-            Divider(height: 1, color: context.colors.onSurface.withValues(alpha: 0.08)),
+            Divider(
+              height: 1,
+              color: context.colors.onSurface.withValues(alpha: 0.08),
+            ),
             const SizedBox(height: AppSizes.md),
-            Container(
-              width: _iconBadgeSize,
-              height: _iconBadgeSize,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: AppClay.iconChipGradient(AppClay.primary),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.notifications_active_rounded,
-                color: AppClay.primaryAccent(context),
-                size: AppSizes.iconMd,
-              ),
+            FlowFiIconChip(
+              icon: Icons.notifications_active_rounded,
+              color: context.colors.primary,
+              size: _iconBadgeSize,
+              iconSize: AppSizes.iconMd,
             ),
             const SizedBox(height: AppSizes.md),
             Text(
               'Catch messages SMS misses',
               textAlign: TextAlign.center,
-              style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, height: 1.25),
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
             ),
             const SizedBox(height: AppSizes.xs),
             Text(
@@ -103,19 +111,27 @@ class NotificationAccessDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppSizes.sm),
               decoration: BoxDecoration(
-                color: AppClay.primary.withValues(alpha: 0.08),
+                color: context.colors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.bolt_rounded, size: AppSizes.iconSm, color: AppClay.primaryAccent(context)),
+                  Icon(
+                    Icons.bolt_rounded,
+                    size: AppSizes.iconSm,
+                    color: context.isDarkMode
+                        ? AppColors.primaryDark
+                        : context.colors.onSurface,
+                  ),
                   const SizedBox(width: AppSizes.xs),
                   Expanded(
                     child: Text(
                       'Enable notification access so FlowFi can catch those too.',
                       style: context.textTheme.bodySmall?.copyWith(
-                        color: AppClay.primaryAccent(context),
+                        color: context.isDarkMode
+                            ? AppColors.primaryDark
+                            : context.colors.onSurface,
                         fontWeight: FontWeight.w600,
                         height: 1.3,
                       ),
@@ -133,17 +149,29 @@ class NotificationAccessDialog extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
-                        side: BorderSide(color: context.colors.onSurface.withValues(alpha: 0.16)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.sm,
+                        ),
+                        side: BorderSide(
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.16,
+                          ),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(_buttonRadius),
                         ),
                       ),
-                      icon: Icon(Icons.close_rounded, size: 16, color: context.colors.onSurface.withValues(alpha: 0.65)),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 16,
+                        color: context.colors.onSurface.withValues(alpha: 0.65),
+                      ),
                       label: Text(
                         'Not now',
                         style: context.textTheme.labelLarge?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.65),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.65,
+                          ),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -154,33 +182,20 @@ class NotificationAccessDialog extends StatelessWidget {
                 Expanded(
                   child: SizedBox(
                     height: _buttonHeight,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: AppClay.primary,
-                        borderRadius: BorderRadius.circular(_buttonRadius),
-                        boxShadow: AppClay.glow(AppClay.primary),
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        borderRadius: BorderRadius.circular(_buttonRadius),
-                        child: InkWell(
+                    child: FilledButton.icon(
+                      onPressed: onEnable,
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(_buttonRadius),
-                          onTap: onEnable,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.notifications_active_rounded, size: 16, color: Colors.white),
-                              const SizedBox(width: AppSizes.xs),
-                              Text(
-                                'Enable',
-                                style: context.textTheme.labelLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
+                      ),
+                      icon: const Icon(
+                        Icons.notifications_active_rounded,
+                        size: 16,
+                      ),
+                      label: const Text(
+                        'Enable',
+                        style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),

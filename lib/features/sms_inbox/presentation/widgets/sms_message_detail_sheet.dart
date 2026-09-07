@@ -56,7 +56,9 @@ class SmsMessageDetailSheet {
                         padding: const EdgeInsets.all(AppSizes.md),
                         decoration: BoxDecoration(
                           color: context.colors.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusSm,
+                          ),
                         ),
                         child: Text(
                           item.rawMessage.body,
@@ -68,7 +70,9 @@ class SmsMessageDetailSheet {
                         Text(
                           'Ref ${item.parsed!.referenceNumber}',
                           style: context.textTheme.labelSmall?.copyWith(
-                            color: context.colors.onSurface.withValues(alpha: 0.6),
+                            color: context.colors.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       ],

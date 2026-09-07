@@ -54,7 +54,10 @@ abstract class PasteTransactionExtractor {
   // a bare "To "/"From " (no "paid"/"sent" alongside it) — anchored to the
   // very start of a line so it can never eat into a merchant name that
   // legitimately contains "to"/"from" mid-string.
-  static final RegExp _leadingToFromPattern = RegExp(r'^\s*(?:to|from)\s+', caseSensitive: false);
+  static final RegExp _leadingToFromPattern = RegExp(
+    r'^\s*(?:to|from)\s+',
+    caseSensitive: false,
+  );
 
   static final RegExp _directionKeywordPattern = RegExp(
     r'\b(dr|cr|debit(?:ed)?|credit(?:ed)?|paid|payment|spent|purchase(?:d)?|sent|withdrawn|withdrawal|received|refund(?:ed)?|cashback|deposit(?:ed)?)\b',
@@ -82,7 +85,10 @@ abstract class PasteTransactionExtractor {
   /// [referenceDate] anchors year inference for dates with no explicit year
   /// — defaults to now (today's date is the only "statement context" a
   /// pasted-text import has available).
-  static List<DetectedTransaction> extract(String text, {DateTime? referenceDate}) {
+  static List<DetectedTransaction> extract(
+    String text, {
+    DateTime? referenceDate,
+  }) {
     final reference = referenceDate ?? DateTime.now();
     final blocks = _splitIntoBlocks(text, reference);
 
@@ -101,7 +107,13 @@ abstract class PasteTransactionExtractor {
   static List<_Block> _splitIntoBlocks(String text, DateTime reference) {
     final paragraphs = text
         .split(_blankLinePattern)
-        .map((p) => p.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList())
+        .map(
+          (p) => p
+              .split('\n')
+              .map((l) => l.trim())
+              .where((l) => l.isNotEmpty)
+              .toList(),
+        )
         .where((lines) => lines.isNotEmpty)
         .toList();
 
@@ -118,7 +130,14 @@ abstract class PasteTransactionExtractor {
       // single transaction (date/merchant/amount split across lines) never
       // does.
       final linesWithOwnDate = paragraph
-          .where((line) => SmartImportDateParser.tryParse(line, referenceDate: reference) != null)
+          .where(
+            (line) =>
+                SmartImportDateParser.tryParse(
+                  line,
+                  referenceDate: reference,
+                ) !=
+                null,
+          )
           .length;
       final looksLikeOneTransactionPerLine =
           linesWithOwnDate == paragraph.length && paragraph.length > 1;
@@ -142,7 +161,10 @@ abstract class PasteTransactionExtractor {
     ParsedDate? parsedDate;
     String? dateRawText;
     for (final line in block.lines) {
-      final parsed = SmartImportDateParser.tryParse(line, referenceDate: reference);
+      final parsed = SmartImportDateParser.tryParse(
+        line,
+        referenceDate: reference,
+      );
       if (parsed != null) {
         parsedDate = parsed;
         dateRawText = parsed.rawText;
@@ -154,7 +176,8 @@ abstract class PasteTransactionExtractor {
     for (final line in block.lines) {
       final parsed = SmartImportAmountParser.extractFirst(line);
       if (parsed == null) continue;
-      if (parsedAmount == null || (!parsedAmount.hadCurrencyMarker && parsed.hadCurrencyMarker)) {
+      if (parsedAmount == null ||
+          (!parsedAmount.hadCurrencyMarker && parsed.hadCurrencyMarker)) {
         parsedAmount = parsed;
       }
     }
@@ -207,7 +230,11 @@ abstract class PasteTransactionExtractor {
     final token = match.group(1)!.replaceAll(',', '');
     final value = double.tryParse(token);
     if (value == null || value <= 0 || value > 100000000) return null;
-    return ParsedAmount(value: value, rawText: match.group(1)!, hadCurrencyMarker: false);
+    return ParsedAmount(
+      value: value,
+      rawText: match.group(1)!,
+      hadCurrencyMarker: false,
+    );
   }
 
   static String _extractDescription(
@@ -219,9 +246,12 @@ abstract class PasteTransactionExtractor {
     final parts = <String>[];
     for (final line in lines) {
       var remainder = line;
-      if (dateRawText != null) remainder = remainder.replaceAll(dateRawText, '');
-      if (amountRawText != null) remainder = remainder.replaceAll(amountRawText, '');
-      if (referenceRawText != null) remainder = remainder.replaceAll(referenceRawText, '');
+      if (dateRawText != null)
+        remainder = remainder.replaceAll(dateRawText, '');
+      if (amountRawText != null)
+        remainder = remainder.replaceAll(amountRawText, '');
+      if (referenceRawText != null)
+        remainder = remainder.replaceAll(referenceRawText, '');
       // Must run before `_directionKeywordPattern` — "paid" alone is one of
       // that pattern's debit keywords, so stripping it first would leave a
       // dangling "to" that the multi-word "paid to" phrase below can no
@@ -244,13 +274,17 @@ abstract class PasteTransactionExtractor {
     cleaned = cleaned.replaceAll(_edgePunctuationPattern, '').trim();
     if (cleaned.isEmpty) return '';
 
-    final isShouting = cleaned == cleaned.toUpperCase() && cleaned != cleaned.toLowerCase();
+    final isShouting =
+        cleaned == cleaned.toUpperCase() && cleaned != cleaned.toLowerCase();
     if (!isShouting) return cleaned;
 
     return cleaned
         .toLowerCase()
         .split(' ')
-        .map((word) => word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
+        .map(
+          (word) =>
+              word.isEmpty ? word : word[0].toUpperCase() + word.substring(1),
+        )
         .join(' ');
   }
 }

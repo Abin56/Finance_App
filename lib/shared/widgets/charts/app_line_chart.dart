@@ -11,7 +11,12 @@ import '../../charts/domain/line_chart_data.dart';
 /// swapping the underlying charting library only ever means changing this
 /// file.
 class AppLineChart extends StatelessWidget {
-  const AppLineChart({super.key, required this.data, this.height = 200, this.showDots = false});
+  const AppLineChart({
+    super.key,
+    required this.data,
+    this.height = 200,
+    this.showDots = false,
+  });
 
   final AppLineChartData data;
   final double height;
@@ -25,7 +30,11 @@ class AppLineChart extends StatelessWidget {
     final minY = allPoints.map((p) => p.y).reduce((a, b) => a < b ? a : b);
     final maxY = allPoints.map((p) => p.y).reduce((a, b) => a > b ? a : b);
     final pad = (maxY - minY).abs() < 1e-6 ? 1.0 : (maxY - minY) * 0.15;
-    final defaultColors = [context.colors.primary, context.colors.secondary, context.colors.tertiary];
+    final defaultColors = [
+      context.colors.primary,
+      context.colors.secondary,
+      context.colors.tertiary,
+    ];
 
     return SizedBox(
       height: height,
@@ -36,19 +45,29 @@ class AppLineChart extends StatelessWidget {
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
           titlesData: FlTitlesData(
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            leftTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: data.xAxisLabels != null,
                 getTitlesWidget: (value, meta) {
                   final labels = data.xAxisLabels;
                   final index = value.toInt();
-                  if (labels == null || index < 0 || index >= labels.length) return const SizedBox.shrink();
+                  if (labels == null || index < 0 || index >= labels.length)
+                    return const SizedBox.shrink();
                   return Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text(labels[index], style: context.textTheme.bodySmall),
+                    child: Text(
+                      labels[index],
+                      style: context.textTheme.bodySmall,
+                    ),
                   );
                 },
               ),

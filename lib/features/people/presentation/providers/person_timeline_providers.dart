@@ -18,14 +18,23 @@ import 'people_providers.dart';
 /// fans out over the schedule's installments (payments are stored per
 /// installment, not per schedule) since no schedule-wide payment stream
 /// exists on `InstallmentPaymentRepository`.
-final _loanPaymentsProvider = Provider.autoDispose.family<List<InstallmentPayment>, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return [
-    for (final installment in installments)
-      ...ref.watch(installmentPaymentsStreamProvider((scheduleId: scheduleId, installmentId: installment.id))).value ??
-          const [],
-  ];
-});
+final _loanPaymentsProvider = Provider.autoDispose
+    .family<List<InstallmentPayment>, String>((ref, scheduleId) {
+      final installments =
+          ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+      return [
+        for (final installment in installments)
+          ...ref
+                  .watch(
+                    installmentPaymentsStreamProvider((
+                      scheduleId: scheduleId,
+                      installmentId: installment.id,
+                    )),
+                  )
+                  .value ??
+              const [],
+      ];
+    });
 
 /// One person's complete financial timeline — folds their [LedgerEntry]s
 /// (money given/borrowed/received/repaid/adjustments, and — since
@@ -40,59 +49,74 @@ final _loanPaymentsProvider = Provider.autoDispose.family<List<InstallmentPaymen
 /// ([Loan.payerPersonId]), merged and de-duplicated by loan id — so a bank
 /// loan a friend pays the EMIs for shows its installments here too, not
 /// just in the summary card's totals.
-final personTimelineProvider = Provider.autoDispose.family<List<PersonTimelineEntry>, String>((ref, personId) {
-  final ledgerEntries = ref.watch(ledgerStreamProvider(personId)).value ?? const [];
-  final asLender = ref.watch(loansForPersonProvider(personId));
-  final asPayer = ref.watch(loansPayableByPersonProvider(personId));
-  final loans = {
-    for (final loan in asLender) loan.id: loan,
-    for (final loan in asPayer) loan.id: loan,
-  }.values.toList();
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+final personTimelineProvider = Provider.autoDispose
+    .family<List<PersonTimelineEntry>, String>((ref, personId) {
+      final ledgerEntries =
+          ref.watch(ledgerStreamProvider(personId)).value ?? const [];
+      final asLender = ref.watch(loansForPersonProvider(personId));
+      final asPayer = ref.watch(loansPayableByPersonProvider(personId));
+      final loans = {
+        for (final loan in asLender) loan.id: loan,
+        for (final loan in asPayer) loan.id: loan,
+      }.values.toList();
+      final expenses = ref.watch(expensesStreamProvider).value ?? const [];
 
-  final loanData = [
-    for (final loan in loans)
-      LoanTimelineData(
-        loan: loan,
-        installments: ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [],
-        payments: ref.watch(_loanPaymentsProvider(loan.scheduleId)),
-      ),
-  ];
+      final loanData = [
+        for (final loan in loans)
+          LoanTimelineData(
+            loan: loan,
+            installments:
+                ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+                const [],
+            payments: ref.watch(_loanPaymentsProvider(loan.scheduleId)),
+          ),
+      ];
 
-  final participantCountByTransactionRef = {
-    for (final expense in expenses) expense.transactionId: expense.participants.length,
-  };
+      final participantCountByTransactionRef = {
+        for (final expense in expenses)
+          expense.transactionId: expense.participants.length,
+      };
 
-  final otherParticipantNamesByTransactionRef = {
-    for (final expense in expenses)
-      expense.transactionId: [
-        for (final participant in expense.participants)
-          if (!participant.isMe && participant.personId != personId) participant.name,
-      ],
-  };
+      final otherParticipantNamesByTransactionRef = {
+        for (final expense in expenses)
+          expense.transactionId: [
+            for (final participant in expense.participants)
+              if (!participant.isMe && participant.personId != personId)
+                participant.name,
+          ],
+      };
 
-  final installmentByTransactionRef = <String, Installment>{};
-  for (final expense in expenses) {
-    if (expense.scheduleId == null) continue;
-    final participant = expense.participants.where((p) => p.personId == personId).firstOrNull;
-    if (participant?.installmentId == null) continue;
-    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
-    final installment = installments.where((i) => i.id == participant!.installmentId).firstOrNull;
-    if (installment == null) continue;
-    installmentByTransactionRef[expense.transactionId] = installment;
-  }
+      final installmentByTransactionRef = <String, Installment>{};
+      for (final expense in expenses) {
+        if (expense.scheduleId == null) continue;
+        final participant = expense.participants
+            .where((p) => p.personId == personId)
+            .firstOrNull;
+        if (participant?.installmentId == null) continue;
+        final installments =
+            ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+            const [];
+        final installment = installments
+            .where((i) => i.id == participant!.installmentId)
+            .firstOrNull;
+        if (installment == null) continue;
+        installmentByTransactionRef[expense.transactionId] = installment;
+      }
 
-  final referencedTransactions = ref.watch(personReferencedTransactionsProvider(personId));
+      final referencedTransactions = ref.watch(
+        personReferencedTransactionsProvider(personId),
+      );
 
-  return PersonTimelineBuilder.build(
-    ledgerEntries: ledgerEntries,
-    loans: loanData,
-    referencedTransactions: referencedTransactions,
-    participantCountByTransactionRef: participantCountByTransactionRef,
-    installmentByTransactionRef: installmentByTransactionRef,
-    otherParticipantNamesByTransactionRef: otherParticipantNamesByTransactionRef,
-  );
-});
+      return PersonTimelineBuilder.build(
+        ledgerEntries: ledgerEntries,
+        loans: loanData,
+        referencedTransactions: referencedTransactions,
+        participantCountByTransactionRef: participantCountByTransactionRef,
+        installmentByTransactionRef: installmentByTransactionRef,
+        otherParticipantNamesByTransactionRef:
+            otherParticipantNamesByTransactionRef,
+      );
+    });
 
 /// Default pay-cycle anchor for the People Ledger's Previous/Current Cycle
 /// split — the 17th of each month, matching every other cycle anchor in this
@@ -132,13 +156,16 @@ typedef PersonCycleView = ({
 /// [personCycleViewProvider] and [personCycleSummaryProvider] so both read
 /// the same engine invocation instead of each running its own, per the
 /// single-source-of-truth rule the shared engine exists to enforce.
-({CycleEngineResult<PersonTimelineCycleItem> result, List<PersonTimelineEntry> uncycled}) _classifyPersonTimeline(
-  List<PersonTimelineEntry> timeline,
-) {
+({
+  CycleEngineResult<PersonTimelineCycleItem> result,
+  List<PersonTimelineEntry> uncycled,
+})
+_classifyPersonTimeline(List<PersonTimelineEntry> timeline) {
   final cyclable = <PersonTimelineEntry>[];
   final uncycled = <PersonTimelineEntry>[];
   for (final entry in timeline) {
-    final isCyclable = entry.category == PersonTimelineCategory.assignedExpense ||
+    final isCyclable =
+        entry.category == PersonTimelineCategory.assignedExpense ||
         entry.category == PersonTimelineCategory.splitExpense;
     (isCyclable ? cyclable : uncycled).add(entry);
   }
@@ -148,25 +175,28 @@ typedef PersonCycleView = ({
   return (result: result, uncycled: uncycled);
 }
 
-final personCycleViewProvider = Provider.autoDispose.family<PersonCycleView, String>((ref, personId) {
-  final timeline = ref.watch(personTimelineProvider(personId));
-  final classified = _classifyPersonTimeline(timeline);
-  final result = classified.result;
+final personCycleViewProvider = Provider.autoDispose
+    .family<PersonCycleView, String>((ref, personId) {
+      final timeline = ref.watch(personTimelineProvider(personId));
+      final classified = _classifyPersonTimeline(timeline);
+      final result = classified.result;
 
-  final previousCyclePending = result.previousCyclePending.map((item) => item.entry).toList();
-  final current = [
-    ...previousCyclePending,
-    ...result.current.map((item) => item.entry),
-  ];
+      final previousCyclePending = result.previousCyclePending
+          .map((item) => item.entry)
+          .toList();
+      final current = [
+        ...previousCyclePending,
+        ...result.current.map((item) => item.entry),
+      ];
 
-  return (
-    previousCyclePending: previousCyclePending,
-    current: current,
-    future: result.future.map((item) => item.entry).toList(),
-    carriedForwardIds: previousCyclePending.map((e) => e.id).toSet(),
-    uncycled: classified.uncycled,
-  );
-});
+      return (
+        previousCyclePending: previousCyclePending,
+        current: current,
+        future: result.future.map((item) => item.entry).toList(),
+        carriedForwardIds: previousCyclePending.map((e) => e.id).toSet(),
+        uncycled: classified.uncycled,
+      );
+    });
 
 /// The People Dashboard summary for one person — Previous Cycle, Current
 /// Cycle, and Overall sections. Built from the same
@@ -174,19 +204,23 @@ final personCycleViewProvider = Provider.autoDispose.family<PersonCycleView, Str
 /// already makes (via `_classifyPersonTimeline`), plus [PersonOverallTotals]
 /// over the person's active ledger entries and their cached
 /// `Person.currentBalance` — no second carry-forward classification.
-final personCycleSummaryProvider = Provider.autoDispose.family<PersonCycleSummary, String>((ref, personId) {
-  final timeline = ref.watch(personTimelineProvider(personId));
-  final classified = _classifyPersonTimeline(timeline);
+final personCycleSummaryProvider = Provider.autoDispose
+    .family<PersonCycleSummary, String>((ref, personId) {
+      final timeline = ref.watch(personTimelineProvider(personId));
+      final classified = _classifyPersonTimeline(timeline);
 
-  final ledgerEntries = ref.watch(ledgerStreamProvider(personId)).value ?? const [];
-  final overallTotals = PersonOverallTotals.from(ledgerEntries);
+      final ledgerEntries =
+          ref.watch(ledgerStreamProvider(personId)).value ?? const [];
+      final overallTotals = PersonOverallTotals.from(ledgerEntries);
 
-  final people = ref.watch(peopleStreamProvider).value ?? const [];
-  final netBalance = people.where((p) => p.id == personId).firstOrNull?.currentBalance ?? overallTotals.netBalance;
+      final people = ref.watch(peopleStreamProvider).value ?? const [];
+      final netBalance =
+          people.where((p) => p.id == personId).firstOrNull?.currentBalance ??
+          overallTotals.netBalance;
 
-  return PersonCycleSummary.from(
-    cycleResult: classified.result,
-    overallTotals: overallTotals,
-    netBalance: netBalance,
-  );
-});
+      return PersonCycleSummary.from(
+        cycleResult: classified.result,
+        overallTotals: overallTotals,
+        netBalance: netBalance,
+      );
+    });

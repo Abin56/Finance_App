@@ -61,19 +61,20 @@ class InstallmentPayment extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return InstallmentPayment(
-      id: snapshot.id,
-      installmentId: data['installmentId'] as String,
-      scheduleId: data['scheduleId'] as String,
-      ownerType: OwnerTypeX.fromName(data['ownerType'] as String),
-      ownerId: data['ownerId'] as String,
-      amount: (data['amount'] as num).toDouble(),
-      date: (data['date'] as Timestamp).toDate(),
-      note: data['note'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      settlementMethod: data['settlementMethod'] as String?,
-      billingCycleLabel: data['billingCycleLabel'] as String?,
-      remainingBalanceAfterPayment: (data['remainingBalanceAfterPayment'] as num?)?.toDouble(),
-    )
+        id: snapshot.id,
+        installmentId: data['installmentId'] as String,
+        scheduleId: data['scheduleId'] as String,
+        ownerType: OwnerTypeX.fromName(data['ownerType'] as String),
+        ownerId: data['ownerId'] as String,
+        amount: (data['amount'] as num).toDouble(),
+        date: (data['date'] as Timestamp).toDate(),
+        note: data['note'] as String? ?? '',
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+        settlementMethod: data['settlementMethod'] as String?,
+        billingCycleLabel: data['billingCycleLabel'] as String?,
+        remainingBalanceAfterPayment:
+            (data['remainingBalanceAfterPayment'] as num?)?.toDouble(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -95,7 +96,9 @@ class InstallmentPayment extends SoftDeletableEntity {
       'billingCycleLabel': billingCycleLabel,
       'remainingBalanceAfterPayment': remainingBalanceAfterPayment,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

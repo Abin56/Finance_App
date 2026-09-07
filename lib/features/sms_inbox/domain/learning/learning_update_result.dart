@@ -14,14 +14,16 @@ class LearningUpdateResult {
   });
 
   /// A no-op result for an action that named no fields at all.
-  factory LearningUpdateResult.empty(String merchantKey) => LearningUpdateResult(
-    merchantKey: merchantKey,
-    confirmedFields: const [],
-    correctedFields: const [],
-    confirmationsRecorded: 0,
-    correctionsRecorded: 0,
-    explanation: 'No fields were confirmed or corrected for "$merchantKey".',
-  );
+  factory LearningUpdateResult.empty(String merchantKey) =>
+      LearningUpdateResult(
+        merchantKey: merchantKey,
+        confirmedFields: const [],
+        correctedFields: const [],
+        confirmationsRecorded: 0,
+        correctionsRecorded: 0,
+        explanation:
+            'No fields were confirmed or corrected for "$merchantKey".',
+      );
 
   final String merchantKey;
 

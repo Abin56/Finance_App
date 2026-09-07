@@ -17,15 +17,21 @@ List<CalendarEvent> emisToCalendarEvents(
   for (final emi in emis) {
     final installments = installmentsByScheduleId[emi.scheduleId] ?? const [];
     for (final installment in installments) {
-      if (installment.status == InstallmentStatus.paid || installment.isSkipped) continue;
-      events.add(CalendarEvent(
-        date: installment.dueDate.dateOnly,
-        title: emi.name,
-        subtitle: emiInstallmentStatusLabel(installment.status, installment.dueDate),
-        color: installment.status.color,
-        icon: installment.status.icon,
-        routePath: '${AppRoutes.emis}/${emi.id}',
-      ));
+      if (installment.status == InstallmentStatus.paid || installment.isSkipped)
+        continue;
+      events.add(
+        CalendarEvent(
+          date: installment.dueDate.dateOnly,
+          title: emi.name,
+          subtitle: emiInstallmentStatusLabel(
+            installment.status,
+            installment.dueDate,
+          ),
+          color: installment.status.color,
+          icon: installment.status.icon,
+          routePath: '${AppRoutes.emis}/${emi.id}',
+        ),
+      );
     }
   }
   return events;

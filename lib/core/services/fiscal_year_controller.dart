@@ -11,7 +11,8 @@ const _fiscalYearStartMonthKey = 'fiscal_year_start_month';
 /// hardcoding a start month.
 class FiscalYearController extends Notifier<int> {
   @override
-  int build() => LocalSettingsService.getInt(_fiscalYearStartMonthKey, defaultValue: 1);
+  int build() =>
+      LocalSettingsService.getInt(_fiscalYearStartMonthKey, defaultValue: 1);
 
   Future<void> setStartMonth(int month) async {
     assert(month >= 1 && month <= 12);
@@ -20,6 +21,5 @@ class FiscalYearController extends Notifier<int> {
   }
 }
 
-final fiscalYearStartMonthProvider = NotifierProvider<FiscalYearController, int>(
-  FiscalYearController.new,
-);
+final fiscalYearStartMonthProvider =
+    NotifierProvider<FiscalYearController, int>(FiscalYearController.new);

@@ -27,8 +27,11 @@ class BillRepository extends FirestoreCrudRepository<Bill> {
     if (amount <= 0) {
       throw const AppException('Bill amount must be greater than 0');
     }
-    if (recurrence == BillRecurrence.custom && (customIntervalDays == null || customIntervalDays <= 0)) {
-      throw const AppException('Custom recurrence needs a repeat interval greater than 0 days');
+    if (recurrence == BillRecurrence.custom &&
+        (customIntervalDays == null || customIntervalDays <= 0)) {
+      throw const AppException(
+        'Custom recurrence needs a repeat interval greater than 0 days',
+      );
     }
 
     final bill = Bill(
@@ -39,7 +42,9 @@ class BillRepository extends FirestoreCrudRepository<Bill> {
       recurrence: recurrence,
       accountId: accountId,
       categoryId: categoryId,
-      customIntervalDays: recurrence == BillRecurrence.custom ? customIntervalDays : null,
+      customIntervalDays: recurrence == BillRecurrence.custom
+          ? customIntervalDays
+          : null,
       reminderOffsets: reminderOffsets,
       notes: notes,
       createdAt: DateTime.now(),
@@ -72,11 +77,23 @@ class BillRepository extends FirestoreCrudRepository<Bill> {
     final effectiveCustomDays = customIntervalDays ?? bill.customIntervalDays;
     if (effectiveRecurrence == BillRecurrence.custom &&
         (effectiveCustomDays == null || effectiveCustomDays <= 0)) {
-      throw const AppException('Custom recurrence needs a repeat interval greater than 0 days');
+      throw const AppException(
+        'Custom recurrence needs a repeat interval greater than 0 days',
+      );
     }
 
-    bill.updateField(field: 'name', oldValue: bill.name, newValue: name, apply: (v) => bill.name = v);
-    bill.updateField(field: 'amount', oldValue: bill.amount, newValue: amount, apply: (v) => bill.amount = v);
+    bill.updateField(
+      field: 'name',
+      oldValue: bill.name,
+      newValue: name,
+      apply: (v) => bill.name = v,
+    );
+    bill.updateField(
+      field: 'amount',
+      oldValue: bill.amount,
+      newValue: amount,
+      apply: (v) => bill.amount = v,
+    );
     bill.updateField(
       field: 'nextDueDate',
       oldValue: bill.nextDueDate,
@@ -113,7 +130,8 @@ class BillRepository extends FirestoreCrudRepository<Bill> {
       newValue: notes,
       apply: (v) => bill.notes = v,
     );
-    if (reminderOffsets != null && !_listEquals(bill.reminderOffsets, reminderOffsets)) {
+    if (reminderOffsets != null &&
+        !_listEquals(bill.reminderOffsets, reminderOffsets)) {
       bill.recordEdit(
         field: 'reminderOffsets',
         oldValue: bill.reminderOffsets.toString(),
@@ -130,7 +148,11 @@ class BillRepository extends FirestoreCrudRepository<Bill> {
   /// `StatementRepository` never mutates `CreditCardProfile.statementDay`
   /// itself but a card's "current cycle" is always derived from it fresh.
   Future<void> advanceNextDueDate(Bill bill, DateTime next) async {
-    bill.recordEdit(field: 'nextDueDate', oldValue: bill.nextDueDate.toString(), newValue: next.toString());
+    bill.recordEdit(
+      field: 'nextDueDate',
+      oldValue: bill.nextDueDate.toString(),
+      newValue: next.toString(),
+    );
     bill.nextDueDate = next;
     await update(bill);
   }

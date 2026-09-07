@@ -52,7 +52,9 @@ void main() {
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
-    final scheduleCollection = firestore.collection('paymentSchedules').withConverter<PaymentSchedule>(
+    final scheduleCollection = firestore
+        .collection('paymentSchedules')
+        .withConverter<PaymentSchedule>(
           fromFirestore: PaymentSchedule.fromFirestore,
           toFirestore: (s, _) => s.toFirestore(),
         );
@@ -70,11 +72,17 @@ void main() {
       return InstallmentRepository(collection);
     }
 
-    final emiCollection = firestore.collection('emis').withConverter<Emi>(
+    final emiCollection = firestore
+        .collection('emis')
+        .withConverter<Emi>(
           fromFirestore: Emi.fromFirestore,
           toFirestore: (e, _) => e.toFirestore(),
         );
-    emiRepository = EmiRepository(emiCollection, scheduleRepository, installmentRepositoryFor);
+    emiRepository = EmiRepository(
+      emiCollection,
+      scheduleRepository,
+      installmentRepositoryFor,
+    );
 
     final breakdownCollection = firestore
         .collection('emis')
@@ -112,7 +120,8 @@ void main() {
             ),
       );
       final installments = await installmentRepository.getAll();
-      final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      final sorted = [...installments]
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
       final firstInstallment = sorted.first;
 
       paymentRepository = InstallmentPaymentRepository(
@@ -130,7 +139,11 @@ void main() {
       );
 
       // Record a payment with an explicit ₹4,200 principal / ₹800 interest split.
-      final payment = await paymentRepository.recordPayment(firstInstallment, amount: 5000, date: DateTime(2026, 1, 1));
+      final payment = await paymentRepository.recordPayment(
+        firstInstallment,
+        amount: 5000,
+        date: DateTime(2026, 1, 1),
+      );
       await breakdownRepository.createBreakdown(
         paymentId: payment.id,
         scheduleId: emi.scheduleId,
@@ -142,7 +155,9 @@ void main() {
       final breakdowns = await breakdownRepository.getAll();
       final restored = principalRestored(
         [firstInstallment],
-        {firstInstallment.id: [payment]},
+        {
+          firstInstallment.id: [payment],
+        },
         {for (final b in breakdowns) b.paymentId: b},
       );
 
@@ -151,66 +166,79 @@ void main() {
     },
   );
 
-  test('falls back to the theoretical principal/interest split when no breakdown was recorded', () async {
-    final emi = await emiRepository.createEmi(
-      name: 'Car EMI',
-      principalAmount: 100000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 12,
-      linkedCreditCardId: 'card-1',
-    );
+  test(
+    'falls back to the theoretical principal/interest split when no breakdown was recorded',
+    () async {
+      final emi = await emiRepository.createEmi(
+        name: 'Car EMI',
+        principalAmount: 100000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 12,
+        linkedCreditCardId: 'card-1',
+      );
 
-    final installmentRepository = InstallmentRepository(
-      firestore
-          .collection('paymentSchedules')
-          .doc(emi.scheduleId)
-          .collection('installments')
-          .withConverter<Installment>(
-            fromFirestore: Installment.fromFirestore,
-            toFirestore: (i, _) => i.toFirestore(),
-          ),
-    );
-    final installments = await installmentRepository.getAll();
-    final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-    final firstInstallment = sorted.first;
+      final installmentRepository = InstallmentRepository(
+        firestore
+            .collection('paymentSchedules')
+            .doc(emi.scheduleId)
+            .collection('installments')
+            .withConverter<Installment>(
+              fromFirestore: Installment.fromFirestore,
+              toFirestore: (i, _) => i.toFirestore(),
+            ),
+      );
+      final installments = await installmentRepository.getAll();
+      final sorted = [...installments]
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      final firstInstallment = sorted.first;
 
-    final paymentRepository = InstallmentPaymentRepository(
-      firestore
-          .collection('paymentSchedules')
-          .doc(emi.scheduleId)
-          .collection('installments')
-          .doc(firstInstallment.id)
-          .collection('payments')
-          .withConverter<InstallmentPayment>(
-            fromFirestore: InstallmentPayment.fromFirestore,
-            toFirestore: (p, _) => p.toFirestore(),
-          ),
-      installmentRepository,
-    );
+      final paymentRepository = InstallmentPaymentRepository(
+        firestore
+            .collection('paymentSchedules')
+            .doc(emi.scheduleId)
+            .collection('installments')
+            .doc(firstInstallment.id)
+            .collection('payments')
+            .withConverter<InstallmentPayment>(
+              fromFirestore: InstallmentPayment.fromFirestore,
+              toFirestore: (p, _) => p.toFirestore(),
+            ),
+        installmentRepository,
+      );
 
-    // No interest on this EMI, so principalPortion is null — the whole
-    // payment counts as principal (there's no interest to separate out).
-    final payment = await paymentRepository.recordPayment(
-      firstInstallment,
-      amount: firstInstallment.amountDue,
-      date: DateTime(2026, 1, 1),
-    );
+      // No interest on this EMI, so principalPortion is null — the whole
+      // payment counts as principal (there's no interest to separate out).
+      final payment = await paymentRepository.recordPayment(
+        firstInstallment,
+        amount: firstInstallment.amountDue,
+        date: DateTime(2026, 1, 1),
+      );
 
-    final restored = principalRestored([firstInstallment], {firstInstallment.id: [payment]}, {});
+      final restored = principalRestored(
+        [firstInstallment],
+        {
+          firstInstallment.id: [payment],
+        },
+        {},
+      );
 
-    expect(restored, firstInstallment.amountDue);
-  });
+      expect(restored, firstInstallment.amountDue);
+    },
+  );
 
-  test('an EMI not linked to any card contributes nothing (verified by filter, not math)', () async {
-    final emi = await emiRepository.createEmi(
-      name: 'Unlinked EMI',
-      principalAmount: 5000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 5,
-    );
+  test(
+    'an EMI not linked to any card contributes nothing (verified by filter, not math)',
+    () async {
+      final emi = await emiRepository.createEmi(
+        name: 'Unlinked EMI',
+        principalAmount: 5000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 5,
+      );
 
-    expect(emi.linkedCreditCardId, isNull);
-  });
+      expect(emi.linkedCreditCardId, isNull);
+    },
+  );
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
@@ -13,8 +14,8 @@ import '../../../../features/people/presentation/widgets/person_avatar.dart';
 import '../../../../features/people/presentation/widgets/settle_up_sheet.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
 import '../../../../features/transactions/presentation/screens/add_expense_screen.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/widget_configuration.dart';
-import '../../../theme/clay_theme.dart';
 
 /// Renders [DashboardWidgetType.quickActions] — the dashboard's four
 /// highest-frequency actions as equal-width tiles: Add Expense, Settle Up,
@@ -31,10 +32,15 @@ class QuickActionsWidgetCard extends ConsumerWidget {
     // Debtors first (money you owe is usually the more urgent side), then
     // creditors — both already sorted largest-balance-first by their
     // providers.
-    final people = [...ref.read(debtorsProvider), ...ref.read(creditorsProvider)];
+    final people = [
+      ...ref.read(debtorsProvider),
+      ...ref.read(creditorsProvider),
+    ];
     if (people.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All settled — no pending balances with anyone.')),
+        const SnackBar(
+          content: Text('All settled — no pending balances with anyone.'),
+        ),
       );
       return;
     }
@@ -51,8 +57,11 @@ class QuickActionsWidgetCard extends ConsumerWidget {
           child: _ActionTile(
             icon: Icons.remove_circle_outline_rounded,
             label: 'Add Expense',
-            color: AppClay.expense,
-            onTap: () => AddExpenseScreen.show(context, initialType: TransactionType.expense),
+            color: AppColors.expense,
+            onTap: () => AddExpenseScreen.show(
+              context,
+              initialType: TransactionType.expense,
+            ),
           ),
         ),
         const SizedBox(width: AppSizes.sm),
@@ -60,7 +69,7 @@ class QuickActionsWidgetCard extends ConsumerWidget {
           child: _ActionTile(
             icon: Icons.handshake_outlined,
             label: 'Settle Up',
-            color: AppClay.income,
+            color: AppColors.income,
             onTap: () => _settleUp(context, ref),
           ),
         ),
@@ -70,6 +79,11 @@ class QuickActionsWidgetCard extends ConsumerWidget {
             icon: Icons.call_split_rounded,
             label: 'Split Expense',
             color: context.colors.primary,
+            // The one emphasized/selected-style tile — Split Expense is this
+            // card's primary action, so it carries the solid lime fill per
+            // the color-usage rule (selected/primary-action fills are one of
+            // the few places lime belongs outside a CTA button).
+            emphasized: true,
             onTap: () => SplitExpenseFormSheet.show(context),
           ),
         ),
@@ -78,7 +92,7 @@ class QuickActionsWidgetCard extends ConsumerWidget {
           child: _ActionTile(
             icon: Icons.receipt_long_outlined,
             label: 'Statements',
-            color: AppClay.warning,
+            color: AppColors.warning,
             onTap: () => context.push(AppRoutes.creditCards),
           ),
         ),
@@ -88,41 +102,56 @@ class QuickActionsWidgetCard extends ConsumerWidget {
 }
 
 class _ActionTile extends StatelessWidget {
-  const _ActionTile({required this.icon, required this.label, required this.color, required this.onTap});
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.emphasized = false,
+  });
 
   final IconData icon;
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       decoration: BoxDecoration(
-        color: AppClay.card(context),
-        borderRadius: BorderRadius.circular(AppClay.radiusMd),
-        boxShadow: AppClay.soft(context),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        border: Border.all(color: colors.outline),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppClay.radiusMd),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSizes.sm, horizontal: AppSizes.xs),
+            padding: const EdgeInsets.symmetric(
+              vertical: AppSizes.sm,
+              horizontal: AppSizes.xs,
+            ),
             child: Column(
               children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    gradient: AppClay.iconChipGradient(color),
-                    borderRadius: BorderRadius.circular(AppClay.radiusSm),
-                    boxShadow: AppClay.glow(color),
-                  ),
-                  child: Icon(icon, color: color, size: AppSizes.iconSm),
-                ),
+                emphasized
+                    ? FlowFiIconChip.emphasized(
+                        icon: icon,
+                        color: color,
+                        emphasisForeground: AppColors.onLime,
+                        size: 38,
+                        iconSize: AppSizes.iconSm,
+                      )
+                    : FlowFiIconChip(
+                        icon: icon,
+                        color: color,
+                        size: 38,
+                        iconSize: AppSizes.iconSm,
+                      ),
                 const SizedBox(height: AppSizes.xs),
                 Text(
                   label,
@@ -158,18 +187,29 @@ class _SettleUpPersonSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
     final textTheme = context.textTheme;
 
     return SafeArea(
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.6),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.6,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.sm),
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.sm,
+              ),
               child: Text('Settle up with…', style: textTheme.titleMedium),
             ),
             Flexible(
@@ -178,14 +218,19 @@ class _SettleUpPersonSheet extends StatelessWidget {
                 children: [
                   for (final person in people)
                     ListTile(
-                      leading: PersonAvatar(name: person.name, colorValue: person.avatarColorValue),
+                      leading: PersonAvatar(
+                        name: person.name,
+                        colorValue: person.avatarColorValue,
+                      ),
                       title: Text(person.name),
                       subtitle: Text(
                         person.isDebtor
                             ? 'You owe ${format.format(person.currentBalance.abs())}'
                             : 'Owes you ${format.format(person.currentBalance)}',
                         style: textTheme.bodySmall?.copyWith(
-                          color: person.isDebtor ? AppClay.expense : AppClay.income,
+                          color: person.isDebtor
+                              ? AppColors.expense
+                              : AppColors.income,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

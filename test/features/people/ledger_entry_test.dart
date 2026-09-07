@@ -64,59 +64,69 @@ void main() {
   });
 
   group('LedgerEntry Firestore round-trip', () {
-    test('toFirestore/fromFirestore preserves every field including transactionRef', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('ledger').withConverter<LedgerEntry>(
-            fromFirestore: LedgerEntry.fromFirestore,
-            toFirestore: (e, _) => e.toFirestore(),
-          );
+    test(
+      'toFirestore/fromFirestore preserves every field including transactionRef',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('ledger')
+            .withConverter<LedgerEntry>(
+              fromFirestore: LedgerEntry.fromFirestore,
+              toFirestore: (e, _) => e.toFirestore(),
+            );
 
-      final original = LedgerEntry(
-        id: 'ignored',
-        personId: 'p1',
-        type: LedgerEntryType.repaid,
-        amount: 75,
-        date: DateTime(2026, 2, 1),
-        note: 'Paid back for lunch',
-        transactionRef: 'txn-123',
-        createdAt: DateTime(2026, 2, 1),
-      );
+        final original = LedgerEntry(
+          id: 'ignored',
+          personId: 'p1',
+          type: LedgerEntryType.repaid,
+          amount: 75,
+          date: DateTime(2026, 2, 1),
+          note: 'Paid back for lunch',
+          transactionRef: 'txn-123',
+          createdAt: DateTime(2026, 2, 1),
+        );
 
-      await collection.doc('e1').set(original);
-      final restored = (await collection.doc('e1').get()).data()!;
+        await collection.doc('e1').set(original);
+        final restored = (await collection.doc('e1').get()).data()!;
 
-      expect(restored.id, 'e1');
-      expect(restored.personId, 'p1');
-      expect(restored.type, LedgerEntryType.repaid);
-      expect(restored.amount, 75);
-      expect(restored.date, DateTime(2026, 2, 1));
-      expect(restored.note, 'Paid back for lunch');
-      expect(restored.transactionRef, 'txn-123');
-      expect(restored.increasesBalance, isTrue);
-    });
+        expect(restored.id, 'e1');
+        expect(restored.personId, 'p1');
+        expect(restored.type, LedgerEntryType.repaid);
+        expect(restored.amount, 75);
+        expect(restored.date, DateTime(2026, 2, 1));
+        expect(restored.note, 'Paid back for lunch');
+        expect(restored.transactionRef, 'txn-123');
+        expect(restored.increasesBalance, isTrue);
+      },
+    );
 
-    test('preserves increasesBalance=false for a decreasing adjustment', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('ledger').withConverter<LedgerEntry>(
-            fromFirestore: LedgerEntry.fromFirestore,
-            toFirestore: (e, _) => e.toFirestore(),
-          );
+    test(
+      'preserves increasesBalance=false for a decreasing adjustment',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('ledger')
+            .withConverter<LedgerEntry>(
+              fromFirestore: LedgerEntry.fromFirestore,
+              toFirestore: (e, _) => e.toFirestore(),
+            );
 
-      final original = LedgerEntry(
-        id: 'ignored',
-        personId: 'p1',
-        type: LedgerEntryType.adjustment,
-        amount: 20,
-        date: DateTime(2026, 2, 1),
-        createdAt: DateTime(2026, 2, 1),
-        increasesBalance: false,
-      );
+        final original = LedgerEntry(
+          id: 'ignored',
+          personId: 'p1',
+          type: LedgerEntryType.adjustment,
+          amount: 20,
+          date: DateTime(2026, 2, 1),
+          createdAt: DateTime(2026, 2, 1),
+          increasesBalance: false,
+        );
 
-      await collection.doc('e2').set(original);
-      final restored = (await collection.doc('e2').get()).data()!;
+        await collection.doc('e2').set(original);
+        final restored = (await collection.doc('e2').get()).data()!;
 
-      expect(restored.increasesBalance, isFalse);
-      expect(restored.signedAmount, -20);
-    });
+        expect(restored.increasesBalance, isFalse);
+        expect(restored.signedAmount, -20);
+      },
+    );
   });
 }

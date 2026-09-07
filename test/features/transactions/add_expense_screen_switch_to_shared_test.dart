@@ -42,8 +42,12 @@ void main() {
       ProviderScope(
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value([category])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value([category]),
+          ),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
           peopleStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: MaterialApp(
@@ -65,47 +69,51 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('filling the form then switching to Shared Expense carries the data over, and backing out preserves it',
-      (tester) async {
-    await pump(tester);
+  testWidgets(
+    'filling the form then switching to Shared Expense carries the data over, and backing out preserves it',
+    (tester) async {
+      await pump(tester);
 
-    final textFields = find.byType(TextFormField);
-    await tester.enterText(textFields.at(0), '250'); // Amount
-    await tester.pumpAndSettle();
-    await tester.enterText(textFields.at(1), 'Team lunch'); // Description
-    await tester.pumpAndSettle();
+      final textFields = find.byType(TextFormField);
+      await tester.enterText(textFields.at(0), '250'); // Amount
+      await tester.pumpAndSettle();
+      await tester.enterText(textFields.at(1), 'Team lunch'); // Description
+      await tester.pumpAndSettle();
 
-    // Switch to Shared Expense.
-    await tester.ensureVisible(find.text('Share Expense'));
-    await tester.tap(find.text('Share Expense'));
-    await tester.pumpAndSettle();
+      // Switch to Shared Expense.
+      await tester.ensureVisible(find.text('Share Expense'));
+      await tester.tap(find.text('Share Expense'));
+      await tester.pumpAndSettle();
 
-    // AddExpenseChooser sheet is open, offering the two options.
-    expect(find.text('Share with several people'), findsOneWidget);
+      // AddExpenseChooser sheet is open, offering the two options.
+      expect(find.text('Share with several people'), findsOneWidget);
 
-    // Choose the split flow — should open with the description carried over.
-    await tester.tap(find.text('Share with several people'));
-    await tester.pumpAndSettle();
+      // Choose the split flow — should open with the description carried over.
+      await tester.tap(find.text('Share with several people'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Team lunch'), findsWidgets);
-    expect(find.text('250.00'), findsWidgets);
+      expect(find.text('Team lunch'), findsWidgets);
+      expect(find.text('250.00'), findsWidgets);
 
-    // Back out of the sheet without saving, by popping its own Navigator —
-    // equivalent to a swipe-down dismiss or the system back gesture.
-    Navigator.of(tester.element(find.byType(SplitExpenseFormSheet))).pop();
-    await tester.pumpAndSettle();
+      // Back out of the sheet without saving, by popping its own Navigator —
+      // equivalent to a swipe-down dismiss or the system back gesture.
+      Navigator.of(tester.element(find.byType(SplitExpenseFormSheet))).pop();
+      await tester.pumpAndSettle();
 
-    // AddExpenseScreen should still be showing, with the original data intact.
-    expect(find.text('Add Expense'), findsOneWidget);
-    expect(find.text('Team lunch'), findsOneWidget);
-  });
+      // AddExpenseScreen should still be showing, with the original data intact.
+      expect(find.text('Add Expense'), findsOneWidget);
+      expect(find.text('Team lunch'), findsOneWidget);
+    },
+  );
 
   testWidgets('a second back from Add Expense exits the flow', (tester) async {
     await pump(tester);
 
     expect(find.text('Add Expense'), findsOneWidget);
 
-    final navigator = tester.state<NavigatorState>(find.byType(Navigator).first);
+    final navigator = tester.state<NavigatorState>(
+      find.byType(Navigator).first,
+    );
     expect(navigator.canPop(), isTrue);
     navigator.pop();
     await tester.pumpAndSettle();

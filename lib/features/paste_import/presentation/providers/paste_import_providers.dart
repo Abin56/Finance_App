@@ -5,7 +5,8 @@ import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../smart_import/domain/detected_transaction.dart';
 import '../../../smart_import/domain/screenshot_duplicate_detector.dart';
-import '../../../smart_import/presentation/providers/smart_import_state.dart' show ImportSummary;
+import '../../../smart_import/presentation/providers/smart_import_state.dart'
+    show ImportSummary;
 import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
@@ -13,7 +14,9 @@ import '../../domain/paste_transaction_extractor.dart';
 import 'paste_import_state.dart';
 
 final pasteImportControllerProvider =
-    NotifierProvider<PasteImportController, PasteImportState>(PasteImportController.new);
+    NotifierProvider<PasteImportController, PasteImportState>(
+      PasteImportController.new,
+    );
 
 /// Owns one Copy/Paste Import session end-to-end: pasted text → extraction →
 /// review edits → duplicate re-check → import. A sibling of
@@ -51,7 +54,9 @@ class PasteImportController extends Notifier<PasteImportState> {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     if (text == null || text.isEmpty) return;
-    final combined = state.pastedText.isEmpty ? text : '${state.pastedText}\n$text';
+    final combined = state.pastedText.isEmpty
+        ? text
+        : '${state.pastedText}\n$text';
     state = state.copyWith(pastedText: combined, clearErrorMessage: true);
   }
 
@@ -63,18 +68,25 @@ class PasteImportController extends Notifier<PasteImportState> {
   void analyze() {
     final text = state.pastedText.trim();
     if (text.isEmpty) {
-      state = state.copyWith(errorMessage: 'No transaction text found.\n\nPaste transaction information and try again.');
+      state = state.copyWith(
+        errorMessage:
+            'No transaction text found.\n\nPaste transaction information and try again.',
+      );
       return;
     }
 
-    state = state.copyWith(stage: PasteImportStage.processing, clearErrorMessage: true);
+    state = state.copyWith(
+      stage: PasteImportStage.processing,
+      clearErrorMessage: true,
+    );
 
     final detected = PasteTransactionExtractor.extract(text);
 
     if (detected.isEmpty) {
       state = state.copyWith(
         stage: PasteImportStage.pastingText,
-        errorMessage: "We couldn't detect any transactions.\n\n"
+        errorMessage:
+            "We couldn't detect any transactions.\n\n"
             'Try copying the transaction list including the date, description and amount.',
       );
       return;
@@ -87,7 +99,10 @@ class PasteImportController extends Notifier<PasteImportState> {
       accountId: state.accountId,
     );
 
-    state = state.copyWith(stage: PasteImportStage.reviewing, detected: detected);
+    state = state.copyWith(
+      stage: PasteImportStage.reviewing,
+      detected: detected,
+    );
   }
 
   void _applyCategorySuggestions(List<DetectedTransaction> detected) {
@@ -170,7 +185,9 @@ class PasteImportController extends Notifier<PasteImportState> {
   }
 
   void removeTransaction(String id) {
-    state = state.copyWith(detected: state.detected.where((d) => d.id != id).toList());
+    state = state.copyWith(
+      detected: state.detected.where((d) => d.id != id).toList(),
+    );
   }
 
   void _mutate(String id, void Function(DetectedTransaction row) apply) {
@@ -192,11 +209,14 @@ class PasteImportController extends Notifier<PasteImportState> {
     if (accountId == null) return;
 
     final accountStillExists =
-        (ref.read(accountsStreamProvider).value ?? const []).any((a) => a.id == accountId);
+        (ref.read(accountsStreamProvider).value ?? const []).any(
+          (a) => a.id == accountId,
+        );
     if (!accountStillExists) {
       state = state.copyWith(
         stage: PasteImportStage.reviewing,
-        errorMessage: 'That account no longer exists. Please choose another one.',
+        errorMessage:
+            'That account no longer exists. Please choose another one.',
       );
       return;
     }
@@ -209,9 +229,12 @@ class PasteImportController extends Notifier<PasteImportState> {
     );
     state = state.copyWith(detected: freshDetected);
 
-    final candidates = freshDetected.where((d) => d.isSelected && !d.isImported).toList();
-    final toImport =
-        candidates.where((d) => !d.isDuplicate || d.duplicateAcknowledged).toList();
+    final candidates = freshDetected
+        .where((d) => d.isSelected && !d.isImported)
+        .toList();
+    final toImport = candidates
+        .where((d) => !d.isDuplicate || d.duplicateAcknowledged)
+        .toList();
     final skippedDuplicates = candidates.length - toImport.length;
 
     state = state.copyWith(
@@ -246,7 +269,9 @@ class PasteImportController extends Notifier<PasteImportState> {
         row.isSelected = false;
         imported++;
 
-        await ref.read(merchantMemoriesProvider.notifier).record(
+        await ref
+            .read(merchantMemoriesProvider.notifier)
+            .record(
               merchant: row.rawDescription,
               transactionType: row.type ?? TransactionType.expense,
               categoryId: row.categoryId!,

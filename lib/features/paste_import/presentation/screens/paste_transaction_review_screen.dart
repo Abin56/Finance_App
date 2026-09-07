@@ -27,7 +27,8 @@ class PasteTransactionReviewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(pasteImportControllerProvider, (previous, next) {
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text(next.errorMessage!)));
@@ -53,10 +54,10 @@ class PasteTransactionReviewScreen extends ConsumerWidget {
   }
 
   String _titleFor(PasteImportState state) => switch (state.stage) {
-        PasteImportStage.done => 'Import complete',
-        PasteImportStage.importing => 'Importing…',
-        _ => 'Paste Transactions',
-      };
+    PasteImportStage.done => 'Import complete',
+    PasteImportStage.importing => 'Importing…',
+    _ => 'Paste Transactions',
+  };
 }
 
 class _ReviewBody extends ConsumerWidget {
@@ -87,21 +88,34 @@ class _ReviewBody extends ConsumerWidget {
               (!d.isDuplicate || d.duplicateAcknowledged),
         )
         .toList();
-    final missingCategoryCount = readyForImport.where((d) => d.categoryId == null).length;
+    final missingCategoryCount = readyForImport
+        .where((d) => d.categoryId == null)
+        .length;
     // Selected despite still needing review (e.g. the user manually
     // re-checked a row without fixing it) — these will never be attempted,
     // so the button's count intentionally excludes them; call that out
     // explicitly rather than leaving the user to wonder why the number is
     // lower than what they checked.
     final selectedNeedsReviewCount = state.detected
-        .where((d) => d.isSelected && !d.hasRequiredFields && (!d.isDuplicate || d.duplicateAcknowledged))
+        .where(
+          (d) =>
+              d.isSelected &&
+              !d.hasRequiredFields &&
+              (!d.isDuplicate || d.duplicateAcknowledged),
+        )
         .length;
-    final allSelected = state.detected.isNotEmpty && state.detected.every((d) => d.isSelected);
+    final allSelected =
+        state.detected.isNotEmpty && state.detected.every((d) => d.isSelected);
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, 0),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            AppSizes.md,
+            AppSizes.lg,
+            0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -114,7 +128,9 @@ class _ReviewBody extends ConsumerWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: allSelected ? controller.deselectAll : controller.selectAll,
+                    onPressed: allSelected
+                        ? controller.deselectAll
+                        : controller.selectAll,
                     child: Text(allSelected ? 'Deselect all' : 'Select all'),
                   ),
                 ],
@@ -124,7 +140,9 @@ class _ReviewBody extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: AppSizes.xs),
                   child: Text(
                     '${state.needsReviewCount} transaction${state.needsReviewCount == 1 ? '' : 's'} need review',
-                    style: context.textTheme.bodySmall?.copyWith(color: AppColors.pending),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: AppColors.pending,
+                    ),
                   ),
                 ),
               const SizedBox(height: AppSizes.md),
@@ -143,9 +161,18 @@ class _ReviewBody extends ConsumerWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          BankLogo(bankId: account.bankId, fallbackName: account.name, size: 20),
+                          BankLogo(
+                            bankId: account.bankId,
+                            fallbackName: account.name,
+                            size: 20,
+                          ),
                           const SizedBox(width: AppSizes.sm),
-                          Flexible(child: Text(account.name, overflow: TextOverflow.ellipsis)),
+                          Flexible(
+                            child: Text(
+                              account.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -159,7 +186,12 @@ class _ReviewBody extends ConsumerWidget {
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, AppSizes.lg),
+            padding: const EdgeInsets.fromLTRB(
+              AppSizes.lg,
+              AppSizes.md,
+              AppSizes.lg,
+              AppSizes.lg,
+            ),
             itemCount: state.detected.length,
             itemBuilder: (context, index) {
               final transaction = state.detected[index];
@@ -169,10 +201,15 @@ class _ReviewBody extends ConsumerWidget {
               return DetectedTransactionTile(
                 transaction: transaction,
                 categoryName: categoryName,
-                onToggleSelected: (selected) => controller.toggleSelected(transaction.id, selected),
-                onTap: () => PasteDetectedTransactionEditSheet.show(context, transaction),
+                onToggleSelected: (selected) =>
+                    controller.toggleSelected(transaction.id, selected),
+                onTap: () => PasteDetectedTransactionEditSheet.show(
+                  context,
+                  transaction,
+                ),
                 onSkipDuplicate: () => controller.skipDuplicate(transaction.id),
-                onImportAnywayDuplicate: () => controller.importDuplicateAnyway(transaction.id),
+                onImportAnywayDuplicate: () =>
+                    controller.importDuplicateAnyway(transaction.id),
               );
             },
           ),
@@ -180,7 +217,12 @@ class _ReviewBody extends ConsumerWidget {
         SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.lg),
+            padding: const EdgeInsets.fromLTRB(
+              AppSizes.lg,
+              0,
+              AppSizes.lg,
+              AppSizes.lg,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -217,7 +259,8 @@ class _ReviewBody extends ConsumerWidget {
                 ],
                 PrimaryButton(
                   label: 'Import Selected (${readyForImport.length})',
-                  onPressed: state.accountId != null &&
+                  onPressed:
+                      state.accountId != null &&
                           readyForImport.isNotEmpty &&
                           missingCategoryCount == 0
                       ? controller.import
@@ -248,7 +291,10 @@ class _ImportingView extends StatelessWidget {
           Text('Importing…', style: context.textTheme.titleMedium),
           if (progress != null) ...[
             const SizedBox(height: AppSizes.xs),
-            Text('${progress.$1} / ${progress.$2}', style: context.textTheme.bodyMedium),
+            Text(
+              '${progress.$1} / ${progress.$2}',
+              style: context.textTheme.bodyMedium,
+            ),
           ],
         ],
       ),
@@ -266,12 +312,17 @@ class _ImportSummaryScreenBody extends ConsumerWidget {
     if (result == null) return const SizedBox.shrink();
 
     final lines = <String>['${result.imported} imported'];
-    if (result.skippedDuplicates > 0) lines.add('${result.skippedDuplicates} skipped as duplicates');
+    if (result.skippedDuplicates > 0)
+      lines.add('${result.skippedDuplicates} skipped as duplicates');
     if (result.failed > 0) lines.add('${result.failed} failed');
 
     return EmptyState(
-      icon: result.hasIssues ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
-      title: result.hasIssues ? 'Import completed with some issues' : 'Import complete',
+      icon: result.hasIssues
+          ? Icons.warning_amber_rounded
+          : Icons.check_circle_outline_rounded,
+      title: result.hasIssues
+          ? 'Import completed with some issues'
+          : 'Import complete',
       subtitle: lines.join('\n'),
       action: Column(
         mainAxisSize: MainAxisSize.min,
@@ -280,12 +331,15 @@ class _ImportSummaryScreenBody extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: AppSizes.sm),
               child: OutlinedButton(
-                onPressed: () => ref.read(pasteImportControllerProvider.notifier).retryImport(),
+                onPressed: () => ref
+                    .read(pasteImportControllerProvider.notifier)
+                    .retryImport(),
                 child: const Text('Retry failed'),
               ),
             ),
           FilledButton(
-            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            onPressed: () =>
+                Navigator.of(context).popUntil((route) => route.isFirst),
             child: const Text('Done'),
           ),
         ],

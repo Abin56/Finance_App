@@ -40,7 +40,8 @@ abstract class LearningConfidence {
   static double compute({
     required LearnedField<Object?> field,
     required DateTime now,
-    LearningConfidenceThresholds thresholds = const LearningConfidenceThresholds(),
+    LearningConfidenceThresholds thresholds =
+        const LearningConfidenceThresholds(),
   }) {
     if (!field.hasValue) return 0.0;
 
@@ -52,7 +53,8 @@ abstract class LearningConfidence {
         : (field.confirmations / total) * _sourceWeight(field.source);
 
     final lastUpdatedAt = field.lastUpdatedAt;
-    if (lastUpdatedAt != null && now.difference(lastUpdatedAt) > thresholds.staleAfter) {
+    if (lastUpdatedAt != null &&
+        now.difference(lastUpdatedAt) > thresholds.staleAfter) {
       base *= 0.6;
     }
 

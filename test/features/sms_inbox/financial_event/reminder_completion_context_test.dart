@@ -26,7 +26,9 @@ void main() {
   });
 
   test('3. pure due-date reminder must be reminder', () {
-    final v = detector.detect('Payment due date for your credit card is 12 Sep.');
+    final v = detector.detect(
+      'Payment due date for your credit card is 12 Sep.',
+    );
     expect(v.isReminder, isTrue);
   });
 
@@ -40,12 +42,15 @@ void main() {
     },
   );
 
-  test('5. completed payment + "next payment" phrase must detect the reminder aspect', () {
-    final v = detector.detect(
-      'Your EMI of Rs.5000 was paid successfully. Your next EMI is due on 5th Oct.',
-    );
-    expect(v.isReminder, isTrue);
-  });
+  test(
+    '5. completed payment + "next payment" phrase must detect the reminder aspect',
+    () {
+      final v = detector.detect(
+        'Your EMI of Rs.5000 was paid successfully. Your next EMI is due on 5th Oct.',
+      );
+      expect(v.isReminder, isTrue);
+    },
+  );
 
   test(
     '6. completed payment + subscription renewal mention must detect the reminder aspect',

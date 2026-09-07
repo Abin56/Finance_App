@@ -26,7 +26,10 @@ void main() {
         ReferenceNormalizer.matches('UPI Ref 123456789012', '123-456-789012'),
         isFalse, // "UPI Ref " text itself is not stripped -- only punctuation/case, by design (see class doc).
       );
-      expect(ReferenceNormalizer.matches('123-456-789012', '123456789012'), isTrue);
+      expect(
+        ReferenceNormalizer.matches('123-456-789012', '123456789012'),
+        isTrue,
+      );
       expect(ReferenceNormalizer.matches('utr999', 'UTR999'), isTrue);
     });
 

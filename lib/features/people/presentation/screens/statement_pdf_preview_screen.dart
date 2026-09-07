@@ -35,10 +35,15 @@ class StatementPdfPreviewScreen extends StatelessWidget {
       expenseStats: expenseStats,
       filterDescription: filterDescription,
       openingBalanceForRange: openingBalanceForRange,
-      currentUserName: authorNameFromEmail(currentUserEmail, displayName: currentUserDisplayName),
+      currentUserName: authorNameFromEmail(
+        currentUserEmail,
+        displayName: currentUserDisplayName,
+      ),
     );
     return Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => StatementPdfPreviewScreen(model: model)),
+      MaterialPageRoute(
+        builder: (_) => StatementPdfPreviewScreen(model: model),
+      ),
     );
   }
 

@@ -143,7 +143,13 @@ class ReceiptClassificationRouter {
 
     switch (purpose.targetKind) {
       case ReceiptTargetKind.person:
-        await _postLedgerEntry(target.person!, amount, date, note, transaction.id);
+        await _postLedgerEntry(
+          target.person!,
+          amount,
+          date,
+          note,
+          transaction.id,
+        );
 
       case ReceiptTargetKind.loanInstallment:
       case ReceiptTargetKind.emiInstallment:
@@ -154,7 +160,13 @@ class ReceiptClassificationRouter {
           note: note,
         );
         if (target.loan != null && target.person != null) {
-          await _postLedgerEntry(target.person!, amount, date, note, transaction.id);
+          await _postLedgerEntry(
+            target.person!,
+            amount,
+            date,
+            note,
+            transaction.id,
+          );
         }
 
       case ReceiptTargetKind.savingsGoal:
@@ -195,26 +207,44 @@ class ReceiptClassificationRouter {
     );
   }
 
-  void _validateTarget(ReceiptPurpose purpose, ReceiptClassificationTarget target) {
+  void _validateTarget(
+    ReceiptPurpose purpose,
+    ReceiptClassificationTarget target,
+  ) {
     switch (purpose.targetKind) {
       case ReceiptTargetKind.person:
         if (target.person == null) {
-          throw AppException('${purpose.label} needs a person to record it against');
+          throw AppException(
+            '${purpose.label} needs a person to record it against',
+          );
         }
       case ReceiptTargetKind.loanInstallment:
-        if (target.loan == null || target.installment == null || target.installmentPaymentRepository == null) {
-          throw AppException('${purpose.label} needs a loan and a payment to record it against');
+        if (target.loan == null ||
+            target.installment == null ||
+            target.installmentPaymentRepository == null) {
+          throw AppException(
+            '${purpose.label} needs a loan and a payment to record it against',
+          );
         }
-        if (target.loan!.category == LoanCategory.personal && target.person == null) {
-          throw AppException('${purpose.label} needs the loan\'s person to update their amount left');
+        if (target.loan!.category == LoanCategory.personal &&
+            target.person == null) {
+          throw AppException(
+            '${purpose.label} needs the loan\'s person to update their amount left',
+          );
         }
       case ReceiptTargetKind.emiInstallment:
-        if (target.emi == null || target.installment == null || target.installmentPaymentRepository == null) {
-          throw AppException('${purpose.label} needs an EMI and a payment to record it against');
+        if (target.emi == null ||
+            target.installment == null ||
+            target.installmentPaymentRepository == null) {
+          throw AppException(
+            '${purpose.label} needs an EMI and a payment to record it against',
+          );
         }
       case ReceiptTargetKind.savingsGoal:
         if (target.savingsGoal == null || target.savingsRepository == null) {
-          throw AppException('${purpose.label} needs a savings goal to record it against');
+          throw AppException(
+            '${purpose.label} needs a savings goal to record it against',
+          );
         }
       case ReceiptTargetKind.splitExpenseParticipant:
         if (target.expense == null ||
@@ -222,7 +252,9 @@ class ReceiptClassificationRouter {
             target.installment == null ||
             target.installmentPaymentRepository == null ||
             target.expenseRepository == null) {
-          throw AppException('${purpose.label} needs a shared expense and person to record it against');
+          throw AppException(
+            '${purpose.label} needs a shared expense and person to record it against',
+          );
         }
       case ReceiptTargetKind.none:
         break;

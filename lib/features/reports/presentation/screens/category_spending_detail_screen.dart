@@ -23,22 +23,30 @@ import '../widgets/reports_period_chips.dart';
 /// total/average/peak-day summary. Mirrors the Figma "Spending by Category"
 /// screen.
 class CategorySpendingDetailScreen extends ConsumerStatefulWidget {
-  const CategorySpendingDetailScreen({super.key, required this.categoryId, this.initialPeriod});
+  const CategorySpendingDetailScreen({
+    super.key,
+    required this.categoryId,
+    this.initialPeriod,
+  });
 
   final String categoryId;
   final ReportsPeriod? initialPeriod;
 
   @override
-  ConsumerState<CategorySpendingDetailScreen> createState() => _CategorySpendingDetailScreenState();
+  ConsumerState<CategorySpendingDetailScreen> createState() =>
+      _CategorySpendingDetailScreenState();
 }
 
-class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingDetailScreen> {
+class _CategorySpendingDetailScreenState
+    extends ConsumerState<CategorySpendingDetailScreen> {
   late ReportsPeriod _period = widget.initialPeriod ?? ReportsPeriod.thisMonth;
 
   @override
   Widget build(BuildContext context) {
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
-    final category = categories.where((c) => c.id == widget.categoryId).firstOrNull;
+    final category = categories
+        .where((c) => c.id == widget.categoryId)
+        .firstOrNull;
     final allTransactions = ref.watch(calculableTransactionsProvider);
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final accountsById = {for (final a in accounts) a.id: a};
@@ -64,16 +72,30 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
     // the trend chart, and the highest-spending-day stat can never
     // silently disagree about which transactions are "in period".
     final periodExpenses = allTransactions
-        .where((t) => t.type == TransactionType.expense && range.contains(_period.reportDateFor(t)))
+        .where(
+          (t) =>
+              t.type == TransactionType.expense &&
+              range.contains(_period.reportDateFor(t)),
+        )
         .toList();
-    final categoryTransactions = periodExpenses.where((t) => t.categoryId == category.id).toList()
-      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    final categoryTransactions =
+        periodExpenses.where((t) => t.categoryId == category.id).toList()
+          ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
-    final totalAllCategories = periodExpenses.fold(0.0, (sum, t) => sum + t.amount);
-    final categoryTotal = categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
-    final percentOfTotal = totalAllCategories == 0 ? 0.0 : categoryTotal / totalAllCategories;
+    final totalAllCategories = periodExpenses.fold(
+      0.0,
+      (sum, t) => sum + t.amount,
+    );
+    final categoryTotal = categoryTransactions.fold(
+      0.0,
+      (sum, t) => sum + t.amount,
+    );
+    final percentOfTotal = totalAllCategories == 0
+        ? 0.0
+        : categoryTotal / totalAllCategories;
 
-    final daysInRange = range.end.dateOnly.difference(range.start.dateOnly).inDays + 1;
+    final daysInRange =
+        range.end.dateOnly.difference(range.start.dateOnly).inDays + 1;
     final averagePerDay = daysInRange == 0 ? 0.0 : categoryTotal / daysInRange;
 
     DateTime? highestDay;
@@ -96,46 +118,57 @@ class _CategorySpendingDetailScreenState extends ConsumerState<CategorySpendingD
       appBar: AppBar(title: const Text('Spending by Category')),
       body: SafeArea(
         child: ListView(
-        padding: const EdgeInsets.all(AppSizes.lg),
-        children: [
-          CategorySpendingHeader(category: category, total: categoryTotal, percentOfTotal: percentOfTotal),
-          const SizedBox(height: AppSizes.lg),
-          ReportsPeriodChips(selected: _period, onChanged: (p) => setState(() => _period = p)),
-          const SizedBox(height: AppSizes.lg),
-          CategorySpendingTrendChart(
-            periodStart: range.start,
-            periodEnd: range.end,
-            transactions: categoryTransactions,
-            color: color,
-            period: _period,
-          ),
-          const SizedBox(height: AppSizes.lg),
-          SectionHeader(title: 'Transactions (${categoryTransactions.length})'),
-          if (categoryTransactions.isEmpty)
-            const EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'No transactions',
-              subtitle: 'Expenses in this category will show up here.',
-            )
-          else
-            for (final transaction in categoryTransactions)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                child: TransactionTile(
-                  transaction: transaction,
-                  category: category,
-                  account: accountsById[transaction.accountId],
-                  onTap: () => context.push('${AppRoutes.transactions}/${transaction.id}'),
+          padding: const EdgeInsets.all(AppSizes.lg),
+          children: [
+            CategorySpendingHeader(
+              category: category,
+              total: categoryTotal,
+              percentOfTotal: percentOfTotal,
+            ),
+            const SizedBox(height: AppSizes.lg),
+            ReportsPeriodChips(
+              selected: _period,
+              onChanged: (p) => setState(() => _period = p),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            CategorySpendingTrendChart(
+              periodStart: range.start,
+              periodEnd: range.end,
+              transactions: categoryTransactions,
+              color: color,
+              period: _period,
+            ),
+            const SizedBox(height: AppSizes.lg),
+            SectionHeader(
+              title: 'Transactions (${categoryTransactions.length})',
+            ),
+            if (categoryTransactions.isEmpty)
+              const EmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'No transactions',
+                subtitle: 'Expenses in this category will show up here.',
+              )
+            else
+              for (final transaction in categoryTransactions)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                  child: TransactionTile(
+                    transaction: transaction,
+                    category: category,
+                    account: accountsById[transaction.accountId],
+                    onTap: () => context.push(
+                      '${AppRoutes.transactions}/${transaction.id}',
+                    ),
+                  ),
                 ),
-              ),
-          const SizedBox(height: AppSizes.lg),
-          CategorySummaryBlock(
-            total: categoryTotal,
-            averagePerDay: averagePerDay,
-            highestSpendingDay: highestDay,
-            highestSpendingAmount: highestAmount,
-          ),
-        ],
+            const SizedBox(height: AppSizes.lg),
+            CategorySummaryBlock(
+              total: categoryTotal,
+              averagePerDay: averagePerDay,
+              highestSpendingDay: highestDay,
+              highestSpendingAmount: highestAmount,
+            ),
+          ],
         ),
       ),
     );

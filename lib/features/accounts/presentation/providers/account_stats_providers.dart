@@ -19,8 +19,13 @@ import '../../domain/account_stats.dart';
 /// engine expose a reliable account-scoped summary of their own; the UI
 /// renders whatever fields [AccountStats] carries, so no screen change is
 /// needed when that lands.
-final accountStatsProvider = Provider.autoDispose.family<AccountStats, String>((ref, accountId) {
-  final transactions = ref.watch(calculableTransactionsProvider).where((t) => t.accountId == accountId);
+final accountStatsProvider = Provider.autoDispose.family<AccountStats, String>((
+  ref,
+  accountId,
+) {
+  final transactions = ref
+      .watch(calculableTransactionsProvider)
+      .where((t) => t.accountId == accountId);
 
   var income = 0.0;
   var expense = 0.0;

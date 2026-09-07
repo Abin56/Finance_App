@@ -114,7 +114,9 @@ Closing Balance: Rs. 48,930.50
       // than being silently discarded or misread as transactions.
       expect(afterAnalyze.detected, hasLength(6));
 
-      final swiggy = afterAnalyze.detected.firstWhere((d) => d.rawDescription == 'Swiggy');
+      final swiggy = afterAnalyze.detected.firstWhere(
+        (d) => d.rawDescription == 'Swiggy',
+      );
       final amazon = afterAnalyze.detected.firstWhere(
         (d) => d.rawDescription!.contains('Amazon'),
       );
@@ -125,13 +127,17 @@ Closing Balance: Rs. 48,930.50
         (d) => d.rawDescription!.contains('Unknown Merchant'),
       );
       final noiseIds = afterAnalyze.detected
-          .where((d) => ![swiggy.id, amazon.id, salary.id, ambiguous.id].contains(d.id))
+          .where(
+            (d) =>
+                ![swiggy.id, amazon.id, salary.id, ambiguous.id].contains(d.id),
+          )
           .map((d) => d.id)
           .toList();
       expect(
         noiseIds,
         hasLength(2),
-        reason: 'the "Statement Period…" header and "Closing Balance…" footer lines',
+        reason:
+            'the "Statement Period…" header and "Closing Balance…" footer lines',
       );
 
       expect(swiggy.amount, 420.0);
@@ -164,18 +170,25 @@ Closing Balance: Rs. 48,930.50
       expect(
         afterEdit.detected.firstWhere((d) => d.id == swiggy.id).categoryId,
         shoppingCategory.id,
-        reason: 'the manual override must stick — not the auto-suggested Food & Dining',
+        reason:
+            'the manual override must stick — not the auto-suggested Food & Dining',
       );
 
       // Step 5: select/deselect-all behaves the same as Screenshot Import's.
       controller.deselectAll();
       expect(
-        container.read(pasteImportControllerProvider).detected.every((d) => !d.isSelected),
+        container
+            .read(pasteImportControllerProvider)
+            .detected
+            .every((d) => !d.isSelected),
         isTrue,
       );
       controller.selectAll();
       expect(
-        container.read(pasteImportControllerProvider).detected.every((d) => d.isSelected),
+        container
+            .read(pasteImportControllerProvider)
+            .detected
+            .every((d) => d.isSelected),
         isTrue,
       );
       // The ambiguous, incomplete row and the header/footer noise are
@@ -190,7 +203,9 @@ Closing Balance: Rs. 48,930.50
 
       // Step 6: an existing transaction that matches a pasted row must be
       // flagged as a possible duplicate, not silently re-imported.
-      await container.read(transactionRepositoryProvider).createTransaction(
+      await container
+          .read(transactionRepositoryProvider)
+          .createTransaction(
             type: TransactionType.expense,
             amount: 420,
             dateTime: DateTime(2026, 9, 5),
@@ -201,12 +216,15 @@ Closing Balance: Rs. 48,930.50
       await container.read(transactionsStreamProvider.future);
       controller.setAccount(account.id); // re-triggers the duplicate check
       final afterDuplicateCheck = container.read(pasteImportControllerProvider);
-      final swiggyRow = afterDuplicateCheck.detected.firstWhere((d) => d.id == swiggy.id);
+      final swiggyRow = afterDuplicateCheck.detected.firstWhere(
+        (d) => d.id == swiggy.id,
+      );
       expect(swiggyRow.isDuplicate, isTrue);
       expect(
         swiggyRow.isSelected,
         isFalse,
-        reason: 'a freshly-flagged duplicate is unchecked until the user overrides it',
+        reason:
+            'a freshly-flagged duplicate is unchecked until the user overrides it',
       );
 
       // Step 7: import. Only Amazon and Salary should actually get written —
@@ -228,7 +246,9 @@ Closing Balance: Rs. 48,930.50
         reason: 'every row this controller wrote must carry source "paste"',
       );
 
-      final amazonTxn = saved.firstWhere((t) => t.description.contains('Amazon'));
+      final amazonTxn = saved.firstWhere(
+        (t) => t.description.contains('Amazon'),
+      );
       expect(amazonTxn.amount, 1299.0);
       expect(amazonTxn.dateTime, DateTime(2026, 9, 6));
       expect(amazonTxn.type, TransactionType.expense);
@@ -236,10 +256,13 @@ Closing Balance: Rs. 48,930.50
       expect(
         amazonTxn.categoryId,
         shoppingCategory.id,
-        reason: 'the manual category edit from step 4 must be what actually got saved',
+        reason:
+            'the manual category edit from step 4 must be what actually got saved',
       );
 
-      final salaryTxn = saved.firstWhere((t) => t.description.contains('Salary'));
+      final salaryTxn = saved.firstWhere(
+        (t) => t.description.contains('Salary'),
+      );
       expect(salaryTxn.amount, 50000.0);
       expect(salaryTxn.type, TransactionType.income);
 
@@ -252,7 +275,9 @@ Closing Balance: Rs. 48,930.50
 
       // Step 8: existing transactions must not be modified by the import —
       // the pre-existing Swiggy row is untouched.
-      final untouchedSwiggy = saved.firstWhere((t) => t.description == 'Swiggy');
+      final untouchedSwiggy = saved.firstWhere(
+        (t) => t.description == 'Swiggy',
+      );
       expect(untouchedSwiggy.amount, 420);
       expect(untouchedSwiggy.categoryId, foodCategory.id);
 

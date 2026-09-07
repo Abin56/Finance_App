@@ -8,7 +8,8 @@ import '../../../core/payment_schedule/domain/installment_status.dart';
 /// as "Unpaid" than "Upcoming"; every other month it stays "Upcoming". No
 /// change to the underlying enum or its derivation.
 String emiInstallmentStatusLabel(InstallmentStatus status, DateTime dueDate) {
-  if (status == InstallmentStatus.upcoming && dueDate.isSameMonth(DateTime.now())) {
+  if (status == InstallmentStatus.upcoming &&
+      dueDate.isSameMonth(DateTime.now())) {
     return 'Unpaid';
   }
   return status.label;

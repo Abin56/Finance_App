@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/bank_logo.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../../shared/widgets/dialogs/destructive_delete_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../credit_cards/data/credit_card_deletion_service.dart';
@@ -29,69 +30,86 @@ class AccountsTrashScreen extends ConsumerWidget {
     final trashAsync = ref.watch(accountsTrashStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
-      appBar: AppBar(
-        backgroundColor: AppClay.background(context),
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Trash'),
-      ),
-      body: SafeArea(child: trashAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (trashed) {
-          if (trashed.isEmpty) {
-            return const EmptyState(
-              icon: Icons.delete_outline_rounded,
-              title: 'Trash is empty',
-              subtitle: 'Deleted accounts will appear here until you restore or remove them.',
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            itemCount: trashed.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
-            itemBuilder: (context, index) {
-              final account = trashed[index];
-              return ClayCard(
-                child: Row(
-                  children: [
-                    account.type == AccountType.bank || account.type == AccountType.card
-                        ? BankLogo(bankId: account.bankId, fallbackName: account.name, size: 36)
-                        : ClayIconChip(icon: account.type.icon, color: AppClay.primary, size: 36, iconSize: 18),
-                    const SizedBox(width: AppSizes.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(account.name, style: context.textTheme.titleMedium),
-                          Text(
-                            'Deleted ${account.deletedAt!.toLocal()}'.split('.').first,
-                            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ClayIconButton(
-                      icon: Icons.restore_rounded,
-                      tooltip: 'Restore',
-                      onPressed: () => ref.read(accountRepositoryProvider).restore(account),
-                    ),
-                    const SizedBox(width: AppSizes.xs),
-                    ClayIconButton(
-                      icon: Icons.delete_forever_rounded,
-                      color: AppClay.danger,
-                      tooltip: 'Delete forever',
-                      onPressed: () => _confirmPermanentDelete(context, ref, account),
-                    ),
-                  ],
-                ),
+      appBar: AppBar(title: const Text('Trash')),
+      body: SafeArea(
+        child: trashAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Something went wrong: $error')),
+          data: (trashed) {
+            if (trashed.isEmpty) {
+              return const EmptyState(
+                icon: Icons.delete_outline_rounded,
+                title: 'Trash is empty',
+                subtitle:
+                    'Deleted accounts will appear here until you restore or remove them.',
               );
-            },
-          );
-        },
-      )),
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(AppSizes.lg),
+              itemCount: trashed.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
+              itemBuilder: (context, index) {
+                final account = trashed[index];
+                return FlowFiCard(
+                  child: Row(
+                    children: [
+                      account.type == AccountType.bank ||
+                              account.type == AccountType.card
+                          ? BankLogo(
+                              bankId: account.bankId,
+                              fallbackName: account.name,
+                              size: 36,
+                            )
+                          : FlowFiIconChip(
+                              icon: account.type.icon,
+                              color: Color(account.colorValue),
+                              size: 36,
+                            ),
+                      const SizedBox(width: AppSizes.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              account.name,
+                              style: context.textTheme.titleMedium,
+                            ),
+                            Text(
+                              'Deleted ${account.deletedAt!.toLocal()}'
+                                  .split('.')
+                                  .first,
+                              style: context.textTheme.bodySmall?.copyWith(
+                                color: context.colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.restore_rounded),
+                        tooltip: 'Restore',
+                        onPressed: () => ref
+                            .read(accountRepositoryProvider)
+                            .restore(account),
+                      ),
+                      const SizedBox(width: AppSizes.xs),
+                      IconButton(
+                        icon: const Icon(Icons.delete_forever_rounded),
+                        color: AppColors.error,
+                        tooltip: 'Delete forever',
+                        onPressed: () =>
+                            _confirmPermanentDelete(context, ref, account),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -102,11 +120,16 @@ class AccountsTrashScreen extends ConsumerWidget {
   /// `credit_cards_screen.dart`'s own "Delete card" soft-delete action is
   /// untouched by this — this is only the "permanently delete from Trash"
   /// moment.
-  Future<void> _confirmPermanentDelete(BuildContext context, WidgetRef ref, Account account) async {
+  Future<void> _confirmPermanentDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Account account,
+  ) async {
     final creditCardRepository = ref.read(creditCardRepositoryProvider);
-    final linkedCard = [...await creditCardRepository.getAll(), ...await creditCardRepository.getTrash()]
-        .where((c) => c.accountId == account.id)
-        .firstOrNull;
+    final linkedCard = [
+      ...await creditCardRepository.getAll(),
+      ...await creditCardRepository.getTrash(),
+    ].where((c) => c.accountId == account.id).firstOrNull;
 
     if (!context.mounted) return;
 
@@ -117,7 +140,8 @@ class AccountsTrashScreen extends ConsumerWidget {
         entityLabel: 'credit card',
         entityName: account.name,
         loadImpact: () => _creditCardImpactRows(linkedCard, repos),
-        onConfirm: () => permanentlyDeleteCreditCardAndHistory(linkedCard, repos),
+        onConfirm: () =>
+            permanentlyDeleteCreditCardAndHistory(linkedCard, repos),
       );
       return;
     }
@@ -150,27 +174,43 @@ class AccountsTrashScreen extends ConsumerWidget {
     final impact = await previewCreditCardDeletionImpact(card, repos);
     return [
       ..._impactRowsFor(impact.accountImpact),
-      DestructiveDeleteImpactRow(label: '${impact.emiCount} linked EMI(s)', count: impact.emiCount),
-      DestructiveDeleteImpactRow(label: '${impact.statementCount} statement(s)', count: impact.statementCount),
       DestructiveDeleteImpactRow(
-        label: 'Shared credit limit will also be removed (no other card uses it)',
+        label: '${impact.emiCount} linked EMI(s)',
+        count: impact.emiCount,
+      ),
+      DestructiveDeleteImpactRow(
+        label: '${impact.statementCount} statement(s)',
+        count: impact.statementCount,
+      ),
+      DestructiveDeleteImpactRow(
+        label:
+            'Shared credit limit will also be removed (no other card uses it)',
         count: impact.sharedLimitWillBeRemoved ? 1 : 0,
       ),
     ];
   }
 
-  List<DestructiveDeleteImpactRow> _impactRowsFor(AccountDeletionImpact impact) {
+  List<DestructiveDeleteImpactRow> _impactRowsFor(
+    AccountDeletionImpact impact,
+  ) {
     return [
-      DestructiveDeleteImpactRow(label: '${impact.transactionCount} transaction(s)', count: impact.transactionCount),
+      DestructiveDeleteImpactRow(
+        label: '${impact.transactionCount} transaction(s)',
+        count: impact.transactionCount,
+      ),
       DestructiveDeleteImpactRow(
         label: '${impact.expenseCount} shared/assigned expense(s)',
         count: impact.expenseCount,
       ),
       DestructiveDeleteImpactRow(
-        label: "${impact.affectedPersonCount} person's balance will be recalculated",
+        label:
+            "${impact.affectedPersonCount} person's balance will be recalculated",
         count: impact.affectedPersonCount,
       ),
-      DestructiveDeleteImpactRow(label: '${impact.billCount} bill(s) paying from this account', count: impact.billCount),
+      DestructiveDeleteImpactRow(
+        label: '${impact.billCount} bill(s) paying from this account',
+        count: impact.billCount,
+      ),
     ];
   }
 }

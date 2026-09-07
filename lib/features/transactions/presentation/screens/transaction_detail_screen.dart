@@ -18,6 +18,7 @@ import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/expense_status_pill.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../../shared/widgets/states/transaction_flag_badge.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
@@ -60,7 +61,9 @@ class TransactionDetailScreen extends ConsumerWidget {
     }
 
     final transactions = transactionsAsync.value ?? const [];
-    final transaction = transactions.where((t) => t.id == transactionId).firstOrNull;
+    final transaction = transactions
+        .where((t) => t.id == transactionId)
+        .firstOrNull;
 
     if (transaction == null) {
       return Scaffold(
@@ -79,8 +82,12 @@ class TransactionDetailScreen extends ConsumerWidget {
 
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
-    final account = accounts.where((a) => a.id == transaction.accountId).firstOrNull;
-    final category = categories.where((c) => c.id == transaction.categoryId).firstOrNull;
+    final account = accounts
+        .where((a) => a.id == transaction.accountId)
+        .firstOrNull;
+    final category = categories
+        .where((c) => c.id == transaction.categoryId)
+        .firstOrNull;
     final expense = ref.watch(expenseForTransactionProvider(transactionId));
 
     /// Part 1/2 — an existing plain, unsplit, or single-assigned expense can
@@ -105,13 +112,15 @@ class TransactionDetailScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.person_add_alt_1_outlined),
               tooltip: 'Assign to person',
-              onPressed: () => _assignToPerson(context, ref, transaction, expense),
+              onPressed: () =>
+                  _assignToPerson(context, ref, transaction, expense),
             ),
           if (canReassign)
             IconButton(
               icon: const Icon(Icons.call_split_rounded),
               tooltip: 'Split this expense',
-              onPressed: () => _splitExpense(context, ref, transaction, expense),
+              onPressed: () =>
+                  _splitExpense(context, ref, transaction, expense),
             ),
           if (expense != null && expense.isSplit)
             IconButton(
@@ -122,57 +131,75 @@ class TransactionDetailScreen extends ConsumerWidget {
                 expense,
                 expense.scheduleId == null
                     ? const []
-                    : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [],
+                    : ref
+                              .watch(
+                                installmentsStreamProvider(expense.scheduleId!),
+                              )
+                              .value ??
+                          const [],
               ),
             ),
           if (expense == null || !expense.isSplit)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit transaction',
-              onPressed: () => AddExpenseScreen.show(context, transaction: transaction),
+              onPressed: () =>
+                  AddExpenseScreen.show(context, transaction: transaction),
             ),
         ],
       ),
-      body: SafeArea(child: ListView(
-        padding: const EdgeInsets.all(AppSizes.lg),
-        children: [
-          _TransactionHeroCard(transaction: transaction, accountName: account?.name, categoryName: category?.name),
-          if (canReassign) ...[
-            const SizedBox(height: AppSizes.lg),
-            _ConvertToSplitCard(
-              onAssign: () => _assignToPerson(context, ref, transaction, expense),
-              onSplit: () => _splitExpense(context, ref, transaction, expense),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(AppSizes.lg),
+          children: [
+            _TransactionHeroCard(
+              transaction: transaction,
+              accountName: account?.name,
+              categoryName: category?.name,
             ),
-          ] else if (transaction.type != TransactionType.expense) ...[
-            const SizedBox(height: AppSizes.lg),
-            const _ReassignUnavailableNotice(
-              reason: 'Only expenses can be assigned to a person or split — this is an income transaction.',
-            ),
-          ],
-          if (expense != null) ...[
-            const SizedBox(height: AppSizes.lg),
-            if (expense.isSplit) _AlreadyLinkedNotice(expense: expense),
-            if (expense.isSplit) const SizedBox(height: AppSizes.lg),
-            if (expense.isSplit) _OwesYouCallout(expense: expense),
-            if (expense.isSplit) const SizedBox(height: AppSizes.lg),
-            _SplitSummaryCard(expense: expense),
-            if (expense.isSplit) ...[
+            if (canReassign) ...[
               const SizedBox(height: AppSizes.lg),
-              _ExpenseActionsCard(expense: expense),
+              _ConvertToSplitCard(
+                onAssign: () =>
+                    _assignToPerson(context, ref, transaction, expense),
+                onSplit: () =>
+                    _splitExpense(context, ref, transaction, expense),
+              ),
+            ] else if (transaction.type != TransactionType.expense) ...[
+              const SizedBox(height: AppSizes.lg),
+              const _ReassignUnavailableNotice(
+                reason:
+                    'Only expenses can be assigned to a person or split — this is an income transaction.',
+              ),
             ],
-            const SizedBox(height: AppSizes.lg),
-            _ParticipantsSection(expense: expense),
-            const SizedBox(height: AppSizes.lg),
-            _SettlementHistorySection(expense: expense),
+            if (expense != null) ...[
+              const SizedBox(height: AppSizes.lg),
+              if (expense.isSplit) _AlreadyLinkedNotice(expense: expense),
+              if (expense.isSplit) const SizedBox(height: AppSizes.lg),
+              if (expense.isSplit) _OwesYouCallout(expense: expense),
+              if (expense.isSplit) const SizedBox(height: AppSizes.lg),
+              _SplitSummaryCard(expense: expense),
+              if (expense.isSplit) ...[
+                const SizedBox(height: AppSizes.lg),
+                _ExpenseActionsCard(expense: expense),
+              ],
+              const SizedBox(height: AppSizes.lg),
+              _ParticipantsSection(expense: expense),
+              const SizedBox(height: AppSizes.lg),
+              _SettlementHistorySection(expense: expense),
+            ],
           ],
-        ],
-      )),
+        ),
+      ),
     );
   }
 
-  ConvertToSplitPrefill _prefillFor(Transaction transaction) => ConvertToSplitPrefill(
+  ConvertToSplitPrefill _prefillFor(Transaction transaction) =>
+      ConvertToSplitPrefill(
         transactionId: transaction.id,
-        description: transaction.notes.isNotEmpty ? transaction.notes : 'Expense',
+        description: transaction.notes.isNotEmpty
+            ? transaction.notes
+            : 'Expense',
         totalAmount: transaction.amount,
         date: transaction.dateTime,
         categoryId: transaction.categoryId,
@@ -190,7 +217,12 @@ class TransactionDetailScreen extends ConsumerWidget {
   /// [ExpenseUpdatedDialog] afterward with the freshly-saved `Expense`, read
   /// via [ref] rather than reusing the (possibly now-stale) [existingExpense]
   /// closure value.
-  Future<void> _splitExpense(BuildContext context, WidgetRef ref, Transaction transaction, Expense? existingExpense) async {
+  Future<void> _splitExpense(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction,
+    Expense? existingExpense,
+  ) async {
     final result = await SplitExpenseFormSheet.show(
       context,
       convertFrom: _prefillFor(transaction),
@@ -205,7 +237,12 @@ class TransactionDetailScreen extends ConsumerWidget {
   /// an existing expense to a person" flow. Same prefill/existingExpense
   /// plumbing as [_splitExpense]; saving calls
   /// `ExpenseRepository.convertToAssigned` instead.
-  Future<void> _assignToPerson(BuildContext context, WidgetRef ref, Transaction transaction, Expense? existingExpense) async {
+  Future<void> _assignToPerson(
+    BuildContext context,
+    WidgetRef ref,
+    Transaction transaction,
+    Expense? existingExpense,
+  ) async {
     final result = await SplitExpenseFormSheet.show(
       context,
       convertFrom: _prefillFor(transaction),
@@ -238,14 +275,16 @@ class _ConvertToSplitCard extends StatelessWidget {
           _ReassignRow(
             icon: Icons.person_add_alt_1_outlined,
             title: 'Assign to person',
-            subtitle: 'This expense was really for someone else — assign it to them.',
+            subtitle:
+                'This expense was really for someone else — assign it to them.',
             onTap: onAssign,
           ),
           const Divider(height: AppSizes.lg),
           _ReassignRow(
             icon: Icons.call_split_rounded,
             title: 'Split this expense',
-            subtitle: 'Share this expense with others and track who still needs to pay.',
+            subtitle:
+                'Share this expense with others and track who still needs to pay.',
             onTap: onSplit,
           ),
         ],
@@ -274,12 +313,18 @@ class _ReassignUnavailableNotice extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.5)),
+          Icon(
+            Icons.info_outline_rounded,
+            size: AppSizes.iconSm,
+            color: context.colors.onSurface.withValues(alpha: 0.5),
+          ),
           const SizedBox(width: AppSizes.sm),
           Expanded(
             child: Text(
               reason,
-              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ),
         ],
@@ -314,12 +359,18 @@ class _AlreadyLinkedNotice extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+          Icon(
+            Icons.check_circle_outline_rounded,
+            size: AppSizes.iconSm,
+            color: context.colors.primary,
+          ),
           const SizedBox(width: AppSizes.sm),
           Expanded(
             child: Text(
               '$reason Use Edit Expense below to change the amount, participants, or shares.',
-              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.8)),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.8),
+              ),
             ),
           ),
         ],
@@ -347,8 +398,11 @@ class _OwesYouCallout extends ConsumerWidget {
 
     final installments = expense.scheduleId == null
         ? const <Installment>[]
-        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
-    final installment = installments.where((i) => i.id == other.installmentId).firstOrNull;
+        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+              const [];
+    final installment = installments
+        .where((i) => i.id == other.installmentId)
+        .firstOrNull;
     final remaining = installment?.remainingAmount ?? other.share;
     if (remaining <= 0) return const SizedBox.shrink();
 
@@ -362,11 +416,17 @@ class _OwesYouCallout extends ConsumerWidget {
         TextSpan(
           style: context.textTheme.bodyLarge,
           children: [
-            TextSpan(text: other.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+            TextSpan(
+              text: other.name,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
             const TextSpan(text: ' owes you '),
             TextSpan(
               text: CurrencyFormatter.instance.format(remaining),
-              style: TextStyle(fontWeight: FontWeight.w700, color: context.colors.primary),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: context.colors.primary,
+              ),
             ),
           ],
         ),
@@ -391,17 +451,26 @@ class _ExpenseActionsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final installments = expense.scheduleId == null
         ? const <Installment>[]
-        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
+        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+              const [];
     final installmentById = {for (final i in installments) i.id: i};
-    final collectible = expense.participants.where((p) => !p.isMe && p.installmentId != null).toList();
+    final collectible = expense.participants
+        .where((p) => !p.isMe && p.installmentId != null)
+        .toList();
     final single = collectible.length == 1 ? collectible.single : null;
-    final singleInstallment = single == null ? null : installmentById[single.installmentId];
-    final canCollect = singleInstallment != null && singleInstallment.remainingAmount > 0;
+    final singleInstallment = single == null
+        ? null
+        : installmentById[single.installmentId];
+    final canCollect =
+        singleInstallment != null && singleInstallment.remainingAmount > 0;
 
     Future<void> showUpdatedDialog() async {
       if (!context.mounted) return;
-      final refreshed = ref.read(expenseForTransactionProvider(expense.transactionId));
-      if (refreshed != null) await ExpenseUpdatedDialog.show(context, expense: refreshed);
+      final refreshed = ref.read(
+        expenseForTransactionProvider(expense.transactionId),
+      );
+      if (refreshed != null)
+        await ExpenseUpdatedDialog.show(context, expense: refreshed);
     }
 
     return AppCard(
@@ -414,7 +483,11 @@ class _ExpenseActionsCard extends ConsumerWidget {
             icon: Icons.edit_outlined,
             title: 'Edit Expense',
             onTap: () async {
-              final result = await SplitExpenseFormSheet.show(context, editing: expense, assignOnly: collectible.length == 1);
+              final result = await SplitExpenseFormSheet.show(
+                context,
+                editing: expense,
+                assignOnly: collectible.length == 1,
+              );
               if (result == true) await showUpdatedDialog();
             },
           ),
@@ -493,27 +566,32 @@ class _ActionRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
-            child: Icon(icon, color: color, size: AppSizes.iconSm),
-          ),
+          FlowFiIconChip(icon: icon, color: color, size: 40),
           const SizedBox(width: AppSizes.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: context.textTheme.titleMedium?.copyWith(color: destructive ? color : null)),
+                Text(
+                  title,
+                  style: context.textTheme.titleMedium?.copyWith(
+                    color: destructive ? color : null,
+                  ),
+                ),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: context.colors.onSurface.withValues(alpha: 0.4),
+          ),
         ],
       ),
     );
@@ -521,7 +599,12 @@ class _ActionRow extends StatelessWidget {
 }
 
 class _ReassignRow extends StatelessWidget {
-  const _ReassignRow({required this.icon, required this.title, required this.subtitle, required this.onTap});
+  const _ReassignRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String title;
@@ -535,15 +618,7 @@ class _ReassignRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       child: Row(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: context.colors.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-            ),
-            child: Icon(icon, color: context.colors.primary, size: AppSizes.iconSm),
-          ),
+          FlowFiIconChip(icon: icon, color: context.colors.primary, size: 40),
           const SizedBox(width: AppSizes.md),
           Expanded(
             child: Column(
@@ -559,7 +634,10 @@ class _ReassignRow extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: context.colors.onSurface.withValues(alpha: 0.4),
+          ),
         ],
       ),
     );
@@ -571,7 +649,11 @@ class _ReassignRow extends StatelessWidget {
 /// icon-led grid of its supporting facts (date/account/category/note)
 /// instead of a plain label:value list.
 class _TransactionHeroCard extends ConsumerWidget {
-  const _TransactionHeroCard({required this.transaction, required this.accountName, required this.categoryName});
+  const _TransactionHeroCard({
+    required this.transaction,
+    required this.accountName,
+    required this.categoryName,
+  });
 
   final Transaction transaction;
   final String? accountName;
@@ -586,9 +668,9 @@ class _TransactionHeroCard extends ConsumerWidget {
     final linkedPersonName = linkedPersonId == null
         ? null
         : (ref.watch(peopleStreamProvider).value ?? const [])
-            .where((p) => p.id == linkedPersonId)
-            .firstOrNull
-            ?.name;
+              .where((p) => p.id == linkedPersonId)
+              .firstOrNull
+              ?.name;
 
     return AppCard(
       child: Column(
@@ -596,11 +678,11 @@ class _TransactionHeroCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-                child: Icon(transaction.type.icon, color: color, size: AppSizes.iconMd),
+              FlowFiIconChip(
+                icon: transaction.type.icon,
+                color: color,
+                size: 48,
+                iconSize: AppSizes.iconMd,
               ),
               const SizedBox(width: AppSizes.md),
               Expanded(
@@ -615,14 +697,18 @@ class _TransactionHeroCard extends ConsumerWidget {
                     ),
                     Text(
                       '$sign${CurrencyFormatter.instance.format(transaction.amount)}',
-                      style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+                      style: context.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          if (transaction.excludeFromCalculations || transaction.accountingMonth != null) ...[
+          if (transaction.excludeFromCalculations ||
+              transaction.accountingMonth != null) ...[
             const SizedBox(height: AppSizes.sm),
             TransactionFlagBadge(
               excludeFromCalculations: transaction.excludeFromCalculations,
@@ -633,7 +719,11 @@ class _TransactionHeroCard extends ConsumerWidget {
           const SizedBox(height: AppSizes.lg),
           const Divider(height: 1),
           const SizedBox(height: AppSizes.lg),
-          _DetailGridRow(icon: Icons.event_outlined, label: 'Transaction Date', value: transaction.dateTime.fullDate),
+          _DetailGridRow(
+            icon: Icons.event_outlined,
+            label: 'Transaction Date',
+            value: transaction.dateTime.fullDate,
+          ),
           if (transaction.accountingMonth != null)
             _DetailGridRow(
               icon: Icons.calendar_month_outlined,
@@ -657,10 +747,17 @@ class _TransactionHeroCard extends ConsumerWidget {
               label: 'Person',
               value: linkedPersonName,
               isLast: transaction.notes.isEmpty,
-              onTap: () => context.push('${AppRoutes.people}/${transaction.linkedPersonId}'),
+              onTap: () => context.push(
+                '${AppRoutes.people}/${transaction.linkedPersonId}',
+              ),
             ),
           if (transaction.notes.isNotEmpty)
-            _DetailGridRow(icon: Icons.notes_rounded, label: 'Note', value: transaction.notes, isLast: true),
+            _DetailGridRow(
+              icon: Icons.notes_rounded,
+              label: 'Note',
+              value: transaction.notes,
+              isLast: true,
+            ),
         ],
       ),
     );
@@ -692,11 +789,17 @@ class _DetailGridRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.45)),
+          Icon(
+            icon,
+            size: AppSizes.iconSm,
+            color: context.colors.onSurface.withValues(alpha: 0.45),
+          ),
           const SizedBox(width: AppSizes.sm),
           Text(
             label,
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           const Spacer(),
           Flexible(
@@ -711,14 +814,22 @@ class _DetailGridRow extends StatelessWidget {
           ),
           if (onTap != null) ...[
             const SizedBox(width: 2),
-            Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: AppSizes.iconSm,
+              color: context.colors.primary,
+            ),
           ],
         ],
       ),
     );
 
     if (onTap == null) return row;
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(AppSizes.radiusMd), child: row);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      child: row,
+    );
   }
 }
 
@@ -735,15 +846,20 @@ class _SplitSummaryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final installments = expense.scheduleId == null
         ? const <Installment>[]
-        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
+        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+              const [];
 
     final collected = installments.fold(0.0, (sum, i) => sum + i.amountPaid);
-    final remaining = installments.fold(0.0, (sum, i) => sum + i.remainingAmount);
-    final progress = expense.totalAmount <= 0 ? 0.0 : (collected / expense.totalAmount).clampedProgress;
-    final detail = HistoryBuilder.splitExpenseDetailFor(
-      expense,
-      {if (expense.scheduleId != null) expense.scheduleId!: installments},
+    final remaining = installments.fold(
+      0.0,
+      (sum, i) => sum + i.remainingAmount,
     );
+    final progress = expense.totalAmount <= 0
+        ? 0.0
+        : (collected / expense.totalAmount).clampedProgress;
+    final detail = HistoryBuilder.splitExpenseDetailFor(expense, {
+      if (expense.scheduleId != null) expense.scheduleId!: installments,
+    });
 
     return AppCard(
       child: Column(
@@ -757,12 +873,17 @@ class _SplitSummaryCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      expense.participants.length == 1 ? 'This Person Will Pay' : 'Share Expense',
+                      expense.participants.length == 1
+                          ? 'This Person Will Pay'
+                          : 'Share Expense',
                       style: context.textTheme.bodySmall?.copyWith(
                         color: context.colors.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
-                    Text(expense.description, style: context.textTheme.titleLarge),
+                    Text(
+                      expense.description,
+                      style: context.textTheme.titleLarge,
+                    ),
                   ],
                 ),
               ),
@@ -772,21 +893,36 @@ class _SplitSummaryCard extends ConsumerWidget {
           const SizedBox(height: AppSizes.xs),
           Text(
             'Paid by you',
-            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.5),
+            ),
           ),
           const SizedBox(height: AppSizes.lg),
-          ProgressBar(progress: progress, label: 'Paid · ${progress.asPercent}'),
+          ProgressBar(
+            progress: progress,
+            label: 'Paid · ${progress.asPercent}',
+          ),
           const SizedBox(height: AppSizes.lg),
           Row(
             children: [
-              Expanded(child: _SummaryStat(label: 'Total', value: expense.totalAmount)),
-              _SummaryStatDivider(),
               Expanded(
-                child: _SummaryStat(label: 'Received', value: collected, color: AppColors.success),
+                child: _SummaryStat(label: 'Total', value: expense.totalAmount),
               ),
               _SummaryStatDivider(),
               Expanded(
-                child: _SummaryStat(label: 'Amount Left', value: remaining, color: remaining > 0 ? AppColors.pending : null),
+                child: _SummaryStat(
+                  label: 'Received',
+                  value: collected,
+                  color: AppColors.success,
+                ),
+              ),
+              _SummaryStatDivider(),
+              Expanded(
+                child: _SummaryStat(
+                  label: 'Amount Left',
+                  value: remaining,
+                  color: remaining > 0 ? AppColors.pending : null,
+                ),
               ),
             ],
           ),
@@ -795,9 +931,16 @@ class _SplitSummaryCard extends ConsumerWidget {
           const SizedBox(height: AppSizes.lg),
           Row(
             children: [
-              Expanded(child: _SummaryStat(label: 'My Share', value: expense.myShare)),
+              Expanded(
+                child: _SummaryStat(label: 'My Share', value: expense.myShare),
+              ),
               _SummaryStatDivider(),
-              Expanded(child: _SummaryStat(label: "Others' Share", value: expense.othersShare)),
+              Expanded(
+                child: _SummaryStat(
+                  label: "Others' Share",
+                  value: expense.othersShare,
+                ),
+              ),
             ],
           ),
         ],
@@ -820,12 +963,17 @@ class _SummaryStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -861,7 +1009,10 @@ class _ParticipantsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: AppSizes.xs, bottom: AppSizes.sm),
+          padding: const EdgeInsets.only(
+            left: AppSizes.xs,
+            bottom: AppSizes.sm,
+          ),
           child: Text('People', style: context.textTheme.titleMedium),
         ),
         for (final participant in expense.participants)
@@ -882,14 +1033,17 @@ class _ParticipantCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final installment = participant.installmentId == null || expense.scheduleId == null
+    final installment =
+        participant.installmentId == null || expense.scheduleId == null
         ? null
-        : (ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const <Installment>[])
-            .where((i) => i.id == participant.installmentId)
-            .firstOrNull;
+        : (ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+                  const <Installment>[])
+              .where((i) => i.id == participant.installmentId)
+              .firstOrNull;
 
     final status = installment?.status;
-    final statusColor = status?.color ?? context.colors.onSurface.withValues(alpha: 0.4);
+    final statusColor =
+        status?.color ?? context.colors.onSurface.withValues(alpha: 0.4);
     final progress = installment == null || installment.amountDue <= 0
         ? 0.0
         : (installment.amountPaid / installment.amountDue).clampedProgress;
@@ -897,14 +1051,23 @@ class _ParticipantCard extends ConsumerWidget {
 
     return AppCard(
       onTap: canCollect
-          ? () => RecordSplitPaymentSheet.show(context, expense: expense, participant: participant, installment: installment)
+          ? () => RecordSplitPaymentSheet.show(
+              context,
+              expense: expense,
+              participant: participant,
+              installment: installment,
+            )
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              PersonAvatar(name: participant.name, colorValue: _colorFor(participant).toARGB32(), radius: 20),
+              PersonAvatar(
+                name: participant.name,
+                colorValue: _colorFor(participant).toARGB32(),
+                radius: 20,
+              ),
               const SizedBox(width: AppSizes.md),
               Expanded(
                 child: Column(
@@ -917,9 +1080,13 @@ class _ParticipantCard extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      participant.isMe ? 'Your share' : (status == null ? 'Not tracked' : status.label),
+                      participant.isMe
+                          ? 'Your share'
+                          : (status == null ? 'Not tracked' : status.label),
                       style: context.textTheme.bodySmall?.copyWith(
-                        color: participant.isMe ? context.colors.onSurface.withValues(alpha: 0.6) : statusColor,
+                        color: participant.isMe
+                            ? context.colors.onSurface.withValues(alpha: 0.6)
+                            : statusColor,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -931,7 +1098,9 @@ class _ParticipantCard extends ConsumerWidget {
                 children: [
                   Text(
                     CurrencyFormatter.instance.format(participant.share),
-                    style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: context.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   if (canCollect)
                     Text(
@@ -976,7 +1145,9 @@ class _SettlementHistorySection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (expense.scheduleId == null) return const SizedBox.shrink();
 
-    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
+    final installments =
+        ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+        const [];
     final participantByInstallmentId = {
       for (final p in expense.participants)
         if (p.installmentId != null) p.installmentId!: p,
@@ -986,8 +1157,14 @@ class _SettlementHistorySection extends ConsumerWidget {
     for (final installment in installments) {
       final participant = participantByInstallmentId[installment.id];
       if (participant == null) continue;
-      final installmentPayments = ref
-              .watch(installmentPaymentsStreamProvider((scheduleId: expense.scheduleId!, installmentId: installment.id)))
+      final installmentPayments =
+          ref
+              .watch(
+                installmentPaymentsStreamProvider((
+                  scheduleId: expense.scheduleId!,
+                  installmentId: installment.id,
+                )),
+              )
               .value ??
           const [];
       for (final payment in installmentPayments) {
@@ -1006,7 +1183,8 @@ class _SettlementHistorySection extends ConsumerWidget {
             const EmptyState(
               icon: Icons.receipt_long_outlined,
               title: 'No payments yet',
-              subtitle: 'Payments people make toward this expense will show up here.',
+              subtitle:
+                  'Payments people make toward this expense will show up here.',
             )
           else
             for (final (payment, participant) in payments)
@@ -1036,7 +1214,11 @@ class _SettlementTile extends StatelessWidget {
               color: AppColors.success.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppSizes.radiusMd),
             ),
-            child: const Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: AppSizes.iconSm),
+            child: const Icon(
+              Icons.check_circle_outline_rounded,
+              color: AppColors.success,
+              size: AppSizes.iconSm,
+            ),
           ),
           const SizedBox(width: AppSizes.md),
           Expanded(
@@ -1045,7 +1227,9 @@ class _SettlementTile extends StatelessWidget {
               children: [
                 Text(participant.name, style: context.textTheme.bodyMedium),
                 Text(
-                  payment.note.isNotEmpty ? '${payment.date.shortDate} · ${payment.note}' : payment.date.shortDate,
+                  payment.note.isNotEmpty
+                      ? '${payment.date.shortDate} · ${payment.note}'
+                      : payment.date.shortDate,
                   style: context.textTheme.bodySmall?.copyWith(
                     color: context.colors.onSurface.withValues(alpha: 0.6),
                   ),
@@ -1057,7 +1241,10 @@ class _SettlementTile extends StatelessWidget {
           ),
           Text(
             CurrencyFormatter.instance.format(payment.amount),
-            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: AppColors.success),
+            style: context.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.success,
+            ),
           ),
         ],
       ),

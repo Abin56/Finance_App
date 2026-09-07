@@ -24,7 +24,11 @@ import '../widgets/statement_fees_sheet.dart';
 /// Transactions/History screens do, so a statement's transaction list looks
 /// identical to every other transaction list in the app.
 class StatementDetailScreen extends ConsumerWidget {
-  const StatementDetailScreen({super.key, required this.cardId, required this.statementId});
+  const StatementDetailScreen({
+    super.key,
+    required this.cardId,
+    required this.statementId,
+  });
 
   final String cardId;
   final String statementId;
@@ -38,8 +42,11 @@ class StatementDetailScreen extends ConsumerWidget {
     }
 
     final cardTransactions = ref.watch(transactionsForCardProvider(cardId));
-    final periodTransactions = cardTransactions.where((t) => !t.isDeleted && statement.contains(t.dateTime)).toList()
-      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    final periodTransactions =
+        cardTransactions
+            .where((t) => !t.isDeleted && statement.contains(t.dateTime))
+            .toList()
+          ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
 
     final accounts = ref.watch(accountForCardProvider(cardId));
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
@@ -47,7 +54,11 @@ class StatementDetailScreen extends ConsumerWidget {
 
     final byDay = <DateTime, List<dynamic>>{};
     for (final transaction in periodTransactions) {
-      final day = DateTime(transaction.dateTime.year, transaction.dateTime.month, transaction.dateTime.day);
+      final day = DateTime(
+        transaction.dateTime.year,
+        transaction.dateTime.month,
+        transaction.dateTime.day,
+      );
       byDay.putIfAbsent(day, () => []).add(transaction);
     }
     final sortedDays = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
@@ -68,7 +79,11 @@ class StatementDetailScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Log interest & late fees',
-            onPressed: () => StatementFeesSheet.show(context, cardId: cardId, statement: statement),
+            onPressed: () => StatementFeesSheet.show(
+              context,
+              cardId: cardId,
+              statement: statement,
+            ),
           ),
         ],
       ),
@@ -76,96 +91,141 @@ class StatementDetailScreen extends ConsumerWidget {
           ? null
           : FloatingActionButton.extended(
               heroTag: 'statement_detail_fab',
-              onPressed: () => RecordStatementPaymentSheet.show(context, cardId: cardId, statement: statement),
+              onPressed: () => RecordStatementPaymentSheet.show(
+                context,
+                cardId: cardId,
+                statement: statement,
+              ),
               icon: const Icon(Icons.payments_outlined),
               label: const Text('Pay'),
             ),
       body: SafeArea(
         child: ListView(
-        padding: const EdgeInsets.all(AppSizes.lg),
-        children: [
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Statement Period', style: context.textTheme.bodySmall),
-                    _StatusBadge(urgency: urgency),
-                  ],
-                ),
-                Text(
-                  '${statement.periodStart.day}/${statement.periodStart.month} → ${statement.periodEnd.day}/${statement.periodEnd.month}',
-                  style: context.textTheme.titleLarge,
-                ),
-                const SizedBox(height: AppSizes.sm),
-                _DetailRow(label: 'Generated', value: '${statement.generatedDate.day}/${statement.generatedDate.month}'),
-                _DetailRow(label: 'Due', value: '${statement.dueDate.day}/${statement.dueDate.month}'),
-                const Divider(height: AppSizes.lg),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SummaryStat(label: 'Total', value: statement.totalAmount),
-                    ),
-                    if (statement.minimumDue != null)
-                      Expanded(
-                        child: _SummaryStat(label: 'Minimum Due', value: statement.minimumDue!),
+          padding: const EdgeInsets.all(AppSizes.lg),
+          children: [
+            AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Statement Period',
+                        style: context.textTheme.bodySmall,
                       ),
-                  ],
-                ),
-                const SizedBox(height: AppSizes.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SummaryStat(label: 'Paid', value: statement.amountPaid, color: AppColors.success),
-                    ),
-                    Expanded(
-                      child: _SummaryStat(label: 'Remaining', value: statement.remainingAmount, color: urgency.color),
-                    ),
-                  ],
-                ),
-                if (statement.interestCharged != null || statement.lateFee != null) ...[
+                      _StatusBadge(urgency: urgency),
+                    ],
+                  ),
+                  Text(
+                    '${statement.periodStart.day}/${statement.periodStart.month} → ${statement.periodEnd.day}/${statement.periodEnd.month}',
+                    style: context.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: AppSizes.sm),
+                  _DetailRow(
+                    label: 'Generated',
+                    value:
+                        '${statement.generatedDate.day}/${statement.generatedDate.month}',
+                  ),
+                  _DetailRow(
+                    label: 'Due',
+                    value:
+                        '${statement.dueDate.day}/${statement.dueDate.month}',
+                  ),
                   const Divider(height: AppSizes.lg),
                   Row(
                     children: [
-                      if (statement.interestCharged != null)
-                        Expanded(child: _SummaryStat(label: 'Interest', value: statement.interestCharged!)),
-                      if (statement.lateFee != null)
-                        Expanded(child: _SummaryStat(label: 'Late fee', value: statement.lateFee!)),
+                      Expanded(
+                        child: _SummaryStat(
+                          label: 'Total',
+                          value: statement.totalAmount,
+                        ),
+                      ),
+                      if (statement.minimumDue != null)
+                        Expanded(
+                          child: _SummaryStat(
+                            label: 'Minimum Due',
+                            value: statement.minimumDue!,
+                          ),
+                        ),
                     ],
                   ),
+                  const SizedBox(height: AppSizes.sm),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryStat(
+                          label: 'Paid',
+                          value: statement.amountPaid,
+                          color: AppColors.success,
+                        ),
+                      ),
+                      Expanded(
+                        child: _SummaryStat(
+                          label: 'Remaining',
+                          value: statement.remainingAmount,
+                          color: urgency.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (statement.interestCharged != null ||
+                      statement.lateFee != null) ...[
+                    const Divider(height: AppSizes.lg),
+                    Row(
+                      children: [
+                        if (statement.interestCharged != null)
+                          Expanded(
+                            child: _SummaryStat(
+                              label: 'Interest',
+                              value: statement.interestCharged!,
+                            ),
+                          ),
+                        if (statement.lateFee != null)
+                          Expanded(
+                            child: _SummaryStat(
+                              label: 'Late fee',
+                              value: statement.lateFee!,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSizes.lg),
-          Text('Transactions', style: context.textTheme.titleMedium),
-          const SizedBox(height: AppSizes.sm),
-          if (periodTransactions.isEmpty)
-            const EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'No transactions',
-              subtitle: 'Purchases in this billing cycle will show up here.',
-            )
-          else
-            for (final day in sortedDays) ...[
-              TransactionDateGroupHeader(
-                date: day,
-                netTotal: -byDay[day]!.fold(0.0, (sum, t) => sum + (t.amount as double)),
               ),
-              for (final transaction in byDay[day]!)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                  child: TransactionTile(
-                    transaction: transaction,
-                    category: categoriesById[transaction.categoryId],
-                    account: accounts,
-                    onTap: () => context.push('${AppRoutes.transactions}/${transaction.id}'),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            Text('Transactions', style: context.textTheme.titleMedium),
+            const SizedBox(height: AppSizes.sm),
+            if (periodTransactions.isEmpty)
+              const EmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'No transactions',
+                subtitle: 'Purchases in this billing cycle will show up here.',
+              )
+            else
+              for (final day in sortedDays) ...[
+                TransactionDateGroupHeader(
+                  date: day,
+                  netTotal: -byDay[day]!.fold(
+                    0.0,
+                    (sum, t) => sum + (t.amount as double),
                   ),
                 ),
-            ],
-        ],
+                for (final transaction in byDay[day]!)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                    child: TransactionTile(
+                      transaction: transaction,
+                      category: categoriesById[transaction.categoryId],
+                      account: accounts,
+                      onTap: () => context.push(
+                        '${AppRoutes.transactions}/${transaction.id}',
+                      ),
+                    ),
+                  ),
+              ],
+          ],
         ),
       ),
     );
@@ -187,7 +247,9 @@ class _DetailRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           Text(value, style: context.textTheme.bodyMedium),
         ],
@@ -210,11 +272,16 @@ class _SummaryStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
         ),
       ],
     );
@@ -230,14 +297,20 @@ class _StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = urgency.color;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sm,
+        vertical: AppSizes.xs,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       ),
       child: Text(
         urgency.label,
-        style: context.textTheme.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w600),
+        style: context.textTheme.labelMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

@@ -3,7 +3,10 @@
 abstract class Validators {
   Validators._();
 
-  static String? required(String? value, {String message = 'This field is required'}) {
+  static String? required(
+    String? value, {
+    String message = 'This field is required',
+  }) {
     if (value == null || value.trim().isEmpty) return message;
     return null;
   }
@@ -27,7 +30,8 @@ abstract class Validators {
       final baseError = amount(value);
       if (baseError != null) return baseError;
       final parsed = double.parse(value!.trim());
-      if (parsed > max) return 'Payment amount cannot exceed the remaining balance.';
+      if (parsed > max)
+        return 'Payment amount cannot exceed the remaining balance.';
       return null;
     };
   }
@@ -43,14 +47,16 @@ abstract class Validators {
 
   static String? email(String? value) {
     if (value == null || value.trim().isEmpty) return null; // optional field
-    if (!_emailPattern.hasMatch(value.trim())) return 'Enter a valid email address';
+    if (!_emailPattern.hasMatch(value.trim()))
+      return 'Enter a valid email address';
     return null;
   }
 
   static String? lastFourDigits(String? value) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) return 'Enter the last 4 digits';
-    if (trimmed.length != 4 || int.tryParse(trimmed) == null) return 'Enter exactly 4 digits';
+    if (trimmed.length != 4 || int.tryParse(trimmed) == null)
+      return 'Enter exactly 4 digits';
     return null;
   }
 

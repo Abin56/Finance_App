@@ -6,9 +6,10 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/lists/flowfi_list_tile.dart';
 import '../../../../shared/widgets/section_label.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// The "More" tab — secondary destinations that don't need their own
@@ -26,34 +27,37 @@ class MoreScreen extends ConsumerWidget {
   // 8 unrelated colors read as noisy. Trash keeps red on its own: that's a
   // meaningful destructive-action signal, not decoration, so it stays
   // distinct even within the neutral "App" section.
+  // Lime is reserved for primary CTAs/selected states, not a generic icon
+  // tint (see the Theme V2 color-usage rule) — this section's one shared
+  // accent is teal instead.
   static const _financeItems = [
     _MoreItem(
       icon: Icons.pie_chart_outline_rounded,
       label: 'Reports',
       subtitle: 'Spending trends and analysis',
       route: AppRoutes.reports,
-      color: AppColors.primary,
+      color: AppColors.secondary,
     ),
     _MoreItem(
       icon: Icons.credit_card_outlined,
       label: 'Credit Cards',
       subtitle: 'Manage cards and statements',
       route: AppRoutes.creditCards,
-      color: AppColors.primary,
+      color: AppColors.secondary,
     ),
     _MoreItem(
       icon: Icons.savings_outlined,
       label: 'Savings Goals',
       subtitle: 'Track progress toward targets',
       route: AppRoutes.savings,
-      color: AppColors.primary,
+      color: AppColors.secondary,
     ),
     _MoreItem(
       icon: Icons.category_outlined,
       label: 'Categories',
       subtitle: 'Organize income and expenses',
       route: AppRoutes.categories,
-      color: AppColors.primary,
+      color: AppColors.secondary,
     ),
   ];
 
@@ -95,15 +99,14 @@ class MoreScreen extends ConsumerWidget {
     final user = ref.watch(authStateProvider).value;
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         flexibleSpace: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: AppClay.primaryGradient,
+              colors: AppColors.primaryGradient,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -115,13 +118,23 @@ class MoreScreen extends ConsumerWidget {
             Container(
               width: 34,
               height: 34,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-              child: const Icon(Icons.apps_rounded, size: AppSizes.iconSm, color: Colors.white),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.apps_rounded,
+                size: AppSizes.iconSm,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(width: AppSizes.sm),
             Text(
               'More',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
@@ -130,7 +143,12 @@ class MoreScreen extends ConsumerWidget {
         child: ListView(
           // Bottom padding clears the shell's floating "+" button, same
           // convention as every other bottom-nav tab.
-          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            AppSizes.lg,
+            AppSizes.lg,
+            AppSizes.fabClearance,
+          ),
           children: [
             _ProfileCard(
               name: user?.displayName,
@@ -157,7 +175,11 @@ class MoreScreen extends ConsumerWidget {
 /// actions, including sign-out, already live) — the More tab's one personal
 /// touch instead of opening straight into a flat menu.
 class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({required this.name, required this.email, required this.onTap});
+  const _ProfileCard({
+    required this.name,
+    required this.email,
+    required this.onTap,
+  });
 
   final String? name;
   final String? email;
@@ -165,23 +187,25 @@ class _ProfileCard extends StatelessWidget {
 
   String get _initials {
     final trimmed = (name ?? '').trim();
-    if (trimmed.isEmpty) return (email?.isNotEmpty ?? false) ? email![0].toUpperCase() : '?';
-    final parts = trimmed.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (trimmed.isEmpty)
+      return (email?.isNotEmpty ?? false) ? email![0].toUpperCase() : '?';
+    final parts = trimmed
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ClayCard(
-      isHero: true,
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: AppClay.primaryGradient,
-      ),
+    return FlowFiCard.hero(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.md,
+        vertical: AppSizes.sm,
+      ),
       child: Row(
         children: [
           Container(
@@ -195,7 +219,10 @@ class _ProfileCard extends StatelessWidget {
             ),
             child: Text(
               _initials,
-              style: context.textTheme.bodyLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+              style: context.textTheme.bodyLarge?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           const SizedBox(width: AppSizes.sm),
@@ -206,7 +233,10 @@ class _ProfileCard extends StatelessWidget {
               children: [
                 Text(
                   (name?.isNotEmpty ?? false) ? name! : 'Your account',
-                  style: context.textTheme.titleSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+                  style: context.textTheme.titleSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -214,7 +244,9 @@ class _ProfileCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     email!,
-                    style: context.textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -222,7 +254,10 @@ class _ProfileCard extends StatelessWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.8)),
+          Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
         ],
       ),
     );
@@ -274,30 +309,37 @@ class _MoreRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClayCard(
+    return FlowFiCard.soft(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-      child: Row(
-        children: [
-          ClayIconChip(icon: item.icon, color: item.color, size: 34, iconSize: AppSizes.iconSm, glow: true),
-          const SizedBox(width: AppSizes.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(item.label, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                Text(
-                  item.subtitle,
-                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.md,
+        vertical: AppSizes.xs,
+      ),
+      child: FlowFiListTile(
+        padding: EdgeInsets.zero,
+        leading: FlowFiIconChip(
+          icon: item.icon,
+          color: item.color,
+          size: 34,
+          iconSize: AppSizes.iconSm,
+        ),
+        title: Text(
+          item.label,
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
-          Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.4)),
-        ],
+        ),
+        subtitle: Text(
+          item.subtitle,
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          size: AppSizes.iconSm,
+          color: context.colors.onSurface.withValues(alpha: 0.4),
+        ),
       ),
     );
   }

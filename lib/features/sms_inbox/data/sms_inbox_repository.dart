@@ -157,7 +157,8 @@ class SmsInboxRepository {
 
       if (originalId == null) {
         final storedOriginal = await _dao.findOriginalByDedupKey(dedupKey);
-        originalId = storedOriginal?.id ?? originalIdByDedupKeyThisScan[dedupKey];
+        originalId =
+            storedOriginal?.id ?? originalIdByDedupKeyThisScan[dedupKey];
         if (originalId != null) {
           duplicateReason = _reasonFor(parsed?.referenceNumber);
         }

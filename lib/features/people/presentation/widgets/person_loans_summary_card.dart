@@ -69,7 +69,9 @@ class PersonLoansSummaryCard extends ConsumerWidget {
 
     final upcoming = <({Loan loan, Installment installment})>[
       for (final loan in active)
-        if (ref.watch(loanNextUpcomingInstallmentProvider(loan)) case final next?) (loan: loan, installment: next),
+        if (ref.watch(loanNextUpcomingInstallmentProvider(loan))
+            case final next?)
+          (loan: loan, installment: next),
     ]..sort((a, b) => a.installment.dueDate.compareTo(b.installment.dueDate));
 
     return AppCard(
@@ -78,7 +80,8 @@ class PersonLoansSummaryCard extends ConsumerWidget {
         children: [
           Text('Loans', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.sm),
-          if (toReceive > 0) _TotalRow(label: 'Money to receive', amount: toReceive),
+          if (toReceive > 0)
+            _TotalRow(label: 'Money to receive', amount: toReceive),
           if (toPay > 0) _TotalRow(label: 'Money to pay', amount: toPay),
           if (upcoming.isNotEmpty) ...[
             const Divider(height: AppSizes.lg),
@@ -103,7 +106,9 @@ class PersonLoansSummaryCard extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: AppSizes.sm),
                 child: LoanTile(
                   loan: loan,
-                  person: loan.personId == person.id ? person : personById[loan.personId],
+                  person: loan.personId == person.id
+                      ? person
+                      : personById[loan.personId],
                   onTap: () => context.push('${AppRoutes.loans}/${loan.id}'),
                 ),
               ),
@@ -112,15 +117,21 @@ class PersonLoansSummaryCard extends ConsumerWidget {
             const Divider(height: AppSizes.lg),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              title: Text('Completed (${completed.length})', style: context.textTheme.titleSmall),
+              title: Text(
+                'Completed (${completed.length})',
+                style: context.textTheme.titleSmall,
+              ),
               children: [
                 for (final loan in completed)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSizes.sm),
                     child: LoanTile(
                       loan: loan,
-                      person: loan.personId == person.id ? person : personById[loan.personId],
-                      onTap: () => context.push('${AppRoutes.loans}/${loan.id}'),
+                      person: loan.personId == person.id
+                          ? person
+                          : personById[loan.personId],
+                      onTap: () =>
+                          context.push('${AppRoutes.loans}/${loan.id}'),
                     ),
                   ),
               ],
@@ -151,7 +162,8 @@ class _UpcomingEmiRow extends StatelessWidget {
   /// record, so the fallback is reproduced directly here instead.
   String get _title {
     if (loan.name?.isNotEmpty == true) return loan.name!;
-    if (loan.category == LoanCategory.personal) return 'Loan to ${counterpartyName ?? 'unknown'}';
+    if (loan.category == LoanCategory.personal)
+      return 'Loan to ${counterpartyName ?? 'unknown'}';
     return loan.institutionName ?? 'Institutional Loan';
   }
 
@@ -167,18 +179,29 @@ class _UpcomingEmiRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  title,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 Row(
                   children: [
                     Text(
                       'Due ${installment.dueDate.day}/${installment.dueDate.month}/${installment.dueDate.year}',
-                      style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                     if (isPayerOnly) ...[
                       const SizedBox(width: AppSizes.xs),
                       Text(
                         '· Pays this for you',
-                        style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -188,7 +211,9 @@ class _UpcomingEmiRow extends StatelessWidget {
           ),
           Text(
             CurrencyFormatter.instance.format(installment.remainingAmount),
-            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: context.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -209,10 +234,17 @@ class _TotalRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7))),
+          Text(
+            label,
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
           Text(
             CurrencyFormatter.instance.format(amount),
-            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: context.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),

@@ -10,7 +10,9 @@ void main() {
 
   setUp(() {
     final firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('budgets').withConverter<Budget>(
+    final collection = firestore
+        .collection('budgets')
+        .withConverter<Budget>(
           fromFirestore: Budget.fromFirestore,
           toFirestore: (b, _) => b.toFirestore(),
         );
@@ -35,10 +37,18 @@ void main() {
     });
 
     test('rejects a second active budget for the same category', () async {
-      await repository.createBudget(type: BudgetType.monthly, amount: 10000, categoryId: 'food');
+      await repository.createBudget(
+        type: BudgetType.monthly,
+        amount: 10000,
+        categoryId: 'food',
+      );
 
       await expectLater(
-        repository.createBudget(type: BudgetType.monthly, amount: 5000, categoryId: 'food'),
+        repository.createBudget(
+          type: BudgetType.monthly,
+          amount: 5000,
+          categoryId: 'food',
+        ),
         throwsA(isA<AppException>()),
       );
     });
@@ -52,30 +62,56 @@ void main() {
     });
 
     test('allows different categories to each have their own budget', () async {
-      await repository.createBudget(type: BudgetType.monthly, amount: 10000, categoryId: 'food');
-      await repository.createBudget(type: BudgetType.monthly, amount: 5000, categoryId: 'travel');
+      await repository.createBudget(
+        type: BudgetType.monthly,
+        amount: 10000,
+        categoryId: 'food',
+      );
+      await repository.createBudget(
+        type: BudgetType.monthly,
+        amount: 5000,
+        categoryId: 'travel',
+      );
 
       final all = await repository.getAll();
       expect(all, hasLength(2));
     });
 
-    test('allows re-creating a budget after the original was soft-deleted', () async {
-      final first = await repository.createBudget(type: BudgetType.daily, amount: 500);
-      await repository.softDelete(first);
+    test(
+      'allows re-creating a budget after the original was soft-deleted',
+      () async {
+        final first = await repository.createBudget(
+          type: BudgetType.daily,
+          amount: 500,
+        );
+        await repository.softDelete(first);
 
-      final second = await repository.createBudget(type: BudgetType.daily, amount: 800);
-      expect(second.amount, 800);
-    });
+        final second = await repository.createBudget(
+          type: BudgetType.daily,
+          amount: 800,
+        );
+        expect(second.amount, 800);
+      },
+    );
   });
 
   group('BudgetRepository.editBudget', () {
     test('rejects a non-positive amount', () async {
-      final budget = await repository.createBudget(type: BudgetType.daily, amount: 500);
-      await expectLater(repository.editBudget(budget, amount: -10), throwsA(isA<AppException>()));
+      final budget = await repository.createBudget(
+        type: BudgetType.daily,
+        amount: 500,
+      );
+      await expectLater(
+        repository.editBudget(budget, amount: -10),
+        throwsA(isA<AppException>()),
+      );
     });
 
     test('updates the amount and records an audit entry', () async {
-      final budget = await repository.createBudget(type: BudgetType.daily, amount: 500);
+      final budget = await repository.createBudget(
+        type: BudgetType.daily,
+        amount: 500,
+      );
 
       await repository.editBudget(budget, amount: 750);
 

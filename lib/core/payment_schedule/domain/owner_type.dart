@@ -7,6 +7,8 @@
 enum OwnerType { loan, emi, splitExpense, bill }
 
 extension OwnerTypeX on OwnerType {
-  static OwnerType fromName(String name) =>
-      OwnerType.values.firstWhere((t) => t.name == name, orElse: () => OwnerType.loan);
+  static OwnerType fromName(String name) => OwnerType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => OwnerType.loan,
+  );
 }

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
 import '../../domain/sms_transaction_category.dart';
@@ -64,8 +64,12 @@ class SmsMessageTile extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: selected ? context.colors.primary.withValues(alpha: 0.08) : context.colors.surface,
-        border: Border(left: BorderSide(color: amountColor.withValues(alpha: 0.5), width: 3)),
+        color: selected
+            ? context.colors.primary.withValues(alpha: 0.08)
+            : context.colors.surface,
+        border: Border(
+          left: BorderSide(color: amountColor.withValues(alpha: 0.5), width: 3),
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -115,7 +119,9 @@ class SmsMessageTile extends StatelessWidget {
                       Text(
                         _subtitle(),
                         style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.75),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.75,
+                          ),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -123,7 +129,9 @@ class SmsMessageTile extends StatelessWidget {
                       Text(
                         _dateTimeLabel(item.rawMessage.date),
                         style: context.textTheme.labelSmall?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.5),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -231,18 +239,11 @@ class _Leading extends StatelessWidget {
       );
     }
 
-    final avatar = Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        gradient: AppClay.iconChipGradient(color),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        _icon(item.parsed?.category),
-        size: AppSizes.iconSm,
-        color: color,
-      ),
+    final avatar = FlowFiIconChip(
+      icon: _icon(item.parsed?.category),
+      color: color,
+      size: 34,
+      iconSize: AppSizes.iconSm,
     );
 
     if (!needsReview) return avatar;
@@ -307,7 +308,11 @@ class _StatusChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
           const SizedBox(width: 4),
           Text(
             _shortLabel(status),

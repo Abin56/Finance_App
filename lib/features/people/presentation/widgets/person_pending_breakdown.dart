@@ -14,12 +14,16 @@ class PersonPendingBreakdown extends StatelessWidget {
 
   final List<PersonTimelineEntry> entries;
 
-  double _subtotalFor(PersonTimelineCategory category) =>
-      entries.where((e) => e.category == category).fold(0.0, (total, e) => total + e.signedAmount);
+  double _subtotalFor(PersonTimelineCategory category) => entries
+      .where((e) => e.category == category)
+      .fold(0.0, (total, e) => total + e.signedAmount);
 
   @override
   Widget build(BuildContext context) {
-    final subtotals = {for (final category in PersonTimelineCategory.values) category: _subtotalFor(category)};
+    final subtotals = {
+      for (final category in PersonTimelineCategory.values)
+        category: _subtotalFor(category),
+    };
     final overall = subtotals.values.fold(0.0, (total, v) => total + v);
 
     return AppCard(
@@ -29,9 +33,17 @@ class PersonPendingBreakdown extends StatelessWidget {
           Text('Amount Left breakdown', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.sm),
           for (final category in PersonTimelineCategory.values)
-            if (subtotals[category] != 0) _BreakdownRow(label: category.label, amount: subtotals[category]!),
+            if (subtotals[category] != 0)
+              _BreakdownRow(
+                label: category.label,
+                amount: subtotals[category]!,
+              ),
           const Divider(height: AppSizes.lg),
-          _BreakdownRow(label: 'Total Amount Left', amount: overall, emphasize: true),
+          _BreakdownRow(
+            label: 'Total Amount Left',
+            amount: overall,
+            emphasize: true,
+          ),
         ],
       ),
     );
@@ -39,7 +51,11 @@ class PersonPendingBreakdown extends StatelessWidget {
 }
 
 class _BreakdownRow extends StatelessWidget {
-  const _BreakdownRow({required this.label, required this.amount, this.emphasize = false});
+  const _BreakdownRow({
+    required this.label,
+    required this.amount,
+    this.emphasize = false,
+  });
 
   final String label;
   final double amount;
@@ -49,7 +65,9 @@ class _BreakdownRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = emphasize
         ? context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)
-        : context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7));
+        : context.textTheme.bodyMedium?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.7),
+          );
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),

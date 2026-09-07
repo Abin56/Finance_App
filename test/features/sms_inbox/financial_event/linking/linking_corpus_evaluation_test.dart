@@ -20,7 +20,8 @@ void main() {
     expect(
       report.passRate,
       greaterThanOrEqualTo(0.95),
-      reason: 'Ordinary (non-dangerous) mismatches should stay rare — see report above.',
+      reason:
+          'Ordinary (non-dangerous) mismatches should stay rare — see report above.',
     );
   });
 }

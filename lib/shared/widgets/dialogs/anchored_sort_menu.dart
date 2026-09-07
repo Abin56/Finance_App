@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_sizes.dart';
-import '../../../core/theme/clay_theme.dart';
+import '../../../shared/widgets/states/flowfi_icon_chip.dart';
 
 /// One choice in an [showAnchoredSortMenu] dropdown.
 class SortMenuOption<T> {
-  const SortMenuOption({required this.value, required this.icon, required this.label, this.trailingIcon, this.color});
+  const SortMenuOption({
+    required this.value,
+    required this.icon,
+    required this.label,
+    this.trailingIcon,
+    this.color,
+  });
 
   final T value;
   final IconData icon;
@@ -34,23 +40,30 @@ Future<T?> showAnchoredSortMenu<T>({
 }) {
   final button = anchorKey.currentContext!.findRenderObject()! as RenderBox;
   final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
-  final buttonTopLeft = button.localToGlobal(Offset(0, button.size.height + AppSizes.xs), ancestor: overlay);
-  final buttonBottomRight = button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay);
+  final buttonTopLeft = button.localToGlobal(
+    Offset(0, button.size.height + AppSizes.xs),
+    ancestor: overlay,
+  );
+  final buttonBottomRight = button.localToGlobal(
+    button.size.bottomRight(Offset.zero),
+    ancestor: overlay,
+  );
   final position = RelativeRect.fromRect(
     Rect.fromPoints(buttonTopLeft, buttonBottomRight),
     Offset.zero & overlay.size,
   );
 
+  final colors = Theme.of(context).colorScheme;
   return showMenu<T>(
     context: context,
     position: position,
-    color: AppClay.card(context),
+    color: colors.surface,
     surfaceTintColor: Colors.transparent,
-    elevation: 10,
-    shadowColor: AppClay.primary.withValues(alpha: 0.25),
+    elevation: 2,
+    shadowColor: colors.shadow.withValues(alpha: 0.12),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-      side: BorderSide(color: AppClay.primary.withValues(alpha: 0.12)),
+      side: BorderSide(color: colors.outline),
     ),
     constraints: BoxConstraints(
       minWidth: button.size.width.clamp(220, 320),
@@ -113,27 +126,34 @@ class SortSheetOptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final tint = color ?? (selected ? colors.primary : colors.onSurface.withValues(alpha: 0.6));
+    // Selected rows are marked by the left accent bar, tinted background,
+    // and trailing checkmark below — the label itself stays the ambient
+    // text color rather than lime, since lime text on a light popup surface
+    // reads poorly (see app_theme.dart's `onSurfaceAccent` note).
+    final tint =
+        color ??
+        (selected ? colors.primary : colors.onSurface.withValues(alpha: 0.6));
     final row = Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSizes.xs, horizontal: AppSizes.sm),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSizes.xs,
+        horizontal: AppSizes.sm,
+      ),
       child: Row(
         children: [
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(gradient: AppClay.iconChipGradient(tint), shape: BoxShape.circle),
-                child: Icon(icon, size: 15, color: tint),
-              ),
+              FlowFiIconChip(icon: icon, color: tint, size: 28, iconSize: 15),
               if (trailingIcon != null)
                 Positioned(
                   right: -2,
                   bottom: -2,
                   child: Container(
                     padding: const EdgeInsets.all(1),
-                    decoration: BoxDecoration(color: AppClay.card(context), shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      shape: BoxShape.circle,
+                    ),
                     child: Icon(trailingIcon, size: 11, color: tint),
                   ),
                 ),
@@ -145,17 +165,23 @@ class SortSheetOptionTile extends StatelessWidget {
               label,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                    color: selected ? colors.primary : null,
-                  ),
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+              ),
             ),
           ),
           if (selected) ...[
             const SizedBox(width: AppSizes.xs),
             Container(
               padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(color: colors.primary, shape: BoxShape.circle),
-              child: const Icon(Icons.check_rounded, size: 12, color: Colors.white),
+              decoration: BoxDecoration(
+                color: colors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.check_rounded,
+                size: 12,
+                color: colors.onPrimary,
+              ),
             ),
           ],
         ],
@@ -165,9 +191,16 @@ class SortSheetOptionTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSizes.xs, vertical: 1),
       decoration: BoxDecoration(
-        color: selected ? colors.primary.withValues(alpha: 0.08) : Colors.transparent,
+        color: selected
+            ? colors.primary.withValues(alpha: 0.08)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-        border: Border(left: BorderSide(color: selected ? colors.primary : Colors.transparent, width: 3)),
+        border: Border(
+          left: BorderSide(
+            color: selected ? colors.primary : Colors.transparent,
+            width: 3,
+          ),
+        ),
       ),
       child: onTap == null
           ? row

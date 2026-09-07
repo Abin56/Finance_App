@@ -31,7 +31,11 @@ import 'upcoming_payments_widget_card.dart';
 /// every unbuilt type into one [ComingSoonWidgetCard] (see
 /// `_ViewModeList` in `dashboard_screen.dart`) rather than rendering this
 /// placeholder once per type.
-Widget buildDashboardWidget(DashboardWidgetType type, WidgetConfiguration config, {VoidCallback? onConfigure}) {
+Widget buildDashboardWidget(
+  DashboardWidgetType type,
+  WidgetConfiguration config, {
+  VoidCallback? onConfigure,
+}) {
   switch (type) {
     case DashboardWidgetType.netWorth:
       return NetWorthWidgetCard(config: config);
@@ -90,7 +94,10 @@ class _NotYetBuiltCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('${type.defaultTitle} — coming soon', style: Theme.of(context).textTheme.bodyMedium),
+        child: Text(
+          '${type.defaultTitle} — coming soon',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       ),
     );
   }

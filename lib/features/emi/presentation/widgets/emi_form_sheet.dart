@@ -48,23 +48,39 @@ class EmiFormSheet extends ConsumerStatefulWidget {
 
 class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final _nameController = TextEditingController(text: widget.emi?.name ?? '');
-  late final _lenderController = TextEditingController(text: widget.emi?.lenderName ?? '');
-  late final _amountController = TextEditingController(
-    text: widget.emi == null ? '' : widget.emi!.principalAmount.toStringAsFixed(2),
+  late final _nameController = TextEditingController(
+    text: widget.emi?.name ?? '',
   );
-  late final _notesController = TextEditingController(text: widget.emi?.notes ?? '');
+  late final _lenderController = TextEditingController(
+    text: widget.emi?.lenderName ?? '',
+  );
+  late final _amountController = TextEditingController(
+    text: widget.emi == null
+        ? ''
+        : widget.emi!.principalAmount.toStringAsFixed(2),
+  );
+  late final _notesController = TextEditingController(
+    text: widget.emi?.notes ?? '',
+  );
   late final _installmentCountController = TextEditingController(
     text: widget.emi?.installmentCount.toString() ?? '',
   );
   late final _rateController = TextEditingController(
     text: widget.emi?.interest?.ratePercent.toString() ?? '',
   );
-  late final _loanNumberController = TextEditingController(text: widget.emi?.loanNumber ?? '');
-  late final _branchController = TextEditingController(text: widget.emi?.branch ?? '');
-  late final _customerIdController = TextEditingController(text: widget.emi?.customerId ?? '');
+  late final _loanNumberController = TextEditingController(
+    text: widget.emi?.loanNumber ?? '',
+  );
+  late final _branchController = TextEditingController(
+    text: widget.emi?.branch ?? '',
+  );
+  late final _customerIdController = TextEditingController(
+    text: widget.emi?.customerId ?? '',
+  );
   late final _processingFeeController = TextEditingController(
-    text: widget.emi == null || widget.emi!.processingFee == 0 ? '' : widget.emi!.processingFee.toStringAsFixed(2),
+    text: widget.emi == null || widget.emi!.processingFee == 0
+        ? ''
+        : widget.emi!.processingFee.toStringAsFixed(2),
   );
   late final _insuranceController = TextEditingController(
     text: widget.emi == null || widget.emi!.insuranceAmount == 0
@@ -72,7 +88,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
         : widget.emi!.insuranceAmount.toStringAsFixed(2),
   );
   late final _extraChargesController = TextEditingController(
-    text: widget.emi == null || widget.emi!.extraCharges == 0 ? '' : widget.emi!.extraCharges.toStringAsFixed(2),
+    text: widget.emi == null || widget.emi!.extraCharges == 0
+        ? ''
+        : widget.emi!.extraCharges.toStringAsFixed(2),
   );
   late final _foreclosureController = TextEditingController(
     text: widget.emi?.foreclosureAmount?.toStringAsFixed(2) ?? '',
@@ -80,22 +98,27 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
   late final _prepaymentChargesController = TextEditingController(
     text: widget.emi?.prepaymentCharges?.toStringAsFixed(2) ?? '',
   );
-  late final _autoDebitAccountController = TextEditingController(text: widget.emi?.autoDebitAccount ?? '');
+  late final _autoDebitAccountController = TextEditingController(
+    text: widget.emi?.autoDebitAccount ?? '',
+  );
   late final _dueDayOfMonthController = TextEditingController(
     text: widget.emi?.dueDayOfMonth?.toString() ?? '',
   );
 
   late String? _categoryId = widget.emi?.categoryId;
   late DateTime _startDate = widget.emi?.startDate ?? DateTime.now();
-  late ScheduleType _installmentFrequency = widget.emi?.installmentFrequency ?? ScheduleType.monthly;
+  late ScheduleType _installmentFrequency =
+      widget.emi?.installmentFrequency ?? ScheduleType.monthly;
   late bool _hasInterest = widget.emi?.interest != null;
   // Real bank loans (home/personal/vehicle/etc.) are almost always quoted
   // as an annual reducing-balance rate — defaulting to that (rather than
   // flat/per-month) avoids a silent unit mismatch where a user types an
   // annual-style rate (e.g. "15.12") without noticing the toggles, producing
   // a nonsensical multi-times-the-principal preview.
-  late InterestType _interestType = widget.emi?.interest?.type ?? InterestType.reducingBalance;
-  late InterestPeriod _interestPeriod = widget.emi?.interest?.period ?? InterestPeriod.yearly;
+  late InterestType _interestType =
+      widget.emi?.interest?.type ?? InterestType.reducingBalance;
+  late InterestPeriod _interestPeriod =
+      widget.emi?.interest?.period ?? InterestPeriod.yearly;
   late EmiLoanType _loanType = widget.emi?.loanType ?? EmiLoanType.other;
   late String? _linkedCreditCardId = widget.emi?.linkedCreditCardId;
   DateTime? _sanctionDate;
@@ -193,7 +216,10 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
         installmentFrequency: InterestPeriod.monthly,
         installmentsPerYear: _installmentsPerYearFor(_installmentFrequency),
       );
-      return (totalPayable: breakdown.totalPayable, totalInterest: breakdown.totalInterest);
+      return (
+        totalPayable: breakdown.totalPayable,
+        totalInterest: breakdown.totalInterest,
+      );
     } catch (_) {
       return null;
     }
@@ -235,7 +261,8 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
     return false;
   }
 
-  int? get _parsedDueDayOfMonth => int.tryParse(_dueDayOfMonthController.text.trim());
+  int? get _parsedDueDayOfMonth =>
+      int.tryParse(_dueDayOfMonthController.text.trim());
 
   /// Whether First EMI Date differs from [widget.emi]'s current [Emi.startDate]
   /// — only meaningful while editing, and only ever actionable when the form
@@ -250,7 +277,10 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
   /// otherwise-identically-named cards are distinguishable in the linked
   /// card dropdown, matching the "•••• 1234" format used on the Credit
   /// Cards list/detail screens.
-  String _cardLabel(CreditCardProfile card, Map<String, String> accountNameById) {
+  String _cardLabel(
+    CreditCardProfile card,
+    Map<String, String> accountNameById,
+  ) {
     final name = accountNameById[card.accountId] ?? 'Card';
     if (card.lastFourDigits != null && card.lastFourDigits!.isNotEmpty) {
       return '$name •••• ${card.lastFourDigits}';
@@ -268,8 +298,14 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
           'been recorded yet, nothing else is affected.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Update')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Update'),
+          ),
         ],
       ),
     ).then((value) => value ?? false);
@@ -285,8 +321,14 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
           'terms. Payments you\'ve already made won\'t change.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Update')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Update'),
+          ),
         ],
       ),
     ).then((value) => value ?? false);
@@ -317,30 +359,45 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
           emi,
           hasPayments: hasPayments,
           name: _nameController.text.trim(),
-          lenderName: _lenderController.text.trim().isEmpty ? null : _lenderController.text.trim(),
+          lenderName: _lenderController.text.trim().isEmpty
+              ? null
+              : _lenderController.text.trim(),
           categoryId: _categoryId,
           principalAmount: double.parse(_amountController.text.trim()),
           notes: _notesController.text.trim(),
-          loanNumber: _loanNumberController.text.trim().isEmpty ? null : _loanNumberController.text.trim(),
+          loanNumber: _loanNumberController.text.trim().isEmpty
+              ? null
+              : _loanNumberController.text.trim(),
           loanType: _loanType,
-          branch: _branchController.text.trim().isEmpty ? null : _branchController.text.trim(),
-          customerId: _customerIdController.text.trim().isEmpty ? null : _customerIdController.text.trim(),
+          branch: _branchController.text.trim().isEmpty
+              ? null
+              : _branchController.text.trim(),
+          customerId: _customerIdController.text.trim().isEmpty
+              ? null
+              : _customerIdController.text.trim(),
           sanctionDate: _sanctionDate,
           disbursementDate: _disbursementDate,
-          processingFee: _parseOptionalAmount(_processingFeeController.text) ?? 0,
+          processingFee:
+              _parseOptionalAmount(_processingFeeController.text) ?? 0,
           insuranceAmount: _parseOptionalAmount(_insuranceController.text) ?? 0,
           extraCharges: _parseOptionalAmount(_extraChargesController.text) ?? 0,
           foreclosureAmount: _parseOptionalAmount(_foreclosureController.text),
-          prepaymentCharges: _parseOptionalAmount(_prepaymentChargesController.text),
+          prepaymentCharges: _parseOptionalAmount(
+            _prepaymentChargesController.text,
+          ),
           isAutoDebitEnabled: _isAutoDebitEnabled,
-          autoDebitAccount: _isAutoDebitEnabled && _autoDebitAccountController.text.trim().isNotEmpty
+          autoDebitAccount:
+              _isAutoDebitEnabled &&
+                  _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
           linkedCreditCardId: _linkedCreditCardId,
           clearLinkedCreditCardId: _linkedCreditCardId == null,
         );
         if (_startDateChanged) {
-          final installments = ref.read(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+          final installments =
+              ref.read(installmentsStreamProvider(emi.scheduleId)).value ??
+              const [];
           await repository.editStartDate(
             emi,
             newStartDate: _startDate,
@@ -349,7 +406,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
           );
         }
         if (_termsChanged) {
-          final installments = ref.read(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+          final installments =
+              ref.read(installmentsStreamProvider(emi.scheduleId)).value ??
+              const [];
           await repository.editEmiTerms(
             emi,
             currentInstallments: installments,
@@ -361,7 +420,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                   )
                 : null,
             installmentFrequency: _installmentFrequency,
-            newInstallmentCount: int.parse(_installmentCountController.text.trim()),
+            newInstallmentCount: int.parse(
+              _installmentCountController.text.trim(),
+            ),
             dueDayOfMonth: _parsedDueDayOfMonth,
           );
         }
@@ -372,7 +433,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
           startDate: _startDate,
           installmentFrequency: _installmentFrequency,
           installmentCount: int.parse(_installmentCountController.text.trim()),
-          lenderName: _lenderController.text.trim().isEmpty ? null : _lenderController.text.trim(),
+          lenderName: _lenderController.text.trim().isEmpty
+              ? null
+              : _lenderController.text.trim(),
           categoryId: _categoryId,
           interest: _hasInterest
               ? EmiInterest(
@@ -382,19 +445,30 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                 )
               : null,
           notes: _notesController.text.trim(),
-          loanNumber: _loanNumberController.text.trim().isEmpty ? null : _loanNumberController.text.trim(),
+          loanNumber: _loanNumberController.text.trim().isEmpty
+              ? null
+              : _loanNumberController.text.trim(),
           loanType: _loanType,
-          branch: _branchController.text.trim().isEmpty ? null : _branchController.text.trim(),
-          customerId: _customerIdController.text.trim().isEmpty ? null : _customerIdController.text.trim(),
+          branch: _branchController.text.trim().isEmpty
+              ? null
+              : _branchController.text.trim(),
+          customerId: _customerIdController.text.trim().isEmpty
+              ? null
+              : _customerIdController.text.trim(),
           sanctionDate: _sanctionDate,
           disbursementDate: _disbursementDate,
-          processingFee: _parseOptionalAmount(_processingFeeController.text) ?? 0,
+          processingFee:
+              _parseOptionalAmount(_processingFeeController.text) ?? 0,
           insuranceAmount: _parseOptionalAmount(_insuranceController.text) ?? 0,
           extraCharges: _parseOptionalAmount(_extraChargesController.text) ?? 0,
           foreclosureAmount: _parseOptionalAmount(_foreclosureController.text),
-          prepaymentCharges: _parseOptionalAmount(_prepaymentChargesController.text),
+          prepaymentCharges: _parseOptionalAmount(
+            _prepaymentChargesController.text,
+          ),
           isAutoDebitEnabled: _isAutoDebitEnabled,
-          autoDebitAccount: _isAutoDebitEnabled && _autoDebitAccountController.text.trim().isNotEmpty
+          autoDebitAccount:
+              _isAutoDebitEnabled &&
+                  _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
           linkedCreditCardId: _linkedCreditCardId,
@@ -405,7 +479,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save EMI: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save EMI: $e')));
       }
     }
   }
@@ -414,7 +490,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
   Widget build(BuildContext context) {
     final categories = ref.watch(activeCategoriesProvider);
     final preview = _preview;
-    final hasPayments = _isEditing ? ref.watch(emiTotalPaidProvider(widget.emi!)) > 0 : false;
+    final hasPayments = _isEditing
+        ? ref.watch(emiTotalPaidProvider(widget.emi!)) > 0
+        : false;
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final accounts = ref.watch(accountsStreamProvider).value ?? const [];
     final accountNameById = {for (final a in accounts) a.id: a.name};
@@ -429,293 +507,369 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              const SectionLabel('Loan Details'),
-              const SizedBox(height: AppSizes.sm),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Loan name'),
-                validator: Validators.required,
+            const SectionLabel('Loan Details'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Loan name'),
+              validator: Validators.required,
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _lenderController,
+              decoration: const InputDecoration(
+                labelText: 'Bank / finance company (optional)',
               ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _lenderController,
-                decoration: const InputDecoration(labelText: 'Bank / finance company (optional)'),
+            ),
+            const SizedBox(height: AppSizes.md),
+            DropdownButtonFormField<EmiLoanType>(
+              initialValue: _loanType,
+              decoration: const InputDecoration(labelText: 'Loan type'),
+              items: [
+                for (final type in EmiLoanType.values)
+                  DropdownMenuItem(value: type, child: Text(type.label)),
+              ],
+              onChanged: (value) =>
+                  setState(() => _loanType = value ?? EmiLoanType.other),
+            ),
+            const SizedBox(height: AppSizes.md),
+            DropdownButtonFormField<String?>(
+              initialValue: _linkedCreditCardId,
+              decoration: const InputDecoration(
+                labelText: 'Linked credit card (optional)',
+                helperText:
+                    'If this loan came from a card purchase converted to EMI',
               ),
-              const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<EmiLoanType>(
-                initialValue: _loanType,
-                decoration: const InputDecoration(labelText: 'Loan type'),
-                items: [
-                  for (final type in EmiLoanType.values)
-                    DropdownMenuItem(value: type, child: Text(type.label)),
-                ],
-                onChanged: (value) => setState(() => _loanType = value ?? EmiLoanType.other),
-              ),
-              const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<String?>(
-                initialValue: _linkedCreditCardId,
-                decoration: const InputDecoration(
-                  labelText: 'Linked credit card (optional)',
-                  helperText: 'If this loan came from a card purchase converted to EMI',
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('None'),
                 ),
-                items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('None')),
-                  for (final card in creditCards)
-                    DropdownMenuItem<String?>(
-                      value: card.id,
-                      child: Text(_cardLabel(card, accountNameById)),
-                    ),
-                ],
-                onChanged: (value) => setState(() => _linkedCreditCardId = value),
-              ),
-              const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<String>(
-                initialValue: _categoryId,
-                decoration: const InputDecoration(labelText: 'Category (optional)'),
-                items: [
-                  for (final category in categories) DropdownMenuItem(value: category.id, child: Text(category.name)),
-                ],
-                onChanged: (value) => setState(() => _categoryId = value),
-              ),
-              const SizedBox(height: AppSizes.lg),
-              const SectionLabel('Amount & Schedule'),
-              const SizedBox(height: AppSizes.sm),
-              TextFormField(
-                controller: _amountController,
-                enabled: !hasPayments,
-                decoration: InputDecoration(
-                  labelText: 'Loan amount',
-                  helperText: hasPayments ? 'Amount can\'t be changed after a payment has been recorded' : null,
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: Validators.amount,
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSizes.md),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                enabled: !hasPayments,
-                title: const Text('First EMI Date'),
-                subtitle: Text('${_startDate.day}/${_startDate.month}/${_startDate.year}'),
-                trailing: const Icon(Icons.calendar_today_outlined),
-                onTap: hasPayments ? null : _pickStartDate,
-              ),
-              if (hasPayments)
-                const Padding(
-                  padding: EdgeInsets.only(top: AppSizes.xs),
-                  child: Text(
-                    'First EMI Date can\'t be changed after a payment has been recorded',
-                    style: TextStyle(fontSize: 12),
+                for (final card in creditCards)
+                  DropdownMenuItem<String?>(
+                    value: card.id,
+                    child: Text(_cardLabel(card, accountNameById)),
                   ),
-                ),
-              const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<ScheduleType>(
-                initialValue: _installmentFrequency,
-                decoration: const InputDecoration(labelText: 'Frequency'),
-                items: const [
-                  DropdownMenuItem(value: ScheduleType.weekly, child: Text('Weekly')),
-                  DropdownMenuItem(value: ScheduleType.monthly, child: Text('Monthly')),
-                ],
-                onChanged: (value) => setState(() => _installmentFrequency = value ?? ScheduleType.monthly),
+              ],
+              onChanged: (value) => setState(() => _linkedCreditCardId = value),
+            ),
+            const SizedBox(height: AppSizes.md),
+            DropdownButtonFormField<String>(
+              initialValue: _categoryId,
+              decoration: const InputDecoration(
+                labelText: 'Category (optional)',
               ),
+              items: [
+                for (final category in categories)
+                  DropdownMenuItem(
+                    value: category.id,
+                    child: Text(category.name),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _categoryId = value),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Amount & Schedule'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _amountController,
+              enabled: !hasPayments,
+              decoration: InputDecoration(
+                labelText: 'Loan amount',
+                helperText: hasPayments
+                    ? 'Amount can\'t be changed after a payment has been recorded'
+                    : null,
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              validator: Validators.amount,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppSizes.md),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              enabled: !hasPayments,
+              title: const Text('First EMI Date'),
+              subtitle: Text(
+                '${_startDate.day}/${_startDate.month}/${_startDate.year}',
+              ),
+              trailing: const Icon(Icons.calendar_today_outlined),
+              onTap: hasPayments ? null : _pickStartDate,
+            ),
+            if (hasPayments)
+              const Padding(
+                padding: EdgeInsets.only(top: AppSizes.xs),
+                child: Text(
+                  'First EMI Date can\'t be changed after a payment has been recorded',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
+            const SizedBox(height: AppSizes.md),
+            DropdownButtonFormField<ScheduleType>(
+              initialValue: _installmentFrequency,
+              decoration: const InputDecoration(labelText: 'Frequency'),
+              items: const [
+                DropdownMenuItem(
+                  value: ScheduleType.weekly,
+                  child: Text('Weekly'),
+                ),
+                DropdownMenuItem(
+                  value: ScheduleType.monthly,
+                  child: Text('Monthly'),
+                ),
+              ],
+              onChanged: (value) => setState(
+                () => _installmentFrequency = value ?? ScheduleType.monthly,
+              ),
+            ),
+            const SizedBox(height: AppSizes.md),
+            TextFormField(
+              controller: _installmentCountController,
+              decoration: InputDecoration(
+                labelText: 'Number of payments',
+                helperText: _isEditing
+                    ? 'Can\'t be less than the number of payments already made'
+                    : null,
+              ),
+              keyboardType: TextInputType.number,
+              validator: Validators.required,
+              onChanged: (_) => setState(() {}),
+            ),
+            if (_installmentFrequency == ScheduleType.monthly) ...[
               const SizedBox(height: AppSizes.md),
               TextFormField(
-                controller: _installmentCountController,
-                decoration: InputDecoration(
-                  labelText: 'Number of payments',
+                controller: _dueDayOfMonthController,
+                decoration: const InputDecoration(
+                  labelText: 'Monthly due date (optional)',
                   helperText:
-                      _isEditing ? 'Can\'t be less than the number of payments already made' : null,
+                      'The fixed day every EMI after the first is due on, e.g. 5 for the 5th',
+                  suffixText: 'day of month',
                 ),
                 keyboardType: TextInputType.number,
-                validator: Validators.required,
+                validator: (value) {
+                  final trimmed = value?.trim() ?? '';
+                  if (trimmed.isEmpty) return null;
+                  final day = int.tryParse(trimmed);
+                  if (day == null || day < 1 || day > 31)
+                    return 'Enter a day between 1 and 31';
+                  return null;
+                },
                 onChanged: (_) => setState(() {}),
               ),
-              if (_installmentFrequency == ScheduleType.monthly) ...[
-                const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _dueDayOfMonthController,
-                  decoration: const InputDecoration(
-                    labelText: 'Monthly due date (optional)',
-                    helperText: 'The fixed day every EMI after the first is due on, e.g. 5 for the 5th',
-                    suffixText: 'day of month',
-                  ),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    final trimmed = value?.trim() ?? '';
-                    if (trimmed.isEmpty) return null;
-                    final day = int.tryParse(trimmed);
-                    if (day == null || day < 1 || day > 31) return 'Enter a day between 1 and 31';
-                    return null;
-                  },
-                  onChanged: (_) => setState(() {}),
-                ),
-              ],
-              const SizedBox(height: AppSizes.lg),
-              const SectionLabel('Interest'),
-              const SizedBox(height: AppSizes.xs),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Add interest'),
-                value: _hasInterest,
-                onChanged: (value) => setState(() => _hasInterest = value),
-              ),
-              if (_hasInterest) ...[
-                SegmentedButton<InterestType>(
-                  segments: const [
-                    ButtonSegment(value: InterestType.flat, label: Text('Flat')),
-                    ButtonSegment(value: InterestType.reducingBalance, label: Text('Reducing balance')),
-                  ],
-                  selected: {_interestType},
-                  onSelectionChanged: (selection) => setState(() => _interestType = selection.first),
-                ),
-                const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _rateController,
-                  decoration: InputDecoration(
-                    labelText: 'Interest rate (%)',
-                    helperText: _interestPeriod == InterestPeriod.yearly
-                        ? 'Enter the yearly rate (e.g. a bank\'s quoted rate, like 15.12)'
-                        : 'Enter the rate charged per month',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: AppSizes.md),
-                SegmentedButton<InterestPeriod>(
-                  segments: const [
-                    ButtonSegment(value: InterestPeriod.monthly, label: Text('Per month')),
-                    ButtonSegment(value: InterestPeriod.yearly, label: Text('Per year')),
-                  ],
-                  selected: {_interestPeriod},
-                  onSelectionChanged: (selection) => setState(() => _interestPeriod = selection.first),
-                ),
-                if (preview != null) ...[
-                  const SizedBox(height: AppSizes.md),
-                  Container(
-                    padding: const EdgeInsets.all(AppSizes.md),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total to pay: ${CurrencyFormatter.instance.format(preview.totalPayable)}'),
-                        Text('Total interest: ${CurrencyFormatter.instance.format(preview.totalInterest)}'),
-                      ],
-                    ),
+            ],
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Interest'),
+            const SizedBox(height: AppSizes.xs),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Add interest'),
+              value: _hasInterest,
+              onChanged: (value) => setState(() => _hasInterest = value),
+            ),
+            if (_hasInterest) ...[
+              SegmentedButton<InterestType>(
+                segments: const [
+                  ButtonSegment(value: InterestType.flat, label: Text('Flat')),
+                  ButtonSegment(
+                    value: InterestType.reducingBalance,
+                    label: Text('Reducing balance'),
                   ),
                 ],
-              ],
+                selected: {_interestType},
+                onSelectionChanged: (selection) =>
+                    setState(() => _interestType = selection.first),
+              ),
               const SizedBox(height: AppSizes.md),
-              ExpansionTile(
-                title: const Text('Bank details (optional)'),
-                tilePadding: EdgeInsets.zero,
-                initiallyExpanded: _showBankDetails,
-                onExpansionChanged: (expanded) => setState(() => _showBankDetails = expanded),
-                childrenPadding: EdgeInsets.zero,
-                children: [
-                  TextFormField(
-                    controller: _loanNumberController,
-                    decoration: const InputDecoration(labelText: 'Loan / account number'),
+              TextFormField(
+                controller: _rateController,
+                decoration: InputDecoration(
+                  labelText: 'Interest rate (%)',
+                  helperText: _interestPeriod == InterestPeriod.yearly
+                      ? 'Enter the yearly rate (e.g. a bank\'s quoted rate, like 15.12)'
+                      : 'Enter the rate charged per month',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: AppSizes.md),
+              SegmentedButton<InterestPeriod>(
+                segments: const [
+                  ButtonSegment(
+                    value: InterestPeriod.monthly,
+                    label: Text('Per month'),
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _branchController,
-                    decoration: const InputDecoration(labelText: 'Branch'),
+                  ButtonSegment(
+                    value: InterestPeriod.yearly,
+                    label: Text('Per year'),
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _customerIdController,
-                    decoration: const InputDecoration(labelText: 'Customer ID'),
+                ],
+                selected: {_interestPeriod},
+                onSelectionChanged: (selection) =>
+                    setState(() => _interestPeriod = selection.first),
+              ),
+              if (preview != null) ...[
+                const SizedBox(height: AppSizes.md),
+                Container(
+                  padding: const EdgeInsets.all(AppSizes.md),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Sanction date'),
-                    subtitle: Text(
-                      _sanctionDate == null
-                          ? 'Not set'
-                          : '${_sanctionDate!.day}/${_sanctionDate!.month}/${_sanctionDate!.year}',
-                    ),
-                    trailing: const Icon(Icons.calendar_today_outlined),
-                    onTap: _pickSanctionDate,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total to pay: ${CurrencyFormatter.instance.format(preview.totalPayable)}',
+                      ),
+                      Text(
+                        'Total interest: ${CurrencyFormatter.instance.format(preview.totalInterest)}',
+                      ),
+                    ],
                   ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Loan Disbursement Date'),
-                    subtitle: Text(
-                      _disbursementDate == null
-                          ? 'Not set'
-                          : '${_disbursementDate!.day}/${_disbursementDate!.month}/${_disbursementDate!.year}',
-                    ),
-                    trailing: const Icon(Icons.calendar_today_outlined),
-                    onTap: _pickDisbursementDate,
+                ),
+              ],
+            ],
+            const SizedBox(height: AppSizes.md),
+            ExpansionTile(
+              title: const Text('Bank details (optional)'),
+              tilePadding: EdgeInsets.zero,
+              initiallyExpanded: _showBankDetails,
+              onExpansionChanged: (expanded) =>
+                  setState(() => _showBankDetails = expanded),
+              childrenPadding: EdgeInsets.zero,
+              children: [
+                TextFormField(
+                  controller: _loanNumberController,
+                  decoration: const InputDecoration(
+                    labelText: 'Loan / account number',
                   ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Auto debit enabled'),
-                    subtitle: const Text('For your reference only — this app does not process payments'),
-                    value: _isAutoDebitEnabled,
-                    onChanged: (value) => setState(() => _isAutoDebitEnabled = value),
+                ),
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _branchController,
+                  decoration: const InputDecoration(labelText: 'Branch'),
+                ),
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _customerIdController,
+                  decoration: const InputDecoration(labelText: 'Customer ID'),
+                ),
+                const SizedBox(height: AppSizes.md),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Sanction date'),
+                  subtitle: Text(
+                    _sanctionDate == null
+                        ? 'Not set'
+                        : '${_sanctionDate!.day}/${_sanctionDate!.month}/${_sanctionDate!.year}',
                   ),
-                  if (_isAutoDebitEnabled)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.md),
-                      child: TextFormField(
-                        controller: _autoDebitAccountController,
-                        decoration: const InputDecoration(labelText: 'Auto debit account'),
+                  trailing: const Icon(Icons.calendar_today_outlined),
+                  onTap: _pickSanctionDate,
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Loan Disbursement Date'),
+                  subtitle: Text(
+                    _disbursementDate == null
+                        ? 'Not set'
+                        : '${_disbursementDate!.day}/${_disbursementDate!.month}/${_disbursementDate!.year}',
+                  ),
+                  trailing: const Icon(Icons.calendar_today_outlined),
+                  onTap: _pickDisbursementDate,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Auto debit enabled'),
+                  subtitle: const Text(
+                    'For your reference only — this app does not process payments',
+                  ),
+                  value: _isAutoDebitEnabled,
+                  onChanged: (value) =>
+                      setState(() => _isAutoDebitEnabled = value),
+                ),
+                if (_isAutoDebitEnabled)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSizes.md),
+                    child: TextFormField(
+                      controller: _autoDebitAccountController,
+                      decoration: const InputDecoration(
+                        labelText: 'Auto debit account',
                       ),
                     ),
-                ],
-              ),
-              ExpansionTile(
-                title: const Text('Fees & charges (optional)'),
-                tilePadding: EdgeInsets.zero,
-                initiallyExpanded: _showCharges,
-                onExpansionChanged: (expanded) => setState(() => _showCharges = expanded),
-                childrenPadding: EdgeInsets.zero,
-                children: [
-                  TextFormField(
-                    controller: _processingFeeController,
-                    decoration: const InputDecoration(labelText: 'Processing fee'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _insuranceController,
-                    decoration: const InputDecoration(labelText: 'Insurance amount'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ],
+            ),
+            ExpansionTile(
+              title: const Text('Fees & charges (optional)'),
+              tilePadding: EdgeInsets.zero,
+              initiallyExpanded: _showCharges,
+              onExpansionChanged: (expanded) =>
+                  setState(() => _showCharges = expanded),
+              childrenPadding: EdgeInsets.zero,
+              children: [
+                TextFormField(
+                  controller: _processingFeeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Processing fee',
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _extraChargesController,
-                    decoration: const InputDecoration(labelText: 'Other charges'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _foreclosureController,
-                    decoration: const InputDecoration(labelText: 'Foreclosure amount'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _insuranceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Insurance amount',
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _prepaymentChargesController,
-                    decoration: const InputDecoration(labelText: 'Prepayment charges'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.lg),
-              const SectionLabel('Notes'),
-              const SizedBox(height: AppSizes.sm),
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(labelText: 'Notes (optional)'),
-                maxLines: 3,
-                textInputAction: TextInputAction.done,
-              ),
+                ),
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _extraChargesController,
+                  decoration: const InputDecoration(labelText: 'Other charges'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _foreclosureController,
+                  decoration: const InputDecoration(
+                    labelText: 'Foreclosure amount',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _prepaymentChargesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Prepayment charges',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.lg),
+            const SectionLabel('Notes'),
+            const SizedBox(height: AppSizes.sm),
+            TextFormField(
+              controller: _notesController,
+              decoration: const InputDecoration(labelText: 'Notes (optional)'),
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+            ),
           ],
         ),
       ),

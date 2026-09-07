@@ -11,8 +11,8 @@ import '../../../../shared/widgets/states/payment_urgency_badge.dart';
 import '../../domain/date_range_strategy.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/upcoming_due_provider.dart';
-import '../../../theme/clay_theme.dart';
-import '../../../theme/clay_widgets.dart';
+import '../../../constants/app_colors.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import 'dashboard_widget_shell.dart';
 import 'upcoming_due_breakdown_sheet.dart';
 
@@ -35,7 +35,9 @@ class UpcomingPaymentsWidgetCard extends ConsumerWidget {
       _ => 17,
     };
     final cycle = SalaryCycleFull(anchorDay: anchorDay).resolve(DateTime.now());
-    final items = ref.watch(upcomingDueProvider((start: cycle.start, end: cycle.end)));
+    final items = ref.watch(
+      upcomingDueProvider((start: cycle.start, end: cycle.end)),
+    );
     final textTheme = context.textTheme;
     final colors = context.colors;
 
@@ -43,12 +45,18 @@ class UpcomingPaymentsWidgetCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+          Text(
+            config.title,
+            style: textTheme.labelLarge,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: AppSizes.sm),
           if (items.isEmpty)
             Text(
               'Nothing due this cycle.',
-              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             )
           else
             UpcomingDueList(items: items),
@@ -81,7 +89,10 @@ class UpcomingDueList extends StatelessWidget {
         if (carriedOver.isNotEmpty) ...[
           Text(
             'Carried Over From Previous Cycle',
-            style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700, color: AppClay.warning),
+            style: textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.warning,
+            ),
           ),
           for (final item in carriedOver) UpcomingDueRow(item: item),
         ],
@@ -89,7 +100,10 @@ class UpcomingDueList extends StatelessWidget {
           if (carriedOver.isNotEmpty) const SizedBox(height: AppSizes.sm),
           Text(
             'Due This Cycle',
-            style: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700, color: colors.onSurfaceVariant),
+            style: textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: colors.onSurfaceVariant,
+            ),
           ),
           for (final item in thisCycle) UpcomingDueRow(item: item),
         ],
@@ -123,7 +137,9 @@ String dueLabelFor(DateTime dueDate) {
 void openUpcomingDueItem(BuildContext context, UpcomingDueItem item) {
   switch (item.kind) {
     case UpcomingDueKind.creditCard:
-      context.push('/creditCards/${item.routeId}/statements/${item.secondaryRouteId}');
+      context.push(
+        '/creditCards/${item.routeId}/statements/${item.secondaryRouteId}',
+      );
     case UpcomingDueKind.emi:
       context.push('/emis/${item.routeId}');
     case UpcomingDueKind.loan:
@@ -142,22 +158,32 @@ class UpcomingDueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
     final colors = context.colors;
     final textTheme = context.textTheme;
     final tint = item.urgency.color;
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(AppClay.radiusMd),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppClay.radiusMd),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
         onTap: () => UpcomingDueBreakdownSheet.show(context, item),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSizes.xs, horizontal: AppSizes.xs),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppSizes.xs,
+            horizontal: AppSizes.xs,
+          ),
           child: Row(
             children: [
-              ClayIconChip(icon: iconForUpcomingDueKind(item.kind), color: tint, glow: true),
+              FlowFiIconChip(
+                icon: iconForUpcomingDueKind(item.kind),
+                color: tint,
+              ),
               const SizedBox(width: AppSizes.sm),
               Expanded(
                 child: Column(
@@ -165,20 +191,27 @@ class UpcomingDueRow extends StatelessWidget {
                   children: [
                     Text(
                       item.title,
-                      style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                      style: textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       dueLabelFor(item.dueDate),
-                      style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+                      style: textTheme.labelSmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: PaymentUrgencyBadge(urgency: item.urgency, compact: true),
+                      child: PaymentUrgencyBadge(
+                        urgency: item.urgency,
+                        compact: true,
+                      ),
                     ),
                   ],
                 ),
@@ -190,11 +223,17 @@ class UpcomingDueRow extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   child: Text(
                     format.format(item.remaining),
-                    style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    style: textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: colors.onSurfaceVariant.withValues(alpha: 0.5)),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: AppSizes.iconSm,
+                color: colors.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
             ],
           ),
         ),

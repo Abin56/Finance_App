@@ -76,28 +76,36 @@ extension DateRangeStrategyX on DateRangeStrategy {
     return DateTime(year, month, day > lastDayOfMonth ? lastDayOfMonth : day);
   }
 
-
   DateRange resolve(DateTime now, {int fiscalYearStartMonth = 1}) {
     switch (this) {
       case SalaryCycleToDate(:final anchorDay):
         final onOrAfterAnchor = now.day >= anchorDay;
         final startMonth = onOrAfterAnchor ? now.month : now.month - 1;
         final start = _dayInMonth(now.year, startMonth, anchorDay);
-        return DateRange(start, now.dateOnly.add(const Duration(hours: 23, minutes: 59, seconds: 59)));
+        return DateRange(
+          start,
+          now.dateOnly.add(const Duration(hours: 23, minutes: 59, seconds: 59)),
+        );
 
       case SalaryCycleFull(:final anchorDay):
         final onOrAfterAnchor = now.day >= anchorDay;
         final startMonth = onOrAfterAnchor ? now.month : now.month - 1;
         final start = _dayInMonth(now.year, startMonth, anchorDay);
         final end = _dayInMonth(start.year, start.month + 1, anchorDay);
-        return DateRange(start, DateTime(end.year, end.month, end.day, 23, 59, 59));
+        return DateRange(
+          start,
+          DateTime(end.year, end.month, end.day, 23, 59, 59),
+        );
 
       case ReportsPeriodStrategy(:final period):
         return period.rangeFor(now, fiscalYearStartMonth: fiscalYearStartMonth);
 
       case LastNDays(:final days):
         final start = now.dateOnly.subtract(Duration(days: days - 1));
-        return DateRange(start, now.dateOnly.add(const Duration(hours: 23, minutes: 59, seconds: 59)));
+        return DateRange(
+          start,
+          now.dateOnly.add(const Duration(hours: 23, minutes: 59, seconds: 59)),
+        );
 
       case CustomDateRange(:final start, :final end):
         return DateRange(start, end);

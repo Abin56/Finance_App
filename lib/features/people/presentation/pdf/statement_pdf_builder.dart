@@ -23,7 +23,10 @@ abstract class StatementPdfBuilder {
   static Future<pw.Document> build(StatementPdfModel model) async {
     final fonts = await FontManager.load();
 
-    final doc = pw.Document(title: 'Statement for ${model.personName}', producer: 'FlowFi');
+    final doc = pw.Document(
+      title: 'Statement for ${model.personName}',
+      producer: 'FlowFi',
+    );
 
     doc.addPage(
       pw.MultiPage(
@@ -42,7 +45,11 @@ abstract class StatementPdfBuilder {
             ),
           );
         },
-        footer: (context) => PdfFooter(pageNumber: context.pageNumber, pagesCount: context.pagesCount, fonts: fonts),
+        footer: (context) => PdfFooter(
+          pageNumber: context.pageNumber,
+          pagesCount: context.pagesCount,
+          fonts: fonts,
+        ),
         // `build:` is called exactly once up front with a page-less base
         // Context (`pw.MultiPage` assigns real pages to the flattened list
         // afterward as it flows content) — `context.pageNumber` is not

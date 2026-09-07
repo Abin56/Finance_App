@@ -27,7 +27,9 @@ class LocalSettingsService {
   static SharedPreferences get _instance {
     final prefs = _prefs;
     if (prefs == null) {
-      throw StateError('LocalSettingsService.init() must be called before use.');
+      throw StateError(
+        'LocalSettingsService.init() must be called before use.',
+      );
     }
     return prefs;
   }
@@ -35,18 +37,21 @@ class LocalSettingsService {
   static bool getBool(String key, {bool defaultValue = false}) =>
       _instance.getBool(key) ?? defaultValue;
 
-  static Future<void> setBool(String key, bool value) => _instance.setBool(key, value);
+  static Future<void> setBool(String key, bool value) =>
+      _instance.setBool(key, value);
 
   static int getInt(String key, {int defaultValue = 0}) =>
       _instance.getInt(key) ?? defaultValue;
 
-  static Future<void> setInt(String key, int value) => _instance.setInt(key, value);
+  static Future<void> setInt(String key, int value) =>
+      _instance.setInt(key, value);
 
   static int? getIntOrNull(String key) => _instance.getInt(key);
 
   static String? getString(String key) => _instance.getString(key);
 
-  static Future<void> setString(String key, String value) => _instance.setString(key, value);
+  static Future<void> setString(String key, String value) =>
+      _instance.setString(key, value);
 
   static Future<void> removeKey(String key) => _instance.remove(key);
 }

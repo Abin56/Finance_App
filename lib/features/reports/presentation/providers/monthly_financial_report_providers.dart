@@ -16,65 +16,79 @@ typedef DateRangeKey = ({DateTime start, DateTime end});
 /// Sum of `amountPaid` across every active EMI's installments whose due
 /// date falls within [range] — a period-scoped variant of
 /// [emiPaidThisMonthProvider], which is this-month-only.
-final emiPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
-  final emis = ref.watch(activeEmisProvider);
-  var total = 0.0;
-  for (final emi in emis) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-    for (final i in installments) {
-      if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) continue;
-      total += i.amountPaid;
-    }
-  }
-  return total;
-});
+final emiPaidForRangeProvider = Provider.autoDispose
+    .family<double, DateRangeKey>((ref, range) {
+      final emis = ref.watch(activeEmisProvider);
+      var total = 0.0;
+      for (final emi in emis) {
+        final installments =
+            ref.watch(installmentsStreamProvider(emi.scheduleId)).value ??
+            const [];
+        for (final i in installments) {
+          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
+            continue;
+          total += i.amountPaid;
+        }
+      }
+      return total;
+    });
 
 /// Sum of `amountPaid` across every active Loan's installments whose due
 /// date falls within [range].
-final loanPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
-  final loans = ref.watch(activeLoansProvider);
-  var total = 0.0;
-  for (final loan in loans) {
-    final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
-    for (final i in installments) {
-      if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) continue;
-      total += i.amountPaid;
-    }
-  }
-  return total;
-});
+final loanPaidForRangeProvider = Provider.autoDispose
+    .family<double, DateRangeKey>((ref, range) {
+      final loans = ref.watch(activeLoansProvider);
+      var total = 0.0;
+      for (final loan in loans) {
+        final installments =
+            ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+            const [];
+        for (final i in installments) {
+          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
+            continue;
+          total += i.amountPaid;
+        }
+      }
+      return total;
+    });
 
 /// Sum of `BillOccurrence.amountPaid` across every bill's occurrences whose
 /// due date falls within [range] — "Total Bills Paid" for an arbitrary
 /// report period (as opposed to [paidBillsProvider], which has no date
 /// filter).
-final billsPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
-  final bills = ref.watch(billsStreamProvider).value ?? const [];
-  var total = 0.0;
-  for (final bill in bills) {
-    final occurrences = ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
-    for (final o in occurrences) {
-      if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end)) continue;
-      total += o.amountPaid;
-    }
-  }
-  return total;
-});
+final billsPaidForRangeProvider = Provider.autoDispose
+    .family<double, DateRangeKey>((ref, range) {
+      final bills = ref.watch(billsStreamProvider).value ?? const [];
+      var total = 0.0;
+      for (final bill in bills) {
+        final occurrences =
+            ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
+        for (final o in occurrences) {
+          if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end))
+            continue;
+          total += o.amountPaid;
+        }
+      }
+      return total;
+    });
 
 /// Sum of `Statement.amountPaid` across every card's statements whose due
 /// date falls within [range] — "Credit Card Bills Paid".
-final creditCardBillsPaidForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  var total = 0.0;
-  for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
-    for (final s in statements) {
-      if (s.dueDate.isBefore(range.start) || s.dueDate.isAfter(range.end)) continue;
-      total += s.amountPaid;
-    }
-  }
-  return total;
-});
+final creditCardBillsPaidForRangeProvider = Provider.autoDispose
+    .family<double, DateRangeKey>((ref, range) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      var total = 0.0;
+      for (final card in cards) {
+        final statements =
+            ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+        for (final s in statements) {
+          if (s.dueDate.isBefore(range.start) || s.dueDate.isAfter(range.end))
+            continue;
+          total += s.amountPaid;
+        }
+      }
+      return total;
+    });
 
 /// Credit Utilization % — total outstanding across every card/group divided
 /// by total credit limit, guarded against a zero denominator. Both sides use
@@ -95,25 +109,40 @@ final creditUtilizationPercentProvider = Provider<double>((ref) {
 /// Sum of `Emi.insuranceAmount` across EMIs created within [range] — a
 /// one-time, informational charge (not amortized), so it's attributed to
 /// the EMI's creation date.
-final insuranceChargesForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
-  final emis = ref.watch(emisStreamProvider).value ?? const [];
-  return emis
-      .where((e) => !e.createdAt.isBefore(range.start) && !e.createdAt.isAfter(range.end))
-      .fold(0.0, (sum, e) => sum + e.insuranceAmount);
-});
+final insuranceChargesForRangeProvider = Provider.autoDispose
+    .family<double, DateRangeKey>((ref, range) {
+      final emis = ref.watch(emisStreamProvider).value ?? const [];
+      return emis
+          .where(
+            (e) =>
+                !e.createdAt.isBefore(range.start) &&
+                !e.createdAt.isAfter(range.end),
+          )
+          .fold(0.0, (sum, e) => sum + e.insuranceAmount);
+    });
 
 /// Sum of `Emi.processingFee` across EMIs created within [range].
-final processingFeesForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
-  final emis = ref.watch(emisStreamProvider).value ?? const [];
-  return emis
-      .where((e) => !e.createdAt.isBefore(range.start) && !e.createdAt.isAfter(range.end))
-      .fold(0.0, (sum, e) => sum + e.processingFee);
-});
+final processingFeesForRangeProvider = Provider.autoDispose
+    .family<double, DateRangeKey>((ref, range) {
+      final emis = ref.watch(emisStreamProvider).value ?? const [];
+      return emis
+          .where(
+            (e) =>
+                !e.createdAt.isBefore(range.start) &&
+                !e.createdAt.isAfter(range.end),
+          )
+          .fold(0.0, (sum, e) => sum + e.processingFee);
+    });
 
 /// Sum of `Emi.extraCharges` across EMIs created within [range].
-final otherChargesForRangeProvider = Provider.autoDispose.family<double, DateRangeKey>((ref, range) {
-  final emis = ref.watch(emisStreamProvider).value ?? const [];
-  return emis
-      .where((e) => !e.createdAt.isBefore(range.start) && !e.createdAt.isAfter(range.end))
-      .fold(0.0, (sum, e) => sum + e.extraCharges);
-});
+final otherChargesForRangeProvider = Provider.autoDispose
+    .family<double, DateRangeKey>((ref, range) {
+      final emis = ref.watch(emisStreamProvider).value ?? const [];
+      return emis
+          .where(
+            (e) =>
+                !e.createdAt.isBefore(range.start) &&
+                !e.createdAt.isAfter(range.end),
+          )
+          .fold(0.0, (sum, e) => sum + e.extraCharges);
+    });

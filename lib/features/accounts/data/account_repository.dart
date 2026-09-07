@@ -59,7 +59,9 @@ class AccountRepository extends FirestoreCrudRepository<Account> {
     bool clearAccountNumberLast4 = false,
   }) async {
     _validate(
-      accountNumberLast4: clearAccountNumberLast4 ? null : accountNumberLast4 ?? account.accountNumberLast4,
+      accountNumberLast4: clearAccountNumberLast4
+          ? null
+          : accountNumberLast4 ?? account.accountNumberLast4,
     );
 
     account.updateField(
@@ -81,7 +83,11 @@ class AccountRepository extends FirestoreCrudRepository<Account> {
       apply: (v) => account.colorValue = v,
     );
     if (clearBankId) {
-      account.recordEdit(field: 'bankId', oldValue: account.bankId ?? 'none', newValue: 'none');
+      account.recordEdit(
+        field: 'bankId',
+        oldValue: account.bankId ?? 'none',
+        newValue: 'none',
+      );
       account.bankId = null;
     } else {
       account.updateField(
@@ -107,7 +113,11 @@ class AccountRepository extends FirestoreCrudRepository<Account> {
       );
     }
     if (clearNotes) {
-      account.recordEdit(field: 'notes', oldValue: account.notes ?? 'none', newValue: 'none');
+      account.recordEdit(
+        field: 'notes',
+        oldValue: account.notes ?? 'none',
+        newValue: 'none',
+      );
       account.notes = null;
     } else {
       account.updateField(
@@ -136,7 +146,8 @@ class AccountRepository extends FirestoreCrudRepository<Account> {
   }
 
   void _validate({String? accountNumberLast4}) {
-    if (accountNumberLast4 != null && !_last4DigitsPattern.hasMatch(accountNumberLast4)) {
+    if (accountNumberLast4 != null &&
+        !_last4DigitsPattern.hasMatch(accountNumberLast4)) {
       throw const AppException('Account number must be exactly 4 digits');
     }
   }
@@ -163,7 +174,10 @@ class AccountRepository extends FirestoreCrudRepository<Account> {
   /// value. A safety net against drift if a transaction write is ever
   /// interrupted mid-way — wire this up once Milestone 3's
   /// TransactionRepository exists to supply [transactionsTotal].
-  Future<void> reconcileBalance(Account account, double transactionsTotal) async {
+  Future<void> reconcileBalance(
+    Account account,
+    double transactionsTotal,
+  ) async {
     final correctBalance = account.openingBalance + transactionsTotal;
     if (correctBalance == account.currentBalance) return;
     account.recordEdit(

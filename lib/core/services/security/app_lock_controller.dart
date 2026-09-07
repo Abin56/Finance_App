@@ -32,7 +32,10 @@ class AppLockController extends Notifier<AppLockState> {
     return AppLockState(
       pinEnabled: pinEnabled,
       biometricEnabled: LocalSettingsService.getBool(_biometricEnabledKey),
-      autoLockMinutes: LocalSettingsService.getInt(_autoLockMinutesKey, defaultValue: 1),
+      autoLockMinutes: LocalSettingsService.getInt(
+        _autoLockMinutesKey,
+        defaultValue: 1,
+      ),
       // Lock immediately on cold start whenever a PIN is configured.
       locked: pinEnabled,
       failedAttempts: LocalSettingsService.getInt(_failedAttemptsKey),
@@ -58,7 +61,12 @@ class AppLockController extends Notifier<AppLockState> {
     await SecureKeyService.savePin(hash, salt);
     await LocalSettingsService.setBool(_pinEnabledKey, true);
     await _resetThrottle();
-    state = state.copyWith(pinEnabled: true, locked: false, failedAttempts: 0, clearLockout: true);
+    state = state.copyWith(
+      pinEnabled: true,
+      locked: false,
+      failedAttempts: 0,
+      clearLockout: true,
+    );
   }
 
   Future<void> disable() async {
@@ -86,7 +94,11 @@ class AppLockController extends Notifier<AppLockState> {
     final valid = PinHasher.verify(pin, stored.salt, stored.hash);
     if (valid) {
       await _resetThrottle();
-      state = state.copyWith(locked: false, failedAttempts: 0, clearLockout: true);
+      state = state.copyWith(
+        locked: false,
+        failedAttempts: 0,
+        clearLockout: true,
+      );
       return true;
     }
 
@@ -94,7 +106,10 @@ class AppLockController extends Notifier<AppLockState> {
     DateTime? lockoutUntil;
     if (attempts >= _freeAttempts) {
       final tier = (attempts - _freeAttempts) ~/ _freeAttempts;
-      final lockoutSeconds = (_baseLockout.inSeconds << tier).clamp(0, _maxLockout.inSeconds);
+      final lockoutSeconds = (_baseLockout.inSeconds << tier).clamp(
+        0,
+        _maxLockout.inSeconds,
+      );
       lockoutUntil = DateTime.now().add(Duration(seconds: lockoutSeconds));
     }
 
@@ -102,10 +117,16 @@ class AppLockController extends Notifier<AppLockState> {
     if (lockoutUntil == null) {
       await LocalSettingsService.removeKey(_lockoutUntilKey);
     } else {
-      await LocalSettingsService.setInt(_lockoutUntilKey, lockoutUntil.millisecondsSinceEpoch);
+      await LocalSettingsService.setInt(
+        _lockoutUntilKey,
+        lockoutUntil.millisecondsSinceEpoch,
+      );
     }
 
-    state = state.copyWith(failedAttempts: attempts, lockoutUntil: lockoutUntil);
+    state = state.copyWith(
+      failedAttempts: attempts,
+      lockoutUntil: lockoutUntil,
+    );
     return false;
   }
 
@@ -114,7 +135,10 @@ class AppLockController extends Notifier<AppLockState> {
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: 'Unlock to view your finances',
-        options: const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
       );
       if (authenticated) state = state.copyWith(locked: false);
       return authenticated;
@@ -145,4 +169,6 @@ class AppLockController extends Notifier<AppLockState> {
   }
 }
 
-final appLockProvider = NotifierProvider<AppLockController, AppLockState>(AppLockController.new);
+final appLockProvider = NotifierProvider<AppLockController, AppLockState>(
+  AppLockController.new,
+);

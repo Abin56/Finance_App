@@ -19,7 +19,9 @@ class LinkingCaseResult {
   bool get passed => mismatches.isEmpty || isKnownIssue;
 
   bool get isDangerousMismatch =>
-      !isKnownIssue && mismatches.isNotEmpty && testCase.isDangerousIfMisclassified;
+      !isKnownIssue &&
+      mismatches.isNotEmpty &&
+      testCase.isDangerousIfMisclassified;
 }
 
 class LinkingEvaluationReport {
@@ -30,7 +32,8 @@ class LinkingEvaluationReport {
   int get total => results.length;
   int get passedCount => results.where((r) => r.passed).length;
   int get failedCount => total - passedCount;
-  List<LinkingCaseResult> get failures => results.where((r) => !r.passed).toList();
+  List<LinkingCaseResult> get failures =>
+      results.where((r) => !r.passed).toList();
   List<LinkingCaseResult> get dangerousMismatches =>
       results.where((r) => r.isDangerousMismatch).toList();
   List<LinkingCaseResult> get knownIssues =>
@@ -106,11 +109,23 @@ class LinkingEvaluationHarness {
       }
     }
 
-    check('relationshipType', testCase.expectedType, relationship.relationshipType);
+    check(
+      'relationshipType',
+      testCase.expectedType,
+      relationship.relationshipType,
+    );
     check('confidence', testCase.expectedConfidence, relationship.confidence);
-    check('needsReview', testCase.expectedNeedsReview, relationship.needsReview);
+    check(
+      'needsReview',
+      testCase.expectedNeedsReview,
+      relationship.needsReview,
+    );
     if (testCase.expectedTargetEventId != null) {
-      check('targetEventId', testCase.expectedTargetEventId, relationship.targetEventId);
+      check(
+        'targetEventId',
+        testCase.expectedTargetEventId,
+        relationship.targetEventId,
+      );
     }
     if (testCase.expectedAlternativeCount != null) {
       check(
@@ -127,7 +142,9 @@ class LinkingEvaluationHarness {
     );
   }
 
-  Future<LinkingEvaluationReport> evaluateAll(List<LinkingTestCase> cases) async {
+  Future<LinkingEvaluationReport> evaluateAll(
+    List<LinkingTestCase> cases,
+  ) async {
     final results = <LinkingCaseResult>[];
     for (final testCase in cases) {
       results.add(await evaluate(testCase));

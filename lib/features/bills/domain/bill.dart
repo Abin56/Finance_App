@@ -58,25 +58,29 @@ class Bill extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Bill(
-      id: snapshot.id,
-      name: data['name'] as String,
-      amount: (data['amount'] as num).toDouble(),
-      // Legacy documents (written before the one-occurrence-per-cycle
-      // migration) never wrote `nextDueDate` — they only ever had
-      // `dueDate`, which described the same "when's the next occurrence"
-      // concept under the old single-document model. Falling back to it
-      // here means a legacy Bill parses correctly forever, with no forced
-      // rewrite — see `BillOccurrenceRepository.ensureCurrentOccurrence`
-      // for the one-time adoption of the rest of that legacy state.
-      nextDueDate: (data['nextDueDate'] as Timestamp?)?.toDate() ?? (data['dueDate'] as Timestamp).toDate(),
-      recurrence: BillRecurrenceX.fromName(data['recurrence'] as String),
-      accountId: data['accountId'] as String?,
-      categoryId: data['categoryId'] as String?,
-      customIntervalDays: (data['customIntervalDays'] as num?)?.toInt(),
-      reminderOffsets: (data['reminderOffsets'] as List<dynamic>? ?? []).map((e) => e as int).toList(),
-      notes: data['notes'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        name: data['name'] as String,
+        amount: (data['amount'] as num).toDouble(),
+        // Legacy documents (written before the one-occurrence-per-cycle
+        // migration) never wrote `nextDueDate` — they only ever had
+        // `dueDate`, which described the same "when's the next occurrence"
+        // concept under the old single-document model. Falling back to it
+        // here means a legacy Bill parses correctly forever, with no forced
+        // rewrite — see `BillOccurrenceRepository.ensureCurrentOccurrence`
+        // for the one-time adoption of the rest of that legacy state.
+        nextDueDate:
+            (data['nextDueDate'] as Timestamp?)?.toDate() ??
+            (data['dueDate'] as Timestamp).toDate(),
+        recurrence: BillRecurrenceX.fromName(data['recurrence'] as String),
+        accountId: data['accountId'] as String?,
+        categoryId: data['categoryId'] as String?,
+        customIntervalDays: (data['customIntervalDays'] as num?)?.toInt(),
+        reminderOffsets: (data['reminderOffsets'] as List<dynamic>? ?? [])
+            .map((e) => e as int)
+            .toList(),
+        notes: data['notes'] as String? ?? '',
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -97,7 +101,9 @@ class Bill extends SoftDeletableEntity {
       'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

@@ -2,11 +2,22 @@ import 'package:flutter/material.dart';
 
 /// What kind of borrowing an [Emi] represents — display/filtering metadata
 /// only, doesn't affect interest math or the payment schedule.
-enum EmiLoanType { home, personal, vehicle, education, gold, business, creditCard, other }
+enum EmiLoanType {
+  home,
+  personal,
+  vehicle,
+  education,
+  gold,
+  business,
+  creditCard,
+  other,
+}
 
 extension EmiLoanTypeX on EmiLoanType {
-  static EmiLoanType fromName(String? name) =>
-      EmiLoanType.values.firstWhere((t) => t.name == name, orElse: () => EmiLoanType.other);
+  static EmiLoanType fromName(String? name) => EmiLoanType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => EmiLoanType.other,
+  );
 
   String get label {
     switch (this) {

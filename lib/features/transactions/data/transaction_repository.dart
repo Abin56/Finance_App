@@ -176,7 +176,10 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     if (oldAccountId == newAccountId) {
       final account = await accountRepository.getByKey(newAccountId);
       if (account == null) throw NotFoundException('Account not found');
-      await accountRepository.adjustBalance(account, newBalanceEffect - oldBalanceEffect);
+      await accountRepository.adjustBalance(
+        account,
+        newBalanceEffect - oldBalanceEffect,
+      );
     } else {
       final oldAccount = await accountRepository.getByKey(oldAccountId);
       if (oldAccount == null) throw NotFoundException('Account not found');
@@ -210,15 +213,20 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
   /// Permanently removes a transaction document. No balance adjustment
   /// here — permanent delete is only reachable from the trash screen, and
   /// the balance was already reversed when the transaction was soft-deleted.
-  Future<void> permanentlyDeleteTransaction(Transaction transaction) => permanentlyDelete(transaction);
+  Future<void> permanentlyDeleteTransaction(Transaction transaction) =>
+      permanentlyDelete(transaction);
 
   /// Every transaction referencing [accountId], active and trashed alike —
   /// the full set the account/credit-card permanent-delete cascade
   /// (`account_deletion_service.dart`) needs to wipe alongside the account
   /// itself, unlike a plain [getAll]/[getTrash] (which each only see one
   /// side of `deletedAt`).
-  Future<List<Transaction>> getAllForAccountIncludingTrash(String accountId) async {
-    final snapshot = await collection.where('accountId', isEqualTo: accountId).get();
+  Future<List<Transaction>> getAllForAccountIncludingTrash(
+    String accountId,
+  ) async {
+    final snapshot = await collection
+        .where('accountId', isEqualTo: accountId)
+        .get();
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
 }

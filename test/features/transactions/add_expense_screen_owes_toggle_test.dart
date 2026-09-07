@@ -22,49 +22,64 @@ void main() {
   late FakeFirebaseFirestore firestore;
 
   Future<void> seedAccount() async {
-    await firestore.collection('users').doc(_kUid).collection('accounts').doc('acc1').set({
-      'name': 'Cash',
-      'type': AccountType.cash.name,
-      'openingBalance': 1000.0,
-      'currentBalance': 1000.0,
-      'colorValue': 0xFF00FF00,
-      'isDefault': false,
-      'createdAt': DateTime(2026, 1, 1),
-      'deletedAt': null,
-      'lastEditedAt': null,
-      'editHistory': [],
-    });
+    await firestore
+        .collection('users')
+        .doc(_kUid)
+        .collection('accounts')
+        .doc('acc1')
+        .set({
+          'name': 'Cash',
+          'type': AccountType.cash.name,
+          'openingBalance': 1000.0,
+          'currentBalance': 1000.0,
+          'colorValue': 0xFF00FF00,
+          'isDefault': false,
+          'createdAt': DateTime(2026, 1, 1),
+          'deletedAt': null,
+          'lastEditedAt': null,
+          'editHistory': [],
+        });
   }
 
   Future<void> seedCategory() async {
-    await firestore.collection('users').doc(_kUid).collection('categories').doc('cat1').set({
-      'name': 'Food',
-      'type': CategoryType.expense.name,
-      'iconKey': 'restaurant',
-      'colorValue': 0xFFFF0000,
-      'isDefault': false,
-      'isActive': true,
-      'createdAt': DateTime(2026, 1, 1),
-      'deletedAt': null,
-      'lastEditedAt': null,
-      'editHistory': [],
-    });
+    await firestore
+        .collection('users')
+        .doc(_kUid)
+        .collection('categories')
+        .doc('cat1')
+        .set({
+          'name': 'Food',
+          'type': CategoryType.expense.name,
+          'iconKey': 'restaurant',
+          'colorValue': 0xFFFF0000,
+          'isDefault': false,
+          'isActive': true,
+          'createdAt': DateTime(2026, 1, 1),
+          'deletedAt': null,
+          'lastEditedAt': null,
+          'editHistory': [],
+        });
   }
 
   Future<void> seedPerson() async {
-    await firestore.collection('users').doc(_kUid).collection('people').doc('p1').set({
-      'name': 'Rahul Sharma',
-      'avatarColorValue': 0xFF000000,
-      'openingBalance': 0.0,
-      'currentBalance': 0.0,
-      'phone': null,
-      'email': null,
-      'notes': '',
-      'createdAt': DateTime(2026, 1, 1),
-      'deletedAt': null,
-      'lastEditedAt': null,
-      'editHistory': [],
-    });
+    await firestore
+        .collection('users')
+        .doc(_kUid)
+        .collection('people')
+        .doc('p1')
+        .set({
+          'name': 'Rahul Sharma',
+          'avatarColorValue': 0xFF000000,
+          'openingBalance': 0.0,
+          'currentBalance': 0.0,
+          'phone': null,
+          'email': null,
+          'notes': '',
+          'createdAt': DateTime(2026, 1, 1),
+          'deletedAt': null,
+          'lastEditedAt': null,
+          'editHistory': [],
+        });
   }
 
   setUp(() {
@@ -79,7 +94,10 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         firebaseAuthProvider.overrideWithValue(
-          MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 'test@example.com')),
+          MockFirebaseAuth(
+            signedIn: true,
+            mockUser: MockUser(uid: _kUid, email: 'test@example.com'),
+          ),
         ),
         firestoreProvider.overrideWithValue(firestore),
       ],
@@ -127,62 +145,107 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('toggle OFF (default): saving creates no Expense, no ledger entry, zero balance change', (tester) async {
-    await pump(tester);
-    await fillBasicFields(tester);
-    await linkPerson(tester);
+  testWidgets(
+    'toggle OFF (default): saving creates no Expense, no ledger entry, zero balance change',
+    (tester) async {
+      await pump(tester);
+      await fillBasicFields(tester);
+      await linkPerson(tester);
 
-    // The owed toggle defaults off and is not switched on here.
-    final toggle = find.widgetWithText(SwitchListTile, 'This person owes me this expense');
-    expect(toggle, findsOneWidget);
-    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+      // The owed toggle defaults off and is not switched on here.
+      final toggle = find.widgetWithText(
+        SwitchListTile,
+        'This person owes me this expense',
+      );
+      expect(toggle, findsOneWidget);
+      expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
 
-    await tester.ensureVisible(find.text('Save Expense'));
-    await tester.tap(find.text('Save Expense'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save Expense'));
+      await tester.tap(find.text('Save Expense'));
+      await tester.pumpAndSettle();
 
-    final expenses = await firestore.collection('users').doc(_kUid).collection('expenses').get();
-    expect(expenses.docs, isEmpty);
+      final expenses = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('expenses')
+          .get();
+      expect(expenses.docs, isEmpty);
 
-    final ledger =
-        await firestore.collection('users').doc(_kUid).collection('people').doc('p1').collection('ledger').get();
-    expect(ledger.docs, isEmpty);
+      final ledger = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('people')
+          .doc('p1')
+          .collection('ledger')
+          .get();
+      expect(ledger.docs, isEmpty);
 
-    final person = await firestore.collection('users').doc(_kUid).collection('people').doc('p1').get();
-    expect(person.data()!['currentBalance'], 0.0);
+      final person = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('people')
+          .doc('p1')
+          .get();
+      expect(person.data()!['currentBalance'], 0.0);
 
-    final transactions = await firestore.collection('users').doc(_kUid).collection('transactions').get();
-    expect(transactions.docs, hasLength(1));
-    expect(transactions.docs.single.data()['linkedPersonId'], 'p1');
-    expect(transactions.docs.single.data()['owesPersonToggle'], false);
-  });
+      final transactions = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('transactions')
+          .get();
+      expect(transactions.docs, hasLength(1));
+      expect(transactions.docs.single.data()['linkedPersonId'], 'p1');
+      expect(transactions.docs.single.data()['owesPersonToggle'], false);
+    },
+  );
 
-  testWidgets('toggle ON: saving creates a real Expense + ledger entry, and updates the balance', (tester) async {
-    await pump(tester);
-    await fillBasicFields(tester);
-    await linkPerson(tester);
+  testWidgets(
+    'toggle ON: saving creates a real Expense + ledger entry, and updates the balance',
+    (tester) async {
+      await pump(tester);
+      await fillBasicFields(tester);
+      await linkPerson(tester);
 
-    await tester.ensureVisible(find.text('This person owes me this expense'));
-    await tester.tap(find.text('This person owes me this expense'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('This person owes me this expense'));
+      await tester.tap(find.text('This person owes me this expense'));
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Save Expense'));
-    await tester.tap(find.text('Save Expense'));
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Save Expense'));
+      await tester.tap(find.text('Save Expense'));
+      await tester.pumpAndSettle();
 
-    final expenses = await firestore.collection('users').doc(_kUid).collection('expenses').get();
-    expect(expenses.docs, hasLength(1));
+      final expenses = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('expenses')
+          .get();
+      expect(expenses.docs, hasLength(1));
 
-    final ledger =
-        await firestore.collection('users').doc(_kUid).collection('people').doc('p1').collection('ledger').get();
-    expect(ledger.docs, hasLength(1));
-    expect(ledger.docs.single.data()['type'], 'gave');
+      final ledger = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('people')
+          .doc('p1')
+          .collection('ledger')
+          .get();
+      expect(ledger.docs, hasLength(1));
+      expect(ledger.docs.single.data()['type'], 'gave');
 
-    final person = await firestore.collection('users').doc(_kUid).collection('people').doc('p1').get();
-    expect(person.data()!['currentBalance'], 500.0);
+      final person = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('people')
+          .doc('p1')
+          .get();
+      expect(person.data()!['currentBalance'], 500.0);
 
-    final transactions = await firestore.collection('users').doc(_kUid).collection('transactions').get();
-    expect(transactions.docs, hasLength(1));
-    expect(transactions.docs.single.data()['owesPersonToggle'], true);
-  });
+      final transactions = await firestore
+          .collection('users')
+          .doc(_kUid)
+          .collection('transactions')
+          .get();
+      expect(transactions.docs, hasLength(1));
+      expect(transactions.docs.single.data()['owesPersonToggle'], true);
+    },
+  );
 }

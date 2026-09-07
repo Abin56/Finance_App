@@ -28,7 +28,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final events = ref.watch(calendarEventsProvider);
-    final eventsForSelectedDate = ref.watch(calendarEventsForDateProvider(_selectedDate));
+    final eventsForSelectedDate = ref.watch(
+      calendarEventsForDateProvider(_selectedDate),
+    );
 
     final eventsByDate = <DateTime, List<CalendarEvent>>{};
     for (final event in events) {
@@ -39,50 +41,59 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       appBar: AppBar(title: const Text('Calendar')),
       body: SafeArea(
         child: Column(
-        children: [
-          TableCalendar<CalendarEvent>(
-            firstDay: DateTime(2000),
-            lastDay: DateTime(2100),
-            focusedDay: _focusedMonth,
-            selectedDayPredicate: (day) => day.dateOnly == _selectedDate,
-            eventLoader: (day) => eventsByDate[day.dateOnly] ?? const [],
-            onDaySelected: (selected, focused) {
-              setState(() {
-                _selectedDate = selected.dateOnly;
-                _focusedMonth = focused;
-              });
-            },
-            onPageChanged: (focused) => _focusedMonth = focused,
-            calendarStyle: CalendarStyle(
-              markerDecoration: BoxDecoration(color: context.colors.primary, shape: BoxShape.circle),
-              selectedDecoration: BoxDecoration(color: context.colors.primary, shape: BoxShape.circle),
-              todayDecoration: BoxDecoration(
-                color: context.colors.primary.withValues(alpha: 0.3),
-                shape: BoxShape.circle,
+          children: [
+            TableCalendar<CalendarEvent>(
+              firstDay: DateTime(2000),
+              lastDay: DateTime(2100),
+              focusedDay: _focusedMonth,
+              selectedDayPredicate: (day) => day.dateOnly == _selectedDate,
+              eventLoader: (day) => eventsByDate[day.dateOnly] ?? const [],
+              onDaySelected: (selected, focused) {
+                setState(() {
+                  _selectedDate = selected.dateOnly;
+                  _focusedMonth = focused;
+                });
+              },
+              onPageChanged: (focused) => _focusedMonth = focused,
+              calendarStyle: CalendarStyle(
+                markerDecoration: BoxDecoration(
+                  color: context.colors.primary,
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: BoxDecoration(
+                  color: context.colors.primary,
+                  shape: BoxShape.circle,
+                ),
+                todayDecoration: BoxDecoration(
+                  color: context.colors.primary.withValues(alpha: 0.3),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
               ),
             ),
-            headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: eventsForSelectedDate.isEmpty
-                ? EmptyState(
-                    icon: Icons.event_available_outlined,
-                    title: 'Nothing to pay',
-                    subtitle: 'Nothing to pay on ${_selectedDate.fullDate}.',
-                  )
-                : ListView(
-                    padding: const EdgeInsets.all(AppSizes.lg),
-                    children: [
-                      for (final event in eventsForSelectedDate)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                          child: _CalendarEventTile(event: event),
-                        ),
-                    ],
-                  ),
-          ),
-        ],
+            const Divider(height: 1),
+            Expanded(
+              child: eventsForSelectedDate.isEmpty
+                  ? EmptyState(
+                      icon: Icons.event_available_outlined,
+                      title: 'Nothing to pay',
+                      subtitle: 'Nothing to pay on ${_selectedDate.fullDate}.',
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.all(AppSizes.lg),
+                      children: [
+                        for (final event in eventsForSelectedDate)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                            child: _CalendarEventTile(event: event),
+                          ),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
     );

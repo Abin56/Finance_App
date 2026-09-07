@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_dialog.dart';
+
 /// Task 3's "confirm before delete" dialog — one shared helper every
 /// swipe-to-dismiss/delete action in the app calls before it soft-deletes,
 /// so the wording and behavior are identical everywhere (Transactions,
@@ -11,21 +13,20 @@ import 'package:flutter/material.dart';
 /// means the caller must not delete anything — for a [Dismissible]'s
 /// `confirmDismiss`, returning anything but `true` snaps the tile back into
 /// place.
-Future<bool> confirmDelete(BuildContext context, {required String entityName}) async {
+Future<bool> confirmDelete(
+  BuildContext context, {
+  required String entityName,
+}) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text('Delete $entityName?'),
-      content: const Text('This action moves it to Trash. You can restore it later.'),
+      content: const Text(
+        'This action moves it to Trash. You can restore it later.',
+      ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.tonal(
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Delete'),
-        ),
+        AppDialogActions.cancel(dialogContext),
+        AppDialogActions.destructive(dialogContext),
       ],
     ),
   );
@@ -40,7 +41,10 @@ enum DeleteChoice { cancel, trash, permanent }
 /// Trash entirely, alongside the usual "Move to Trash". Used only where a
 /// caller explicitly wants that shortcut (currently History's transaction
 /// list) — everywhere else keeps the single Trash-only [confirmDelete] flow.
-Future<DeleteChoice> confirmDeleteWithPermanentOption(BuildContext context, {required String entityName}) async {
+Future<DeleteChoice> confirmDeleteWithPermanentOption(
+  BuildContext context, {
+  required String entityName,
+}) async {
   final choice = await showDialog<DeleteChoice>(
     context: context,
     builder: (dialogContext) => AlertDialog(
@@ -49,18 +53,20 @@ Future<DeleteChoice> confirmDeleteWithPermanentOption(BuildContext context, {req
         'Move it to Trash (you can restore it later), or delete it permanently right away — this can\'t be undone.',
       ),
       actions: [
-        TextButton(
+        AppDialogActions.cancel(
+          dialogContext,
           onPressed: () => Navigator.of(dialogContext).pop(DeleteChoice.cancel),
-          child: const Text('Cancel'),
         ),
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(DeleteChoice.permanent),
-          style: TextButton.styleFrom(foregroundColor: Theme.of(dialogContext).colorScheme.error),
-          child: const Text('Delete Permanently'),
+        AppDialogActions.destructive(
+          dialogContext,
+          label: 'Delete Permanently',
+          onPressed: () =>
+              Navigator.of(dialogContext).pop(DeleteChoice.permanent),
         ),
-        FilledButton.tonal(
+        AppDialogActions.confirm(
+          dialogContext,
+          label: 'Move to Trash',
           onPressed: () => Navigator.of(dialogContext).pop(DeleteChoice.trash),
-          child: const Text('Move to Trash'),
         ),
       ],
     ),

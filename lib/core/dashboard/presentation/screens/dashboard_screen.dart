@@ -6,7 +6,6 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/dashboard_widget_type.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/dashboard_layout_providers.dart';
-import '../../../theme/clay_theme.dart';
 import '../widgets/coming_soon_widget_card.dart';
 import '../widgets/dashboard_widget_registry.dart';
 import '../widgets/dashboard_widget_shell.dart';
@@ -38,53 +37,55 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (config.type != DashboardWidgetType.financialView) return;
     final updated = await FinancialViewConfigSheet.show(context, config);
     if (updated != null) {
-      await ref.read(dashboardLayoutControllerProvider.notifier).updateConfig(updated);
+      await ref
+          .read(dashboardLayoutControllerProvider.notifier)
+          .updateConfig(updated);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    const listPadding = EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance);
+    const listPadding = EdgeInsets.fromLTRB(
+      AppSizes.lg,
+      AppSizes.lg,
+      AppSizes.lg,
+      AppSizes.fabClearance,
+    );
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
       body: SafeArea(
         child: Column(
           children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  // Halved in dark mode — the same 8% wash calibrated to sit
-                  // quietly on a near-white background reads as a distinct
-                  // blue haze on a near-black one.
-                  colors: [
-                    AppClay.primary.withValues(alpha: context.isDarkMode ? 0.04 : 0.08),
-                    AppClay.primary.withValues(alpha: 0),
-                  ],
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.md,
+                AppSizes.md,
+                AppSizes.md,
+                AppSizes.md,
               ),
-              padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.md, AppSizes.md, AppSizes.md),
               child: Row(
                 children: [
                   const Expanded(child: GreetingHeader()),
                   const SizedBox(width: AppSizes.xs),
                   Container(
                     decoration: BoxDecoration(
-                      color: AppClay.card(context),
+                      color: context.colors.surface,
                       shape: BoxShape.circle,
-                      boxShadow: AppClay.soft(context),
+                      border: Border.all(color: context.colors.outline),
                     ),
                     child: IconButton(
                       onPressed: () => setState(() => _editMode = !_editMode),
                       icon: Icon(
                         _editMode ? Icons.check_rounded : Icons.edit_outlined,
-                        color: AppClay.primaryAccent(context),
+                        color: context.isDarkMode
+                            ? context.flowfi.heroAccent
+                            : context.colors.onSurface,
                         size: AppSizes.iconSm,
                       ),
                       tooltip: _editMode ? 'Done' : 'Edit Dashboard',
-                      style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(40, 40),
+                      ),
                     ),
                   ),
                 ],
@@ -95,7 +96,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 onRefresh: _onRefresh,
                 child: _editMode
                     ? _EditModeList(padding: listPadding)
-                    : _ViewModeList(padding: listPadding, onConfigure: _configure),
+                    : _ViewModeList(
+                        padding: listPadding,
+                        onConfigure: _configure,
+                      ),
               ),
             ),
           ],
@@ -138,7 +142,9 @@ class _ViewModeList extends ConsumerWidget {
         return buildDashboardWidget(
           widget.type,
           config,
-          onConfigure: widget.type == DashboardWidgetType.financialView ? () => onConfigure(config) : null,
+          onConfigure: widget.type == DashboardWidgetType.financialView
+              ? () => onConfigure(config)
+              : null,
         );
       },
     );
@@ -165,11 +171,13 @@ class _EditModeList extends ConsumerWidget {
     return ReorderableListView.builder(
       padding: padding,
       itemCount: layout.widgets.length,
-      onReorderItem: (oldIndex, newIndex) => controller.reorder(oldIndex, newIndex),
+      onReorderItem: (oldIndex, newIndex) =>
+          controller.reorder(oldIndex, newIndex),
       itemBuilder: (context, index) {
         final dashboardWidget = layout.widgets[index];
         final config = state.configs[dashboardWidget.configId];
-        if (config == null) return const SizedBox.shrink(key: ValueKey('missing'));
+        if (config == null)
+          return const SizedBox.shrink(key: ValueKey('missing'));
         return Padding(
           key: ValueKey(dashboardWidget.id),
           padding: const EdgeInsets.only(bottom: AppSizes.lg),
@@ -180,7 +188,8 @@ class _EditModeList extends ConsumerWidget {
               index: index,
               child: const Icon(Icons.drag_handle),
             ),
-            onToggleVisibility: () => controller.setVisibility(config.id, !config.isVisible),
+            onToggleVisibility: () =>
+                controller.setVisibility(config.id, !config.isVisible),
             onConfigure: () => configure(config),
             onDelete: () => controller.removeWidget(dashboardWidget.id),
             child: buildDashboardWidget(dashboardWidget.type, config),

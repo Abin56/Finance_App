@@ -47,7 +47,9 @@ void main() {
   group('Person Firestore round-trip', () {
     test('toFirestore/fromFirestore preserves every field', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('people').withConverter<Person>(
+      final collection = firestore
+          .collection('people')
+          .withConverter<Person>(
             fromFirestore: Person.fromFirestore,
             toFirestore: (p, _) => p.toFirestore(),
           );
@@ -79,7 +81,9 @@ void main() {
 
     test('preserves null phone and email', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('people').withConverter<Person>(
+      final collection = firestore
+          .collection('people')
+          .withConverter<Person>(
             fromFirestore: Person.fromFirestore,
             toFirestore: (p, _) => p.toFirestore(),
           );

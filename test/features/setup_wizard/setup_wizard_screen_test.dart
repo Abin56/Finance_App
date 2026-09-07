@@ -56,11 +56,18 @@ void main() {
     final c = ProviderContainer(
       overrides: [
         firebaseAuthProvider.overrideWithValue(
-          MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 't@e.com')),
+          MockFirebaseAuth(
+            signedIn: true,
+            mockUser: MockUser(uid: _kUid, email: 't@e.com'),
+          ),
         ),
         firestoreProvider.overrideWithValue(firestore),
-        smsPermissionServiceProvider.overrideWithValue(_FakeSmsPermissionService(sms)),
-        notificationsGrantedProvider.overrideWith((ref) async => notificationsGranted),
+        smsPermissionServiceProvider.overrideWithValue(
+          _FakeSmsPermissionService(sms),
+        ),
+        notificationsGrantedProvider.overrideWith(
+          (ref) async => notificationsGranted,
+        ),
       ],
     );
     addTearDown(c.dispose);
@@ -88,7 +95,10 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: c,
-        child: MaterialApp(theme: AppTheme.light, home: const SetupWizardScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const SetupWizardScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -114,7 +124,9 @@ void main() {
   }
 
   group('step flow', () {
-    testWidgets('starts on the bank step with a 7-step counter', (tester) async {
+    testWidgets('starts on the bank step with a 7-step counter', (
+      tester,
+    ) async {
       await pumpWizard(tester);
       expect(find.text('Step 1 of 7'), findsOneWidget);
       expect(find.text('Add your bank account'), findsOneWidget);
@@ -132,7 +144,11 @@ void main() {
         'Protect your data',
       ];
       for (var i = 0; i < headlines.length; i++) {
-        expect(find.text(headlines[i]), findsOneWidget, reason: 'on step ${i + 1}');
+        expect(
+          find.text(headlines[i]),
+          findsOneWidget,
+          reason: 'on step ${i + 1}',
+        );
         await tapText(tester, 'Skip');
       }
 
@@ -154,7 +170,9 @@ void main() {
       expect(c.read(setupWizardCompletedProvider), isTrue);
     });
 
-    testWidgets('Skip for now dismisses the whole wizard from the first step', (tester) async {
+    testWidgets('Skip for now dismisses the whole wizard from the first step', (
+      tester,
+    ) async {
       final c = await pumpWizard(tester);
       expect(c.read(setupWizardCompletedProvider), isFalse);
 
@@ -175,7 +193,9 @@ void main() {
       expect(find.text("You're all set!"), findsOneWidget);
     });
 
-    testWidgets('shows a done state and Continue for an already-granted step', (tester) async {
+    testWidgets('shows a done state and Continue for an already-granted step', (
+      tester,
+    ) async {
       await pumpWizard(tester, notificationsGranted: true);
       // Skip to the notifications step (bank, card, bill, sms = 4 skips).
       for (var i = 0; i < 4; i++) {

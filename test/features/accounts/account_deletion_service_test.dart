@@ -47,7 +47,10 @@ void main() {
         .collection('paymentSchedules')
         .doc(scheduleId)
         .collection('installments')
-        .withConverter<Installment>(fromFirestore: Installment.fromFirestore, toFirestore: (i, _) => i.toFirestore());
+        .withConverter<Installment>(
+          fromFirestore: Installment.fromFirestore,
+          toFirestore: (i, _) => i.toFirestore(),
+        );
     return InstallmentRepository(collection);
   }
 
@@ -56,7 +59,10 @@ void main() {
         .collection('people')
         .doc(personId)
         .collection('ledger')
-        .withConverter<LedgerEntry>(fromFirestore: LedgerEntry.fromFirestore, toFirestore: (e, _) => e.toFirestore());
+        .withConverter<LedgerEntry>(
+          fromFirestore: LedgerEntry.fromFirestore,
+          toFirestore: (e, _) => e.toFirestore(),
+        );
     return LedgerRepository(collection, personRepository);
   }
 
@@ -82,7 +88,10 @@ void main() {
         .collection('bills')
         .doc(billId)
         .collection('payments')
-        .withConverter<PaymentRecord>(fromFirestore: PaymentRecord.fromFirestore, toFirestore: (p, _) => p.toFirestore());
+        .withConverter<PaymentRecord>(
+          fromFirestore: PaymentRecord.fromFirestore,
+          toFirestore: (p, _) => p.toFirestore(),
+        );
     return PaymentRepository(collection, occurrenceRepositoryFor(billId));
   }
 
@@ -90,35 +99,50 @@ void main() {
     firestore = FakeFirebaseFirestore();
 
     accountRepository = AccountRepository(
-      firestore.collection('accounts').withConverter<Account>(
+      firestore
+          .collection('accounts')
+          .withConverter<Account>(
             fromFirestore: Account.fromFirestore,
             toFirestore: (a, _) => a.toFirestore(),
           ),
     );
     transactionRepository = TransactionRepository(
-      firestore.collection('transactions').withConverter<Transaction>(
+      firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           ),
       accountRepository,
     );
     billRepository = BillRepository(
-      firestore.collection('bills').withConverter<Bill>(fromFirestore: Bill.fromFirestore, toFirestore: (b, _) => b.toFirestore()),
+      firestore
+          .collection('bills')
+          .withConverter<Bill>(
+            fromFirestore: Bill.fromFirestore,
+            toFirestore: (b, _) => b.toFirestore(),
+          ),
     );
     personRepository = PersonRepository(
-      firestore.collection('people').withConverter<Person>(
+      firestore
+          .collection('people')
+          .withConverter<Person>(
             fromFirestore: Person.fromFirestore,
             toFirestore: (p, _) => p.toFirestore(),
           ),
     );
     paymentScheduleRepository = PaymentScheduleRepository(
-      firestore.collection('paymentSchedules').withConverter<PaymentSchedule>(
+      firestore
+          .collection('paymentSchedules')
+          .withConverter<PaymentSchedule>(
             fromFirestore: PaymentSchedule.fromFirestore,
             toFirestore: (s, _) => s.toFirestore(),
           ),
     );
     expenseRepository = ExpenseRepository(
-      firestore.collection('expenses').withConverter<Expense>(
+      firestore
+          .collection('expenses')
+          .withConverter<Expense>(
             fromFirestore: Expense.fromFirestore,
             toFirestore: (e, _) => e.toFirestore(),
           ),
@@ -164,7 +188,11 @@ void main() {
         categoryId: 'cat-misc',
       );
 
-      final person = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0, openingBalance: 0);
+      final person = await personRepository.createPerson(
+        name: 'Bob',
+        avatarColorValue: 0,
+        openingBalance: 0,
+      );
       await expenseRepository.createExpense(
         description: 'Dinner',
         totalAmount: 300,
@@ -172,7 +200,9 @@ void main() {
         categoryId: 'cat-food',
         accountId: account.id,
         splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: person.id, name: 'Bob', value: 300)],
+        participantInputs: [
+          ExpenseParticipantInput(personId: person.id, name: 'Bob', value: 300),
+        ],
       );
 
       await billRepository.createBill(
@@ -185,7 +215,10 @@ void main() {
 
       final impact = await previewAccountDeletionImpact(account.id, repos);
 
-      expect(impact.transactionCount, 2); // plain expense + expense's own transaction
+      expect(
+        impact.transactionCount,
+        2,
+      ); // plain expense + expense's own transaction
       expect(impact.expenseCount, 1);
       expect(impact.affectedPersonCount, 1);
       expect(impact.billCount, 1);
@@ -213,77 +246,114 @@ void main() {
       expect(remainingTransactions, isEmpty);
     });
 
-    test('reverses and removes a split expense\'s ledger entries, its schedule/installments, and the expense itself', () async {
-      final account = await seedAccount();
-      final person = await personRepository.createPerson(name: 'Bob', avatarColorValue: 0, openingBalance: 0);
+    test(
+      'reverses and removes a split expense\'s ledger entries, its schedule/installments, and the expense itself',
+      () async {
+        final account = await seedAccount();
+        final person = await personRepository.createPerson(
+          name: 'Bob',
+          avatarColorValue: 0,
+          openingBalance: 0,
+        );
 
-      final expense = await expenseRepository.createExpense(
-        description: 'Dinner',
-        totalAmount: 300,
-        date: DateTime(2026, 1, 6),
-        categoryId: 'cat-food',
-        accountId: account.id,
-        splitType: SplitType.custom,
-        participantInputs: [ExpenseParticipantInput(personId: person.id, name: 'Bob', value: 300)],
-      );
-      final personAfterExpense = await personRepository.getByKey(person.id);
-      expect(personAfterExpense!.currentBalance, 300); // "gave" moved Bob's balance up
+        final expense = await expenseRepository.createExpense(
+          description: 'Dinner',
+          totalAmount: 300,
+          date: DateTime(2026, 1, 6),
+          categoryId: 'cat-food',
+          accountId: account.id,
+          splitType: SplitType.custom,
+          participantInputs: [
+            ExpenseParticipantInput(
+              personId: person.id,
+              name: 'Bob',
+              value: 300,
+            ),
+          ],
+        );
+        final personAfterExpense = await personRepository.getByKey(person.id);
+        expect(
+          personAfterExpense!.currentBalance,
+          300,
+        ); // "gave" moved Bob's balance up
 
-      await permanentlyDeleteAccountHistory(account.id, repos);
+        await permanentlyDeleteAccountHistory(account.id, repos);
 
-      final personAfterDelete = await personRepository.getByKey(person.id);
-      expect(personAfterDelete!.currentBalance, 0);
+        final personAfterDelete = await personRepository.getByKey(person.id);
+        expect(personAfterDelete!.currentBalance, 0);
 
-      expect(await ledgerRepositoryFor(person.id).getAll(), isEmpty);
-      expect(await ledgerRepositoryFor(person.id).getTrash(), isEmpty);
-      expect(await installmentRepositoryFor(expense.scheduleId!).getAll(), isEmpty);
-      expect(await paymentScheduleRepository.getByKey(expense.scheduleId!), isNull);
-      expect(await expenseRepository.getByKey(expense.id), isNull);
-      expect(await transactionRepository.getByKey(expense.transactionId), isNull);
-    });
+        expect(await ledgerRepositoryFor(person.id).getAll(), isEmpty);
+        expect(await ledgerRepositoryFor(person.id).getTrash(), isEmpty);
+        expect(
+          await installmentRepositoryFor(expense.scheduleId!).getAll(),
+          isEmpty,
+        );
+        expect(
+          await paymentScheduleRepository.getByKey(expense.scheduleId!),
+          isNull,
+        );
+        expect(await expenseRepository.getByKey(expense.id), isNull);
+        expect(
+          await transactionRepository.getByKey(expense.transactionId),
+          isNull,
+        );
+      },
+    );
 
-    test('deletes a bill paying from the account, including its occurrences and payments', () async {
-      final account = await seedAccount();
-      final bill = await billRepository.createBill(
-        name: 'Rent',
-        amount: 500,
-        dueDate: DateTime(2026, 2, 1),
-        recurrence: BillRecurrence.monthly,
-        accountId: account.id,
-      );
-      final occurrenceRepository = occurrenceRepositoryFor(bill.id);
-      await occurrenceRepository.ensureCurrentOccurrence(bill, const []);
-      expect(await occurrenceRepository.getAll(), isNotEmpty);
+    test(
+      'deletes a bill paying from the account, including its occurrences and payments',
+      () async {
+        final account = await seedAccount();
+        final bill = await billRepository.createBill(
+          name: 'Rent',
+          amount: 500,
+          dueDate: DateTime(2026, 2, 1),
+          recurrence: BillRecurrence.monthly,
+          accountId: account.id,
+        );
+        final occurrenceRepository = occurrenceRepositoryFor(bill.id);
+        await occurrenceRepository.ensureCurrentOccurrence(bill, const []);
+        expect(await occurrenceRepository.getAll(), isNotEmpty);
 
-      await permanentlyDeleteAccountHistory(account.id, repos);
+        await permanentlyDeleteAccountHistory(account.id, repos);
 
-      expect(await billRepository.getByKey(bill.id), isNull);
-      expect(await occurrenceRepository.getAll(), isEmpty);
-      expect(await occurrenceRepository.getTrash(), isEmpty);
-    });
+        expect(await billRepository.getByKey(bill.id), isNull);
+        expect(await occurrenceRepository.getAll(), isEmpty);
+        expect(await occurrenceRepository.getTrash(), isEmpty);
+      },
+    );
 
-    test('leaves an unrelated person and a bill on a different account untouched', () async {
-      final account = await seedAccount();
-      final otherAccount = await accountRepository.createAccount(
-        name: 'Other',
-        type: AccountType.cash,
-        openingBalance: 100,
-        colorValue: 0xFF111111,
-      );
-      final unrelatedPerson = await personRepository.createPerson(name: 'Priya', avatarColorValue: 1, openingBalance: 50);
-      final otherBill = await billRepository.createBill(
-        name: 'Internet',
-        amount: 100,
-        dueDate: DateTime(2026, 2, 1),
-        recurrence: BillRecurrence.monthly,
-        accountId: otherAccount.id,
-      );
+    test(
+      'leaves an unrelated person and a bill on a different account untouched',
+      () async {
+        final account = await seedAccount();
+        final otherAccount = await accountRepository.createAccount(
+          name: 'Other',
+          type: AccountType.cash,
+          openingBalance: 100,
+          colorValue: 0xFF111111,
+        );
+        final unrelatedPerson = await personRepository.createPerson(
+          name: 'Priya',
+          avatarColorValue: 1,
+          openingBalance: 50,
+        );
+        final otherBill = await billRepository.createBill(
+          name: 'Internet',
+          amount: 100,
+          dueDate: DateTime(2026, 2, 1),
+          recurrence: BillRecurrence.monthly,
+          accountId: otherAccount.id,
+        );
 
-      await permanentlyDeleteAccountHistory(account.id, repos);
+        await permanentlyDeleteAccountHistory(account.id, repos);
 
-      final unrelatedPersonAfter = await personRepository.getByKey(unrelatedPerson.id);
-      expect(unrelatedPersonAfter!.currentBalance, 50);
-      expect(await billRepository.getByKey(otherBill.id), isNotNull);
-    });
+        final unrelatedPersonAfter = await personRepository.getByKey(
+          unrelatedPerson.id,
+        );
+        expect(unrelatedPersonAfter!.currentBalance, 50);
+        expect(await billRepository.getByKey(otherBill.id), isNotNull);
+      },
+    );
   });
 }

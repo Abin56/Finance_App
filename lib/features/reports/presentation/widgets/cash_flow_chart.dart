@@ -42,18 +42,29 @@ class CashFlowChart extends StatelessWidget {
     if (weeks.isEmpty) weeks.add(periodStart.startOfWeek);
 
     double totalFor(DateTime weekStart, TransactionType type) {
-      final weekEnd = weekStart.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
+      final weekEnd = weekStart.add(
+        const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+      );
       return transactions
           .where((t) {
             final d = period.reportDateFor(t);
-            return t.type == type && !d.isBefore(weekStart) && !d.isAfter(weekEnd);
+            return t.type == type &&
+                !d.isBefore(weekStart) &&
+                !d.isAfter(weekEnd);
           })
           .fold(0.0, (total, t) => total + t.amount);
     }
 
-    final incomeByWeek = [for (final w in weeks) totalFor(w, TransactionType.income)];
-    final expenseByWeek = [for (final w in weeks) totalFor(w, TransactionType.expense)];
-    final maxY = [...incomeByWeek, ...expenseByWeek].fold(0.0, (max, v) => v > max ? v : max);
+    final incomeByWeek = [
+      for (final w in weeks) totalFor(w, TransactionType.income),
+    ];
+    final expenseByWeek = [
+      for (final w in weeks) totalFor(w, TransactionType.expense),
+    ];
+    final maxY = [
+      ...incomeByWeek,
+      ...expenseByWeek,
+    ].fold(0.0, (max, v) => v > max ? v : max);
     final chartMax = maxY == 0 ? 1.0 : maxY * 1.15;
 
     return AppCard(
@@ -70,8 +81,14 @@ class CashFlowChart extends StatelessWidget {
               Wrap(
                 spacing: AppSizes.md,
                 children: [
-                  _LegendDot(color: TransactionType.income.color, label: 'Income'),
-                  _LegendDot(color: TransactionType.expense.color, label: 'Expenses'),
+                  _LegendDot(
+                    color: TransactionType.income.color,
+                    label: 'Income',
+                  ),
+                  _LegendDot(
+                    color: TransactionType.expense.color,
+                    label: 'Expenses',
+                  ),
                 ],
               ),
             ],
@@ -85,18 +102,28 @@ class CashFlowChart extends StatelessWidget {
                 gridData: const FlGridData(show: false),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= weeks.length) return const SizedBox.shrink();
+                        if (index < 0 || index >= weeks.length)
+                          return const SizedBox.shrink();
                         return Padding(
                           padding: const EdgeInsets.only(top: AppSizes.xs),
-                          child: Text('Week ${index + 1}', style: context.textTheme.bodySmall),
+                          child: Text(
+                            'Week ${index + 1}',
+                            style: context.textTheme.bodySmall,
+                          ),
                         );
                       },
                     ),
@@ -112,13 +139,17 @@ class CashFlowChart extends StatelessWidget {
                           toY: incomeByWeek[i],
                           color: TransactionType.income.color,
                           width: 14,
-                          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusSm,
+                          ),
                         ),
                         BarChartRodData(
                           toY: expenseByWeek[i],
                           color: TransactionType.expense.color,
                           width: 14,
-                          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusSm,
+                          ),
                         ),
                       ],
                     ),
@@ -143,7 +174,11 @@ class _LegendDot extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: AppSizes.xs),
         Text(label, style: context.textTheme.bodySmall),
       ],

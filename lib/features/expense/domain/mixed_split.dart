@@ -12,7 +12,11 @@ library;
 
 /// One participant's raw input before a mixed split is resolved.
 class MixedParticipantInput {
-  const MixedParticipantInput({required this.key, required this.locked, required this.value});
+  const MixedParticipantInput({
+    required this.key,
+    required this.locked,
+    required this.value,
+  });
 
   /// Stable identity for matching a share back to its participant — personId, or name for untracked people.
   final String key;
@@ -25,7 +29,11 @@ class MixedParticipantInput {
 }
 
 class MixedShare {
-  const MixedShare({required this.key, required this.share, required this.locked});
+  const MixedShare({
+    required this.key,
+    required this.share,
+    required this.locked,
+  });
 
   final String key;
   final double share;
@@ -56,43 +64,71 @@ double _round2(double v) => (v * 100).round() / 100;
 
 /// Formats a rounded amount for an inline error message without a spurious
 /// trailing ".0" on whole numbers (Dart's default double->String keeps it).
-String _formatAmount(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+String _formatAmount(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 
-MixedSplitResult resolveMixedSplit(double total, List<MixedParticipantInput> inputs) {
+MixedSplitResult resolveMixedSplit(
+  double total,
+  List<MixedParticipantInput> inputs,
+) {
   final roundedTotal = _round2(total);
   final lockedInputs = inputs.where((i) => i.locked).toList();
   final autoInputs = inputs.where((i) => !i.locked).toList();
-  final lockedTotal = _round2(lockedInputs.fold(0.0, (sum, i) => sum + i.value));
+  final lockedTotal = _round2(
+    lockedInputs.fold(0.0, (sum, i) => sum + i.value),
+  );
   final remaining = _round2(roundedTotal - lockedTotal);
 
   if (inputs.isEmpty) {
-    return MixedSplitResult(shares: const [], lockedTotal: 0, remaining: roundedTotal, autoCount: 0, autoShare: 0, error: null);
+    return MixedSplitResult(
+      shares: const [],
+      lockedTotal: 0,
+      remaining: roundedTotal,
+      autoCount: 0,
+      autoShare: 0,
+      error: null,
+    );
   }
 
   if (lockedTotal > roundedTotal) {
     return MixedSplitResult(
-      shares: [for (final i in inputs) MixedShare(key: i.key, share: i.locked ? i.value : 0, locked: i.locked)],
+      shares: [
+        for (final i in inputs)
+          MixedShare(
+            key: i.key,
+            share: i.locked ? i.value : 0,
+            locked: i.locked,
+          ),
+      ],
       lockedTotal: lockedTotal,
       remaining: remaining,
       autoCount: autoInputs.length,
       autoShare: 0,
-      error: 'Assigned amount exceeds the expense total by ₹${_formatAmount(_round2(lockedTotal - roundedTotal))}',
+      error:
+          'Assigned amount exceeds the expense total by ₹${_formatAmount(_round2(lockedTotal - roundedTotal))}',
     );
   }
 
   if (autoInputs.isEmpty) {
     if (remaining != 0) {
       return MixedSplitResult(
-        shares: [for (final i in inputs) MixedShare(key: i.key, share: i.value, locked: i.locked)],
+        shares: [
+          for (final i in inputs)
+            MixedShare(key: i.key, share: i.value, locked: i.locked),
+        ],
         lockedTotal: lockedTotal,
         remaining: remaining,
         autoCount: 0,
         autoShare: 0,
-        error: '₹${_formatAmount(remaining)} is left unassigned — mark a participant as Equal, or adjust an amount',
+        error:
+            '₹${_formatAmount(remaining)} is left unassigned — mark a participant as Equal, or adjust an amount',
       );
     }
     return MixedSplitResult(
-      shares: [for (final i in inputs) MixedShare(key: i.key, share: i.value, locked: i.locked)],
+      shares: [
+        for (final i in inputs)
+          MixedShare(key: i.key, share: i.value, locked: i.locked),
+      ],
       lockedTotal: lockedTotal,
       remaining: 0,
       autoCount: 0,
@@ -112,7 +148,9 @@ MixedSplitResult resolveMixedSplit(double total, List<MixedParticipantInput> inp
       else
         MixedShare(
           key: i.key,
-          share: (++autoSeen == autoInputs.length) ? _round2(autoShare + autoRemainder) : autoShare,
+          share: (++autoSeen == autoInputs.length)
+              ? _round2(autoShare + autoRemainder)
+              : autoShare,
           locked: false,
         ),
   ];

@@ -9,7 +9,12 @@ import '../../charts/domain/pie_chart_data.dart';
 /// Percent-of-total is computed here from each slice's relative value,
 /// never passed in precomputed.
 class AppPieChart extends StatelessWidget {
-  const AppPieChart({super.key, required this.data, this.size = 160, this.centerSpaceRadius = 40});
+  const AppPieChart({
+    super.key,
+    required this.data,
+    this.size = 160,
+    this.centerSpaceRadius = 40,
+  });
 
   final AppPieChartData data;
   final double size;
@@ -18,7 +23,8 @@ class AppPieChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = data.slices.fold(0.0, (sum, s) => sum + s.value);
-    if (data.slices.isEmpty || total <= 0) return SizedBox(height: size, width: size);
+    if (data.slices.isEmpty || total <= 0)
+      return SizedBox(height: size, width: size);
 
     return SizedBox(
       height: size,
@@ -33,7 +39,10 @@ class AppPieChart extends StatelessWidget {
                 value: slice.value,
                 color: slice.color,
                 title: '${(slice.value / total * 100).round()}%',
-                titleStyle: context.textTheme.bodySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                titleStyle: context.textTheme.bodySmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
                 radius: size / 2 - centerSpaceRadius,
               ),
           ],

@@ -18,27 +18,40 @@ import '../providers/credit_card_providers.dart';
 /// real outgoing [Transaction] that needs one, unlike a bill payment whose
 /// source account is implicit.
 class RecordStatementPaymentSheet extends ConsumerStatefulWidget {
-  const RecordStatementPaymentSheet({super.key, required this.cardId, required this.statement});
+  const RecordStatementPaymentSheet({
+    super.key,
+    required this.cardId,
+    required this.statement,
+  });
 
   final String cardId;
   final Statement statement;
 
-  static Future<void> show(BuildContext context, {required String cardId, required Statement statement}) {
+  static Future<void> show(
+    BuildContext context, {
+    required String cardId,
+    required Statement statement,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
-      builder: (_) => RecordStatementPaymentSheet(cardId: cardId, statement: statement),
+      builder: (_) =>
+          RecordStatementPaymentSheet(cardId: cardId, statement: statement),
     );
   }
 
   @override
-  ConsumerState<RecordStatementPaymentSheet> createState() => _RecordStatementPaymentSheetState();
+  ConsumerState<RecordStatementPaymentSheet> createState() =>
+      _RecordStatementPaymentSheetState();
 }
 
-class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPaymentSheet> {
+class _RecordStatementPaymentSheetState
+    extends ConsumerState<RecordStatementPaymentSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final _amountController = TextEditingController(text: widget.statement.remainingAmount.toStringAsFixed(2));
+  late final _amountController = TextEditingController(
+    text: widget.statement.remainingAmount.toStringAsFixed(2),
+  );
   final _noteController = TextEditingController();
   DateTime _date = DateTime.now();
   String? _accountId;
@@ -47,7 +60,11 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
   String? _categoryError;
   bool _isSaving = false;
 
-  bool get _isAmountValid => Validators.amountUpTo(widget.statement.remainingAmount)(_amountController.text) == null;
+  bool get _isAmountValid =>
+      Validators.amountUpTo(widget.statement.remainingAmount)(
+        _amountController.text,
+      ) ==
+      null;
 
   @override
   void dispose() {
@@ -77,7 +94,10 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
     setState(() => _isSaving = true);
     try {
       final repository = ref.read(
-        statementPaymentRepositoryProvider((cardId: widget.cardId, statementId: widget.statement.id)),
+        statementPaymentRepositoryProvider((
+          cardId: widget.cardId,
+          statementId: widget.statement.id,
+        )),
       );
       await repository.recordPayment(
         widget.statement,
@@ -91,9 +111,9 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record payment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
@@ -102,13 +122,16 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
   Widget build(BuildContext context) {
     final accountsAsync = ref.watch(accountsStreamProvider);
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
-    final categories = ref.watch(categoriesForTypeProvider(TransactionType.expense));
+    final categories = ref.watch(
+      categoriesForTypeProvider(TransactionType.expense),
+    );
 
     return Form(
       key: _formKey,
       child: SectionedFormSheet(
         title: 'Pay statement',
-        description: '${CurrencyFormatter.instance.format(widget.statement.remainingAmount)} left to pay',
+        description:
+            '${CurrencyFormatter.instance.format(widget.statement.remainingAmount)} left to pay',
         confirmLabel: 'Record payment',
         isSaving: _isSaving,
         confirmEnabled: _isAmountValid,
@@ -119,8 +142,12 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: Validators.amountUpTo(widget.statement.remainingAmount),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              validator: Validators.amountUpTo(
+                widget.statement.remainingAmount,
+              ),
               autovalidateMode: AutovalidateMode.onUserInteraction,
               onChanged: (_) => setState(() {}),
             ),
@@ -129,13 +156,21 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
               loading: () => const LinearProgressIndicator(),
               error: (error, _) => Text('Could not load accounts: $error'),
               data: (accounts) {
-                final validId = accounts.any((a) => a.id == _accountId) ? _accountId : null;
+                final validId = accounts.any((a) => a.id == _accountId)
+                    ? _accountId
+                    : null;
                 return DropdownButtonFormField<String>(
                   initialValue: validId,
-                  decoration: InputDecoration(labelText: 'Pay from', errorText: _accountError),
+                  decoration: InputDecoration(
+                    labelText: 'Pay from',
+                    errorText: _accountError,
+                  ),
                   items: [
                     for (final account in accounts)
-                      DropdownMenuItem(value: account.id, child: Text(accountPickerLabel(account, creditCards))),
+                      DropdownMenuItem(
+                        value: account.id,
+                        child: Text(accountPickerLabel(account, creditCards)),
+                      ),
                   ],
                   onChanged: (value) => setState(() {
                     _accountId = value;
@@ -146,11 +181,19 @@ class _RecordStatementPaymentSheetState extends ConsumerState<RecordStatementPay
             ),
             const SizedBox(height: AppSizes.md),
             DropdownButtonFormField<String>(
-              initialValue: categories.any((c) => c.id == _categoryId) ? _categoryId : null,
-              decoration: InputDecoration(labelText: 'Category', errorText: _categoryError),
+              initialValue: categories.any((c) => c.id == _categoryId)
+                  ? _categoryId
+                  : null,
+              decoration: InputDecoration(
+                labelText: 'Category',
+                errorText: _categoryError,
+              ),
               items: [
                 for (final category in categories)
-                  DropdownMenuItem(value: category.id, child: Text(category.name)),
+                  DropdownMenuItem(
+                    value: category.id,
+                    child: Text(category.name),
+                  ),
               ],
               onChanged: (value) => setState(() {
                 _categoryId = value;

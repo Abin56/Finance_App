@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/battery_optimization_availability.dart';
 import '../../domain/notification_access_availability.dart';
 import '../providers/sms_inbox_providers.dart';
@@ -56,8 +56,7 @@ class _NotificationCaptureBannerState
       NotificationAccessAvailability.granted => switch (batteryOptimization) {
         null ||
         BatteryOptimizationAvailability.unrestricted ||
-        BatteryOptimizationAvailability.unsupportedPlatform =>
-          null,
+        BatteryOptimizationAvailability.unsupportedPlatform => null,
         BatteryOptimizationAvailability.restricted => _BannerContent(
           title: 'Bank alerts may be missed',
           body:
@@ -94,26 +93,20 @@ class _NotificationCaptureBannerState
       ),
       padding: const EdgeInsets.all(AppSizes.sm),
       decoration: BoxDecoration(
-        color: AppClay.primary.withValues(alpha: 0.06),
+        color: context.colors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(_radius),
-        border: Border.all(color: AppClay.primary.withValues(alpha: 0.12)),
+        border: Border.all(
+          color: context.colors.primary.withValues(alpha: 0.16),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: AppClay.iconChipGradient(AppClay.primary),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.notifications_active_rounded,
-              size: 16,
-              color: AppClay.primaryAccent(context),
-            ),
+          FlowFiIconChip(
+            icon: Icons.notifications_active_rounded,
+            color: context.colors.primary,
+            size: 32,
+            iconSize: 16,
           ),
           const SizedBox(width: AppSizes.sm),
           Expanded(
@@ -122,7 +115,9 @@ class _NotificationCaptureBannerState
               children: [
                 Text(
                   content.title,
-                  style: context.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: AppSizes.xs / 2),
                 Text(
@@ -140,7 +135,7 @@ class _NotificationCaptureBannerState
                       height: 28,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: AppClay.primary,
+                          color: context.colors.primary,
                           borderRadius: BorderRadius.circular(_radius - 4),
                         ),
                         child: Material(
@@ -150,12 +145,14 @@ class _NotificationCaptureBannerState
                             borderRadius: BorderRadius.circular(_radius - 4),
                             onTap: content.onAction,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSizes.sm,
+                              ),
                               child: Center(
                                 child: Text(
                                   content.actionLabel,
                                   style: context.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white,
+                                    color: context.colors.onPrimary,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),

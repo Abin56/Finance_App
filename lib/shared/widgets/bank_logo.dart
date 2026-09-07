@@ -31,8 +31,10 @@ class _LogoAssetCache {
     }
   }
 
-  static Future<bool> svgExists(String bankId) => _svg.putIfAbsent(bankId, () => _probe('assets/banks/logos/$bankId.svg'));
-  static Future<bool> pngExists(String bankId) => _png.putIfAbsent(bankId, () => _probe('assets/banks/logos/$bankId.png'));
+  static Future<bool> svgExists(String bankId) =>
+      _svg.putIfAbsent(bankId, () => _probe('assets/banks/logos/$bankId.svg'));
+  static Future<bool> pngExists(String bankId) =>
+      _png.putIfAbsent(bankId, () => _probe('assets/banks/logos/$bankId.png'));
 }
 
 /// Single source of truth for "show this bank's identity" everywhere in the app — Dashboard,
@@ -66,7 +68,10 @@ class BankLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bank = BankRegistry.resolve(bankId: bankId, fallbackName: fallbackName);
+    final bank = BankRegistry.resolve(
+      bankId: bankId,
+      fallbackName: fallbackName,
+    );
     return Semantics(
       label: bank?.name ?? 'Bank not set',
       image: true,
@@ -76,13 +81,21 @@ class BankLogo extends StatelessWidget {
 
   Widget _build(BankInfo? bank) {
     if (bank == null) return _GenericBadge(size: size, radius: _radius);
-    if (bank.id == BankRegistry.generic.id) return _InitialsBadge(bank: bank, size: size, radius: _radius);
+    if (bank.id == BankRegistry.generic.id)
+      return _InitialsBadge(bank: bank, size: size, radius: _radius);
 
     return FutureBuilder<bool>(
       future: _LogoAssetCache.svgExists(bank.id),
       builder: (context, svgSnapshot) {
         if (svgSnapshot.data == true) {
-          return _ImageBadge(size: size, radius: _radius, child: SvgPicture.asset('assets/banks/logos/${bank.id}.svg', fit: BoxFit.contain));
+          return _ImageBadge(
+            size: size,
+            radius: _radius,
+            child: SvgPicture.asset(
+              'assets/banks/logos/${bank.id}.svg',
+              fit: BoxFit.contain,
+            ),
+          );
         }
         if (svgSnapshot.connectionState != ConnectionState.done) {
           // Still probing — show the initials badge rather than a blank frame; if a logo turns
@@ -94,7 +107,14 @@ class BankLogo extends StatelessWidget {
           future: _LogoAssetCache.pngExists(bank.id),
           builder: (context, pngSnapshot) {
             if (pngSnapshot.data == true) {
-              return _ImageBadge(size: size, radius: _radius, child: Image.asset('assets/banks/logos/${bank.id}.png', fit: BoxFit.contain));
+              return _ImageBadge(
+                size: size,
+                radius: _radius,
+                child: Image.asset(
+                  'assets/banks/logos/${bank.id}.png',
+                  fit: BoxFit.contain,
+                ),
+              );
             }
             return _InitialsBadge(bank: bank, size: size, radius: _radius);
           },
@@ -105,7 +125,11 @@ class BankLogo extends StatelessWidget {
 }
 
 class _ImageBadge extends StatelessWidget {
-  const _ImageBadge({required this.size, required this.radius, required this.child});
+  const _ImageBadge({
+    required this.size,
+    required this.radius,
+    required this.child,
+  });
 
   final double size;
   final BorderRadius radius;
@@ -128,7 +152,11 @@ class _ImageBadge extends StatelessWidget {
 }
 
 class _InitialsBadge extends StatelessWidget {
-  const _InitialsBadge({required this.bank, required this.size, required this.radius});
+  const _InitialsBadge({
+    required this.bank,
+    required this.size,
+    required this.radius,
+  });
 
   final BankInfo bank;
   final double size;
@@ -142,8 +170,14 @@ class _InitialsBadge extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(color: bank.primaryColor, borderRadius: radius),
       child: Text(
-        bank.shortCode.length > 5 ? bank.shortCode.substring(0, 5) : bank.shortCode,
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: size * 0.24),
+        bank.shortCode.length > 5
+            ? bank.shortCode.substring(0, 5)
+            : bank.shortCode,
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: size * 0.24,
+        ),
         maxLines: 1,
         overflow: TextOverflow.clip,
         textAlign: TextAlign.center,
@@ -164,8 +198,15 @@ class _GenericBadge extends StatelessWidget {
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(color: BankRegistry.generic.primaryColor.withValues(alpha: 0.15), borderRadius: radius),
-      child: Icon(Icons.account_balance_rounded, size: size * 0.5, color: BankRegistry.generic.primaryColor),
+      decoration: BoxDecoration(
+        color: BankRegistry.generic.primaryColor.withValues(alpha: 0.15),
+        borderRadius: radius,
+      ),
+      child: Icon(
+        Icons.account_balance_rounded,
+        size: size * 0.5,
+        color: BankRegistry.generic.primaryColor,
+      ),
     );
   }
 }

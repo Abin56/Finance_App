@@ -42,7 +42,10 @@ final loansTrashStreamProvider = StreamProvider<List<Loan>>((ref) {
 /// Every loan for one person, for the person statement timeline — filtered
 /// client-side over [loansStreamProvider], same approach `creditorsProvider`/
 /// `debtorsProvider` use over `peopleStreamProvider`.
-final loansForPersonProvider = Provider.autoDispose.family<List<Loan>, String>((ref, personId) {
+final loansForPersonProvider = Provider.autoDispose.family<List<Loan>, String>((
+  ref,
+  personId,
+) {
   final loans = ref.watch(loansStreamProvider).value ?? const [];
   return loans.where((l) => l.personId == personId).toList();
 });
@@ -51,10 +54,11 @@ final loansForPersonProvider = Provider.autoDispose.family<List<Loan>, String>((
 /// distinct from [loansForPersonProvider] (that person as the lender/
 /// counterparty via [Loan.personId]). Covers "I took a bank loan, but a
 /// friend pays the EMIs" — see [Loan.payerPersonId].
-final loansPayableByPersonProvider = Provider.autoDispose.family<List<Loan>, String>((ref, personId) {
-  final loans = ref.watch(loansStreamProvider).value ?? const [];
-  return loans.where((l) => l.payerPersonId == personId).toList();
-});
+final loansPayableByPersonProvider = Provider.autoDispose
+    .family<List<Loan>, String>((ref, personId) {
+      final loans = ref.watch(loansStreamProvider).value ?? const [];
+      return loans.where((l) => l.payerPersonId == personId).toList();
+    });
 
 /// The next installment still owed on a loan — the earliest (by
 /// sequenceNumber) installment that isn't fully paid or skipped, or `null`
@@ -63,35 +67,51 @@ final loansPayableByPersonProvider = Provider.autoDispose.family<List<Loan>, Str
 /// installments already exist for its full term (`generateInstallments`
 /// materializes them upfront at creation), so this is a pure read, not a
 /// projection/generation of new data.
-final loanNextUpcomingInstallmentProvider = Provider.autoDispose.family<Installment?, Loan>((ref, loan) {
-  final installments = [...ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const []]
-    ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-  return installments
-      .where((i) => i.status != InstallmentStatus.paid && !i.isSkipped)
-      .firstOrNull;
-});
+final loanNextUpcomingInstallmentProvider = Provider.autoDispose
+    .family<Installment?, Loan>((ref, loan) {
+      final installments = [
+        ...ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+            const [],
+      ]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      return installments
+          .where((i) => i.status != InstallmentStatus.paid && !i.isSkipped)
+          .firstOrNull;
+    });
 
 /// A loan's current status, derived from its linked schedule's installments.
-final loanStatusProvider = Provider.autoDispose.family<LoanStatus, Loan>((ref, loan) {
-  final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+final loanStatusProvider = Provider.autoDispose.family<LoanStatus, Loan>((
+  ref,
+  loan,
+) {
+  final installments =
+      ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
   return loan.statusGiven(installments);
 });
 
 /// Sum of remaining amounts across a loan's installments.
-final loanRemainingAmountProvider = Provider.autoDispose.family<double, Loan>((ref, loan) {
+final loanRemainingAmountProvider = Provider.autoDispose.family<double, Loan>((
+  ref,
+  loan,
+) {
   return ref.watch(remainingAmountProvider(loan.scheduleId));
 });
 
 /// Sum of amounts actually paid so far across a loan's installments.
-final loanTotalReceivedProvider = Provider.autoDispose.family<double, Loan>((ref, loan) {
-  final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+final loanTotalReceivedProvider = Provider.autoDispose.family<double, Loan>((
+  ref,
+  loan,
+) {
+  final installments =
+      ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
   return installments.fold(0.0, (sum, i) => sum + i.amountPaid);
 });
 
 /// Every non-closed loan.
 final activeLoansProvider = Provider<List<Loan>>((ref) {
   final loans = ref.watch(loansStreamProvider).value ?? const [];
-  return loans.where((l) => ref.watch(loanStatusProvider(l)) != LoanStatus.closed).toList();
+  return loans
+      .where((l) => ref.watch(loanStatusProvider(l)) != LoanStatus.closed)
+      .toList();
 });
 
 /// Sum of remaining amounts across every non-closed [LoanDirection.given]
@@ -128,11 +148,14 @@ const loanCycleAnchor = CycleAnchor(anchorDay: 17);
 /// Cards/People/EMI already use. Raw `CycleItem`-typed result — see
 /// [loanCycleViewRecordProvider] below for the unwrapped `Installment` view
 /// every screen should actually watch.
-final loanCycleViewProvider = Provider.autoDispose.family<CycleEngineResult<InstallmentCycleItem>, Loan>((ref, loan) {
-  final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
-  final items = installments.map(InstallmentCycleItem.new).toList();
-  return CycleEngine.classifyForCarryForward(items, loanCycleAnchor);
-});
+final loanCycleViewProvider = Provider.autoDispose
+    .family<CycleEngineResult<InstallmentCycleItem>, Loan>((ref, loan) {
+      final installments =
+          ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+          const [];
+      final items = installments.map(InstallmentCycleItem.new).toList();
+      return CycleEngine.classifyForCarryForward(items, loanCycleAnchor);
+    });
 
 /// The two-section carry-forward view for one loan's installments, unwrapped
 /// back to plain [Installment]s — mirrors `EmiCycleView`/
@@ -140,12 +163,18 @@ final loanCycleViewProvider = Provider.autoDispose.family<CycleEngineResult<Inst
 /// materialized upfront by `generateInstallments`, so [current] is simply
 /// [loanCycleViewProvider]'s own `result.current`, unwrapped — no separate
 /// "live" fetch needed.
-typedef LoanCycleView = ({List<Installment> previousCyclePending, List<Installment> current});
-
-final loanCycleViewRecordProvider = Provider.autoDispose.family<LoanCycleView, Loan>((ref, loan) {
-  final result = ref.watch(loanCycleViewProvider(loan));
-  return (
-    previousCyclePending: result.previousCyclePending.map((item) => item.installment).toList(),
-    current: result.current.map((item) => item.installment).toList(),
-  );
+typedef LoanCycleView = ({
+  List<Installment> previousCyclePending,
+  List<Installment> current,
 });
+
+final loanCycleViewRecordProvider = Provider.autoDispose
+    .family<LoanCycleView, Loan>((ref, loan) {
+      final result = ref.watch(loanCycleViewProvider(loan));
+      return (
+        previousCyclePending: result.previousCyclePending
+            .map((item) => item.installment)
+            .toList(),
+        current: result.current.map((item) => item.installment).toList(),
+      );
+    });

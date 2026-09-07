@@ -47,14 +47,20 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   }) async {
     final count = schedule.installmentCount;
     if (count == null || count < 1) {
-      throw const AppException('Schedule needs at least 1 installment to generate');
+      throw const AppException(
+        'Schedule needs at least 1 installment to generate',
+      );
     }
     if (precomputedAmounts != null && precomputedAmounts.length != count) {
-      throw const AppException('precomputedAmounts must have one entry per installment');
+      throw const AppException(
+        'precomputedAmounts must have one entry per installment',
+      );
     }
 
-    final amounts = precomputedAmounts ?? _evenSplit(schedule.totalAmount, count);
-    final pinToDueDay = dueDayOfMonth != null && schedule.scheduleType == ScheduleType.monthly;
+    final amounts =
+        precomputedAmounts ?? _evenSplit(schedule.totalAmount, count);
+    final pinToDueDay =
+        dueDayOfMonth != null && schedule.scheduleType == ScheduleType.monthly;
 
     final installments = <Installment>[];
     var dueDate = schedule.firstDueDate;
@@ -62,7 +68,10 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
       if (i > 0) {
         dueDate = pinToDueDay
             ? _addMonthsTargetingDay(schedule.firstDueDate, i, dueDayOfMonth)
-            : schedule.scheduleType.nextDueDate(dueDate, customDays: schedule.customIntervalDays);
+            : schedule.scheduleType.nextDueDate(
+                dueDate,
+                customDays: schedule.customIntervalDays,
+              );
       }
       final installment = Installment(
         id: IdGenerator.generate(),
@@ -89,13 +98,26 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   /// from [firstDueDate] directly (not chained off the previous
   /// installment) so every installment lands on exactly [targetDay] with no
   /// drift, however many months are added.
-  static DateTime _addMonthsTargetingDay(DateTime firstDueDate, int monthsAhead, int targetDay) {
+  static DateTime _addMonthsTargetingDay(
+    DateTime firstDueDate,
+    int monthsAhead,
+    int targetDay,
+  ) {
     final targetMonthIndex = firstDueDate.month - 1 + monthsAhead;
     final targetYear = firstDueDate.year + targetMonthIndex ~/ 12;
     final targetMonth = targetMonthIndex % 12 + 1;
     final lastDayOfTargetMonth = DateTime(targetYear, targetMonth + 1, 0).day;
-    final day = targetDay > lastDayOfTargetMonth ? lastDayOfTargetMonth : targetDay;
-    return DateTime(targetYear, targetMonth, day, firstDueDate.hour, firstDueDate.minute, firstDueDate.second);
+    final day = targetDay > lastDayOfTargetMonth
+        ? lastDayOfTargetMonth
+        : targetDay;
+    return DateTime(
+      targetYear,
+      targetMonth,
+      day,
+      firstDueDate.hour,
+      firstDueDate.minute,
+      firstDueDate.second,
+    );
   }
 
   List<PrecomputedInstallmentAmount> _evenSplit(double total, int count) {
@@ -103,7 +125,9 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
     final shares = List.filled(count, share);
     final remainder = _round2(total - share * count);
     shares[count - 1] = _round2(shares[count - 1] + remainder);
-    return shares.map((amount) => PrecomputedInstallmentAmount(amountDue: amount)).toList();
+    return shares
+        .map((amount) => PrecomputedInstallmentAmount(amountDue: amount))
+        .toList();
   }
 
   double _round2(double v) => (v * 100).round() / 100;
@@ -115,7 +139,9 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   /// as a `BillOccurrence`).
   Future<void> applyPayment(Installment installment, double delta) async {
     if (delta == 0) return;
-    final newAmountPaid = (installment.amountPaid + delta).clamp(0, installment.amountDue).toDouble();
+    final newAmountPaid = (installment.amountPaid + delta)
+        .clamp(0, installment.amountDue)
+        .toDouble();
     installment.recordEdit(
       field: 'amountPaid',
       oldValue: installment.amountPaid.toString(),
@@ -130,9 +156,14 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   /// amount below what's already been collected, since that would silently
   /// erase a real payment; callers should surface this as a clear "already
   /// paid" error rather than letting it happen.
-  Future<void> editInstallmentAmount(Installment installment, double newAmountDue) async {
+  Future<void> editInstallmentAmount(
+    Installment installment,
+    double newAmountDue,
+  ) async {
     if (newAmountDue < installment.amountPaid) {
-      throw const AppException('Cannot set an amount lower than what has already been paid');
+      throw const AppException(
+        'Cannot set an amount lower than what has already been paid',
+      );
     }
     if (newAmountDue == installment.amountDue) return;
     installment.recordEdit(
@@ -148,7 +179,10 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   /// due date after the fact. Unlike [editInstallmentAmount], there's
   /// nothing to guard against: pushing a due date earlier or later never
   /// conflicts with an already-recorded payment.
-  Future<void> editInstallmentDueDate(Installment installment, DateTime newDueDate) async {
+  Future<void> editInstallmentDueDate(
+    Installment installment,
+    DateTime newDueDate,
+  ) async {
     if (newDueDate == installment.dueDate) return;
     installment.recordEdit(
       field: 'dueDate',
@@ -161,14 +195,22 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
 
   Future<void> skipInstallment(Installment installment) async {
     if (installment.isSkipped) return;
-    installment.recordEdit(field: 'isSkipped', oldValue: 'false', newValue: 'true');
+    installment.recordEdit(
+      field: 'isSkipped',
+      oldValue: 'false',
+      newValue: 'true',
+    );
     installment.isSkipped = true;
     await update(installment);
   }
 
   Future<void> unskipInstallment(Installment installment) async {
     if (!installment.isSkipped) return;
-    installment.recordEdit(field: 'isSkipped', oldValue: 'true', newValue: 'false');
+    installment.recordEdit(
+      field: 'isSkipped',
+      oldValue: 'true',
+      newValue: 'false',
+    );
     installment.isSkipped = false;
     await update(installment);
   }
@@ -181,8 +223,12 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   /// Returns the installments that were soft-deleted, for callers that need
   /// to reverse this (see `EmiRepository.reopenEmiEarlyClosure` in future,
   /// currently not exposed since reopening isn't in scope).
-  Future<List<Installment>> closeOutRemaining(List<Installment> remaining) async {
-    final toClose = remaining.where((i) => i.status != InstallmentStatus.paid).toList();
+  Future<List<Installment>> closeOutRemaining(
+    List<Installment> remaining,
+  ) async {
+    final toClose = remaining
+        .where((i) => i.status != InstallmentStatus.paid)
+        .toList();
     for (final installment in toClose) {
       await softDelete(installment);
     }
@@ -198,8 +244,12 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   /// installment here is deliberately left alone — it already has a real
   /// payment recorded against it, and this operation replaces, not closes,
   /// the schedule.
-  Future<List<Installment>> replaceUnpaid(List<Installment> installments) async {
-    final untouched = installments.where((i) => i.amountPaid == 0 && !i.isSkipped).toList();
+  Future<List<Installment>> replaceUnpaid(
+    List<Installment> installments,
+  ) async {
+    final untouched = installments
+        .where((i) => i.amountPaid == 0 && !i.isSkipped)
+        .toList();
     for (final installment in untouched) {
       await softDelete(installment);
     }
@@ -211,7 +261,9 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
     final today = now ?? DateTime.now();
     final start = today.startOfWeek;
     final end = today.endOfWeek;
-    return all.where((i) => !i.dueDate.isBefore(start) && !i.dueDate.isAfter(end)).toList();
+    return all
+        .where((i) => !i.dueDate.isBefore(start) && !i.dueDate.isAfter(end))
+        .toList();
   }
 
   /// Installments due within the calendar month containing [now].
@@ -243,7 +295,8 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   List<Installment> overdue(List<Installment> all, {DateTime? now}) {
     final today = (now ?? DateTime.now()).dateOnly;
     return all.where((i) {
-      if (i.amountPaid >= i.amountDue || i.isSkipped || i.amountPaid > 0) return false;
+      if (i.amountPaid >= i.amountDue || i.isSkipped || i.amountPaid > 0)
+        return false;
       return i.dueDate.dateOnly.isBefore(today);
     }).toList();
   }

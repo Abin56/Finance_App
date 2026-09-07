@@ -33,10 +33,18 @@ abstract class InterestCalculator {
     int? installmentsPerYear,
   }) {
     if (installmentCount < 1) {
-      throw ArgumentError.value(installmentCount, 'installmentCount', 'must be at least 1');
+      throw ArgumentError.value(
+        installmentCount,
+        'installmentCount',
+        'must be at least 1',
+      );
     }
     if (ratePercent < 0) {
-      throw ArgumentError.value(ratePercent, 'ratePercent', 'cannot be negative');
+      throw ArgumentError.value(
+        ratePercent,
+        'ratePercent',
+        'cannot be negative',
+      );
     }
     if (ratePercent == 0) {
       return _zeroInterest(principal, installmentCount);
@@ -44,7 +52,12 @@ abstract class InterestCalculator {
 
     final periodicRate = installmentCount == 1
         ? ratePercent
-        : _periodicRate(ratePercent, period, installmentFrequency, installmentsPerYear: installmentsPerYear);
+        : _periodicRate(
+            ratePercent,
+            period,
+            installmentFrequency,
+            installmentsPerYear: installmentsPerYear,
+          );
     return type == InterestType.flat
         ? _flat(principal, periodicRate, installmentCount)
         : _reducingBalance(principal, periodicRate, installmentCount);
@@ -62,26 +75,41 @@ abstract class InterestCalculator {
     InterestPeriod installmentFrequency, {
     int? installmentsPerYear,
   }) {
-    final annualRate = quotedPeriod == InterestPeriod.yearly ? ratePercent : ratePercent * 12;
+    final annualRate = quotedPeriod == InterestPeriod.yearly
+        ? ratePercent
+        : ratePercent * 12;
     if (installmentsPerYear != null) return annualRate / installmentsPerYear;
-    return installmentFrequency == InterestPeriod.yearly ? annualRate : annualRate / 12;
+    return installmentFrequency == InterestPeriod.yearly
+        ? annualRate
+        : annualRate / 12;
   }
 
-  static InterestBreakdown _zeroInterest(double principal, int installmentCount) {
+  static InterestBreakdown _zeroInterest(
+    double principal,
+    int installmentCount,
+  ) {
     final principalShares = _evenSplit(principal, installmentCount);
     final periods = <InterestPeriodBreakdown>[];
     var remaining = principal;
     for (var i = 0; i < installmentCount; i++) {
-      remaining = (remaining - principalShares[i]).clamp(0, principal).toDouble();
-      periods.add(InterestPeriodBreakdown(
-        periodNumber: i + 1,
-        paymentAmount: principalShares[i],
-        principalPortion: principalShares[i],
-        interestPortion: 0,
-        remainingPrincipal: remaining,
-      ));
+      remaining = (remaining - principalShares[i])
+          .clamp(0, principal)
+          .toDouble();
+      periods.add(
+        InterestPeriodBreakdown(
+          periodNumber: i + 1,
+          paymentAmount: principalShares[i],
+          principalPortion: principalShares[i],
+          interestPortion: 0,
+          remainingPrincipal: remaining,
+        ),
+      );
     }
-    return InterestBreakdown(principal: principal, totalInterest: 0, periods: periods);
+    return InterestBreakdown(
+      principal: principal,
+      totalInterest: 0,
+      periods: periods,
+    );
   }
 
   /// Flat/simple interest: total interest = principal * periodicRate/100 *
@@ -89,24 +117,38 @@ abstract class InterestCalculator {
   /// never to a reducing balance). Total payable is split evenly across
   /// installments (equal principal share + equal interest share per
   /// period), with the last installment absorbing any rounding remainder.
-  static InterestBreakdown _flat(double principal, double periodicRate, int installmentCount) {
-    final totalInterest = _round2(principal * (periodicRate / 100) * installmentCount);
+  static InterestBreakdown _flat(
+    double principal,
+    double periodicRate,
+    int installmentCount,
+  ) {
+    final totalInterest = _round2(
+      principal * (periodicRate / 100) * installmentCount,
+    );
     final principalShares = _evenSplit(principal, installmentCount);
     final interestShares = _evenSplit(totalInterest, installmentCount);
 
     final periods = <InterestPeriodBreakdown>[];
     var remainingPrincipal = principal;
     for (var i = 0; i < installmentCount; i++) {
-      remainingPrincipal = (remainingPrincipal - principalShares[i]).clamp(0, principal).toDouble();
-      periods.add(InterestPeriodBreakdown(
-        periodNumber: i + 1,
-        paymentAmount: _round2(principalShares[i] + interestShares[i]),
-        principalPortion: principalShares[i],
-        interestPortion: interestShares[i],
-        remainingPrincipal: remainingPrincipal,
-      ));
+      remainingPrincipal = (remainingPrincipal - principalShares[i])
+          .clamp(0, principal)
+          .toDouble();
+      periods.add(
+        InterestPeriodBreakdown(
+          periodNumber: i + 1,
+          paymentAmount: _round2(principalShares[i] + interestShares[i]),
+          principalPortion: principalShares[i],
+          interestPortion: interestShares[i],
+          remainingPrincipal: remainingPrincipal,
+        ),
+      );
     }
-    return InterestBreakdown(principal: principal, totalInterest: totalInterest, periods: periods);
+    return InterestBreakdown(
+      principal: principal,
+      totalInterest: totalInterest,
+      periods: periods,
+    );
   }
 
   /// Reducing balance / amortized interest: standard EMI annuity formula.
@@ -115,9 +157,17 @@ abstract class InterestCalculator {
   /// Last installment absorbs rounding remainder and is clamped so
   /// remainingPrincipal never goes negative (guards against float drift
   /// over many periods).
-  static InterestBreakdown _reducingBalance(double principal, double periodicRate, int installmentCount) {
+  static InterestBreakdown _reducingBalance(
+    double principal,
+    double periodicRate,
+    int installmentCount,
+  ) {
     final r = periodicRate / 100;
-    final emi = principal * r * _pow(1 + r, installmentCount) / (_pow(1 + r, installmentCount) - 1);
+    final emi =
+        principal *
+        r *
+        _pow(1 + r, installmentCount) /
+        (_pow(1 + r, installmentCount) - 1);
 
     final periods = <InterestPeriodBreakdown>[];
     var outstanding = principal;
@@ -125,19 +175,29 @@ abstract class InterestCalculator {
     for (var i = 0; i < installmentCount; i++) {
       final isLast = i == installmentCount - 1;
       final interestPortion = _round2(outstanding * r);
-      var principalPortion = isLast ? outstanding : _round2(emi - interestPortion);
+      var principalPortion = isLast
+          ? outstanding
+          : _round2(emi - interestPortion);
       if (principalPortion > outstanding) principalPortion = outstanding;
-      outstanding = (outstanding - principalPortion).clamp(0, principal).toDouble();
+      outstanding = (outstanding - principalPortion)
+          .clamp(0, principal)
+          .toDouble();
       totalInterest += interestPortion;
-      periods.add(InterestPeriodBreakdown(
-        periodNumber: i + 1,
-        paymentAmount: _round2(principalPortion + interestPortion),
-        principalPortion: principalPortion,
-        interestPortion: interestPortion,
-        remainingPrincipal: outstanding,
-      ));
+      periods.add(
+        InterestPeriodBreakdown(
+          periodNumber: i + 1,
+          paymentAmount: _round2(principalPortion + interestPortion),
+          principalPortion: principalPortion,
+          interestPortion: interestPortion,
+          remainingPrincipal: outstanding,
+        ),
+      );
     }
-    return InterestBreakdown(principal: principal, totalInterest: _round2(totalInterest), periods: periods);
+    return InterestBreakdown(
+      principal: principal,
+      totalInterest: _round2(totalInterest),
+      periods: periods,
+    );
   }
 
   static List<double> _evenSplit(double total, int count) {

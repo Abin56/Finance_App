@@ -90,7 +90,8 @@ class Transaction extends SoftDeletableEntity {
   /// The month every monthly aggregation (Dashboard, Reports, Budgets, Cash
   /// Flow) must bucket this transaction under, instead of [dateTime]'s own
   /// month — [accountingMonth] if set, else [dateTime]'s month.
-  DateTime get effectiveMonth => accountingMonth ?? DateTime(dateTime.year, dateTime.month);
+  DateTime get effectiveMonth =>
+      accountingMonth ?? DateTime(dateTime.year, dateTime.month);
 
   /// The signed delta this transaction actually applies to its account's
   /// balance — [signedAmount], or zero when [excludeFromCalculations] is
@@ -104,22 +105,23 @@ class Transaction extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Transaction(
-      id: snapshot.id,
-      type: TransactionTypeX.fromName(data['type'] as String),
-      amount: (data['amount'] as num).toDouble(),
-      dateTime: (data['dateTime'] as Timestamp).toDate(),
-      accountId: data['accountId'] as String,
-      categoryId: data['categoryId'] as String,
-      description: data['description'] as String? ?? '',
-      notes: data['notes'] as String? ?? '',
-      receiptPurpose: data['receiptPurpose'] as String?,
-      excludeFromCalculations: data['excludeFromCalculations'] as bool? ?? false,
-      accountingMonth: (data['accountingMonth'] as Timestamp?)?.toDate(),
-      linkedPersonId: data['linkedPersonId'] as String?,
-      owesPersonToggle: data['owesPersonToggle'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      source: data['source'] as String?,
-    )
+        id: snapshot.id,
+        type: TransactionTypeX.fromName(data['type'] as String),
+        amount: (data['amount'] as num).toDouble(),
+        dateTime: (data['dateTime'] as Timestamp).toDate(),
+        accountId: data['accountId'] as String,
+        categoryId: data['categoryId'] as String,
+        description: data['description'] as String? ?? '',
+        notes: data['notes'] as String? ?? '',
+        receiptPurpose: data['receiptPurpose'] as String?,
+        excludeFromCalculations:
+            data['excludeFromCalculations'] as bool? ?? false,
+        accountingMonth: (data['accountingMonth'] as Timestamp?)?.toDate(),
+        linkedPersonId: data['linkedPersonId'] as String?,
+        owesPersonToggle: data['owesPersonToggle'] as bool? ?? false,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+        source: data['source'] as String?,
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -138,13 +140,17 @@ class Transaction extends SoftDeletableEntity {
       'notes': notes,
       'receiptPurpose': receiptPurpose,
       'excludeFromCalculations': excludeFromCalculations,
-      'accountingMonth': accountingMonth == null ? null : Timestamp.fromDate(accountingMonth!),
+      'accountingMonth': accountingMonth == null
+          ? null
+          : Timestamp.fromDate(accountingMonth!),
       'linkedPersonId': linkedPersonId,
       'owesPersonToggle': owesPersonToggle,
       'createdAt': Timestamp.fromDate(createdAt),
       'source': source,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

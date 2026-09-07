@@ -7,12 +7,21 @@ mixin AuditableMixin {
   List<AuditEntry> editHistory = [];
 
   /// Appends an audit entry; never mutates or removes prior entries.
-  void recordEdit({required String field, required String oldValue, required String newValue}) {
+  void recordEdit({
+    required String field,
+    required String oldValue,
+    required String newValue,
+  }) {
     if (oldValue == newValue) return;
     final now = DateTime.now();
     editHistory = [
       ...editHistory,
-      AuditEntry(timestamp: now, field: field, oldValue: oldValue, newValue: newValue),
+      AuditEntry(
+        timestamp: now,
+        field: field,
+        oldValue: oldValue,
+        newValue: newValue,
+      ),
     ];
     lastEditedAt = now;
   }
@@ -35,6 +44,10 @@ mixin AuditableMixin {
   }) {
     if (newValue == null || newValue == oldValue) return;
     apply(newValue);
-    recordEdit(field: field, oldValue: oldValue.toString(), newValue: newValue.toString());
+    recordEdit(
+      field: field,
+      oldValue: oldValue.toString(),
+      newValue: newValue.toString(),
+    );
   }
 }

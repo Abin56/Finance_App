@@ -28,27 +28,32 @@ import '../../domain/widget_configuration.dart';
 /// would drop the cache the moment a widget scrolls offscreen, which is
 /// wasteful for a dashboard the user scrolls up and down constantly, so this
 /// intentionally stays a plain family).
-final financialViewResultProvider = Provider.family<FinancialViewResult, WidgetConfiguration>((ref, config) {
-  final now = DateTime.now();
-  final fiscalYearStartMonth = ref.watch(fiscalYearStartMonthProvider);
-  final range = config.dateStrategy.resolve(now, fiscalYearStartMonth: fiscalYearStartMonth);
+final financialViewResultProvider =
+    Provider.family<FinancialViewResult, WidgetConfiguration>((ref, config) {
+      final now = DateTime.now();
+      final fiscalYearStartMonth = ref.watch(fiscalYearStartMonthProvider);
+      final range = config.dateStrategy.resolve(
+        now,
+        fiscalYearStartMonth: fiscalYearStartMonth,
+      );
 
-  final module = config.financialViewModule;
-  final amount = _amountFor(ref, module, config.dateStrategy, range);
-  final breakdown = _breakdownFor(ref, module, config.dateStrategy, range);
+      final module = config.financialViewModule;
+      final amount = _amountFor(ref, module, config.dateStrategy, range);
+      final breakdown = _breakdownFor(ref, module, config.dateStrategy, range);
 
-  final previousRange = _previousRangeFor(config.dateStrategy, range);
-  final previousAmount =
-      previousRange == null ? null : _amountFor(ref, module, config.dateStrategy, previousRange);
+      final previousRange = _previousRangeFor(config.dateStrategy, range);
+      final previousAmount = previousRange == null
+          ? null
+          : _amountFor(ref, module, config.dateStrategy, previousRange);
 
-  return FinancialViewResult(
-    module: module,
-    range: range,
-    amount: amount,
-    previousAmount: previousAmount,
-    breakdown: breakdown,
-  );
-});
+      return FinancialViewResult(
+        module: module,
+        range: range,
+        amount: amount,
+        previousAmount: previousAmount,
+        breakdown: breakdown,
+      );
+    });
 
 /// The equal-length window immediately preceding [range], used for the "vs
 /// last cycle" comparison — null for [CustomDateRange], which has no natural
@@ -56,10 +61,18 @@ final financialViewResultProvider = Provider.family<FinancialViewResult, WidgetC
 DateRange? _previousRangeFor(DateRangeStrategy strategy, DateRange range) {
   if (strategy is CustomDateRange) return null;
   final length = range.end.difference(range.start);
-  return DateRange(range.start.subtract(length), range.start.subtract(const Duration(seconds: 1)));
+  return DateRange(
+    range.start.subtract(length),
+    range.start.subtract(const Duration(seconds: 1)),
+  );
 }
 
-double _amountFor(Ref ref, FinancialViewModule module, DateRangeStrategy strategy, DateRange range) {
+double _amountFor(
+  Ref ref,
+  FinancialViewModule module,
+  DateRangeStrategy strategy,
+  DateRange range,
+) {
   switch (module) {
     case FinancialViewModule.myExpenses:
       return _myExpenses(ref, strategy, range);
@@ -76,7 +89,8 @@ double _amountFor(Ref ref, FinancialViewModule module, DateRangeStrategy strateg
       return _income(ref, strategy, range);
     case FinancialViewModule.netCashFlow:
       final moneyIn = _income(ref, strategy, range);
-      final moneyOut = _myExpenses(ref, strategy, range) +
+      final moneyOut =
+          _myExpenses(ref, strategy, range) +
           _sharedExpenses(ref, strategy, range) +
           _billsPaid(ref, range) +
           _emiPaid(ref, range) +
@@ -86,8 +100,14 @@ double _amountFor(Ref ref, FinancialViewModule module, DateRangeStrategy strateg
   }
 }
 
-Map<String, double> _breakdownFor(Ref ref, FinancialViewModule module, DateRangeStrategy strategy, DateRange range) {
-  if (module != FinancialViewModule.combinedExpenses && module != FinancialViewModule.netCashFlow) {
+Map<String, double> _breakdownFor(
+  Ref ref,
+  FinancialViewModule module,
+  DateRangeStrategy strategy,
+  DateRange range,
+) {
+  if (module != FinancialViewModule.combinedExpenses &&
+      module != FinancialViewModule.netCashFlow) {
     return const {};
   }
   return {
@@ -124,10 +144,18 @@ DateTime _bucketDateFor(DateRangeStrategy strategy, Transaction transaction) {
 /// [calculableTransactionsProvider] (excludes `excludeFromCalculations`) and
 /// buckets by [_bucketDateFor], exactly like every other Dashboard/Reports/
 /// Budget/Cash-Flow total in the app.
-List<Transaction> _expenseTransactionsInRange(Ref ref, DateRangeStrategy strategy, DateRange range) {
+List<Transaction> _expenseTransactionsInRange(
+  Ref ref,
+  DateRangeStrategy strategy,
+  DateRange range,
+) {
   final transactions = ref.watch(calculableTransactionsProvider);
   return transactions
-      .where((t) => t.type == TransactionType.expense && range.contains(_bucketDateFor(strategy, t)))
+      .where(
+        (t) =>
+            t.type == TransactionType.expense &&
+            range.contains(_bucketDateFor(strategy, t)),
+      )
       .toList();
 }
 
@@ -138,7 +166,9 @@ List<Transaction> _expenseTransactionsInRange(Ref ref, DateRangeStrategy strateg
 /// this never re-derives its own exclusion/date filtering.
 double _myExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
   final transactions = _expenseTransactionsInRange(ref, strategy, range);
-  return ref.watch(myExpenseBreakdownForTransactionsProvider(transactions)).total;
+  return ref
+      .watch(myExpenseBreakdownForTransactionsProvider(transactions))
+      .total;
 }
 
 /// The portion of every split expense in [range] that other participants
@@ -154,7 +184,11 @@ double _sharedExpenses(Ref ref, DateRangeStrategy strategy, DateRange range) {
 double _income(Ref ref, DateRangeStrategy strategy, DateRange range) {
   final transactions = ref.watch(calculableTransactionsProvider);
   return transactions
-      .where((t) => t.type == TransactionType.income && range.contains(_bucketDateFor(strategy, t)))
+      .where(
+        (t) =>
+            t.type == TransactionType.income &&
+            range.contains(_bucketDateFor(strategy, t)),
+      )
       .fold(0.0, (sum, t) => sum + t.amount);
 }
 
@@ -169,7 +203,8 @@ double _billsPaid(Ref ref, DateRange range) {
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   var paid = 0.0;
   for (final bill in bills) {
-    final occurrences = ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
+    final occurrences =
+        ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
     for (final occurrence in occurrences) {
       if (range.contains(occurrence.dueDate)) paid += occurrence.amountPaid;
     }
@@ -181,7 +216,8 @@ double _emiPaid(Ref ref, DateRange range) {
   final emis = ref.watch(activeEmisProvider);
   var paid = 0.0;
   for (final emi in emis) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
+    final installments =
+        ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
     for (final i in installments) {
       if (range.contains(i.dueDate)) paid += i.amountPaid;
     }
@@ -193,7 +229,9 @@ double _loanPaid(Ref ref, DateRange range) {
   final loans = ref.watch(activeLoansProvider);
   var paid = 0.0;
   for (final loan in loans) {
-    final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+    final installments =
+        ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+        const [];
     for (final i in installments) {
       if (range.contains(i.dueDate)) paid += i.amountPaid;
     }
@@ -205,7 +243,8 @@ double _creditCardPaid(Ref ref, DateRange range) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   var paid = 0.0;
   for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+    final statements =
+        ref.watch(statementsStreamProvider(card.id)).value ?? const [];
     for (final s in statements) {
       if (range.contains(s.dueDate)) paid += s.amountPaid;
     }

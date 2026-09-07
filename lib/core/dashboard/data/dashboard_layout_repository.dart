@@ -18,16 +18,20 @@ const _quickActionsMigrationKey = 'dashboard_quick_actions_added_v1';
 /// [WidgetConfiguration] that exists (regardless of which layout references
 /// it) plus every saved [DashboardLayout] profile.
 class DashboardState {
-  const DashboardState({required this.configs, required this.layouts, required this.activeLayoutId});
+  const DashboardState({
+    required this.configs,
+    required this.layouts,
+    required this.activeLayoutId,
+  });
 
   final Map<String, WidgetConfiguration> configs;
   final List<DashboardLayout> layouts;
   final String activeLayoutId;
 
   DashboardLayout get activeLayout => layouts.firstWhere(
-        (l) => l.id == activeLayoutId,
-        orElse: () => layouts.first,
-      );
+    (l) => l.id == activeLayoutId,
+    orElse: () => layouts.first,
+  );
 
   DashboardState copyWith({
     Map<String, WidgetConfiguration>? configs,
@@ -59,13 +63,21 @@ class DashboardLayoutRepository {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       final configsJson = json['configs'] as Map<String, dynamic>;
       final configs = configsJson.map(
-        (id, c) => MapEntry(id, WidgetConfiguration.fromJson(c as Map<String, dynamic>)),
+        (id, c) => MapEntry(
+          id,
+          WidgetConfiguration.fromJson(c as Map<String, dynamic>),
+        ),
       );
       final layouts = (json['layouts'] as List<dynamic>)
           .map((l) => DashboardLayout.fromJson(l as Map<String, dynamic>))
           .toList();
-      final activeLayoutId = LocalSettingsService.getString(_activeLayoutKey) ?? layouts.first.id;
-      final state = DashboardState(configs: configs, layouts: layouts, activeLayoutId: activeLayoutId);
+      final activeLayoutId =
+          LocalSettingsService.getString(_activeLayoutKey) ?? layouts.first.id;
+      final state = DashboardState(
+        configs: configs,
+        layouts: layouts,
+        activeLayoutId: activeLayoutId,
+      );
       return _withQuickActions(state);
     } catch (_) {
       // Corrupt or outdated shape (e.g. from a future format) — fall back
@@ -80,7 +92,10 @@ class DashboardLayoutRepository {
       'layouts': state.layouts.map((l) => l.toJson()).toList(),
     };
     await LocalSettingsService.setString(_storageKey, jsonEncode(json));
-    await LocalSettingsService.setString(_activeLayoutKey, state.activeLayoutId);
+    await LocalSettingsService.setString(
+      _activeLayoutKey,
+      state.activeLayoutId,
+    );
   }
 
   /// Migration for layouts saved before the Quick Actions widget existed in
@@ -113,7 +128,8 @@ class DashboardLayoutRepository {
       layouts: [
         for (final layout in state.layouts)
           layout.copyWith(
-            widgets: [...layout.widgets]..insert(
+            widgets: [...layout.widgets]
+              ..insert(
                 layout.widgets.length < 2 ? layout.widgets.length : 2,
                 DashboardWidget(
                   id: 'w-quickActions-${layout.id}',

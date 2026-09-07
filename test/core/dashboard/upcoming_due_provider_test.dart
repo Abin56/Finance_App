@@ -172,8 +172,17 @@ void main() {
     transactionId: 'txn1',
     splitType: SplitType.equal,
     participants: [
-      ExpenseParticipant(name: 'Me', share: 400, isMe: true, installmentId: null),
-      ExpenseParticipant(name: 'Raj', share: 400, installmentId: splitInstallment.id),
+      ExpenseParticipant(
+        name: 'Me',
+        share: 400,
+        isMe: true,
+        installmentId: null,
+      ),
+      ExpenseParticipant(
+        name: 'Raj',
+        share: 400,
+        installmentId: splitInstallment.id,
+      ),
     ],
     scheduleId: 'expense-schedule',
     createdAt: now,
@@ -211,20 +220,38 @@ void main() {
         ),
         emiCycleViewRecordProvider.overrideWith(
           (ref, e) => e.id == emi.id
-              ? (previousCyclePending: [emiOverdueCarriedOver], current: [emiUpcoming, emiBeyondCutoff, emiAlreadyPaid])
-              : (previousCyclePending: <Installment>[], current: <Installment>[]),
+              ? (
+                  previousCyclePending: [emiOverdueCarriedOver],
+                  current: [emiUpcoming, emiBeyondCutoff, emiAlreadyPaid],
+                )
+              : (
+                  previousCyclePending: <Installment>[],
+                  current: <Installment>[],
+                ),
         ),
         loanCycleViewRecordProvider.overrideWith(
           (ref, l) => l.id == loan.id
-              ? (previousCyclePending: <Installment>[], current: [loanInstallment])
-              : (previousCyclePending: <Installment>[], current: <Installment>[]),
+              ? (
+                  previousCyclePending: <Installment>[],
+                  current: [loanInstallment],
+                )
+              : (
+                  previousCyclePending: <Installment>[],
+                  current: <Installment>[],
+                ),
         ),
         billOccurrenceCycleViewProvider.overrideWith(
           (ref, billId) => billId == bill.id
-              ? (previousCyclePending: <BillOccurrence>[], current: billOccurrence)
+              ? (
+                  previousCyclePending: <BillOccurrence>[],
+                  current: billOccurrence,
+                )
               : (previousCyclePending: <BillOccurrence>[], current: null),
         ),
-        pendingSplitParticipantsProvider.overrideWithValue([splitParticipantMe, splitParticipantOther]),
+        pendingSplitParticipantsProvider.overrideWithValue([
+          splitParticipantMe,
+          splitParticipantOther,
+        ]),
       ],
     );
     addTearDown(container.dispose);
@@ -234,35 +261,66 @@ void main() {
 
   test('excludes an item due after the cycle cutoff', () {
     final items = container.read(upcomingDueProvider(cycle));
-    expect(items.any((i) => i.routeId == emi.id && i.dueDate == emiBeyondCutoff.dueDate), isFalse);
+    expect(
+      items.any(
+        (i) => i.routeId == emi.id && i.dueDate == emiBeyondCutoff.dueDate,
+      ),
+      isFalse,
+    );
   });
 
-  test('keeps an unpaid item from before the current cycle visible with no lower bound', () {
-    final items = container.read(upcomingDueProvider(cycle));
-    final carriedOver = items.where((i) => i.kind == UpcomingDueKind.emi && i.dueDate == emiOverdueCarriedOver.dueDate);
-    expect(carriedOver, hasLength(1));
-  });
+  test(
+    'keeps an unpaid item from before the current cycle visible with no lower bound',
+    () {
+      final items = container.read(upcomingDueProvider(cycle));
+      final carriedOver = items.where(
+        (i) =>
+            i.kind == UpcomingDueKind.emi &&
+            i.dueDate == emiOverdueCarriedOver.dueDate,
+      );
+      expect(carriedOver, hasLength(1));
+    },
+  );
 
-  test('marks an item due before the cycle started as carried over, and one due within it as not', () {
-    final items = container.read(upcomingDueProvider(cycle));
-    final carriedOver = items.firstWhere((i) => i.dueDate == emiOverdueCarriedOver.dueDate);
-    final withinCycle = items.firstWhere((i) => i.dueDate == emiUpcoming.dueDate);
-    expect(carriedOver.isCarriedOver, isTrue);
-    expect(carriedOver.urgency, PaymentUrgency.carriedForward);
-    expect(withinCycle.isCarriedOver, isFalse);
-  });
+  test(
+    'marks an item due before the cycle started as carried over, and one due within it as not',
+    () {
+      final items = container.read(upcomingDueProvider(cycle));
+      final carriedOver = items.firstWhere(
+        (i) => i.dueDate == emiOverdueCarriedOver.dueDate,
+      );
+      final withinCycle = items.firstWhere(
+        (i) => i.dueDate == emiUpcoming.dueDate,
+      );
+      expect(carriedOver.isCarriedOver, isTrue);
+      expect(carriedOver.urgency, PaymentUrgency.carriedForward);
+      expect(withinCycle.isCarriedOver, isFalse);
+    },
+  );
 
   test('drops an item once fully paid', () {
     final items = container.read(upcomingDueProvider(cycle));
-    expect(items.any((i) => i.dueDate == emiAlreadyPaid.dueDate && i.kind == UpcomingDueKind.emi), isFalse);
+    expect(
+      items.any(
+        (i) =>
+            i.dueDate == emiAlreadyPaid.dueDate &&
+            i.kind == UpcomingDueKind.emi,
+      ),
+      isFalse,
+    );
   });
 
-  test('excludes the payer\'s own split-expense share but includes others\'', () {
-    final items = container.read(upcomingDueProvider(cycle));
-    final splitItems = items.where((i) => i.kind == UpcomingDueKind.splitExpense);
-    expect(splitItems, hasLength(1));
-    expect(splitItems.first.title, contains('Raj'));
-  });
+  test(
+    'excludes the payer\'s own split-expense share but includes others\'',
+    () {
+      final items = container.read(upcomingDueProvider(cycle));
+      final splitItems = items.where(
+        (i) => i.kind == UpcomingDueKind.splitExpense,
+      );
+      expect(splitItems, hasLength(1));
+      expect(splitItems.first.title, contains('Raj'));
+    },
+  );
 
   test('includes one item per kind for everything due within the cutoff', () {
     final items = container.read(upcomingDueProvider(cycle));

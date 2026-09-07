@@ -64,7 +64,8 @@ abstract class RecurringPatternDetector {
           for (var i = 1; i < group.length; i++)
             group[i].date.difference(group[i - 1].date).inDays,
         ];
-        final avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+        final avgInterval =
+            intervals.reduce((a, b) => a + b) / intervals.length;
         final isConsistent = intervals.every(
           (days) => (days - avgInterval).abs() <= intervalToleranceDays,
         );

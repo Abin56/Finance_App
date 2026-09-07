@@ -92,7 +92,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return const EmptyState(
         icon: Icons.search_rounded,
         title: 'Search everything',
-        subtitle: 'Find a transaction, person, bill, EMI, loan, card, account or category — '
+        subtitle:
+            'Find a transaction, person, bill, EMI, loan, card, account or category — '
             'by name, note, or amount.',
       );
     }
@@ -101,8 +102,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return EmptyState(
         icon: Icons.search_off_rounded,
         title: 'No matches for "${query.trim()}"',
-        subtitle: 'Check the spelling, or try an amount or a person\'s name instead.',
-        action: TextButton(onPressed: _clear, child: const Text('Clear search')),
+        subtitle:
+            'Check the spelling, or try an amount or a person\'s name instead.',
+        action: TextButton(
+          onPressed: _clear,
+          child: const Text('Clear search'),
+        ),
       );
     }
 
@@ -136,7 +141,8 @@ class _GroupedResults extends StatelessWidget {
       itemCount: slots.length,
       itemBuilder: (context, index) {
         final slot = slots[index];
-        if (slot is SearchResultGroup) return _GroupHeader(group: slot, results: results);
+        if (slot is SearchResultGroup)
+          return _GroupHeader(group: slot, results: results);
         return _ResultTile(result: slot as SearchResult);
       },
     );
@@ -153,7 +159,12 @@ class _GroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = results.where((r) => r.group == group).length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        AppSizes.lg,
+        AppSizes.lg,
+        AppSizes.sm,
+      ),
       child: Row(
         children: [
           Text(
@@ -188,7 +199,11 @@ class _ResultTile extends StatelessWidget {
     return ListTile(
       leading: CircleAvatar(
         backgroundColor: context.colors.primary.withValues(alpha: 0.1),
-        child: Icon(result.icon, size: AppSizes.iconSm, color: context.colors.primary),
+        child: Icon(
+          result.icon,
+          size: AppSizes.iconSm,
+          color: context.colors.primary,
+        ),
       ),
       title: Text(result.title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: result.kind == null && result.subtitle.isEmpty
@@ -201,7 +216,11 @@ class _ResultTile extends StatelessWidget {
                   if (result.subtitle.isNotEmpty) const SizedBox(height: 2),
                 ],
                 if (result.subtitle.isNotEmpty)
-                  Text(result.subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    result.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
       trailing: result.amount == null
@@ -212,7 +231,9 @@ class _ResultTile extends StatelessWidget {
               children: [
                 Text(
                   CurrencyFormatter.instance.formatCompact(result.amount!),
-                  style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 if (result.date != null)
                   Text(

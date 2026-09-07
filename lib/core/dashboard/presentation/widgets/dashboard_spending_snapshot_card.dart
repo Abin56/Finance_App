@@ -41,7 +41,8 @@ class DashboardSpendingSnapshotCard extends StatelessWidget {
       return PlaceholderCard(
         icon: Icons.receipt_long_outlined,
         title: 'Spending Snapshot',
-        message: 'Add an income or expense to see today\'s and this month\'s totals here.',
+        message:
+            'Add an income or expense to see today\'s and this month\'s totals here.',
         actionLabel: 'Add a transaction',
         onTap: () => AddExpenseScreen.show(context),
       );
@@ -53,13 +54,24 @@ class DashboardSpendingSnapshotCard extends StatelessWidget {
         children: [
           Text('Today', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.sm),
-          _StatRow(income: todayIncome, expense: todayExpense, thirdStatLabel: 'Net'),
+          _StatRow(
+            income: todayIncome,
+            expense: todayExpense,
+            thirdStatLabel: 'Net',
+          ),
           const SizedBox(height: AppSizes.md),
-          Divider(height: 1, color: context.colors.onSurface.withValues(alpha: 0.08)),
+          Divider(
+            height: 1,
+            color: context.colors.onSurface.withValues(alpha: 0.08),
+          ),
           const SizedBox(height: AppSizes.md),
           Text('This Month', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.sm),
-          _StatRow(income: monthIncome, expense: monthExpense, thirdStatLabel: 'Savings'),
+          _StatRow(
+            income: monthIncome,
+            expense: monthExpense,
+            thirdStatLabel: 'Savings',
+          ),
         ],
       ),
     );
@@ -67,7 +79,11 @@ class DashboardSpendingSnapshotCard extends StatelessWidget {
 }
 
 class _StatRow extends StatelessWidget {
-  const _StatRow({required this.income, required this.expense, required this.thirdStatLabel});
+  const _StatRow({
+    required this.income,
+    required this.expense,
+    required this.thirdStatLabel,
+  });
 
   final double income;
   final double expense;
@@ -87,9 +103,23 @@ class _StatRow extends StatelessWidget {
       // line — see test/shared/metric_row_alignment_test.dart.
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: _Stat(icon: Icons.arrow_downward_rounded, label: 'Income', value: income, color: AppColors.income)),
+        Expanded(
+          child: _Stat(
+            icon: Icons.arrow_downward_rounded,
+            label: 'Income',
+            value: income,
+            color: AppColors.income,
+          ),
+        ),
         const SizedBox(width: AppSizes.sm),
-        Expanded(child: _Stat(icon: Icons.arrow_upward_rounded, label: 'Expense', value: expense, color: AppColors.expense)),
+        Expanded(
+          child: _Stat(
+            icon: Icons.arrow_upward_rounded,
+            label: 'Expense',
+            value: expense,
+            color: AppColors.expense,
+          ),
+        ),
         const SizedBox(width: AppSizes.sm),
         Expanded(
           child: _Stat(
@@ -105,7 +135,12 @@ class _StatRow extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.icon, required this.label, required this.value, required this.color});
+  const _Stat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final IconData icon;
   final String label;
@@ -120,19 +155,27 @@ class _Stat extends StatelessWidget {
         Container(
           width: 28,
           height: 28,
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.14),
+            shape: BoxShape.circle,
+          ),
           child: Icon(icon, size: 14, color: color),
         ),
         const SizedBox(height: AppSizes.xs),
         Text(
           CurrencyFormatter.instance.formatCompact(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
       ],
     );

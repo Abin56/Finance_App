@@ -7,7 +7,6 @@ import '../../../constants/app_sizes.dart';
 import '../../../extensions/context_extensions.dart';
 import '../../../router/app_routes.dart';
 import '../../../../features/auth/presentation/providers/auth_providers.dart';
-import '../../../theme/clay_theme.dart';
 
 /// Time-of-day greeting shown at the top of the dashboard, personalized
 /// with the signed-in user's first name when available. Carries the app's
@@ -40,7 +39,9 @@ class GreetingHeader extends ConsumerWidget {
             children: [
               Text(
                 firstName == null ? _greeting() : '${_greeting()}, $firstName',
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: context.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -58,13 +59,13 @@ class GreetingHeader extends ConsumerWidget {
           ),
         ),
         const SizedBox(width: AppSizes.xs),
-        _ClayIconButton(
+        _HeaderIconButton(
           icon: Icons.search_rounded,
           tooltip: 'Search',
           onPressed: () => context.push(AppRoutes.search),
         ),
         const SizedBox(width: AppSizes.xs),
-        _ClayIconButton(
+        _HeaderIconButton(
           icon: Icons.notifications_outlined,
           tooltip: 'Notifications',
           onPressed: () => context.push(AppRoutes.settings),
@@ -74,11 +75,15 @@ class GreetingHeader extends ConsumerWidget {
   }
 }
 
-/// A soft, floating circular icon button — the Dashboard's replacement for
-/// the Material `filledTonal` button, matching the claymorphism language
-/// used across the rest of the widget cards.
-class _ClayIconButton extends StatelessWidget {
-  const _ClayIconButton({required this.icon, required this.tooltip, required this.onPressed});
+/// A flat, bordered circular icon button — the Dashboard header's action
+/// button, matching Theme V2's "background separation, border, not shadow"
+/// card language rather than the old claymorphism floating-shadow chip.
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
 
   final IconData icon;
   final String tooltip;
@@ -86,15 +91,22 @@ class _ClayIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    // Same dark-in-light/lime-in-dark accent the app uses for focus rings —
+    // lime reads poorly as a small icon tint on a light surface.
+    final accent = context.isDarkMode
+        ? context.flowfi.heroAccent
+        : colors.onSurface;
+
     return Container(
       decoration: BoxDecoration(
-        color: AppClay.card(context),
+        color: colors.surface,
         shape: BoxShape.circle,
-        boxShadow: AppClay.soft(context),
+        border: Border.all(color: colors.outline),
       ),
       child: IconButton(
         onPressed: onPressed,
-        icon: Icon(icon, color: AppClay.primaryAccent(context), size: AppSizes.iconSm),
+        icon: Icon(icon, color: accent, size: AppSizes.iconSm),
         tooltip: tooltip,
         style: IconButton.styleFrom(minimumSize: const Size(40, 40)),
       ),

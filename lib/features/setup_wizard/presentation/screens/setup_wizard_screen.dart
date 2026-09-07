@@ -55,7 +55,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
     setState(() => _index++);
   }
 
-  Future<void> _finish() => ref.read(setupWizardCompletedProvider.notifier).complete();
+  Future<void> _finish() =>
+      ref.read(setupWizardCompletedProvider.notifier).complete();
 
   /// Runs a step's action with the primary button spinning. Data-driven steps
   /// need no explicit result handling: their feature stream updates and the
@@ -80,7 +81,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
     final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final bills = ref.watch(billsStreamProvider).value ?? const [];
     final smsAvailability = ref.watch(smsAvailabilityProvider).value;
-    final notificationsGranted = ref.watch(notificationsGrantedProvider).value ?? false;
+    final notificationsGranted =
+        ref.watch(notificationsGrantedProvider).value ?? false;
     final pinEnabled = ref.watch(appLockProvider).pinEnabled;
 
     final smsSupported = smsAvailability != SmsAvailability.unsupportedPlatform;
@@ -93,7 +95,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         icon: Icons.account_balance_rounded,
         accent: AppColors.primary,
         title: 'Add your bank account',
-        description: 'Track balances and transactions from the account you use most. You can add more any time.',
+        description:
+            'Track balances and transactions from the account you use most. You can add more any time.',
         actionLabel: 'Add bank account',
         doneLabel: accounts.isEmpty ? null : plural(accounts.length, 'account'),
         onAction: () => AccountFormSheet.show(context),
@@ -102,7 +105,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         icon: Icons.credit_card_rounded,
         accent: AppColors.savings,
         title: 'Add a credit card',
-        description: 'Keep an eye on your card balance, statement, and due dates so nothing slips past you.',
+        description:
+            'Keep an eye on your card balance, statement, and due dates so nothing slips past you.',
         actionLabel: 'Add credit card',
         doneLabel: cards.isEmpty ? null : plural(cards.length, 'card'),
         onAction: () => CreditCardFormSheet.show(context),
@@ -111,7 +115,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         icon: Icons.receipt_long_rounded,
         accent: AppColors.income,
         title: 'Add a recurring bill',
-        description: 'Rent, subscriptions, utilities — add a bill and FlowFi keeps its due date in view.',
+        description:
+            'Rent, subscriptions, utilities — add a bill and FlowFi keeps its due date in view.',
         optional: true,
         actionLabel: 'Add a bill',
         doneLabel: bills.isEmpty ? null : plural(bills.length, 'bill'),
@@ -122,7 +127,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
           icon: Icons.mark_email_read_rounded,
           accent: AppColors.info,
           title: 'Scan your bank SMS',
-          description: 'Let FlowFi read your bank transaction SMS to suggest expenses. Your messages stay on your device.',
+          description:
+              'Let FlowFi read your bank transaction SMS to suggest expenses. Your messages stay on your device.',
           optional: true,
           actionLabel: 'Enable SMS scan',
           doneLabel: smsGranted ? 'SMS access enabled' : null,
@@ -135,7 +141,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         icon: Icons.notifications_active_rounded,
         accent: AppColors.warning,
         title: 'Turn on reminders',
-        description: 'Get a nudge before bills, EMIs, and card dues — and when money owed to you comes due.',
+        description:
+            'Get a nudge before bills, EMIs, and card dues — and when money owed to you comes due.',
         actionLabel: 'Enable notifications',
         doneLabel: notificationsGranted ? 'Reminders enabled' : null,
         onAction: _requestNotifications,
@@ -144,7 +151,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         icon: Icons.lock_rounded,
         accent: AppColors.secondary,
         title: 'Protect your data',
-        description: 'Lock FlowFi with a PIN, and add fingerprint or face unlock later in Settings.',
+        description:
+            'Lock FlowFi with a PIN, and add fingerprint or face unlock later in Settings.',
         actionLabel: 'Set up a PIN',
         doneLabel: pinEnabled ? 'Protected with a PIN' : null,
         onAction: () => PinSetupSheet.show(context),
@@ -153,7 +161,8 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
         icon: Icons.celebration_rounded,
         accent: AppColors.primary,
         title: 'You\'re all set!',
-        description: 'Your finance workspace is ready. You can always add more accounts, loans, bills, and cards later.',
+        description:
+            'Your finance workspace is ready. You can always add more accounts, loans, bills, and cards later.',
         actionLabel: 'Go to Dashboard',
         onAction: _finish,
         isCompletion: true,
@@ -193,7 +202,9 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
       secondaryLabel: step.isCompletion || done ? null : 'Skip',
       onSecondary: _next,
       onSkipAll: step.isCompletion ? null : _finish,
-      footerCaption: step.isCompletion ? 'You can change these anytime in Settings.' : null,
+      footerCaption: step.isCompletion
+          ? 'You can change these anytime in Settings.'
+          : null,
       body: SetupStepView(
         // Re-keyed per step so each entrance animation replays as steps change.
         key: ValueKey(index),

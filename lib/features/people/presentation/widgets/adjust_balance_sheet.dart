@@ -94,8 +94,13 @@ class _AdjustBalanceSheetState extends ConsumerState<AdjustBalanceSheet> {
       key: _formKey,
       child: SectionedFormSheet(
         title: 'Correct Balance',
-        description: 'Amount Left: ${CurrencyFormatter.instance.format(widget.person.currentBalance.abs())}'
-            '${widget.person.currentBalance == 0 ? '' : widget.person.currentBalance > 0 ? ' (they owe you)' : ' (you owe them)'}',
+        description:
+            'Amount Left: ${CurrencyFormatter.instance.format(widget.person.currentBalance.abs())}'
+            '${widget.person.currentBalance == 0
+                ? ''
+                : widget.person.currentBalance > 0
+                ? ' (they owe you)'
+                : ' (you owe them)'}',
         confirmLabel: 'Save correction',
         isSaving: _isSaving,
         onConfirm: _save,
@@ -104,8 +109,16 @@ class _AdjustBalanceSheetState extends ConsumerState<AdjustBalanceSheet> {
           children: [
             ChipSelector<_AdjustmentDirection>(
               options: const [
-                ChipOption(value: _AdjustmentDirection.increase, label: 'Add Amount', icon: Icons.add_rounded),
-                ChipOption(value: _AdjustmentDirection.decrease, label: 'Reduce Amount', icon: Icons.remove_rounded),
+                ChipOption(
+                  value: _AdjustmentDirection.increase,
+                  label: 'Add Amount',
+                  icon: Icons.add_rounded,
+                ),
+                ChipOption(
+                  value: _AdjustmentDirection.decrease,
+                  label: 'Reduce Amount',
+                  icon: Icons.remove_rounded,
+                ),
               ],
               value: _direction,
               onChanged: (value) => setState(() => _direction = value),
@@ -114,13 +127,18 @@ class _AdjustBalanceSheetState extends ConsumerState<AdjustBalanceSheet> {
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: Validators.amount,
             ),
             const SizedBox(height: AppSizes.md),
             OutlinedButton.icon(
               onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              icon: const Icon(
+                Icons.calendar_today_outlined,
+                size: AppSizes.iconSm,
+              ),
               label: Text(_date.fullDate),
             ),
             const SizedBox(height: AppSizes.md),

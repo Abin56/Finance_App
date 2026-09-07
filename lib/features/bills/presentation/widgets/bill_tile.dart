@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/domain/payment_urgency.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/lists/flowfi_list_tile.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
+import '../../../../shared/widgets/states/payment_urgency_badge.dart';
 import '../../../categories/domain/category.dart';
 import '../../domain/bill.dart';
 import '../../domain/bill_occurrence.dart';
@@ -16,7 +21,13 @@ import '../../domain/bill_status.dart';
 /// been materialized yet, momentarily, before
 /// `materializeBillOccurrenceProvider` first resolves).
 class BillTile extends StatelessWidget {
-  const BillTile({super.key, required this.bill, required this.occurrence, required this.category, required this.onTap});
+  const BillTile({
+    super.key,
+    required this.bill,
+    required this.occurrence,
+    required this.category,
+    required this.onTap,
+  });
 
   final Bill bill;
   final BillOccurrence? occurrence;
@@ -28,61 +39,38 @@ class BillTile extends StatelessWidget {
     final occurrence = this.occurrence;
     if (occurrence == null) return const SizedBox.shrink();
     final status = occurrence.status;
+    final urgency = PaymentUrgencyX.fromBillStatus(status);
     final subtitleParts = [
       occurrence.dueDate.shortDate,
       if (category != null) category!.name,
     ];
 
-    return Material(
-      color: context.colors.surface,
-      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.lg),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: status.color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                ),
-                child: Icon(status.icon, color: status.color),
-              ),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(bill.name, style: context.textTheme.titleMedium),
-                    Text(
-                      subtitleParts.join(' · '),
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    CurrencyFormatter.instance.format(occurrence.remainingAmount),
-                    style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  Text(
-                    status.label,
-                    style: context.textTheme.bodySmall?.copyWith(color: status.color),
-                  ),
-                ],
-              ),
-            ],
+    return FlowFiCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: FlowFiListTile(
+        leading: FlowFiIconChip(
+          icon: status.icon,
+          color: status.color,
+          size: 44,
+        ),
+        title: Text(
+          bill.name,
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
         ),
+        subtitle: Text(
+          subtitleParts.join(' · '),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.flowfi.textTertiary,
+          ),
+        ),
+        trailing: FlowFiAmountText(
+          CurrencyFormatter.instance.format(occurrence.remainingAmount),
+          size: AmountSize.body,
+        ),
+        trailingSubtitle: PaymentUrgencyBadge(urgency: urgency, compact: true),
       ),
     );
   }

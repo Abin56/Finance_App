@@ -66,7 +66,8 @@ class CycleAggregate {
 
     final countBySourceType = <CycleSourceType, int>{};
     for (final item in [...result.previousCyclePending, ...result.current]) {
-      countBySourceType[item.sourceType] = (countBySourceType[item.sourceType] ?? 0) + 1;
+      countBySourceType[item.sourceType] =
+          (countBySourceType[item.sourceType] ?? 0) + 1;
     }
 
     final previousTotal = sumRemaining(result.previousCyclePending);

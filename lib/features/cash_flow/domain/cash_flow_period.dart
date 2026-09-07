@@ -48,7 +48,9 @@ extension CashFlowPresetX on CashFlowPreset {
 /// since there's no "now" to recompute it from.
 class CashFlowPeriod {
   const CashFlowPeriod.preset(this.preset) : customRange = null;
-  const CashFlowPeriod.custom(DateRange range) : preset = CashFlowPreset.custom, customRange = range;
+  const CashFlowPeriod.custom(DateRange range)
+    : preset = CashFlowPreset.custom,
+      customRange = range;
 
   final CashFlowPreset preset;
   final DateRange? customRange;
@@ -63,16 +65,19 @@ class CashFlowPeriod {
   /// [Transaction.effectiveMonth] would let every transaction in that whole
   /// month leak through, since [Transaction.effectiveMonth] truncates to the
   /// 1st of the month regardless of which day within it was picked.
-  bool get isMonthGranular => preset == CashFlowPreset.thisMonth || preset == CashFlowPreset.lastMonth;
+  bool get isMonthGranular =>
+      preset == CashFlowPreset.thisMonth || preset == CashFlowPreset.lastMonth;
 
   /// The single date every Cash Flow calculation must bucket [transaction]
   /// under for this period — [Transaction.effectiveMonth] when
   /// [isMonthGranular], else [Transaction.dateTime]. The one place this
   /// decision is made, so every range-aware Cash Flow provider (summary,
   /// Money In/Out details) reaches the same answer for the same transaction.
-  DateTime bucketDateFor(Transaction transaction) => isMonthGranular ? transaction.effectiveMonth : transaction.dateTime;
+  DateTime bucketDateFor(Transaction transaction) =>
+      isMonthGranular ? transaction.effectiveMonth : transaction.dateTime;
 
-  DateRange rangeFor(DateTime now) => preset == CashFlowPreset.custom ? customRange! : preset.rangeFor(now);
+  DateRange rangeFor(DateTime now) =>
+      preset == CashFlowPreset.custom ? customRange! : preset.rangeFor(now);
 
   /// Short label for the filter chip — the preset's own label, or the
   /// picked range formatted as "1 Sep 2026 – 30 Sep 2026" for a custom one.

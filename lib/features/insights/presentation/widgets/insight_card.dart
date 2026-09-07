@@ -49,11 +49,21 @@ class InsightCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Icon(_iconFor(insight.severity), color: Colors.white, size: AppSizes.iconMd),
+            child: Icon(
+              _iconFor(insight.severity),
+              color: Colors.white,
+              size: AppSizes.iconMd,
+            ),
           ),
           const SizedBox(width: AppSizes.md),
-          Expanded(child: Text(insight.message, style: context.textTheme.bodyMedium)),
-          if (onTap != null) Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+          Expanded(
+            child: Text(insight.message, style: context.textTheme.bodyMedium),
+          ),
+          if (onTap != null)
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.colors.onSurface.withValues(alpha: 0.4),
+            ),
         ],
       ),
     );

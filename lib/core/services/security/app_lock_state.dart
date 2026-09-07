@@ -23,7 +23,8 @@ class AppLockState {
   final int failedAttempts;
   final DateTime? lockoutUntil;
 
-  bool get isLockedOut => lockoutUntil != null && DateTime.now().isBefore(lockoutUntil!);
+  bool get isLockedOut =>
+      lockoutUntil != null && DateTime.now().isBefore(lockoutUntil!);
 
   AppLockState copyWith({
     bool? pinEnabled,

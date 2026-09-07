@@ -33,9 +33,15 @@ void main() {
   group('ShareFormat.installmentStatusDot', () {
     test('maps every InstallmentStatus to a distinct dot', () {
       expect(ShareFormat.installmentStatusDot(InstallmentStatus.paid), '🟢');
-      expect(ShareFormat.installmentStatusDot(InstallmentStatus.partiallyPaid), '🟠');
+      expect(
+        ShareFormat.installmentStatusDot(InstallmentStatus.partiallyPaid),
+        '🟠',
+      );
       expect(ShareFormat.installmentStatusDot(InstallmentStatus.overdue), '🔴');
-      expect(ShareFormat.installmentStatusDot(InstallmentStatus.upcoming), '🔴');
+      expect(
+        ShareFormat.installmentStatusDot(InstallmentStatus.upcoming),
+        '🔴',
+      );
       expect(ShareFormat.installmentStatusDot(InstallmentStatus.skipped), '🔴');
     });
   });

@@ -5,7 +5,11 @@ import 'package:intl/intl.dart';
 /// for Milestone 1 this exposes a static default plus a configurable instance.
 class CurrencyFormatter {
   CurrencyFormatter({String symbol = '₹', String locale = 'en_IN'})
-      : _format = NumberFormat.currency(locale: locale, symbol: symbol, decimalDigits: 2);
+    : _format = NumberFormat.currency(
+        locale: locale,
+        symbol: symbol,
+        decimalDigits: 2,
+      );
 
   final NumberFormat _format;
 

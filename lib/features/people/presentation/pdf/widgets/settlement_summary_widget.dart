@@ -22,7 +22,10 @@ class SettlementSummaryWidget extends pw.StatelessWidget {
     final fmt = CurrencyFormatter.instance;
     final progress = model.expenseStatsTotalSpent == 0
         ? 0.0
-        : (model.expenseStatsTotalSettled / model.expenseStatsTotalSpent).clamp(0.0, 1.0);
+        : (model.expenseStatsTotalSettled / model.expenseStatsTotalSpent).clamp(
+            0.0,
+            1.0,
+          );
 
     return pw.Container(
       width: double.infinity,
@@ -37,19 +40,30 @@ class SettlementSummaryWidget extends pw.StatelessWidget {
         children: [
           pw.Text(
             'Settlement Summary',
-            style: pw.TextStyle(font: fonts.semiBold, fontSize: PdfTokens.fontHeading, color: PdfTokens.textPrimary),
+            style: pw.TextStyle(
+              font: fonts.semiBold,
+              fontSize: PdfTokens.fontHeading,
+              color: PdfTokens.textPrimary,
+            ),
           ),
           pw.SizedBox(height: 2),
           pw.Text(
             'Covers shared/assigned expenses only — not plain lending.',
-            style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontCaption, color: PdfTokens.textSecondary),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: PdfTokens.fontCaption,
+              color: PdfTokens.textSecondary,
+            ),
           ),
           pw.SizedBox(height: PdfTokens.md),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               _stat('Total Spent', fmt.format(model.expenseStatsTotalSpent)),
-              _stat('Total Settled', fmt.format(model.expenseStatsTotalSettled)),
+              _stat(
+                'Total Settled',
+                fmt.format(model.expenseStatsTotalSettled),
+              ),
               _stat('Pending', fmt.format(model.expenseStatsPending)),
             ],
           ),
@@ -69,9 +83,23 @@ class SettlementSummaryWidget extends pw.StatelessWidget {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(label, style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontCaption, color: PdfTokens.textSecondary)),
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            font: fonts.regular,
+            fontSize: PdfTokens.fontCaption,
+            color: PdfTokens.textSecondary,
+          ),
+        ),
         pw.SizedBox(height: 2),
-        pw.Text(value, style: pw.TextStyle(font: fonts.bold, fontSize: PdfTokens.fontBody, color: PdfTokens.textPrimary)),
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            font: fonts.bold,
+            fontSize: PdfTokens.fontBody,
+            color: PdfTokens.textPrimary,
+          ),
+        ),
       ],
     );
   }

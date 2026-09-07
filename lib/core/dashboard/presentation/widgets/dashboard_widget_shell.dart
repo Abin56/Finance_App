@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../theme/clay_theme.dart';
 
 /// Shared surface shell every dashboard widget card renders inside — same
 /// radius/shadow contract as the old `DashboardSectionCard`, just promoted
@@ -48,6 +48,14 @@ class _DashboardWidgetCardState extends State<DashboardWidgetCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    // Tinted cards (credit utilization, previous-cycle) opt out of the
+    // hairline via [showHairline] so their semantic wash isn't undercut by a
+    // competing neutral border.
+    final border = widget.showHairline
+        ? Border.all(color: colors.outline)
+        : null;
+
     return AnimatedScale(
       scale: _pressed && widget.onTap != null ? 0.985 : 1,
       duration: const Duration(milliseconds: 120),
@@ -57,110 +65,28 @@ class _DashboardWidgetCardState extends State<DashboardWidgetCard> {
       // off entirely, which is why these cards used to read as flat.
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppClay.radiusCard),
-          boxShadow: AppClay.soft(context),
+          borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+          boxShadow: AppShadows.soft(context),
         ),
         child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(AppClay.radiusCard),
+          color: widget.backgroundColor ?? colors.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radiusCard),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: widget.onTap,
             onHighlightChanged: (value) => setState(() => _pressed = value),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: widget.backgroundColor,
-                gradient: widget.backgroundColor == null ? AppClay.cardGradient(context) : null,
-              ),
-              padding: widget.padding ??
+            child: Container(
+              decoration: BoxDecoration(border: border),
+              padding:
+                  widget.padding ??
                   (widget.isHero
                       ? const EdgeInsets.all(AppSizes.md)
-                      : const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm)),
+                      : const EdgeInsets.symmetric(
+                          horizontal: AppSizes.md,
+                          vertical: AppSizes.sm,
+                        )),
               child: widget.child,
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The Net-Worth-style hero variant — same radius/shadow, filled with the
-/// brand gradient instead of a plain surface color. Also carries two soft,
-/// blurred decorative "orbs" — a claymorphism/ambient-lighting cue rather
-/// than a flat gradient fill, kept subtle enough not to fight the content.
-class DashboardWidgetGradientCard extends StatefulWidget {
-  const DashboardWidgetGradientCard({super.key, required this.child, this.onTap});
-
-  final Widget child;
-  final VoidCallback? onTap;
-
-  @override
-  State<DashboardWidgetGradientCard> createState() => _DashboardWidgetGradientCardState();
-}
-
-class _DashboardWidgetGradientCardState extends State<DashboardWidgetGradientCard> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: _pressed && widget.onTap != null ? 0.985 : 1,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-      // Shadow on the outer, unclipped box — see the note in
-      // [DashboardWidgetCard] for why this can't live on the clipped layer.
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppClay.radiusCard),
-          boxShadow: AppClay.elevated(context),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(AppClay.radiusCard),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: widget.onTap,
-            onHighlightChanged: (value) => setState(() => _pressed = value),
-            child: Ink(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: AppClay.primaryGradient,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
-              child: Stack(
-                children: [
-                  const Positioned(top: -30, right: -30, child: _Orb(size: 130, opacity: 0.16)),
-                  const Positioned(bottom: -46, left: -20, child: _Orb(size: 120, opacity: 0.12)),
-                  widget.child,
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  const _Orb({required this.size, required this.opacity});
-
-  final double size;
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [Colors.white.withValues(alpha: opacity), Colors.white.withValues(alpha: 0)],
           ),
         ),
       ),
@@ -196,12 +122,23 @@ class DashboardWidgetEditFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    // Same dark-in-light/lime-in-dark accent rule `app_theme.dart` uses for
+    // focus rings — a thin lime outline reads poorly against a light card,
+    // so light mode borrows near-black instead and dark mode gets the lime
+    // pop.
+    final accent = context.isDarkMode
+        ? context.flowfi.heroAccent
+        : colors.onSurface;
     return Opacity(
       opacity: isVisible ? 1 : 0.5,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppClay.radiusCard),
-          border: Border.all(color: AppClay.primaryAccent(context), width: 1.5, style: BorderStyle.solid),
+          borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+          border: Border.all(
+            color: accent,
+            width: 1.5,
+            style: BorderStyle.solid,
+          ),
         ),
         padding: const EdgeInsets.all(AppSizes.sm),
         child: Column(
@@ -227,7 +164,11 @@ class DashboardWidgetEditFrame extends StatelessWidget {
                     tooltip: 'Configure',
                   ),
                   IconButton(
-                    icon: Icon(isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    icon: Icon(
+                      isVisible
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
                     iconSize: AppSizes.iconSm,
                     onPressed: onToggleVisibility,
                     tooltip: isVisible ? 'Hide' : 'Show',

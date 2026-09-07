@@ -80,7 +80,9 @@ class ComingSoonWidgetCard extends StatelessWidget {
           const SizedBox(height: AppSizes.xs),
           Text(
             'These will light up in a future update.',
-            style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+            style: textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSizes.sm),
           Wrap(
@@ -107,7 +109,10 @@ class _ComingSoonTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sm,
+        vertical: AppSizes.xs,
+      ),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
@@ -118,7 +123,12 @@ class _ComingSoonTile extends StatelessWidget {
         children: [
           Icon(icon, size: AppSizes.iconSm, color: colors.onSurfaceVariant),
           const SizedBox(width: AppSizes.xs),
-          Text(label, style: context.textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+          Text(
+            label,
+            style: context.textTheme.labelSmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );

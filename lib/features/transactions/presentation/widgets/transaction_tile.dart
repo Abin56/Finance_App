@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/lists/flowfi_list_tile.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../../shared/widgets/states/transaction_flag_badge.dart';
 import '../../../accounts/domain/account.dart';
 import '../../../categories/domain/category.dart';
@@ -36,90 +38,89 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = category != null ? Color(category!.colorValue) : context.colors.primary;
+    final color = category != null
+        ? Color(category!.colorValue)
+        : context.colors.primary;
     final sign = transaction.type == TransactionType.income ? '+' : '-';
 
-    return ClayCard(
+    return FlowFiCard(
+      padding: EdgeInsets.zero,
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
-      child: Row(
-        children: [
-          ClayIconChip(
-            icon: category?.icon ?? Icons.category_outlined,
-            color: color,
-            size: 36,
-            iconSize: AppSizes.iconSm,
+      child: FlowFiListTile(
+        leading: FlowFiIconChip(
+          icon: category?.icon ?? Icons.category_outlined,
+          color: color,
+        ),
+        title: Text(
+          category?.name ?? 'Uncategorized',
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(width: AppSizes.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category?.name ?? 'Uncategorized',
-                  style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              account?.name ?? 'Unknown account',
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.flowfi.textTertiary,
+              ),
+            ),
+            if (transaction.notes.isNotEmpty)
+              Text(
+                transaction.notes,
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.flowfi.textTertiary,
                 ),
-                Text(
-                  account?.name ?? 'Unknown account',
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: context.colors.onSurface.withValues(alpha: 0.6),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            if (linkedPersonName != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.person_outline_rounded,
+                    size: 12,
+                    color: context.flowfi.textTertiary,
                   ),
-                ),
-                if (transaction.notes.isNotEmpty)
-                  Text(
-                    transaction.notes,
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: context.colors.onSurface.withValues(alpha: 0.5),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                if (linkedPersonName != null)
-                  Row(
-                    children: [
-                      Icon(Icons.person_outline_rounded, size: 12, color: context.colors.onSurface.withValues(alpha: 0.5)),
-                      const SizedBox(width: 2),
-                      Text(
-                        linkedPersonName!,
-                        style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.5),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 2),
+                  Flexible(
+                    child: Text(
+                      linkedPersonName!,
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: context.flowfi.textTertiary,
                       ),
-                    ],
-                  ),
-                if (transaction.excludeFromCalculations || transaction.accountingMonth != null) ...[
-                  const SizedBox(height: 2),
-                  TransactionFlagBadge(
-                    excludeFromCalculations: transaction.excludeFromCalculations,
-                    date: transaction.dateTime,
-                    accountingMonth: transaction.accountingMonth,
-                    compact: true,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$sign${CurrencyFormatter.instance.format(transaction.amount)}',
-                style: context.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: transaction.type.color,
-                ),
               ),
-              Text(
-                TimeOfDay.fromDateTime(transaction.dateTime).format(context),
-                style: context.textTheme.bodySmall?.copyWith(
-                  color: context.colors.onSurface.withValues(alpha: 0.5),
-                ),
+            if (transaction.excludeFromCalculations ||
+                transaction.accountingMonth != null) ...[
+              const SizedBox(height: 2),
+              TransactionFlagBadge(
+                excludeFromCalculations: transaction.excludeFromCalculations,
+                date: transaction.dateTime,
+                accountingMonth: transaction.accountingMonth,
+                compact: true,
               ),
             ],
+          ],
+        ),
+        trailing: FlowFiAmountText(
+          '$sign${CurrencyFormatter.instance.format(transaction.amount)}',
+          size: AmountSize.body,
+          color: transaction.type.color,
+        ),
+        trailingSubtitle: Text(
+          TimeOfDay.fromDateTime(transaction.dateTime).format(context),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.flowfi.textTertiary,
           ),
-        ],
+        ),
       ),
     );
   }

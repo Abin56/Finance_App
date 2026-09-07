@@ -8,7 +8,8 @@ import '../providers/paste_import_providers.dart';
 import '../providers/paste_import_state.dart';
 import 'paste_transaction_review_screen.dart';
 
-const _examplePasteText = '05 Sep SWIGGY 420 DR\n05 Sep AMAZON 1299 DR\n06 Sep UBER 185.50 DR';
+const _examplePasteText =
+    '05 Sep SWIGGY 420 DR\n05 Sep AMAZON 1299 DR\n06 Sep UBER 185.50 DR';
 
 /// Copy/Paste Import's entry screen — the user pastes transaction text
 /// copied from a bank app, UPI app, SMS, email, or banking website, then
@@ -58,7 +59,10 @@ class _PasteImportScreenState extends ConsumerState<PasteImportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<PasteImportState>(pasteImportControllerProvider, (previous, next) {
+    ref.listen<PasteImportState>(pasteImportControllerProvider, (
+      previous,
+      next,
+    ) {
       if (next.pastedText != _textController.text) {
         _textController.value = _textController.value.copyWith(
           text: next.pastedText,
@@ -66,15 +70,19 @@ class _PasteImportScreenState extends ConsumerState<PasteImportScreen> {
         );
       }
 
-      final enteredReview = previous?.stage != PasteImportStage.reviewing &&
+      final enteredReview =
+          previous?.stage != PasteImportStage.reviewing &&
           next.stage == PasteImportStage.reviewing;
       if (enteredReview) {
         Navigator.of(context).push<void>(
-          MaterialPageRoute(builder: (_) => const PasteTransactionReviewScreen()),
+          MaterialPageRoute(
+            builder: (_) => const PasteTransactionReviewScreen(),
+          ),
         );
       }
 
-      if (next.errorMessage != null && next.errorMessage != previous?.errorMessage) {
+      if (next.errorMessage != null &&
+          next.errorMessage != previous?.errorMessage) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text(next.errorMessage!)));
@@ -132,7 +140,9 @@ class _PasteTextView extends ConsumerWidget {
               'Paste copied transaction information from your bank, UPI, or wallet '
               'app, an SMS, or an email — FlowFi will pull out the transactions for '
               'you to review. Nothing is saved until you confirm.',
-              style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant),
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSizes.lg),
             Expanded(
@@ -143,9 +153,12 @@ class _PasteTextView extends ConsumerWidget {
                 expands: true,
                 textAlignVertical: TextAlignVertical.top,
                 decoration: InputDecoration(
-                  hintText: 'Paste copied transaction text here…\n\n'
+                  hintText:
+                      'Paste copied transaction text here…\n\n'
                       'Example:\n$_examplePasteText',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                  ),
                   alignLabelWithHint: true,
                 ),
               ),
@@ -176,7 +189,9 @@ class _PasteTextView extends ConsumerWidget {
             const SizedBox(height: AppSizes.md),
             PrimaryButton(
               label: 'Analyze',
-              onPressed: state.pastedText.trim().isEmpty ? null : controller.analyze,
+              onPressed: state.pastedText.trim().isEmpty
+                  ? null
+                  : controller.analyze,
             ),
           ],
         ),

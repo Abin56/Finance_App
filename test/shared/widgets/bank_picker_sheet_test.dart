@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Future<String?> pumpAndOpenPicker(WidgetTester tester, {String? currentBankId}) async {
+  Future<String?> pumpAndOpenPicker(
+    WidgetTester tester, {
+    String? currentBankId,
+  }) async {
     String? result;
     await tester.pumpWidget(
       MaterialApp(
@@ -12,7 +15,10 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                result = await BankPickerSheet.show(context, currentBankId: currentBankId);
+                result = await BankPickerSheet.show(
+                  context,
+                  currentBankId: currentBankId,
+                );
               },
               child: const Text('Open picker'),
             ),
@@ -25,7 +31,9 @@ void main() {
     return result;
   }
 
-  testWidgets('shows the frequently used section before browsing', (tester) async {
+  testWidgets('shows the frequently used section before browsing', (
+    tester,
+  ) async {
     await pumpAndOpenPicker(tester);
 
     expect(find.text('Frequently used'), findsOneWidget);
@@ -51,7 +59,9 @@ void main() {
     expect(find.text('HDFC Bank'), findsOneWidget);
   });
 
-  testWidgets('shows a no-results message when nothing matches', (tester) async {
+  testWidgets('shows a no-results message when nothing matches', (
+    tester,
+  ) async {
     await pumpAndOpenPicker(tester);
 
     await tester.enterText(find.byType(TextField), 'zzzznotabank');
@@ -87,7 +97,9 @@ void main() {
     expect(result, 'axis');
   });
 
-  testWidgets('picking "Other / Generic Bank" returns the generic id', (tester) async {
+  testWidgets('picking "Other / Generic Bank" returns the generic id', (
+    tester,
+  ) async {
     String? result;
     await tester.pumpWidget(
       MaterialApp(
@@ -95,7 +107,10 @@ void main() {
           body: Builder(
             builder: (context) => ElevatedButton(
               onPressed: () async {
-                result = await BankPickerSheet.show(context, currentBankId: 'sbi');
+                result = await BankPickerSheet.show(
+                  context,
+                  currentBankId: 'sbi',
+                );
               },
               child: const Text('Open picker'),
             ),

@@ -25,18 +25,26 @@ void main() {
 
   group('CategoryIcons.iconFor', () {
     test('resolves a known key', () {
-      expect(CategoryIcons.iconFor('restaurant'), CategoryIcons.catalog['restaurant']);
+      expect(
+        CategoryIcons.iconFor('restaurant'),
+        CategoryIcons.catalog['restaurant'],
+      );
     });
 
     test('falls back to the default icon for an unknown key', () {
-      expect(CategoryIcons.iconFor('not-a-real-key'), CategoryIcons.catalog[CategoryIcons.fallback]);
+      expect(
+        CategoryIcons.iconFor('not-a-real-key'),
+        CategoryIcons.catalog[CategoryIcons.fallback],
+      );
     });
   });
 
   group('Category Firestore round-trip', () {
     test('toFirestore/fromFirestore preserves every field', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('categories').withConverter<Category>(
+      final collection = firestore
+          .collection('categories')
+          .withConverter<Category>(
             fromFirestore: Category.fromFirestore,
             toFirestore: (c, _) => c.toFirestore(),
           );

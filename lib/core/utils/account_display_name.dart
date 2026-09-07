@@ -9,7 +9,8 @@ import '../models/bank_info.dart';
 /// picked, since "SBI" + "Savings" + the last 4 digits already uniquely
 /// identify the account without asking the user to type anything.
 String bankAccountDisplayName({required BankInfo bank, String? last4}) {
-  if (last4 != null && last4.isNotEmpty) return '${bank.shortCode} • ****$last4';
+  if (last4 != null && last4.isNotEmpty)
+    return '${bank.shortCode} • ****$last4';
   return '${bank.shortCode} Account';
 }
 
@@ -39,7 +40,10 @@ String cardDisplayName({BankInfo? bank, String? networkLabel, String? last4}) {
 /// account's *current* linked [CreditCardProfile] every time a picker
 /// renders, so a card number added after the account was created/renamed
 /// still shows up immediately.
-String accountPickerLabel(Account account, List<CreditCardProfile> creditCards) {
+String accountPickerLabel(
+  Account account,
+  List<CreditCardProfile> creditCards,
+) {
   if (account.type != AccountType.card) return account.name;
   final card = creditCards.where((c) => c.accountId == account.id).firstOrNull;
   final last4 = card?.lastFourDigits;

@@ -156,7 +156,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.accountDetail,
-        builder: (context, state) => AccountDetailScreen(accountId: state.pathParameters['accountId']!),
+        builder: (context, state) =>
+            AccountDetailScreen(accountId: state.pathParameters['accountId']!),
       ),
       GoRoute(
         path: AppRoutes.categories,
@@ -179,7 +180,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.personStatement,
-        builder: (context, state) => PersonStatementScreen(personId: state.pathParameters['personId']!),
+        builder: (context, state) =>
+            PersonStatementScreen(personId: state.pathParameters['personId']!),
       ),
       GoRoute(
         path: AppRoutes.creditors,
@@ -195,7 +197,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.loanDetail,
-        builder: (context, state) => LoanDetailScreen(loanId: state.pathParameters['loanId']!),
+        builder: (context, state) =>
+            LoanDetailScreen(loanId: state.pathParameters['loanId']!),
       ),
       GoRoute(
         path: AppRoutes.emis,
@@ -203,7 +206,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.emiDetail,
-        builder: (context, state) => EmiDetailScreen(emiId: state.pathParameters['emiId']!),
+        builder: (context, state) =>
+            EmiDetailScreen(emiId: state.pathParameters['emiId']!),
       ),
       GoRoute(
         path: AppRoutes.bills,
@@ -211,7 +215,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.billDetail,
-        builder: (context, state) => BillDetailScreen(billId: state.pathParameters['billId']!),
+        builder: (context, state) =>
+            BillDetailScreen(billId: state.pathParameters['billId']!),
       ),
       GoRoute(
         path: AppRoutes.creditCards,
@@ -219,7 +224,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.creditCardDetail,
-        builder: (context, state) => CreditCardDetailScreen(cardId: state.pathParameters['cardId']!),
+        builder: (context, state) =>
+            CreditCardDetailScreen(cardId: state.pathParameters['cardId']!),
       ),
       GoRoute(
         path: AppRoutes.statementDetail,
@@ -234,7 +240,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.transactionDetail,
-        builder: (context, state) => TransactionDetailScreen(transactionId: state.pathParameters['transactionId']!),
+        builder: (context, state) => TransactionDetailScreen(
+          transactionId: state.pathParameters['transactionId']!,
+        ),
       ),
       GoRoute(
         path: AppRoutes.settings,
@@ -250,7 +258,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.reportsCategoryDetail,
         builder: (context, state) {
           final periodName = state.uri.queryParameters['period'];
-          final period = ReportsPeriod.values.where((p) => p.name == periodName).firstOrNull;
+          final period = ReportsPeriod.values
+              .where((p) => p.name == periodName)
+              .firstOrNull;
           return CategorySpendingDetailScreen(
             categoryId: state.pathParameters['categoryId']!,
             initialPeriod: period == ReportsPeriod.custom ? null : period,
@@ -274,7 +284,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ComingSoonScreen(),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) =>
+            AppShell(navigationShell: navigationShell),
         // Every branch observes its own navigator so any sheet or dialog a tab
         // screen opens hides the FAB without the call site knowing. A
         // NavigatorObserver binds to a single Navigator, hence one instance
@@ -296,8 +307,9 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.transactions,
                 name: AppRoutes.transactionsName,
-                builder: (context, state) =>
-                    TransactionsScreen(initialFilterName: state.uri.queryParameters['filter']),
+                builder: (context, state) => TransactionsScreen(
+                  initialFilterName: state.uri.queryParameters['filter'],
+                ),
               ),
             ],
           ),

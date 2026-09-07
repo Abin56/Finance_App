@@ -43,45 +43,53 @@ void main() {
     return columns;
   }
 
-  test('merchant_learning_profiles has no column matching a forbidden needle', () async {
-    final columns = await columnsOf(
-      SmsInboxDatabase.merchantLearningProfilesTableName,
-    );
-    for (final column in columns) {
-      final lower = column.toLowerCase();
-      for (final needle in forbiddenNeedles) {
-        expect(
-          lower.contains(needle),
-          isFalse,
-          reason: 'column "$column" looks like it could hold sensitive data (matches "$needle")',
-        );
+  test(
+    'merchant_learning_profiles has no column matching a forbidden needle',
+    () async {
+      final columns = await columnsOf(
+        SmsInboxDatabase.merchantLearningProfilesTableName,
+      );
+      for (final column in columns) {
+        final lower = column.toLowerCase();
+        for (final needle in forbiddenNeedles) {
+          expect(
+            lower.contains(needle),
+            isFalse,
+            reason:
+                'column "$column" looks like it could hold sensitive data (matches "$needle")',
+          );
+        }
       }
-    }
-  });
+    },
+  );
 
-  test('merchant_learning_corrections has no column matching a forbidden needle', () async {
-    final columns = await columnsOf(
-      SmsInboxDatabase.merchantLearningCorrectionsTableName,
-    );
-    for (final column in columns) {
-      final lower = column.toLowerCase();
-      for (final needle in forbiddenNeedles) {
-        expect(
-          lower.contains(needle),
-          isFalse,
-          reason: 'column "$column" looks like it could hold sensitive data (matches "$needle")',
-        );
+  test(
+    'merchant_learning_corrections has no column matching a forbidden needle',
+    () async {
+      final columns = await columnsOf(
+        SmsInboxDatabase.merchantLearningCorrectionsTableName,
+      );
+      for (final column in columns) {
+        final lower = column.toLowerCase();
+        for (final needle in forbiddenNeedles) {
+          expect(
+            lower.contains(needle),
+            isFalse,
+            reason:
+                'column "$column" looks like it could hold sensitive data (matches "$needle")',
+          );
+        }
       }
-    }
-  });
+    },
+  );
 
-  test('merchant_learning_profiles columns are exactly the expected privacy-safe set', () async {
-    final columns = await columnsOf(
-      SmsInboxDatabase.merchantLearningProfilesTableName,
-    );
-    expect(
-      columns.toSet(),
-      {
+  test(
+    'merchant_learning_profiles columns are exactly the expected privacy-safe set',
+    () async {
+      final columns = await columnsOf(
+        SmsInboxDatabase.merchantLearningProfilesTableName,
+      );
+      expect(columns.toSet(), {
         'user_id',
         'merchant_key',
         for (final prefix in [
@@ -97,17 +105,26 @@ void main() {
           '${prefix}_corrections',
           '${prefix}_last_updated_at',
         ],
-      },
-    );
-  });
+      });
+    },
+  );
 
-  test('merchant_learning_corrections columns are exactly the expected privacy-safe set', () async {
-    final columns = await columnsOf(
-      SmsInboxDatabase.merchantLearningCorrectionsTableName,
-    );
-    expect(
-      columns.toSet(),
-      {'id', 'user_id', 'merchant_key', 'field', 'old_value', 'new_value', 'source', 'timestamp'},
-    );
-  });
+  test(
+    'merchant_learning_corrections columns are exactly the expected privacy-safe set',
+    () async {
+      final columns = await columnsOf(
+        SmsInboxDatabase.merchantLearningCorrectionsTableName,
+      );
+      expect(columns.toSet(), {
+        'id',
+        'user_id',
+        'merchant_key',
+        'field',
+        'old_value',
+        'new_value',
+        'source',
+        'timestamp',
+      });
+    },
+  );
 }

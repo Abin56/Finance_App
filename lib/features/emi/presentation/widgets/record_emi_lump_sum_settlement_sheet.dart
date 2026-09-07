@@ -40,10 +40,12 @@ class RecordEmiLumpSumSettlementSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<RecordEmiLumpSumSettlementSheet> createState() => _RecordEmiLumpSumSettlementSheetState();
+  ConsumerState<RecordEmiLumpSumSettlementSheet> createState() =>
+      _RecordEmiLumpSumSettlementSheetState();
 }
 
-class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpSumSettlementSheet> {
+class _RecordEmiLumpSumSettlementSheetState
+    extends ConsumerState<RecordEmiLumpSumSettlementSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(
     text: ref.read(emiRemainingAmountProvider(widget.emi)).toStringAsFixed(2),
@@ -81,25 +83,29 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
   String _resolveNote(PayerSource payer) {
     final typed = _noteController.text.trim();
     if (typed.isNotEmpty) return typed;
-    if (payer case PersonPayerSource(:final person)) return 'Paid by ${person.name}';
+    if (payer case PersonPayerSource(:final person))
+      return 'Paid by ${person.name}';
     return '';
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_someoneElsePaid && _selectedPersonId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose who paid')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Choose who paid')));
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
-      final installments = ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ?? const [];
-      final outstanding = installments.where((i) => i.remainingAmount > 0).toList()
-        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final installments =
+          ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ??
+          const [];
+      final outstanding =
+          installments.where((i) => i.remainingAmount > 0).toList()
+            ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
       final amount = double.parse(_amountController.text.trim());
       final plan = InstallmentSettlement.plan(outstanding, amount);
@@ -107,40 +113,54 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
       final items = [
         for (final p in plan.portions)
           PaymentAttributionItem(
-            obligationLabel: 'your ${widget.emi.name} (payment ${p.installment.sequenceNumber})',
+            obligationLabel:
+                'your ${widget.emi.name} (payment ${p.installment.sequenceNumber})',
             amount: p.portion,
             record: ({required amount, required date, required note}) => ref
                 .read(
-                  installmentPaymentRepositoryProvider(
-                    (scheduleId: p.installment.scheduleId, installmentId: p.installment.id),
-                  ),
+                  installmentPaymentRepositoryProvider((
+                    scheduleId: p.installment.scheduleId,
+                    installmentId: p.installment.id,
+                  )),
                 )
-                .recordPayment(p.installment, amount: amount, date: date, note: note),
+                .recordPayment(
+                  p.installment,
+                  amount: amount,
+                  date: date,
+                  note: note,
+                ),
           ),
       ];
 
       final payer = _resolvePayer();
-      await ref.read(paymentAttributionServiceProvider).apply(
-        items: items,
-        payer: payer,
-        date: _date,
-        note: _resolveNote(payer),
-      );
+      await ref
+          .read(paymentAttributionServiceProvider)
+          .apply(
+            items: items,
+            payer: payer,
+            date: _date,
+            note: _resolveNote(payer),
+          );
 
-      final refreshed = ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ?? const [];
-      final nextUnpaid = refreshed.where((i) => i.status != InstallmentStatus.paid).toList()
-        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final refreshed =
+          ref.read(installmentsStreamProvider(widget.emi.scheduleId)).value ??
+          const [];
+      final nextUnpaid =
+          refreshed.where((i) => i.status != InstallmentStatus.paid).toList()
+            ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
       if (nextUnpaid.isNotEmpty) {
-        ref.read(emiRepositoryProvider).rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
+        ref
+            .read(emiRepositoryProvider)
+            .rescheduleReminders(widget.emi, nextUnpaid.first.dueDate);
       }
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record payment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
@@ -153,7 +173,8 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
       key: _formKey,
       child: SectionedFormSheet(
         title: 'Settle a lump sum for ${widget.emi.name}',
-        description: 'Enter one amount — it settles your oldest unpaid payments first, in order.',
+        description:
+            'Enter one amount — it settles your oldest unpaid payments first, in order.',
         confirmLabel: 'Settle payment',
         isSaving: _isSaving,
         onConfirm: _save,
@@ -163,14 +184,19 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: Validators.amountUpTo(totalOutstanding),
               autovalidateMode: AutovalidateMode.onUserInteraction,
             ),
             const SizedBox(height: AppSizes.md),
             OutlinedButton.icon(
               onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              icon: const Icon(
+                Icons.calendar_today_outlined,
+                size: AppSizes.iconSm,
+              ),
               label: Text('${_date.day}/${_date.month}/${_date.year}'),
             ),
             const SizedBox(height: AppSizes.md),
@@ -188,7 +214,8 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
                 if (!value) _selectedPersonId = null;
               }),
               selectedPersonId: _selectedPersonId,
-              onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+              onPersonChanged: (value) =>
+                  setState(() => _selectedPersonId = value),
             ),
             const SizedBox(height: AppSizes.md),
             Row(
@@ -197,7 +224,9 @@ class _RecordEmiLumpSumSettlementSheetState extends ConsumerState<RecordEmiLumpS
                 Text('Total outstanding', style: context.textTheme.titleMedium),
                 Text(
                   CurrencyFormatter.instance.format(totalOutstanding),
-                  style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),

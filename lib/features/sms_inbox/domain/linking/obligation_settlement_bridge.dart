@@ -21,17 +21,15 @@ import 'match_confidence.dart';
 /// caller's decision, matching `ObligationLinker`'s own "never
 /// auto-execute" posture — see Safety rule 10).
 class ObligationSettlementBridge {
-  const ObligationSettlementBridge(
-    this._linker, {
-    this.getObligation,
-  });
+  const ObligationSettlementBridge(this._linker, {this.getObligation});
 
   final ObligationLinker _linker;
 
   /// Optional accessor for the full matched obligation, used only to
   /// refine [EventRelationshipType] by its `ObligationType`. When omitted,
   /// every match resolves to the generic [EventRelationshipType.paymentFor].
-  final Future<FinancialObligation?> Function(String obligationId)? getObligation;
+  final Future<FinancialObligation?> Function(String obligationId)?
+  getObligation;
 
   /// Returns `null` when [candidate] does not represent confirmed money
   /// movement (only a completed payment can settle an obligation — Safety

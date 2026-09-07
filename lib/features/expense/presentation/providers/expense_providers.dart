@@ -48,7 +48,8 @@ final pendingSplitExpensesProvider = Provider<List<Expense>>((ref) {
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];
   return expenses.where((e) {
     if (!e.isSplit || e.scheduleId == null) return false;
-    final installments = ref.watch(installmentsStreamProvider(e.scheduleId!)).value ?? const [];
+    final installments =
+        ref.watch(installmentsStreamProvider(e.scheduleId!)).value ?? const [];
     return installments.any((i) => i.remainingAmount > 0);
   }).toList();
 });
@@ -57,7 +58,10 @@ final pendingSplitExpensesProvider = Provider<List<Expense>>((ref) {
 /// participant installments.
 final totalPendingSplitAmountProvider = Provider<double>((ref) {
   final expenses = ref.watch(pendingSplitExpensesProvider);
-  return expenses.fold(0.0, (sum, e) => sum + ref.watch(remainingAmountProvider(e.scheduleId!)));
+  return expenses.fold(
+    0.0,
+    (sum, e) => sum + ref.watch(remainingAmountProvider(e.scheduleId!)),
+  );
 });
 
 /// Sum of remaining amounts owed by *untracked* split-expense participants
@@ -70,10 +74,14 @@ final untrackedPendingSplitAmountProvider = Provider<double>((ref) {
   final expenses = ref.watch(pendingSplitExpensesProvider);
   var total = 0.0;
   for (final expense in expenses) {
-    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
+    final installments =
+        ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+        const [];
     for (final participant in expense.participants) {
       if (participant.isMe || participant.personId != null) continue;
-      final installment = installments.where((i) => i.id == participant.installmentId).firstOrNull;
+      final installment = installments
+          .where((i) => i.id == participant.installmentId)
+          .firstOrNull;
       if (installment != null) total += installment.remainingAmount;
     }
   }
@@ -84,7 +92,10 @@ final untrackedPendingSplitAmountProvider = Provider<double>((ref) {
 /// reverse of [Expense.transactionId], for a Transaction Details screen that
 /// needs to show participants/shares/status when a plain transaction turns
 /// out to be a split expense's account-balance effect.
-final expenseForTransactionProvider = Provider.family<Expense?, String>((ref, transactionId) {
+final expenseForTransactionProvider = Provider.family<Expense?, String>((
+  ref,
+  transactionId,
+) {
   final expenses = ref.watch(expensesStreamProvider).value ?? const [];
   return expenses.where((e) => e.transactionId == transactionId).firstOrNull;
 });
@@ -93,26 +104,37 @@ final expenseForTransactionProvider = Provider.family<Expense?, String>((ref, tr
 /// [Installment] — the shape `MoneyReceivedSheet`'s split-expense-settlement
 /// purpose (and any other "settle one participant" UI) needs, since a
 /// participant's own remaining amount can differ from the whole expense's.
-typedef PendingSplitParticipant = ({Expense expense, ExpenseParticipant participant, Installment installment});
+typedef PendingSplitParticipant = ({
+  Expense expense,
+  ExpenseParticipant participant,
+  Installment installment,
+});
 
 /// Every unsettled participant across every split expense — one entry per
 /// participant whose tracking installment still has a remaining amount,
 /// regardless of whether they're linked to a tracked [Person].
-final pendingSplitParticipantsProvider = Provider<List<PendingSplitParticipant>>((ref) {
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
-  final result = <PendingSplitParticipant>[];
-  for (final expense in expenses) {
-    if (!expense.isSplit || expense.scheduleId == null) continue;
-    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
-    final installmentsById = {for (final i in installments) i.id: i};
-    for (final participant in expense.participants) {
-      final installment = installmentsById[participant.installmentId];
-      if (installment == null || installment.remainingAmount <= 0) continue;
-      result.add((expense: expense, participant: participant, installment: installment));
-    }
-  }
-  return result;
-});
+final pendingSplitParticipantsProvider =
+    Provider<List<PendingSplitParticipant>>((ref) {
+      final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+      final result = <PendingSplitParticipant>[];
+      for (final expense in expenses) {
+        if (!expense.isSplit || expense.scheduleId == null) continue;
+        final installments =
+            ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+            const [];
+        final installmentsById = {for (final i in installments) i.id: i};
+        for (final participant in expense.participants) {
+          final installment = installmentsById[participant.installmentId];
+          if (installment == null || installment.remainingAmount <= 0) continue;
+          result.add((
+            expense: expense,
+            participant: participant,
+            installment: installment,
+          ));
+        }
+      }
+      return result;
+    });
 
 /// Maps every non-deleted expense [Transaction.id] to how much of it was
 /// actually mine — the full amount for a plain (non-split) expense
@@ -123,27 +145,34 @@ final pendingSplitParticipantsProvider = Provider<List<PendingSplitParticipant>>
 final myExpensePortionsProvider = Provider<Map<String, double>>((ref) {
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
   final expenseByTransactionId = {
-    for (final e in ref.watch(expensesStreamProvider).value ?? const []) e.transactionId: e,
+    for (final e in ref.watch(expensesStreamProvider).value ?? const [])
+      e.transactionId: e,
   };
   return {
     for (final t in transactions)
-      if (t.type == TransactionType.expense && !t.isDeleted) t.id: expenseByTransactionId[t.id]?.myShare ?? t.amount,
+      if (t.type == TransactionType.expense && !t.isDeleted)
+        t.id: expenseByTransactionId[t.id]?.myShare ?? t.amount,
   };
 });
 
 /// Expense transactions paired with "how much of it was mine" — the shared
 /// list every date-filtered My Spending/Reports figure below reduces over.
-final _myExpenseTransactionsProvider = Provider<List<(Transaction, double)>>((ref) {
+final _myExpenseTransactionsProvider = Provider<List<(Transaction, double)>>((
+  ref,
+) {
   final transactions = ref.watch(calculableTransactionsProvider);
   final portions = ref.watch(myExpensePortionsProvider);
   return [
     for (final t in transactions)
-      if (t.type == TransactionType.expense && !t.isDeleted) (t, portions[t.id] ?? t.amount),
+      if (t.type == TransactionType.expense && !t.isDeleted)
+        (t, portions[t.id] ?? t.amount),
   ];
 });
 
-double _sumMyShareWhere(List<(Transaction, double)> entries, bool Function(Transaction) test) =>
-    entries.where((e) => test(e.$1)).fold(0.0, (sum, e) => sum + e.$2);
+double _sumMyShareWhere(
+  List<(Transaction, double)> entries,
+  bool Function(Transaction) test,
+) => entries.where((e) => test(e.$1)).fold(0.0, (sum, e) => sum + e.$2);
 
 /// Sum of "My Share" across every expense transaction, all-time.
 final myTotalExpenseProvider = Provider<double>((ref) {
@@ -207,47 +236,47 @@ typedef MyExpenseBreakdown = ({double personal, double split, double total});
 /// figure uses), so this provider only ever does the Expense-join/My-Share
 /// math, never its own independent date/exclusion filtering — avoids the
 /// two ever silently disagreeing about which transactions are "in period".
-final myExpenseBreakdownForTransactionsProvider = Provider.family<MyExpenseBreakdown, List<Transaction>>(
-  (ref, transactions) {
-    final expenseByTransactionId = {
-      for (final e in ref.watch(expensesStreamProvider).value ?? const []) e.transactionId: e,
-    };
+final myExpenseBreakdownForTransactionsProvider =
+    Provider.family<MyExpenseBreakdown, List<Transaction>>((ref, transactions) {
+      final expenseByTransactionId = {
+        for (final e in ref.watch(expensesStreamProvider).value ?? const [])
+          e.transactionId: e,
+      };
 
-    var personal = 0.0;
-    var split = 0.0;
-    for (final t in transactions) {
-      if (t.type != TransactionType.expense) continue;
-      final expense = expenseByTransactionId[t.id];
-      if (expense != null && expense.isSplit) {
-        split += expense.myShare;
-      } else {
-        personal += expense?.myShare ?? t.amount;
+      var personal = 0.0;
+      var split = 0.0;
+      for (final t in transactions) {
+        if (t.type != TransactionType.expense) continue;
+        final expense = expenseByTransactionId[t.id];
+        if (expense != null && expense.isSplit) {
+          split += expense.myShare;
+        } else {
+          personal += expense?.myShare ?? t.amount;
+        }
       }
-    }
-    return (personal: personal, split: split, total: personal + split);
-  },
-);
+      return (personal: personal, split: split, total: personal + split);
+    });
 
 /// Sum of [Expense.othersShare] across every split expense in [transactions]
 /// — what other participants owe, never money I actually spent. Same
 /// caller-filters-first contract as [myExpenseBreakdownForTransactionsProvider]:
 /// this never re-derives date/exclusion filtering itself, so the two can
 /// never silently disagree about which transactions are "in period".
-final othersShareForTransactionsProvider = Provider.family<double, List<Transaction>>(
-  (ref, transactions) {
-    final expenseByTransactionId = {
-      for (final e in ref.watch(expensesStreamProvider).value ?? const []) e.transactionId: e,
-    };
+final othersShareForTransactionsProvider =
+    Provider.family<double, List<Transaction>>((ref, transactions) {
+      final expenseByTransactionId = {
+        for (final e in ref.watch(expensesStreamProvider).value ?? const [])
+          e.transactionId: e,
+      };
 
-    var total = 0.0;
-    for (final t in transactions) {
-      if (t.type != TransactionType.expense) continue;
-      final expense = expenseByTransactionId[t.id];
-      if (expense != null && expense.isSplit) total += expense.othersShare;
-    }
-    return total;
-  },
-);
+      var total = 0.0;
+      for (final t in transactions) {
+        if (t.type != TransactionType.expense) continue;
+        final expense = expenseByTransactionId[t.id];
+        if (expense != null && expense.isSplit) total += expense.othersShare;
+      }
+      return total;
+    });
 
 /// Sum of [InstallmentPayment.amount] collected from split-expense
 /// participants whose owning [Expense]'s linked [Transaction] falls within
@@ -265,18 +294,28 @@ final othersShareForTransactionsProvider = Provider.family<double, List<Transact
 /// `excludeFromCalculations`, matching every other Reports/Dashboard figure
 /// shown alongside this one.
 final moneyReceivedForRangeProvider =
-    Provider.family<double, ({DateTime start, DateTime end, bool monthGranular})>((ref, range) {
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
-  final calculableById = {for (final t in ref.watch(calculableTransactionsProvider)) t.id: t};
-  var total = 0.0;
-  for (final expense in expenses) {
-    if (!expense.isSplit || expense.scheduleId == null) continue;
-    final transaction = calculableById[expense.transactionId];
-    if (transaction == null) continue;
-    final bucketDate = range.monthGranular ? transaction.effectiveMonth : transaction.dateTime;
-    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) continue;
-    final installments = ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
-    total += installments.fold(0.0, (sum, i) => sum + i.amountPaid);
-  }
-  return total;
-});
+    Provider.family<
+      double,
+      ({DateTime start, DateTime end, bool monthGranular})
+    >((ref, range) {
+      final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+      final calculableById = {
+        for (final t in ref.watch(calculableTransactionsProvider)) t.id: t,
+      };
+      var total = 0.0;
+      for (final expense in expenses) {
+        if (!expense.isSplit || expense.scheduleId == null) continue;
+        final transaction = calculableById[expense.transactionId];
+        if (transaction == null) continue;
+        final bucketDate = range.monthGranular
+            ? transaction.effectiveMonth
+            : transaction.dateTime;
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+          continue;
+        final installments =
+            ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+            const [];
+        total += installments.fold(0.0, (sum, i) => sum + i.amountPaid);
+      }
+      return total;
+    });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_sizes.dart';
 
 /// Task 4's "make pending money instantly readable" convention — one shared
 /// meaning for every screen that shows money owed between the user and
@@ -82,7 +83,11 @@ extension MoneyDirectionX on MoneyDirection {
 /// so a "To Receive"/"To Pay"/"Partial"/"Completed" badge always looks
 /// identical no matter which screen it's on.
 class MoneyDirectionBadge extends StatelessWidget {
-  const MoneyDirectionBadge({super.key, required this.direction, this.compact = false});
+  const MoneyDirectionBadge({
+    super.key,
+    required this.direction,
+    this.compact = false,
+  });
 
   final MoneyDirection direction;
 
@@ -94,10 +99,13 @@ class MoneyDirectionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = direction.color;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10, vertical: compact ? 2 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 10,
+        vertical: compact ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -106,8 +114,11 @@ class MoneyDirectionBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             direction.label,
-            style: (compact ? Theme.of(context).textTheme.labelSmall : Theme.of(context).textTheme.labelMedium)
-                ?.copyWith(color: color, fontWeight: FontWeight.w600),
+            style:
+                (compact
+                        ? Theme.of(context).textTheme.labelSmall
+                        : Theme.of(context).textTheme.labelMedium)
+                    ?.copyWith(color: color, fontWeight: FontWeight.w600),
           ),
         ],
       ),

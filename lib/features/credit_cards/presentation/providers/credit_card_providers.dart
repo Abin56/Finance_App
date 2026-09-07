@@ -21,23 +21,25 @@ import '../../domain/statement_cycle_item.dart';
 import '../../domain/statement_payment.dart';
 import '../../domain/statement_period.dart';
 
-final sharedCreditLimitRepositoryProvider = Provider<SharedCreditLimitRepository>((ref) {
-  final firestore = ref.watch(firestoreProvider);
-  final uid = ref.watch(currentUserIdProvider);
-  final collection = firestore
-      .collection(FirestoreCollections.users)
-      .doc(uid)
-      .collection(FirestoreCollections.sharedCreditLimits)
-      .withConverter<SharedCreditLimit>(
-        fromFirestore: SharedCreditLimit.fromFirestore,
-        toFirestore: (sharedLimit, _) => sharedLimit.toFirestore(),
-      );
-  return SharedCreditLimitRepository(collection);
-});
+final sharedCreditLimitRepositoryProvider =
+    Provider<SharedCreditLimitRepository>((ref) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      final collection = firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.sharedCreditLimits)
+          .withConverter<SharedCreditLimit>(
+            fromFirestore: SharedCreditLimit.fromFirestore,
+            toFirestore: (sharedLimit, _) => sharedLimit.toFirestore(),
+          );
+      return SharedCreditLimitRepository(collection);
+    });
 
-final sharedCreditLimitsStreamProvider = StreamProvider<List<SharedCreditLimit>>((ref) {
-  return ref.watch(sharedCreditLimitRepositoryProvider).watchAll();
-});
+final sharedCreditLimitsStreamProvider =
+    StreamProvider<List<SharedCreditLimit>>((ref) {
+      return ref.watch(sharedCreditLimitRepositoryProvider).watchAll();
+    });
 
 final creditCardRepositoryProvider = Provider<CreditCardRepository>((ref) {
   final firestore = ref.watch(firestoreProvider);
@@ -50,10 +52,15 @@ final creditCardRepositoryProvider = Provider<CreditCardRepository>((ref) {
         fromFirestore: CreditCardProfile.fromFirestore,
         toFirestore: (card, _) => card.toFirestore(),
       );
-  return CreditCardRepository(collection, sharedCreditLimitRepository: ref.watch(sharedCreditLimitRepositoryProvider));
+  return CreditCardRepository(
+    collection,
+    sharedCreditLimitRepository: ref.watch(sharedCreditLimitRepositoryProvider),
+  );
 });
 
-final creditCardsStreamProvider = StreamProvider<List<CreditCardProfile>>((ref) {
+final creditCardsStreamProvider = StreamProvider<List<CreditCardProfile>>((
+  ref,
+) {
   return ref.watch(creditCardRepositoryProvider).watchAll();
 });
 
@@ -69,51 +76,55 @@ final creditCardsStreamProvider = StreamProvider<List<CreditCardProfile>>((ref) 
 /// correctly if the account is restored.
 final activeCreditCardsProvider = Provider<List<CreditCardProfile>>((ref) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final accountIds = (ref.watch(accountsStreamProvider).value ?? const []).map((a) => a.id).toSet();
+  final accountIds = (ref.watch(accountsStreamProvider).value ?? const [])
+      .map((a) => a.id)
+      .toSet();
   return cards.where((c) => accountIds.contains(c.accountId)).toList();
 });
 
 /// Every active card drawing from [sharedLimitId] — the sibling cards of a
 /// shared credit limit, e.g. a Visa and RuPay variant issued under the same
 /// facility.
-final cardsUnderSharedLimitProvider = Provider.autoDispose.family<List<CreditCardProfile>, String>((
-  ref,
-  sharedLimitId,
-) {
-  final cards = ref.watch(activeCreditCardsProvider);
-  return cards.where((c) => c.sharedLimitId == sharedLimitId).toList();
-});
+final cardsUnderSharedLimitProvider = Provider.autoDispose
+    .family<List<CreditCardProfile>, String>((ref, sharedLimitId) {
+      final cards = ref.watch(activeCreditCardsProvider);
+      return cards.where((c) => c.sharedLimitId == sharedLimitId).toList();
+    });
 
 /// The [SharedCreditLimit] a card draws from, or null if it's standalone.
-final sharedCreditLimitForCardProvider = Provider.autoDispose.family<SharedCreditLimit?, String>((ref, cardId) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final card = cards.where((c) => c.id == cardId).firstOrNull;
-  if (card?.sharedLimitId == null) return null;
-  final sharedLimits = ref.watch(sharedCreditLimitsStreamProvider).value ?? const [];
-  return sharedLimits.where((g) => g.id == card!.sharedLimitId).firstOrNull;
-});
+final sharedCreditLimitForCardProvider = Provider.autoDispose
+    .family<SharedCreditLimit?, String>((ref, cardId) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card?.sharedLimitId == null) return null;
+      final sharedLimits =
+          ref.watch(sharedCreditLimitsStreamProvider).value ?? const [];
+      return sharedLimits.where((g) => g.id == card!.sharedLimitId).firstOrNull;
+    });
 
 /// Statement repository for a single card's subcollection, scoped by
 /// [cardId] — mirrors `paymentRepositoryProvider` (Bills).
-final statementRepositoryProvider = Provider.autoDispose.family<StatementRepository, String>((ref, cardId) {
-  final firestore = ref.watch(firestoreProvider);
-  final uid = ref.watch(currentUserIdProvider);
-  final collection = firestore
-      .collection(FirestoreCollections.users)
-      .doc(uid)
-      .collection(FirestoreCollections.creditCards)
-      .doc(cardId)
-      .collection(FirestoreCollections.statements)
-      .withConverter<Statement>(
-        fromFirestore: Statement.fromFirestore,
-        toFirestore: (statement, _) => statement.toFirestore(),
-      );
-  return StatementRepository(collection);
-});
+final statementRepositoryProvider = Provider.autoDispose
+    .family<StatementRepository, String>((ref, cardId) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      final collection = firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.creditCards)
+          .doc(cardId)
+          .collection(FirestoreCollections.statements)
+          .withConverter<Statement>(
+            fromFirestore: Statement.fromFirestore,
+            toFirestore: (statement, _) => statement.toFirestore(),
+          );
+      return StatementRepository(collection);
+    });
 
-final statementsStreamProvider = StreamProvider.autoDispose.family<List<Statement>, String>((ref, cardId) {
-  return ref.watch(statementRepositoryProvider(cardId)).watchAll();
-});
+final statementsStreamProvider = StreamProvider.autoDispose
+    .family<List<Statement>, String>((ref, cardId) {
+      return ref.watch(statementRepositoryProvider(cardId)).watchAll();
+    });
 
 /// [statementsStreamProvider] with every statement's `totalAmount`/
 /// `minimumDue` corrected against what its period's transactions currently
@@ -124,27 +135,31 @@ final statementsStreamProvider = StreamProvider.autoDispose.family<List<Statemen
 /// screen/provider that shows or sums a *closed* statement's total (as
 /// opposed to [currentStatementCycleProvider], which is already always
 /// live) must watch this instead of [statementsStreamProvider] directly.
-final statementsWithLiveTotalsProvider = Provider.autoDispose.family<List<Statement>, String>((ref, cardId) {
-  final statements = ref.watch(statementsStreamProvider(cardId)).value ?? const [];
-  if (statements.isEmpty) return statements;
+final statementsWithLiveTotalsProvider = Provider.autoDispose
+    .family<List<Statement>, String>((ref, cardId) {
+      final statements =
+          ref.watch(statementsStreamProvider(cardId)).value ?? const [];
+      if (statements.isEmpty) return statements;
 
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final card = cards.where((c) => c.id == cardId).firstOrNull;
-  if (card == null) return statements;
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card == null) return statements;
 
-  final cardTransactions = ref.watch(transactionsForCardProvider(cardId));
-  final repository = ref.watch(statementRepositoryProvider(cardId));
-  return statements.map((statement) {
-    final period = StatementPeriod(
-      periodStart: statement.periodStart,
-      periodEnd: statement.periodEnd,
-      dueDate: statement.dueDate,
-    );
-    final liveTotal = repository.totalFor(cardTransactions, period);
-    final liveMinimumDue = card.minimumDuePercent == null ? null : liveTotal * card.minimumDuePercent! / 100;
-    return statement.withLiveTotal(liveTotal, liveMinimumDue);
-  }).toList();
-});
+      final cardTransactions = ref.watch(transactionsForCardProvider(cardId));
+      final repository = ref.watch(statementRepositoryProvider(cardId));
+      return statements.map((statement) {
+        final period = StatementPeriod(
+          periodStart: statement.periodStart,
+          periodEnd: statement.periodEnd,
+          dueDate: statement.dueDate,
+        );
+        final liveTotal = repository.totalFor(cardTransactions, period);
+        final liveMinimumDue = card.minimumDuePercent == null
+            ? null
+            : liveTotal * card.minimumDuePercent! / 100;
+        return statement.withLiveTotal(liveTotal, liveMinimumDue);
+      }).toList();
+    });
 
 /// The two-section carry-forward view for [cardId]'s statements: closed,
 /// still-unpaid statements from before the current cycle
@@ -157,7 +172,10 @@ final statementsWithLiveTotalsProvider = Provider.autoDispose.family<List<Statem
 /// shared carry-forward rule) via the [StatementCycleItem] adapter, so this
 /// is the only place Credit Cards implement carry-forward — nothing here is
 /// reimplemented per screen.
-typedef StatementCycleView = ({List<Statement> previousCyclePending, Statement? current});
+typedef StatementCycleView = ({
+  List<Statement> previousCyclePending,
+  Statement? current,
+});
 
 /// Note: `result.current`/`result.future` from [CycleEngine] are
 /// deliberately unused below — they'd only ever contain an
@@ -167,87 +185,105 @@ typedef StatementCycleView = ({List<Statement> previousCyclePending, Statement? 
 /// `current` here is intentionally the separately-computed live cycle, not
 /// the engine's own `result.current` — this is not the same kind of
 /// redundancy as a duplicated calculation, so don't "simplify" it away.
-final statementCycleViewProvider = Provider.autoDispose.family<StatementCycleView, String>((ref, cardId) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final card = cards.where((c) => c.id == cardId).firstOrNull;
-  if (card == null) return (previousCyclePending: <Statement>[], current: null);
+final statementCycleViewProvider = Provider.autoDispose
+    .family<StatementCycleView, String>((ref, cardId) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card == null)
+        return (previousCyclePending: <Statement>[], current: null);
 
-  final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
-  final anchor = CycleAnchor(anchorDay: card.statementDay);
-  final items = statements.map(StatementCycleItem.new).toList();
-  final result = CycleEngine.classifyForCarryForward(items, anchor);
+      final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
+      final anchor = CycleAnchor(anchorDay: card.statementDay);
+      final items = statements.map(StatementCycleItem.new).toList();
+      final result = CycleEngine.classifyForCarryForward(items, anchor);
 
-  final previousCyclePending = result.previousCyclePending.map((item) => item.statement).toList();
-  final current = ref.watch(currentStatementCycleProvider(cardId));
-  return (previousCyclePending: previousCyclePending, current: current);
-});
+      final previousCyclePending = result.previousCyclePending
+          .map((item) => item.statement)
+          .toList();
+      final current = ref.watch(currentStatementCycleProvider(cardId));
+      return (previousCyclePending: previousCyclePending, current: current);
+    });
 
 /// Statement-payment repository for a single statement's subcollection,
 /// scoped by (cardId, statementId).
 final statementPaymentRepositoryProvider = Provider.autoDispose
-    .family<StatementPaymentRepository, ({String cardId, String statementId})>((ref, key) {
-  final firestore = ref.watch(firestoreProvider);
-  final uid = ref.watch(currentUserIdProvider);
-  final collection = firestore
-      .collection(FirestoreCollections.users)
-      .doc(uid)
-      .collection(FirestoreCollections.creditCards)
-      .doc(key.cardId)
-      .collection(FirestoreCollections.statements)
-      .doc(key.statementId)
-      .collection(FirestoreCollections.statementPayments)
-      .withConverter<StatementPayment>(
-        fromFirestore: StatementPayment.fromFirestore,
-        toFirestore: (payment, _) => payment.toFirestore(),
+    .family<StatementPaymentRepository, ({String cardId, String statementId})>((
+      ref,
+      key,
+    ) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      final collection = firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.creditCards)
+          .doc(key.cardId)
+          .collection(FirestoreCollections.statements)
+          .doc(key.statementId)
+          .collection(FirestoreCollections.statementPayments)
+          .withConverter<StatementPayment>(
+            fromFirestore: StatementPayment.fromFirestore,
+            toFirestore: (payment, _) => payment.toFirestore(),
+          );
+      return StatementPaymentRepository(
+        collection,
+        ref.watch(statementRepositoryProvider(key.cardId)),
+        ref.watch(transactionRepositoryProvider),
       );
-  return StatementPaymentRepository(
-    collection,
-    ref.watch(statementRepositoryProvider(key.cardId)),
-    ref.watch(transactionRepositoryProvider),
-  );
-});
+    });
 
 final statementPaymentsStreamProvider = StreamProvider.autoDispose
-    .family<List<StatementPayment>, ({String cardId, String statementId})>((ref, key) {
-  return ref.watch(statementPaymentRepositoryProvider(key)).watchAll();
-});
+    .family<List<StatementPayment>, ({String cardId, String statementId})>((
+      ref,
+      key,
+    ) {
+      return ref.watch(statementPaymentRepositoryProvider(key)).watchAll();
+    });
 
 /// Every transaction posted against [card]'s linked account — "purchases on
 /// this card" per the 1:1 Account-IS-a-card design, reused by every
 /// statement computation below instead of each re-filtering
 /// [transactionsStreamProvider] independently.
-final transactionsForCardProvider = Provider.autoDispose.family<List<Transaction>, String>((ref, cardId) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final card = cards.where((c) => c.id == cardId).firstOrNull;
-  if (card == null) return const [];
-  final transactions = ref.watch(calculableTransactionsProvider);
-  return transactions.where((t) => t.accountId == card.accountId).toList();
-});
+final transactionsForCardProvider = Provider.autoDispose
+    .family<List<Transaction>, String>((ref, cardId) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card == null) return const [];
+      final transactions = ref.watch(calculableTransactionsProvider);
+      return transactions.where((t) => t.accountId == card.accountId).toList();
+    });
 
 /// The in-progress (not yet closed) cycle's live totals for [card] — never
 /// written to Firestore, purely computed. The "lazy" half of statement
 /// generation.
-final currentStatementCycleProvider = Provider.autoDispose.family<Statement?, String>((ref, cardId) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final card = cards.where((c) => c.id == cardId).firstOrNull;
-  if (card == null) return null;
-  final cardTransactions = ref.watch(transactionsForCardProvider(cardId));
-  return ref.watch(statementRepositoryProvider(cardId)).currentCycleFor(card, cardTransactions);
-});
+final currentStatementCycleProvider = Provider.autoDispose
+    .family<Statement?, String>((ref, cardId) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card == null) return null;
+      final cardTransactions = ref.watch(transactionsForCardProvider(cardId));
+      return ref
+          .watch(statementRepositoryProvider(cardId))
+          .currentCycleFor(card, cardTransactions);
+    });
 
 /// Triggers `StatementRepository.materializeIfDue` as a side effect
 /// whenever a card's screen is opened (i.e. whenever this provider is
 /// watched) — the "materialize-on-read" half of statement generation.
 /// Screens watch [statementsStreamProvider] for the actual list; this
 /// provider's return value only matters for surfacing an error, if any.
-final materializeStatementProvider = FutureProvider.autoDispose.family<void, String>((ref, cardId) async {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final card = cards.where((c) => c.id == cardId).firstOrNull;
-  if (card == null) return;
-  final cardTransactions = ref.watch(transactionsForCardProvider(cardId));
-  final existing = ref.watch(statementsStreamProvider(cardId)).value ?? const [];
-  await ref.watch(statementRepositoryProvider(cardId)).materializeIfDue(card, cardTransactions, existing);
-});
+final materializeStatementProvider = FutureProvider.autoDispose
+    .family<void, String>((ref, cardId) async {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card == null) return;
+      final cardTransactions = ref.watch(transactionsForCardProvider(cardId));
+      final existing =
+          ref.watch(statementsStreamProvider(cardId)).value ?? const [];
+      await ref
+          .watch(statementRepositoryProvider(cardId))
+          .materializeIfDue(card, cardTransactions, existing);
+    });
 
 /// Sum of principal paid so far across every *open* EMI linked to [cardId]
 /// — the amount a bank would restore to available credit as a converted
@@ -267,38 +303,54 @@ final materializeStatementProvider = FutureProvider.autoDispose.family<void, Str
 /// here — otherwise a partially-paid-then-closed EMI's old repayments would
 /// keep adding back into `available` on top of already being fully excluded
 /// from `linkedEmiPrincipal`, overstating available credit.
-final principalRestoredForCardProvider = Provider.autoDispose.family<double, String>((ref, cardId) {
-  final emis = ref.watch(emisStreamProvider).value ?? const [];
-  final linked = emis.where((e) => e.linkedCreditCardId == cardId && !e.isClosed);
+final principalRestoredForCardProvider = Provider.autoDispose
+    .family<double, String>((ref, cardId) {
+      final emis = ref.watch(emisStreamProvider).value ?? const [];
+      final linked = emis.where(
+        (e) => e.linkedCreditCardId == cardId && !e.isClosed,
+      );
 
-  var restored = 0.0;
-  for (final emi in linked) {
-    final installments = ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [];
-    final breakdowns = ref.watch(emiPaymentBreakdownsStreamProvider(emi.id)).value ?? const [];
-    final breakdownByPaymentId = {for (final b in breakdowns) b.paymentId: b};
+      var restored = 0.0;
+      for (final emi in linked) {
+        final installments =
+            ref.watch(installmentsStreamProvider(emi.scheduleId)).value ??
+            const [];
+        final breakdowns =
+            ref.watch(emiPaymentBreakdownsStreamProvider(emi.id)).value ??
+            const [];
+        final breakdownByPaymentId = {
+          for (final b in breakdowns) b.paymentId: b,
+        };
 
-    for (final installment in installments) {
-      final payments = ref
-              .watch(installmentPaymentsStreamProvider((scheduleId: emi.scheduleId, installmentId: installment.id)))
-              .value ??
-          const [];
-      for (final payment in payments) {
-        final breakdown = breakdownByPaymentId[payment.id];
-        if (breakdown != null) {
-          restored += breakdown.principalPaid;
-          continue;
-        }
-        final principalPortion = installment.principalPortion;
-        if (principalPortion == null || installment.amountDue == 0) {
-          restored += payment.amount;
-        } else {
-          restored += payment.amount * (principalPortion / installment.amountDue);
+        for (final installment in installments) {
+          final payments =
+              ref
+                  .watch(
+                    installmentPaymentsStreamProvider((
+                      scheduleId: emi.scheduleId,
+                      installmentId: installment.id,
+                    )),
+                  )
+                  .value ??
+              const [];
+          for (final payment in payments) {
+            final breakdown = breakdownByPaymentId[payment.id];
+            if (breakdown != null) {
+              restored += breakdown.principalPaid;
+              continue;
+            }
+            final principalPortion = installment.principalPortion;
+            if (principalPortion == null || installment.amountDue == 0) {
+              restored += payment.amount;
+            } else {
+              restored +=
+                  payment.amount * (principalPortion / installment.amountDue);
+            }
+          }
         }
       }
-    }
-  }
-  return restored;
-});
+      return restored;
+    });
 
 /// Sum of `principalAmount` across every *open* EMI linked to [cardId] — a
 /// purchase converted to EMI ties up that much of the card's limit the
@@ -315,11 +367,14 @@ final principalRestoredForCardProvider = Provider.autoDispose.family<double, Str
 /// principal is still reserved, the same way paying it down does — a
 /// closed EMI no longer ties up card limit regardless of how much
 /// principal was actually repaid.
-final linkedEmiPrincipalForCardProvider = Provider.autoDispose.family<double, String>((ref, cardId) {
-  final emis = ref.watch(emisStreamProvider).value ?? const [];
-  final linked = emis.where((e) => e.linkedCreditCardId == cardId && !e.isClosed);
-  return linked.fold(0.0, (sum, emi) => sum + emi.principalAmount);
-});
+final linkedEmiPrincipalForCardProvider = Provider.autoDispose
+    .family<double, String>((ref, cardId) {
+      final emis = ref.watch(emisStreamProvider).value ?? const [];
+      final linked = emis.where(
+        (e) => e.linkedCreditCardId == cardId && !e.isClosed,
+      );
+      return linked.fold(0.0, (sum, emi) => sum + emi.principalAmount);
+    });
 
 /// A card's computed running figures — [outstanding] is every unpaid
 /// statement's remaining amount plus the current cycle's spend-to-date;
@@ -328,16 +383,26 @@ final linkedEmiPrincipalForCardProvider = Provider.autoDispose.family<double, St
 /// (tied up until repaid), plus whatever of that principal has already been
 /// repaid. Mirrors [Person.isCreditor]/[isDebtor] being derived rather than
 /// persisted.
-typedef CreditCardStanding = ({double outstanding, double available, double currentCycleSpend});
+typedef CreditCardStanding = ({
+  double outstanding,
+  double available,
+  double currentCycleSpend,
+});
 
 /// This one card's own (unpaidStatements, currentCycleSpend) — the pieces
 /// [creditCardStandingProvider] and [sharedCreditLimitStandingProvider] both
 /// need, factored out so a shared-limit card's siblings can be summed
 /// without duplicating the "already materialized" same-cycle-day guard
 /// below.
-({double outstanding, double currentCycleSpend}) _cardOwnStanding(Ref ref, String cardId) {
+({double outstanding, double currentCycleSpend}) _cardOwnStanding(
+  Ref ref,
+  String cardId,
+) {
   final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
-  final unpaidStatements = statements.fold(0.0, (sum, s) => sum + s.remainingAmount);
+  final unpaidStatements = statements.fold(
+    0.0,
+    (sum, s) => sum + s.remainingAmount,
+  );
   final current = ref.watch(currentStatementCycleProvider(cardId));
   // On the exact day a cycle closes, `currentCycleFor` (which backs
   // [current]) hasn't rolled forward to the next cycle yet — it still
@@ -347,12 +412,20 @@ typedef CreditCardStanding = ({double outstanding, double available, double curr
   // that same day as closed). Excluding `current` once a matching
   // Statement exists avoids double-counting that one cycle's spend in
   // both `unpaidStatements` and `currentCycleSpend` for that single day.
-  final alreadyMaterialized = current != null &&
+  final alreadyMaterialized =
+      current != null &&
       statements.any(
-        (s) => s.periodStart.isAtSameMomentAs(current.periodStart) && s.periodEnd.isAtSameMomentAs(current.periodEnd),
+        (s) =>
+            s.periodStart.isAtSameMomentAs(current.periodStart) &&
+            s.periodEnd.isAtSameMomentAs(current.periodEnd),
       );
-  final currentCycleSpend = alreadyMaterialized ? 0.0 : (current?.totalAmount ?? 0);
-  return (outstanding: unpaidStatements + currentCycleSpend, currentCycleSpend: currentCycleSpend);
+  final currentCycleSpend = alreadyMaterialized
+      ? 0.0
+      : (current?.totalAmount ?? 0);
+  return (
+    outstanding: unpaidStatements + currentCycleSpend,
+    currentCycleSpend: currentCycleSpend,
+  );
 }
 
 /// The shared `available` formula both standing providers below apply to
@@ -367,7 +440,8 @@ double _availableFor({
   required double linkedEmiPrincipal,
   required double principalRestored,
 }) {
-  return (creditLimit - outstanding - linkedEmiPrincipal + principalRestored).clamp(0, creditLimit);
+  return (creditLimit - outstanding - linkedEmiPrincipal + principalRestored)
+      .clamp(0, creditLimit);
 }
 
 /// The pooled standing across every card drawing from [sharedLimitId] —
@@ -375,81 +449,99 @@ double _availableFor({
 /// facility's single [SharedCreditLimit.creditLimit], so a purchase on any
 /// member card (e.g. the Visa variant) immediately reduces the availability
 /// every sibling (e.g. the RuPay variant) also sees.
-final sharedCreditLimitStandingProvider = Provider.autoDispose.family<CreditCardStanding, String>((
-  ref,
-  sharedLimitId,
-) {
-  final sharedLimits = ref.watch(sharedCreditLimitsStreamProvider).value ?? const [];
-  final sharedLimit = sharedLimits.where((g) => g.id == sharedLimitId).firstOrNull;
-  if (sharedLimit == null) return (outstanding: 0, available: 0, currentCycleSpend: 0);
+final sharedCreditLimitStandingProvider = Provider.autoDispose
+    .family<CreditCardStanding, String>((ref, sharedLimitId) {
+      final sharedLimits =
+          ref.watch(sharedCreditLimitsStreamProvider).value ?? const [];
+      final sharedLimit = sharedLimits
+          .where((g) => g.id == sharedLimitId)
+          .firstOrNull;
+      if (sharedLimit == null)
+        return (outstanding: 0, available: 0, currentCycleSpend: 0);
 
-  final memberCards = ref.watch(cardsUnderSharedLimitProvider(sharedLimitId));
-  var totalOutstanding = 0.0;
-  var totalCurrentCycleSpend = 0.0;
-  var totalLinkedEmiPrincipal = 0.0;
-  var totalPrincipalRestored = 0.0;
-  for (final card in memberCards) {
-    final own = _cardOwnStanding(ref, card.id);
-    totalOutstanding += own.outstanding;
-    totalCurrentCycleSpend += own.currentCycleSpend;
-    totalLinkedEmiPrincipal += ref.watch(linkedEmiPrincipalForCardProvider(card.id));
-    totalPrincipalRestored += ref.watch(principalRestoredForCardProvider(card.id));
-  }
+      final memberCards = ref.watch(
+        cardsUnderSharedLimitProvider(sharedLimitId),
+      );
+      var totalOutstanding = 0.0;
+      var totalCurrentCycleSpend = 0.0;
+      var totalLinkedEmiPrincipal = 0.0;
+      var totalPrincipalRestored = 0.0;
+      for (final card in memberCards) {
+        final own = _cardOwnStanding(ref, card.id);
+        totalOutstanding += own.outstanding;
+        totalCurrentCycleSpend += own.currentCycleSpend;
+        totalLinkedEmiPrincipal += ref.watch(
+          linkedEmiPrincipalForCardProvider(card.id),
+        );
+        totalPrincipalRestored += ref.watch(
+          principalRestoredForCardProvider(card.id),
+        );
+      }
 
-  return (
-    outstanding: totalOutstanding,
-    available: _availableFor(
-      creditLimit: sharedLimit.creditLimit,
-      outstanding: totalOutstanding,
-      linkedEmiPrincipal: totalLinkedEmiPrincipal,
-      principalRestored: totalPrincipalRestored,
-    ),
-    currentCycleSpend: totalCurrentCycleSpend,
-  );
-});
+      return (
+        outstanding: totalOutstanding,
+        available: _availableFor(
+          creditLimit: sharedLimit.creditLimit,
+          outstanding: totalOutstanding,
+          linkedEmiPrincipal: totalLinkedEmiPrincipal,
+          principalRestored: totalPrincipalRestored,
+        ),
+        currentCycleSpend: totalCurrentCycleSpend,
+      );
+    });
 
 /// A single card's standing — delegates to [sharedCreditLimitStandingProvider]
 /// when the card draws from a shared credit limit (every sibling then
 /// reports the identical facility-wide figures), otherwise computes today's
 /// standalone standing off this card's own [CreditCardProfile.creditLimit].
-final creditCardStandingProvider = Provider.autoDispose.family<CreditCardStanding, String>((ref, cardId) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  final card = cards.where((c) => c.id == cardId).firstOrNull;
-  if (card == null) return (outstanding: 0, available: 0, currentCycleSpend: 0);
+final creditCardStandingProvider = Provider.autoDispose
+    .family<CreditCardStanding, String>((ref, cardId) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card == null)
+        return (outstanding: 0, available: 0, currentCycleSpend: 0);
 
-  if (card.sharedLimitId != null) {
-    return ref.watch(sharedCreditLimitStandingProvider(card.sharedLimitId!));
-  }
+      if (card.sharedLimitId != null) {
+        return ref.watch(
+          sharedCreditLimitStandingProvider(card.sharedLimitId!),
+        );
+      }
 
-  final own = _cardOwnStanding(ref, cardId);
-  final linkedEmiPrincipal = ref.watch(linkedEmiPrincipalForCardProvider(cardId));
-  final principalRestored = ref.watch(principalRestoredForCardProvider(cardId));
+      final own = _cardOwnStanding(ref, cardId);
+      final linkedEmiPrincipal = ref.watch(
+        linkedEmiPrincipalForCardProvider(cardId),
+      );
+      final principalRestored = ref.watch(
+        principalRestoredForCardProvider(cardId),
+      );
 
-  return (
-    outstanding: own.outstanding,
-    available: _availableFor(
-      creditLimit: card.creditLimit,
-      outstanding: own.outstanding,
-      linkedEmiPrincipal: linkedEmiPrincipal,
-      principalRestored: principalRestored,
-    ),
-    currentCycleSpend: own.currentCycleSpend,
-  );
-});
+      return (
+        outstanding: own.outstanding,
+        available: _availableFor(
+          creditLimit: card.creditLimit,
+          outstanding: own.outstanding,
+          linkedEmiPrincipal: linkedEmiPrincipal,
+          principalRestored: principalRestored,
+        ),
+        currentCycleSpend: own.currentCycleSpend,
+      );
+    });
 
 /// The soonest not-fully-paid statement's due date for [cardId] alone —
 /// factored out so per-card UI (the card list tile, the quick-detail sheet)
 /// can show "this card's next due date" without re-deriving the same fold
 /// themselves.
-final nextStatementDueDateForCardProvider = Provider.autoDispose.family<DateTime?, String>((ref, cardId) {
-  final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
-  DateTime? soonest;
-  for (final statement in statements) {
-    if (statement.remainingAmount <= 0) continue;
-    if (soonest == null || statement.dueDate.isBefore(soonest)) soonest = statement.dueDate;
-  }
-  return soonest;
-});
+final nextStatementDueDateForCardProvider = Provider.autoDispose
+    .family<DateTime?, String>((ref, cardId) {
+      final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
+      DateTime? soonest;
+      for (final statement in statements) {
+        if (statement.remainingAmount <= 0) continue;
+        if (soonest == null || statement.dueDate.isBefore(soonest))
+          soonest = statement.dueDate;
+      }
+      return soonest;
+    });
 
 /// The soonest not-fully-paid statement across every card, for the
 /// Dashboard's "Next Due Date"/"Upcoming Due" stats.
@@ -460,7 +552,8 @@ final nextStatementDueProvider = Provider<Statement?>((ref) {
     final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
     for (final statement in statements) {
       if (statement.remainingAmount <= 0) continue;
-      if (soonest == null || statement.dueDate.isBefore(soonest.dueDate)) soonest = statement;
+      if (soonest == null || statement.dueDate.isBefore(soonest.dueDate))
+        soonest = statement;
     }
   }
   return soonest;
@@ -473,7 +566,8 @@ final nextStatementDateProvider = Provider<DateTime?>((ref) {
   DateTime? soonest;
   for (final card in cards) {
     final period = StatementPeriodCalculator.currentCycleFor(card);
-    if (soonest == null || period.periodEnd.isBefore(soonest)) soonest = period.periodEnd;
+    if (soonest == null || period.periodEnd.isBefore(soonest))
+      soonest = period.periodEnd;
   }
   return soonest;
 });
@@ -482,14 +576,19 @@ final nextStatementDateProvider = Provider<DateTime?>((ref) {
 /// standing exactly once no matter how many member cards it has — the
 /// dashboard totals below all reduce to this so a shared Visa/RuPay pair
 /// isn't double-counted.
-double _sumStandingAcrossCards(Ref ref, double Function(CreditCardStanding) selector) {
+double _sumStandingAcrossCards(
+  Ref ref,
+  double Function(CreditCardStanding) selector,
+) {
   final cards = ref.watch(activeCreditCardsProvider);
   final countedSharedLimits = <String>{};
   var sum = 0.0;
   for (final card in cards) {
     if (card.sharedLimitId != null) {
       if (!countedSharedLimits.add(card.sharedLimitId!)) continue;
-      sum += selector(ref.watch(sharedCreditLimitStandingProvider(card.sharedLimitId!)));
+      sum += selector(
+        ref.watch(sharedCreditLimitStandingProvider(card.sharedLimitId!)),
+      );
     } else {
       sum += selector(ref.watch(creditCardStandingProvider(card.id)));
     }
@@ -522,7 +621,8 @@ final totalCurrentCycleSpendProvider = Provider<double>((ref) {
 /// Visa/RuPay pair's limit in the denominator.
 final totalCreditLimitProvider = Provider<double>((ref) {
   final cards = ref.watch(activeCreditCardsProvider);
-  final sharedLimits = ref.watch(sharedCreditLimitsStreamProvider).value ?? const [];
+  final sharedLimits =
+      ref.watch(sharedCreditLimitsStreamProvider).value ?? const [];
   final sharedLimitById = {for (final g in sharedLimits) g.id: g.creditLimit};
   final countedSharedLimits = <String>{};
   var sum = 0.0;
@@ -538,7 +638,10 @@ final totalCreditLimitProvider = Provider<double>((ref) {
 });
 
 /// The [Account] a [CreditCardProfile] extends, if it still exists.
-final accountForCardProvider = Provider.autoDispose.family<Account?, String>((ref, cardId) {
+final accountForCardProvider = Provider.autoDispose.family<Account?, String>((
+  ref,
+  cardId,
+) {
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
   final card = cards.where((c) => c.id == cardId).firstOrNull;
   if (card == null) return null;

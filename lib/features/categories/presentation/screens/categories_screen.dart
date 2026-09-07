@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../data/category_repository.dart';
@@ -23,7 +21,8 @@ class CategoriesScreen extends ConsumerStatefulWidget {
   ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();
 }
 
-class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with SingleTickerProviderStateMixin {
+class _CategoriesScreenState extends ConsumerState<CategoriesScreen>
+    with SingleTickerProviderStateMixin {
   late final _tabController = TabController(length: 2, vsync: this);
 
   @override
@@ -38,12 +37,14 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with Single
     final categoriesAsync = ref.watch(categoriesStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         title: const Text('Categories'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [Tab(text: 'Expense'), Tab(text: 'Income')],
+          tabs: const [
+            Tab(text: 'Expense'),
+            Tab(text: 'Income'),
+          ],
         ),
         actions: [
           IconButton(
@@ -55,42 +56,50 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with Single
           ),
         ],
       ),
-      floatingActionButton: ClayFab(
+      floatingActionButton: FloatingActionButton(
         heroTag: 'categories_fab',
-        icon: Icons.add_rounded,
         onPressed: () => CategoryFormSheet.show(context),
+        child: const Icon(Icons.add_rounded),
       ),
-      body: SafeArea(child: categoriesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (categories) {
-          if (categories.isEmpty) {
-            return EmptyState(
-              icon: Icons.category_outlined,
-              title: 'No categories yet',
-              subtitle: 'Add a category to start organizing your transactions.',
-              action: FilledButton(
-                onPressed: () => CategoryFormSheet.show(context),
-                child: const Text('Add your first category'),
-              ),
-            );
-          }
+      body: SafeArea(
+        child: categoriesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Something went wrong: $error')),
+          data: (categories) {
+            if (categories.isEmpty) {
+              return EmptyState(
+                icon: Icons.category_outlined,
+                title: 'No categories yet',
+                subtitle:
+                    'Add a category to start organizing your transactions.',
+                action: FilledButton(
+                  onPressed: () => CategoryFormSheet.show(context),
+                  child: const Text('Add your first category'),
+                ),
+              );
+            }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _CategoryList(
-                categories: categories.where((c) => c.type.appliesTo(TransactionType.expense)).toList(),
-                repository: repository,
-              ),
-              _CategoryList(
-                categories: categories.where((c) => c.type.appliesTo(TransactionType.income)).toList(),
-                repository: repository,
-              ),
-            ],
-          );
-        },
-      )),
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                _CategoryList(
+                  categories: categories
+                      .where((c) => c.type.appliesTo(TransactionType.expense))
+                      .toList(),
+                  repository: repository,
+                ),
+                _CategoryList(
+                  categories: categories
+                      .where((c) => c.type.appliesTo(TransactionType.income))
+                      .toList(),
+                  repository: repository,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -112,7 +121,12 @@ class _CategoryList extends StatelessWidget {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        AppSizes.lg,
+        AppSizes.lg,
+        AppSizes.fabClearance,
+      ),
       children: [
         for (final category in categories)
           Padding(
@@ -124,10 +138,15 @@ class _CategoryList extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.error.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppSizes.radiusLg),
                 ),
-                child: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.error),
+                child: Icon(
+                  Icons.delete_outline_rounded,
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
               onDismissed: (_) async {
                 await repository.softDelete(category);
@@ -144,7 +163,8 @@ class _CategoryList extends StatelessWidget {
               },
               child: CategoryTile(
                 category: category,
-                onTap: () => CategoryFormSheet.show(context, category: category),
+                onTap: () =>
+                    CategoryFormSheet.show(context, category: category),
               ),
             ),
           ),

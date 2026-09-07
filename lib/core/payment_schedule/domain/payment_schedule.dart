@@ -58,17 +58,17 @@ class PaymentSchedule extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return PaymentSchedule(
-      id: snapshot.id,
-      ownerType: OwnerTypeX.fromName(data['ownerType'] as String),
-      ownerId: data['ownerId'] as String,
-      totalAmount: (data['totalAmount'] as num).toDouble(),
-      scheduleType: ScheduleTypeX.fromName(data['scheduleType'] as String),
-      firstDueDate: (data['firstDueDate'] as Timestamp).toDate(),
-      customIntervalDays: (data['customIntervalDays'] as num?)?.toInt(),
-      installmentCount: (data['installmentCount'] as num?)?.toInt(),
-      notes: data['notes'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        ownerType: OwnerTypeX.fromName(data['ownerType'] as String),
+        ownerId: data['ownerId'] as String,
+        totalAmount: (data['totalAmount'] as num).toDouble(),
+        scheduleType: ScheduleTypeX.fromName(data['scheduleType'] as String),
+        firstDueDate: (data['firstDueDate'] as Timestamp).toDate(),
+        customIntervalDays: (data['customIntervalDays'] as num?)?.toInt(),
+        installmentCount: (data['installmentCount'] as num?)?.toInt(),
+        notes: data['notes'] as String? ?? '',
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -88,7 +88,9 @@ class PaymentSchedule extends SoftDeletableEntity {
       'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

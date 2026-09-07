@@ -45,14 +45,17 @@ class FirestoreCrudRepository<T extends SoftDeletableEntity> {
     await update(entity);
   }
 
-  Future<void> permanentlyDelete(T entity) => collection.doc(entity.id).delete();
+  Future<void> permanentlyDelete(T entity) =>
+      collection.doc(entity.id).delete();
 
   /// Removes trash older than [retention] — backs the "auto-delete after
   /// configurable days" setting. Call periodically (e.g. on app start).
   Future<void> purgeExpiredTrash(Duration retention) async {
     final now = DateTime.now();
     final trashed = await getTrash();
-    final expired = trashed.where((e) => now.difference(e.deletedAt!) > retention);
+    final expired = trashed.where(
+      (e) => now.difference(e.deletedAt!) > retention,
+    );
     for (final entity in expired) {
       await permanentlyDelete(entity);
     }

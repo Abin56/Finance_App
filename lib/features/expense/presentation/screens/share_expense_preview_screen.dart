@@ -28,21 +28,33 @@ import '../widgets/share_expense.dart';
 /// come from the exact same expense/installment fields the old text share
 /// used — this screen only changes presentation, never the numbers.
 class ShareExpensePreviewScreen extends StatefulWidget {
-  const ShareExpensePreviewScreen({super.key, required this.expense, required this.installments});
+  const ShareExpensePreviewScreen({
+    super.key,
+    required this.expense,
+    required this.installments,
+  });
 
   final Expense expense;
   final List<Installment> installments;
 
-  static Future<void> open(BuildContext context, Expense expense, List<Installment> installments) {
+  static Future<void> open(
+    BuildContext context,
+    Expense expense,
+    List<Installment> installments,
+  ) {
     return Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ShareExpensePreviewScreen(expense: expense, installments: installments),
+        builder: (_) => ShareExpensePreviewScreen(
+          expense: expense,
+          installments: installments,
+        ),
       ),
     );
   }
 
   @override
-  State<ShareExpensePreviewScreen> createState() => _ShareExpensePreviewScreenState();
+  State<ShareExpensePreviewScreen> createState() =>
+      _ShareExpensePreviewScreenState();
 }
 
 class _ShareExpensePreviewScreenState extends State<ShareExpensePreviewScreen> {
@@ -50,14 +62,20 @@ class _ShareExpensePreviewScreenState extends State<ShareExpensePreviewScreen> {
   bool _busy = false;
 
   Future<Uint8List> _captureReceiptPng() async {
-    final boundary = _receiptKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final boundary =
+        _receiptKey.currentContext!.findRenderObject()!
+            as RenderRepaintBoundary;
     final image = await boundary.toImage(pixelRatio: 3);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();
     return bytes!.buffer.asUint8List();
   }
 
-  Future<XFile> _writeTempFile(String name, Uint8List bytes, String mimeType) async {
+  Future<XFile> _writeTempFile(
+    String name,
+    Uint8List bytes,
+    String mimeType,
+  ) async {
     final dir = await getTemporaryDirectory();
     final file = XFile.fromData(bytes, mimeType: mimeType);
     final path = '${dir.path}/$name';
@@ -79,7 +97,9 @@ class _ShareExpensePreviewScreenState extends State<ShareExpensePreviewScreen> {
       await action();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not share: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not share: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -87,40 +107,52 @@ class _ShareExpensePreviewScreenState extends State<ShareExpensePreviewScreen> {
   }
 
   Future<void> _shareImage() => _runShare(() async {
-        final png = await _captureReceiptPng();
-        final file = await _writeTempFile('$_fileStem.png', png, 'image/png');
-        await SharePlus.instance.share(
-          ShareParams(files: [file], subject: 'Expense: ${widget.expense.description}'),
-        );
-      });
+    final png = await _captureReceiptPng();
+    final file = await _writeTempFile('$_fileStem.png', png, 'image/png');
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [file],
+        subject: 'Expense: ${widget.expense.description}',
+      ),
+    );
+  });
 
   Future<void> _sharePdf() => _runShare(() async {
-        final png = await _captureReceiptPng();
-        final receipt = pw.MemoryImage(png);
-        final doc = pw.Document(title: 'Expense: ${widget.expense.description}', producer: 'FlowFi');
-        doc.addPage(
-          pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            margin: const pw.EdgeInsets.all(36),
-            build: (_) => pw.Center(
-              child: pw.Image(receipt, fit: pw.BoxFit.contain),
-            ),
-          ),
-        );
-        final file = await _writeTempFile('$_fileStem.pdf', await doc.save(), 'application/pdf');
-        await SharePlus.instance.share(
-          ShareParams(files: [file], subject: 'Expense: ${widget.expense.description}'),
-        );
-      });
+    final png = await _captureReceiptPng();
+    final receipt = pw.MemoryImage(png);
+    final doc = pw.Document(
+      title: 'Expense: ${widget.expense.description}',
+      producer: 'FlowFi',
+    );
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(36),
+        build: (_) =>
+            pw.Center(child: pw.Image(receipt, fit: pw.BoxFit.contain)),
+      ),
+    );
+    final file = await _writeTempFile(
+      '$_fileStem.pdf',
+      await doc.save(),
+      'application/pdf',
+    );
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [file],
+        subject: 'Expense: ${widget.expense.description}',
+      ),
+    );
+  });
 
   Future<void> _shareText() => _runShare(() async {
-        await SharePlus.instance.share(
-          ShareParams(
-            text: ShareExpense.buildText(widget.expense, widget.installments),
-            subject: 'Expense: ${widget.expense.description}',
-          ),
-        );
-      });
+    await SharePlus.instance.share(
+      ShareParams(
+        text: ShareExpense.buildText(widget.expense, widget.installments),
+        subject: 'Expense: ${widget.expense.description}',
+      ),
+    );
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +168,10 @@ class _ShareExpensePreviewScreenState extends State<ShareExpensePreviewScreen> {
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: RepaintBoundary(
                     key: _receiptKey,
-                    child: _ExpenseReceipt(expense: widget.expense, installments: widget.installments),
+                    child: _ExpenseReceipt(
+                      expense: widget.expense,
+                      installments: widget.installments,
+                    ),
                   ),
                 ),
               ),
@@ -177,7 +212,12 @@ class _ShareActionsBar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, AppSizes.md),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            AppSizes.md,
+            AppSizes.lg,
+            AppSizes.md,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -202,7 +242,10 @@ class _ShareActionsBar extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: busy ? null : onSharePdf,
-                      icon: const Icon(Icons.picture_as_pdf_outlined, size: AppSizes.iconSm),
+                      icon: const Icon(
+                        Icons.picture_as_pdf_outlined,
+                        size: AppSizes.iconSm,
+                      ),
                       label: const Text('PDF'),
                     ),
                   ),
@@ -210,7 +253,10 @@ class _ShareActionsBar extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: busy ? null : onShareText,
-                      icon: const Icon(Icons.notes_rounded, size: AppSizes.iconSm),
+                      icon: const Icon(
+                        Icons.notes_rounded,
+                        size: AppSizes.iconSm,
+                      ),
                       label: const Text('Text'),
                     ),
                   ),
@@ -243,7 +289,10 @@ class _ExpenseReceipt extends StatelessWidget {
     final fmt = CurrencyFormatter.instance;
     final installmentById = {for (final i in installments) i.id: i};
     final collected = installments.fold(0.0, (sum, i) => sum + i.amountPaid);
-    final remaining = installments.fold(0.0, (sum, i) => sum + i.remainingAmount);
+    final remaining = installments.fold(
+      0.0,
+      (sum, i) => sum + i.remainingAmount,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -262,20 +311,34 @@ class _ExpenseReceipt extends StatelessWidget {
               children: [
                 Text(
                   expense.description,
-                  style: context.textTheme.titleLarge?.copyWith(color: _ink, fontWeight: FontWeight.w700),
+                  style: context.textTheme.titleLarge?.copyWith(
+                    color: _ink,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: AppSizes.xs),
-                Text(expense.date.fullDate, style: context.textTheme.bodySmall?.copyWith(color: _muted)),
+                Text(
+                  expense.date.fullDate,
+                  style: context.textTheme.bodySmall?.copyWith(color: _muted),
+                ),
                 const SizedBox(height: AppSizes.lg),
                 Center(
                   child: Column(
                     children: [
-                      Text('TOTAL BILL',
-                          style: context.textTheme.labelSmall?.copyWith(color: _muted, letterSpacing: 1.4)),
+                      Text(
+                        'TOTAL BILL',
+                        style: context.textTheme.labelSmall?.copyWith(
+                          color: _muted,
+                          letterSpacing: 1.4,
+                        ),
+                      ),
                       const SizedBox(height: AppSizes.xs),
                       Text(
                         fmt.format(expense.totalAmount),
-                        style: context.textTheme.headlineMedium?.copyWith(color: _ink, fontWeight: FontWeight.w800),
+                        style: context.textTheme.headlineMedium?.copyWith(
+                          color: _ink,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ),
@@ -284,11 +347,21 @@ class _ExpenseReceipt extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: _summaryTile(context, label: 'Collected', amount: fmt.format(collected), color: AppColors.success),
+                      child: _summaryTile(
+                        context,
+                        label: 'Collected',
+                        amount: fmt.format(collected),
+                        color: AppColors.success,
+                      ),
                     ),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
-                      child: _summaryTile(context, label: 'To Settle', amount: fmt.format(remaining), color: AppColors.pending),
+                      child: _summaryTile(
+                        context,
+                        label: 'To Settle',
+                        amount: fmt.format(remaining),
+                        color: AppColors.pending,
+                      ),
                     ),
                   ],
                 ),
@@ -301,14 +374,26 @@ class _ExpenseReceipt extends StatelessWidget {
                     installment: installmentById[participant.installmentId],
                   ),
                   if (participant != expense.participants.last)
-                    const Divider(height: AppSizes.lg, color: AppColors.lightOutline),
+                    const Divider(
+                      height: AppSizes.lg,
+                      color: AppColors.lightOutline,
+                    ),
                 ],
                 const SizedBox(height: AppSizes.lg),
                 _dashedDivider(),
                 const SizedBox(height: AppSizes.md),
-                _totalRow(context, 'Total Bill', fmt.format(expense.totalAmount)),
+                _totalRow(
+                  context,
+                  'Total Bill',
+                  fmt.format(expense.totalAmount),
+                ),
                 _totalRow(context, 'Collected', fmt.format(collected)),
-                _totalRow(context, 'To Settle', fmt.format(remaining), emphasized: true),
+                _totalRow(
+                  context,
+                  'To Settle',
+                  fmt.format(remaining),
+                  emphasized: true,
+                ),
               ],
             ),
           ),
@@ -320,18 +405,30 @@ class _ExpenseReceipt extends StatelessWidget {
 
   Widget _header(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.lg,
+        vertical: AppSizes.md,
+      ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(colors: AppColors.primaryGradient),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppSizes.radiusLg - 1)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppSizes.radiusLg - 1),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: AppSizes.iconMd),
+          const Icon(
+            Icons.account_balance_wallet_rounded,
+            color: Colors.white,
+            size: AppSizes.iconMd,
+          ),
           const SizedBox(width: AppSizes.sm),
           Text(
             'FlowFi',
-            style: context.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+            style: context.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const Spacer(),
           Text(
@@ -350,17 +447,25 @@ class _ExpenseReceipt extends StatelessWidget {
   Widget _footer(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.lg,
+        vertical: AppSizes.md,
+      ),
       decoration: const BoxDecoration(
         color: AppColors.lightBackground,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(AppSizes.radiusLg - 1)),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(AppSizes.radiusLg - 1),
+        ),
       ),
       child: Column(
         children: [
           Text(
             'Please pay your share to settle this expense.',
             textAlign: TextAlign.center,
-            style: context.textTheme.bodySmall?.copyWith(color: _ink, fontWeight: FontWeight.w600),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: _ink,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: AppSizes.xs),
           Text(
@@ -376,26 +481,44 @@ class _ExpenseReceipt extends StatelessWidget {
   Widget _sectionLabel(BuildContext context, String text) {
     return Text(
       text,
-      style: context.textTheme.labelSmall?.copyWith(color: _muted, letterSpacing: 1.4, fontWeight: FontWeight.w600),
+      style: context.textTheme.labelSmall?.copyWith(
+        color: _muted,
+        letterSpacing: 1.4,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 
-  Widget _summaryTile(BuildContext context, {required String label, required String amount, required Color color}) {
+  Widget _summaryTile(
+    BuildContext context, {
+    required String label,
+    required String amount,
+    required Color color,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSizes.md, horizontal: AppSizes.sm),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSizes.md,
+        horizontal: AppSizes.sm,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       ),
       child: Column(
         children: [
-          Text(label, style: context.textTheme.labelSmall?.copyWith(color: _muted)),
+          Text(
+            label,
+            style: context.textTheme.labelSmall?.copyWith(color: _muted),
+          ),
           const SizedBox(height: AppSizes.xs),
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
               amount,
-              style: context.textTheme.titleMedium?.copyWith(color: color, fontWeight: FontWeight.w700),
+              style: context.textTheme.titleMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -403,15 +526,26 @@ class _ExpenseReceipt extends StatelessWidget {
     );
   }
 
-  Widget _totalRow(BuildContext context, String label, String amount, {bool emphasized = false}) {
+  Widget _totalRow(
+    BuildContext context,
+    String label,
+    String amount, {
+    bool emphasized = false,
+  }) {
     final style = emphasized
-        ? context.textTheme.titleMedium?.copyWith(color: _ink, fontWeight: FontWeight.w700)
+        ? context.textTheme.titleMedium?.copyWith(
+            color: _ink,
+            fontWeight: FontWeight.w700,
+          )
         : context.textTheme.bodyMedium?.copyWith(color: _muted);
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSizes.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(label, style: style), Text(amount, style: style?.copyWith(color: emphasized ? _ink : _ink))],
+        children: [
+          Text(label, style: style),
+          Text(amount, style: style?.copyWith(color: emphasized ? _ink : _ink)),
+        ],
       ),
     );
   }
@@ -425,7 +559,11 @@ class _ExpenseReceipt extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: List.generate(
             count,
-            (_) => const SizedBox(width: dashWidth, height: 1, child: ColoredBox(color: AppColors.lightOutline)),
+            (_) => const SizedBox(
+              width: dashWidth,
+              height: 1,
+              child: ColoredBox(color: AppColors.lightOutline),
+            ),
           ),
         );
       },
@@ -486,14 +624,20 @@ class _ParticipantRow extends StatelessWidget {
               ),
               const SizedBox(height: AppSizes.xs),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.sm,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   color: status.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(AppSizes.radiusPill),
                 ),
                 child: Text(
                   status.label,
-                  style: context.textTheme.labelSmall?.copyWith(color: status.color, fontWeight: FontWeight.w600),
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: status.color,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -505,13 +649,18 @@ class _ParticipantRow extends StatelessWidget {
           children: [
             Text(
               fmt.format(participant.share),
-              style: context.textTheme.bodyMedium?.copyWith(color: _ExpenseReceipt._ink, fontWeight: FontWeight.w700),
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: _ExpenseReceipt._ink,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
               'Paid ${fmt.format(paid)}${remaining > 0 ? ' • Due ${fmt.format(remaining)}' : ''}',
               style: context.textTheme.labelSmall?.copyWith(
-                color: remaining > 0 ? AppColors.pending : _ExpenseReceipt._muted,
+                color: remaining > 0
+                    ? AppColors.pending
+                    : _ExpenseReceipt._muted,
               ),
             ),
           ],

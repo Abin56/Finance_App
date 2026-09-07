@@ -21,9 +21,7 @@ class MerchantCorrectionLog {
       _events.where((e) => e.merchantKey == merchantKey).toList();
 
   List<CorrectionEvent> forField(String merchantKey, LearnedFieldType field) =>
-      forMerchant(
-        merchantKey,
-      ).where((e) => e.field == field).toList();
+      forMerchant(merchantKey).where((e) => e.field == field).toList();
 
   List<CorrectionEvent> since(
     String merchantKey,

@@ -88,19 +88,25 @@ abstract class PersonTimelineBuilder {
             installmentByTransactionRef,
             otherParticipantNamesByTransactionRef,
           ),
-      for (final loanData in loans) ..._fromLoan(loanData, includeDeleted: includeDeleted),
+      for (final loanData in loans)
+        ..._fromLoan(loanData, includeDeleted: includeDeleted),
       for (final transaction in referencedTransactions)
-        if (includeDeleted || !transaction.isDeleted) _fromReferencedTransaction(transaction),
+        if (includeDeleted || !transaction.isDeleted)
+          _fromReferencedTransaction(transaction),
     ]..sort((a, b) => a.date.compareTo(b.date));
     return entries;
   }
 
-  static PersonTimelineEntry _fromReferencedTransaction(Transaction transaction) {
+  static PersonTimelineEntry _fromReferencedTransaction(
+    Transaction transaction,
+  ) {
     return PersonTimelineEntry(
       id: transaction.id,
       date: transaction.dateTime,
       icon: transaction.type.icon,
-      title: transaction.description.isNotEmpty ? transaction.description : transaction.type.label,
+      title: transaction.description.isNotEmpty
+          ? transaction.description
+          : transaction.type.label,
       signedAmount: 0,
       displayAmount: transaction.amount,
       category: PersonTimelineCategory.reference,
@@ -133,7 +139,10 @@ abstract class PersonTimelineBuilder {
     Map<String, Installment> installmentByTransactionRef,
     Map<String, List<String>> otherParticipantNamesByTransactionRef,
   ) {
-    final category = _categoryForLedgerEntry(entry, participantCountByTransactionRef);
+    final category = _categoryForLedgerEntry(
+      entry,
+      participantCountByTransactionRef,
+    );
     final installment = installmentByTransactionRef[entry.transactionRef];
     return PersonTimelineEntry(
       id: entry.id,
@@ -146,14 +155,19 @@ abstract class PersonTimelineBuilder {
       note: entry.note,
       isDeleted: entry.isDeleted,
       color: entry.type.color,
-      totalAmount: category == PersonTimelineCategory.splitExpense || category == PersonTimelineCategory.assignedExpense
+      totalAmount:
+          category == PersonTimelineCategory.splitExpense ||
+              category == PersonTimelineCategory.assignedExpense
           ? installment?.amountDue
           : null,
-      paidAmount: category == PersonTimelineCategory.splitExpense || category == PersonTimelineCategory.assignedExpense
+      paidAmount:
+          category == PersonTimelineCategory.splitExpense ||
+              category == PersonTimelineCategory.assignedExpense
           ? installment?.amountPaid
           : null,
       otherParticipantNames: category == PersonTimelineCategory.splitExpense
-          ? otherParticipantNamesByTransactionRef[entry.transactionRef] ?? const []
+          ? otherParticipantNamesByTransactionRef[entry.transactionRef] ??
+                const []
           : const [],
     );
   }
@@ -166,10 +180,12 @@ abstract class PersonTimelineBuilder {
     PersonTimelineCategory category,
     Installment? installment,
   ) {
-    if (category != PersonTimelineCategory.splitExpense && category != PersonTimelineCategory.assignedExpense) {
+    if (category != PersonTimelineCategory.splitExpense &&
+        category != PersonTimelineCategory.assignedExpense) {
       return null;
     }
-    if (entry.type == LedgerEntryType.receivedBack) return PersonTimelineStatus.completed;
+    if (entry.type == LedgerEntryType.receivedBack)
+      return PersonTimelineStatus.completed;
 
     final installmentStatus = installment?.status;
     if (installmentStatus == null) return null;
@@ -190,16 +206,24 @@ abstract class PersonTimelineBuilder {
     LedgerEntry entry,
     Map<String, int> participantCountByTransactionRef,
   ) {
-    if (entry.type == LedgerEntryType.adjustment) return PersonTimelineCategory.other;
+    if (entry.type == LedgerEntryType.adjustment)
+      return PersonTimelineCategory.other;
     final isExpenseLinked =
-        entry.note.startsWith(_splitSettlementPrefix) || entry.note.startsWith(_splitGivenPrefix);
+        entry.note.startsWith(_splitSettlementPrefix) ||
+        entry.note.startsWith(_splitGivenPrefix);
     if (!isExpenseLinked) return PersonTimelineCategory.lending;
 
-    final participantCount = participantCountByTransactionRef[entry.transactionRef];
-    return participantCount == 1 ? PersonTimelineCategory.assignedExpense : PersonTimelineCategory.splitExpense;
+    final participantCount =
+        participantCountByTransactionRef[entry.transactionRef];
+    return participantCount == 1
+        ? PersonTimelineCategory.assignedExpense
+        : PersonTimelineCategory.splitExpense;
   }
 
-  static List<PersonTimelineEntry> _fromLoan(LoanTimelineData data, {required bool includeDeleted}) {
+  static List<PersonTimelineEntry> _fromLoan(
+    LoanTimelineData data, {
+    required bool includeDeleted,
+  }) {
     final loan = data.loan;
     if (!includeDeleted && loan.isDeleted) return const [];
 
@@ -219,7 +243,9 @@ abstract class PersonTimelineBuilder {
         // `signedAmount` is unchanged either way: the loan's principal must
         // still count once toward running balance/totals, regardless of how
         // this row renders.
-        title: isInstallment && hasName ? loan.name! : (isGiven ? 'Money lent' : 'Money borrowed'),
+        title: isInstallment && hasName
+            ? loan.name!
+            : (isGiven ? 'Money lent' : 'Money borrowed'),
         signedAmount: isGiven ? loan.loanAmount : -loan.loanAmount,
         category: PersonTimelineCategory.lending,
         status: _statusForLoan(loanStatus),
@@ -242,12 +268,17 @@ abstract class PersonTimelineBuilder {
     // informational "here's the bill and its status" rows, mirroring how a
     // [PersonTimelineCategory.reference] entry stays balance-neutral.
     if (isInstallment) {
-      final sortedInstallments = [...data.installments]..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-      final nextUpcomingId =
-          sortedInstallments.where((i) => i.status == InstallmentStatus.upcoming).firstOrNull?.id;
+      final sortedInstallments = [...data.installments]
+        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      final nextUpcomingId = sortedInstallments
+          .where((i) => i.status == InstallmentStatus.upcoming)
+          .firstOrNull
+          ?.id;
       for (final installment in sortedInstallments) {
         if (!includeDeleted && installment.isDeleted) continue;
-        if (installment.status == InstallmentStatus.upcoming && installment.id != nextUpcomingId) continue;
+        if (installment.status == InstallmentStatus.upcoming &&
+            installment.id != nextUpcomingId)
+          continue;
         entries.add(
           PersonTimelineEntry(
             id: 'loan-installment-${loan.id}-${installment.id}',

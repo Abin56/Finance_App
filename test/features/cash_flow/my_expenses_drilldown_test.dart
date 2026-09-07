@@ -47,7 +47,8 @@ void main() {
   }
 
   void setRange(DateTime start, DateTime end) {
-    container.read(cashFlowDateRangeProvider.notifier).state = CashFlowPeriod.custom(DateRange(start, end));
+    container.read(cashFlowDateRangeProvider.notifier).state =
+        CashFlowPeriod.custom(DateRange(start, end));
   }
 
   test('category totals reconcile with the My Expenses total', () async {
@@ -91,11 +92,23 @@ void main() {
     final categories = container.read(myExpensesByCategoryProvider);
     final categorySum = categories.fold(0.0, (sum, c) => sum + c.amount);
 
-    expect(total, 900, reason: '500 food + 300 shopping + 100 my share of dinner');
-    expect(categorySum, total, reason: 'category totals must reconcile with the overall total');
+    expect(
+      total,
+      900,
+      reason: '500 food + 300 shopping + 100 my share of dinner',
+    );
+    expect(
+      categorySum,
+      total,
+      reason: 'category totals must reconcile with the overall total',
+    );
 
     final food = categories.firstWhere((c) => c.categoryId == 'food');
-    expect(food.amount, 600, reason: '500 personal + 100 my share of the shared dinner');
+    expect(
+      food.amount,
+      600,
+      reason: '500 personal + 100 my share of the shared dinner',
+    );
     final shopping = categories.firstWhere((c) => c.categoryId == 'shopping');
     expect(shopping.amount, 300);
   });
@@ -144,61 +157,82 @@ void main() {
 
     setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 10));
 
-    final categoryTotal = container.read(myExpensesByCategoryProvider).firstWhere((c) => c.categoryId == 'food').amount;
+    final categoryTotal = container
+        .read(myExpensesByCategoryProvider)
+        .firstWhere((c) => c.categoryId == 'food')
+        .amount;
     final lines = container.read(myExpensesForCategoryProvider('food'));
     final lineSum = lines.fold(0.0, (sum, l) => sum + l.myShare);
 
-    expect(categoryTotal, 900, reason: '500 + 200 + 100 (my share of dinner) + 100 = 900');
-    expect(lineSum, categoryTotal, reason: 'category history total must match the category total');
+    expect(
+      categoryTotal,
+      900,
+      reason: '500 + 200 + 100 (my share of dinner) + 100 = 900',
+    );
+    expect(
+      lineSum,
+      categoryTotal,
+      reason: 'category history total must match the category total',
+    );
     expect(lines.length, 4);
-    expect(lines.any((l) => l.isSplit && l.myShare == 100), isTrue, reason: 'shared dinner line shows only my ₹100 share');
+    expect(
+      lines.any((l) => l.isSplit && l.myShare == 100),
+      isTrue,
+      reason: 'shared dinner line shows only my ₹100 share',
+    );
   });
 
-  test('a category with no lines in range does not appear in the grouping', () async {
-    final accountId = await createAccount(container);
-    final transactions = container.read(transactionRepositoryProvider);
-    await transactions.createTransaction(
-      type: TransactionType.expense,
-      amount: 500,
-      dateTime: DateTime(2026, 9, 3),
-      accountId: accountId,
-      categoryId: 'food',
-    );
-    await container.read(transactionsStreamProvider.future);
+  test(
+    'a category with no lines in range does not appear in the grouping',
+    () async {
+      final accountId = await createAccount(container);
+      final transactions = container.read(transactionRepositoryProvider);
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 9, 3),
+        accountId: accountId,
+        categoryId: 'food',
+      );
+      await container.read(transactionsStreamProvider.future);
 
-    setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 10));
+      setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 10));
 
-    final categories = container.read(myExpensesByCategoryProvider);
-    expect(categories.any((c) => c.categoryId == 'travel'), isFalse);
-  });
+      final categories = container.read(myExpensesByCategoryProvider);
+      expect(categories.any((c) => c.categoryId == 'travel'), isFalse);
+    },
+  );
 
-  test('changing the selected range updates category totals and history', () async {
-    final accountId = await createAccount(container);
-    final transactions = container.read(transactionRepositoryProvider);
-    await transactions.createTransaction(
-      type: TransactionType.expense,
-      amount: 500,
-      dateTime: DateTime(2026, 9, 3),
-      accountId: accountId,
-      categoryId: 'food',
-    );
-    await transactions.createTransaction(
-      type: TransactionType.expense,
-      amount: 250,
-      dateTime: DateTime(2026, 9, 15),
-      accountId: accountId,
-      categoryId: 'food',
-    );
-    await container.read(transactionsStreamProvider.future);
+  test(
+    'changing the selected range updates category totals and history',
+    () async {
+      final accountId = await createAccount(container);
+      final transactions = container.read(transactionRepositoryProvider);
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 500,
+        dateTime: DateTime(2026, 9, 3),
+        accountId: accountId,
+        categoryId: 'food',
+      );
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 250,
+        dateTime: DateTime(2026, 9, 15),
+        accountId: accountId,
+        categoryId: 'food',
+      );
+      await container.read(transactionsStreamProvider.future);
 
-    setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 10));
-    expect(container.read(myExpensesForCategoryProvider('food')).length, 1);
-    expect(container.read(myExpensesByCategoryProvider).first.amount, 500);
+      setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 10));
+      expect(container.read(myExpensesForCategoryProvider('food')).length, 1);
+      expect(container.read(myExpensesByCategoryProvider).first.amount, 500);
 
-    setRange(DateTime(2026, 9, 11), DateTime(2026, 9, 20));
-    expect(container.read(myExpensesForCategoryProvider('food')).length, 1);
-    expect(container.read(myExpensesByCategoryProvider).first.amount, 250);
-  });
+      setRange(DateTime(2026, 9, 11), DateTime(2026, 9, 20));
+      expect(container.read(myExpensesForCategoryProvider('food')).length, 1);
+      expect(container.read(myExpensesByCategoryProvider).first.amount, 250);
+    },
+  );
 
   test('categories are sorted highest amount first', () async {
     final accountId = await createAccount(container);

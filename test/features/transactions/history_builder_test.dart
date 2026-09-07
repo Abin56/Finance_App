@@ -82,7 +82,11 @@ void main() {
     });
 
     test('a plain income transaction is a credit', () {
-      final txn = _transaction(id: 't1', type: TransactionType.income, amount: 500);
+      final txn = _transaction(
+        id: 't1',
+        type: TransactionType.income,
+        amount: 500,
+      );
 
       final result = HistoryBuilder.build(
         transactions: [txn],
@@ -96,23 +100,26 @@ void main() {
       expect(result.single.amount, 500);
     });
 
-    test('a transaction with a receiptPurpose is categorized as moneyReceived', () {
-      final txn = _transaction(
-        id: 't1',
-        type: TransactionType.income,
-        receiptPurpose: 'friendReturnedMoney',
-      );
+    test(
+      'a transaction with a receiptPurpose is categorized as moneyReceived',
+      () {
+        final txn = _transaction(
+          id: 't1',
+          type: TransactionType.income,
+          receiptPurpose: 'friendReturnedMoney',
+        );
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: const [],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: const [],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+        );
 
-      expect(result.single.category, HistoryCategory.moneyReceived);
-    });
+        expect(result.single.category, HistoryCategory.moneyReceived);
+      },
+    );
 
     test('excludes soft-deleted transactions by default', () {
       final txn = _transaction(id: 't1')..markDeleted();
@@ -130,189 +137,264 @@ void main() {
   });
 
   group('HistoryBuilder.build — split expenses', () {
-    test('a transaction linked to a split Expense is categorized as splitExpense, not transaction', () {
-      final txn = _transaction(id: 't1', amount: 800);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'You', share: 400),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-      );
-
-      expect(result.single.category, HistoryCategory.splitExpense);
-    });
-
-    test('splitExpenseDetail carries participant count and money-to-collect amount', () {
-      final txn = _transaction(id: 't1', amount: 800);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-      final installments = [
-        _installment(id: 'inst1', scheduleId: 'sched1', amountDue: 400, amountPaid: 0),
-        _installment(id: 'inst2', scheduleId: 'sched1', amountDue: 400, amountPaid: 0),
-      ];
-
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        installmentsByScheduleId: {'sched1': installments},
-      );
-
-      final detail = result.single.splitExpenseDetail!;
-      expect(detail.participantCount, 2);
-      expect(detail.amountToCollect, 800);
-      expect(detail.status, SplitExpenseHistoryStatus.pending);
-    });
-
-    test('splitExpenseDetail status is partial when some but not all is collected', () {
-      final txn = _transaction(id: 't1', amount: 800);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-      final installments = [
-        _installment(id: 'inst1', scheduleId: 'sched1', amountDue: 400, amountPaid: 400),
-        _installment(id: 'inst2', scheduleId: 'sched1', amountDue: 400, amountPaid: 0),
-      ];
-
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        installmentsByScheduleId: {'sched1': installments},
-      );
-
-      final detail = result.single.splitExpenseDetail!;
-      expect(detail.amountToCollect, 400);
-      expect(detail.status, SplitExpenseHistoryStatus.partial);
-    });
-
-    test('splitExpenseDetail status is overdue when an unpaid installment is past its due date', () {
-      final txn = _transaction(id: 't1', amount: 800);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-      final installments = [
-        _installment(
-          id: 'inst1',
+    test(
+      'a transaction linked to a split Expense is categorized as splitExpense, not transaction',
+      () {
+        final txn = _transaction(id: 't1', amount: 800);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 400,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(name: 'You', share: 400),
+          ],
           scheduleId: 'sched1',
-          amountDue: 400,
-          amountPaid: 0,
-          dueDate: DateTime.now().subtract(const Duration(days: 5)),
-        ),
-        _installment(id: 'inst2', scheduleId: 'sched1', amountDue: 400, amountPaid: 0),
-      ];
+          createdAt: DateTime(2026, 1, 1),
+        );
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        installmentsByScheduleId: {'sched1': installments},
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+        );
 
-      final detail = result.single.splitExpenseDetail!;
-      expect(detail.status, SplitExpenseHistoryStatus.overdue);
-    });
+        expect(result.single.category, HistoryCategory.splitExpense);
+      },
+    );
 
-    test('splitExpenseDetail status is completed once everything is collected', () {
-      final txn = _transaction(id: 't1', amount: 800);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-      final installments = [
-        _installment(id: 'inst1', scheduleId: 'sched1', amountDue: 400, amountPaid: 400),
-        _installment(id: 'inst2', scheduleId: 'sched1', amountDue: 400, amountPaid: 400),
-      ];
+    test(
+      'splitExpenseDetail carries participant count and money-to-collect amount',
+      () {
+        final txn = _transaction(id: 't1', amount: 800);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 400,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
+          ],
+          scheduleId: 'sched1',
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final installments = [
+          _installment(
+            id: 'inst1',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 0,
+          ),
+          _installment(
+            id: 'inst2',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 0,
+          ),
+        ];
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        installmentsByScheduleId: {'sched1': installments},
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          installmentsByScheduleId: {'sched1': installments},
+        );
 
-      final detail = result.single.splitExpenseDetail!;
-      expect(detail.amountToCollect, 0);
-      expect(detail.status, SplitExpenseHistoryStatus.completed);
-    });
+        final detail = result.single.splitExpenseDetail!;
+        expect(detail.participantCount, 2);
+        expect(detail.amountToCollect, 800);
+        expect(detail.status, SplitExpenseHistoryStatus.pending);
+      },
+    );
+
+    test(
+      'splitExpenseDetail status is partial when some but not all is collected',
+      () {
+        final txn = _transaction(id: 't1', amount: 800);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 400,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
+          ],
+          scheduleId: 'sched1',
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final installments = [
+          _installment(
+            id: 'inst1',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 400,
+          ),
+          _installment(
+            id: 'inst2',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 0,
+          ),
+        ];
+
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          installmentsByScheduleId: {'sched1': installments},
+        );
+
+        final detail = result.single.splitExpenseDetail!;
+        expect(detail.amountToCollect, 400);
+        expect(detail.status, SplitExpenseHistoryStatus.partial);
+      },
+    );
+
+    test(
+      'splitExpenseDetail status is overdue when an unpaid installment is past its due date',
+      () {
+        final txn = _transaction(id: 't1', amount: 800);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 400,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
+          ],
+          scheduleId: 'sched1',
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final installments = [
+          _installment(
+            id: 'inst1',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 0,
+            dueDate: DateTime.now().subtract(const Duration(days: 5)),
+          ),
+          _installment(
+            id: 'inst2',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 0,
+          ),
+        ];
+
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          installmentsByScheduleId: {'sched1': installments},
+        );
+
+        final detail = result.single.splitExpenseDetail!;
+        expect(detail.status, SplitExpenseHistoryStatus.overdue);
+      },
+    );
+
+    test(
+      'splitExpenseDetail status is completed once everything is collected',
+      () {
+        final txn = _transaction(id: 't1', amount: 800);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 400,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(name: 'You', share: 400, installmentId: 'inst2'),
+          ],
+          scheduleId: 'sched1',
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final installments = [
+          _installment(
+            id: 'inst1',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 400,
+          ),
+          _installment(
+            id: 'inst2',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 400,
+          ),
+        ];
+
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          installmentsByScheduleId: {'sched1': installments},
+        );
+
+        final detail = result.single.splitExpenseDetail!;
+        expect(detail.amountToCollect, 0);
+        expect(detail.status, SplitExpenseHistoryStatus.completed);
+      },
+    );
 
     test('a plain transaction has no splitExpenseDetail', () {
       final txn = _transaction(id: 't1');
@@ -328,105 +410,152 @@ void main() {
       expect(result.single.splitExpenseDetail, isNull);
     });
 
-    test('splitExpenseDetail.myShare reflects the "Me" participant\'s own share', () {
-      final txn = _transaction(id: 't1', amount: 900);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 900,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Me', share: 300, isMe: true),
-          ExpenseParticipant(name: 'Rahul', share: 300, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'John', share: 300, installmentId: 'inst2'),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-      final installments = [
-        _installment(id: 'inst1', scheduleId: 'sched1', amountDue: 300, amountPaid: 300),
-        _installment(id: 'inst2', scheduleId: 'sched1', amountDue: 300, amountPaid: 0),
-      ];
+    test(
+      'splitExpenseDetail.myShare reflects the "Me" participant\'s own share',
+      () {
+        final txn = _transaction(id: 't1', amount: 900);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 900,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(name: 'Me', share: 300, isMe: true),
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 300,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(
+              name: 'John',
+              share: 300,
+              installmentId: 'inst2',
+            ),
+          ],
+          scheduleId: 'sched1',
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final installments = [
+          _installment(
+            id: 'inst1',
+            scheduleId: 'sched1',
+            amountDue: 300,
+            amountPaid: 300,
+          ),
+          _installment(
+            id: 'inst2',
+            scheduleId: 'sched1',
+            amountDue: 300,
+            amountPaid: 0,
+          ),
+        ];
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        installmentsByScheduleId: {'sched1': installments},
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          installmentsByScheduleId: {'sched1': installments},
+        );
 
-      final detail = result.single.splitExpenseDetail!;
-      expect(detail.myShare, 300);
-      expect(detail.collected, 300);
-      expect(detail.amountToCollect, 300);
-    });
+        final detail = result.single.splitExpenseDetail!;
+        expect(detail.myShare, 300);
+        expect(detail.collected, 300);
+        expect(detail.amountToCollect, 300);
+      },
+    );
 
-    test('splitExpenseDetail.myShare is 0 for a legacy split expense with no "Me" participant', () {
-      final txn = _transaction(id: 't1', amount: 800);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'John', share: 400, installmentId: 'inst2'),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-      final installments = [
-        _installment(id: 'inst1', scheduleId: 'sched1', amountDue: 400, amountPaid: 0),
-        _installment(id: 'inst2', scheduleId: 'sched1', amountDue: 400, amountPaid: 0),
-      ];
+    test(
+      'splitExpenseDetail.myShare is 0 for a legacy split expense with no "Me" participant',
+      () {
+        final txn = _transaction(id: 't1', amount: 800);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 400,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(
+              name: 'John',
+              share: 400,
+              installmentId: 'inst2',
+            ),
+          ],
+          scheduleId: 'sched1',
+          createdAt: DateTime(2026, 1, 1),
+        );
+        final installments = [
+          _installment(
+            id: 'inst1',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 0,
+          ),
+          _installment(
+            id: 'inst2',
+            scheduleId: 'sched1',
+            amountDue: 400,
+            amountPaid: 0,
+          ),
+        ];
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        installmentsByScheduleId: {'sched1': installments},
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          installmentsByScheduleId: {'sched1': installments},
+        );
 
-      expect(result.single.splitExpenseDetail!.myShare, 0);
-    });
+        expect(result.single.splitExpenseDetail!.myShare, 0);
+      },
+    );
 
-    test('an unsplit Expense (splitType.none) does not recategorize its transaction', () {
-      final txn = _transaction(id: 't1', amount: 300);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Groceries',
-        totalAmount: 300,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.none,
-        participants: const [],
-        createdAt: DateTime(2026, 1, 1),
-      );
+    test(
+      'an unsplit Expense (splitType.none) does not recategorize its transaction',
+      () {
+        final txn = _transaction(id: 't1', amount: 300);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Groceries',
+          totalAmount: 300,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.none,
+          participants: const [],
+          createdAt: DateTime(2026, 1, 1),
+        );
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+        );
 
-      expect(result.single.category, HistoryCategory.transaction);
-    });
+        expect(result.single.category, HistoryCategory.transaction);
+      },
+    );
   });
 
   group('HistoryBuilder.build — loan/bill/EMI payments', () {
@@ -455,7 +584,9 @@ void main() {
       final result = HistoryBuilder.build(
         transactions: const [],
         expenses: const [],
-        loans: [LoanHistoryData(loan: loan, payments: [payment])],
+        loans: [
+          LoanHistoryData(loan: loan, payments: [payment]),
+        ],
         bills: const [],
         emis: const [],
       );
@@ -486,7 +617,9 @@ void main() {
         transactions: const [],
         expenses: const [],
         loans: const [],
-        bills: [BillHistoryData(bill: bill, payments: [payment])],
+        bills: [
+          BillHistoryData(bill: bill, payments: [payment]),
+        ],
         emis: const [],
       );
 
@@ -522,7 +655,9 @@ void main() {
         expenses: const [],
         loans: const [],
         bills: const [],
-        emis: [EmiHistoryData(emi: emi, payments: [payment])],
+        emis: [
+          EmiHistoryData(emi: emi, payments: [payment]),
+        ],
       );
 
       expect(result.single.category, HistoryCategory.emi);
@@ -551,7 +686,11 @@ void main() {
         bills: const [],
         emis: const [],
         creditCards: [
-          CreditCardHistoryData(cardName: 'HDFC Card', statements: [statement], paymentsByStatementId: const {}),
+          CreditCardHistoryData(
+            cardName: 'HDFC Card',
+            statements: [statement],
+            paymentsByStatementId: const {},
+          ),
         ],
       );
 
@@ -560,49 +699,62 @@ void main() {
       expect(result.single.date, DateTime(2026, 7, 17));
     });
 
-    test('a StatementPayment produces a statementPaid entry alongside the generated one', () {
-      final statement = Statement(
-        id: 's1',
-        cardId: 'card1',
-        periodStart: DateTime(2026, 6, 18),
-        periodEnd: DateTime(2026, 7, 17),
-        generatedDate: DateTime(2026, 7, 17),
-        dueDate: DateTime(2026, 8, 5),
-        totalAmount: 2400,
-        amountPaid: 2400,
-        createdAt: DateTime(2026, 7, 17),
-      );
-      final payment = StatementPayment(
-        id: 'p1',
-        statementId: 's1',
-        amount: 2400,
-        date: DateTime(2026, 7, 25),
-        sourceAccountId: 'acc-bank',
-        transactionId: 'txn-payment',
-        createdAt: DateTime(2026, 7, 25),
-      );
+    test(
+      'a StatementPayment produces a statementPaid entry alongside the generated one',
+      () {
+        final statement = Statement(
+          id: 's1',
+          cardId: 'card1',
+          periodStart: DateTime(2026, 6, 18),
+          periodEnd: DateTime(2026, 7, 17),
+          generatedDate: DateTime(2026, 7, 17),
+          dueDate: DateTime(2026, 8, 5),
+          totalAmount: 2400,
+          amountPaid: 2400,
+          createdAt: DateTime(2026, 7, 17),
+        );
+        final payment = StatementPayment(
+          id: 'p1',
+          statementId: 's1',
+          amount: 2400,
+          date: DateTime(2026, 7, 25),
+          sourceAccountId: 'acc-bank',
+          transactionId: 'txn-payment',
+          createdAt: DateTime(2026, 7, 25),
+        );
 
-      final result = HistoryBuilder.build(
-        transactions: const [],
-        expenses: const [],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        creditCards: [
-          CreditCardHistoryData(
-            cardName: 'HDFC Card',
-            statements: [statement],
-            paymentsByStatementId: {'s1': [payment]},
-          ),
-        ],
-      );
+        final result = HistoryBuilder.build(
+          transactions: const [],
+          expenses: const [],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          creditCards: [
+            CreditCardHistoryData(
+              cardName: 'HDFC Card',
+              statements: [statement],
+              paymentsByStatementId: {
+                's1': [payment],
+              },
+            ),
+          ],
+        );
 
-      expect(result, hasLength(2));
-      expect(result.map((e) => e.category), containsAll([HistoryCategory.statementGenerated, HistoryCategory.statementPaid]));
-      final paidEntry = result.firstWhere((e) => e.category == HistoryCategory.statementPaid);
-      expect(paidEntry.amount, 2400);
-      expect(paidEntry.date, DateTime(2026, 7, 25));
-    });
+        expect(result, hasLength(2));
+        expect(
+          result.map((e) => e.category),
+          containsAll([
+            HistoryCategory.statementGenerated,
+            HistoryCategory.statementPaid,
+          ]),
+        );
+        final paidEntry = result.firstWhere(
+          (e) => e.category == HistoryCategory.statementPaid,
+        );
+        expect(paidEntry.amount, 2400);
+        expect(paidEntry.date, DateTime(2026, 7, 25));
+      },
+    );
   });
 
   group('HistoryBuilder.build — TransactionKind classification', () {
@@ -634,49 +786,64 @@ void main() {
       expect(result.single.kind, TransactionKind.myIncome);
     });
 
-    test('a money-received transaction (receiptPurpose set) classifies as myIncome', () {
-      final txn = _transaction(id: 't1', type: TransactionType.income, receiptPurpose: 'loanRepayment');
+    test(
+      'a money-received transaction (receiptPurpose set) classifies as myIncome',
+      () {
+        final txn = _transaction(
+          id: 't1',
+          type: TransactionType.income,
+          receiptPurpose: 'loanRepayment',
+        );
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: const [],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: const [],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+        );
 
-      expect(result.single.kind, TransactionKind.myIncome);
-    });
+        expect(result.single.kind, TransactionKind.myIncome);
+      },
+    );
 
-    test('a transaction linked to a split Expense classifies as splitExpense, not myExpense', () {
-      final txn = _transaction(id: 't1', amount: 800);
-      final expense = Expense(
-        id: 'exp1',
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: 'cat1',
-        accountId: 'acc1',
-        transactionId: 't1',
-        splitType: SplitType.equal,
-        participants: [
-          ExpenseParticipant(name: 'Rahul', share: 400, personId: 'p1', installmentId: 'inst1'),
-          ExpenseParticipant(name: 'You', share: 400),
-        ],
-        scheduleId: 'sched1',
-        createdAt: DateTime(2026, 1, 1),
-      );
+    test(
+      'a transaction linked to a split Expense classifies as splitExpense, not myExpense',
+      () {
+        final txn = _transaction(id: 't1', amount: 800);
+        final expense = Expense(
+          id: 'exp1',
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: 'cat1',
+          accountId: 'acc1',
+          transactionId: 't1',
+          splitType: SplitType.equal,
+          participants: [
+            ExpenseParticipant(
+              name: 'Rahul',
+              share: 400,
+              personId: 'p1',
+              installmentId: 'inst1',
+            ),
+            ExpenseParticipant(name: 'You', share: 400),
+          ],
+          scheduleId: 'sched1',
+          createdAt: DateTime(2026, 1, 1),
+        );
 
-      final result = HistoryBuilder.build(
-        transactions: [txn],
-        expenses: [expense],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-      );
+        final result = HistoryBuilder.build(
+          transactions: [txn],
+          expenses: [expense],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+        );
 
-      expect(result.single.kind, TransactionKind.splitExpense);
-    });
+        expect(result.single.kind, TransactionKind.splitExpense);
+      },
+    );
 
     test('a loan payment classifies as loan', () {
       final loan = Loan(
@@ -703,7 +870,9 @@ void main() {
       final result = HistoryBuilder.build(
         transactions: const [],
         expenses: const [],
-        loans: [LoanHistoryData(loan: loan, payments: [payment])],
+        loans: [
+          LoanHistoryData(loan: loan, payments: [payment]),
+        ],
         bills: const [],
         emis: const [],
       );
@@ -732,7 +901,9 @@ void main() {
         transactions: const [],
         expenses: const [],
         loans: const [],
-        bills: [BillHistoryData(bill: bill, payments: [payment])],
+        bills: [
+          BillHistoryData(bill: bill, payments: [payment]),
+        ],
         emis: const [],
       );
 
@@ -767,48 +938,62 @@ void main() {
         expenses: const [],
         loans: const [],
         bills: const [],
-        emis: [EmiHistoryData(emi: emi, payments: [payment])],
+        emis: [
+          EmiHistoryData(emi: emi, payments: [payment]),
+        ],
       );
 
       expect(result.single.kind, TransactionKind.emi);
     });
 
-    test('a statement-generated and a statement-paid entry both classify as creditCard', () {
-      final statement = Statement(
-        id: 's1',
-        cardId: 'card1',
-        periodStart: DateTime(2026, 6, 18),
-        periodEnd: DateTime(2026, 7, 17),
-        generatedDate: DateTime(2026, 7, 17),
-        dueDate: DateTime(2026, 8, 5),
-        totalAmount: 5000,
-        amountPaid: 2400,
-        createdAt: DateTime(2026, 7, 17),
-      );
-      final payment = StatementPayment(
-        id: 'sp1',
-        statementId: 's1',
-        amount: 2400,
-        date: DateTime(2026, 7, 25),
-        sourceAccountId: 'acc-bank',
-        transactionId: 'txn-payment',
-        createdAt: DateTime(2026, 7, 25),
-      );
+    test(
+      'a statement-generated and a statement-paid entry both classify as creditCard',
+      () {
+        final statement = Statement(
+          id: 's1',
+          cardId: 'card1',
+          periodStart: DateTime(2026, 6, 18),
+          periodEnd: DateTime(2026, 7, 17),
+          generatedDate: DateTime(2026, 7, 17),
+          dueDate: DateTime(2026, 8, 5),
+          totalAmount: 5000,
+          amountPaid: 2400,
+          createdAt: DateTime(2026, 7, 17),
+        );
+        final payment = StatementPayment(
+          id: 'sp1',
+          statementId: 's1',
+          amount: 2400,
+          date: DateTime(2026, 7, 25),
+          sourceAccountId: 'acc-bank',
+          transactionId: 'txn-payment',
+          createdAt: DateTime(2026, 7, 25),
+        );
 
-      final result = HistoryBuilder.build(
-        transactions: const [],
-        expenses: const [],
-        loans: const [],
-        bills: const [],
-        emis: const [],
-        creditCards: [
-          CreditCardHistoryData(cardName: 'HDFC Card', statements: [statement], paymentsByStatementId: {'s1': [payment]}),
-        ],
-      );
+        final result = HistoryBuilder.build(
+          transactions: const [],
+          expenses: const [],
+          loans: const [],
+          bills: const [],
+          emis: const [],
+          creditCards: [
+            CreditCardHistoryData(
+              cardName: 'HDFC Card',
+              statements: [statement],
+              paymentsByStatementId: {
+                's1': [payment],
+              },
+            ),
+          ],
+        );
 
-      expect(result.every((e) => e.kind == TransactionKind.creditCard), isTrue);
-      expect(result, hasLength(2));
-    });
+        expect(
+          result.every((e) => e.kind == TransactionKind.creditCard),
+          isTrue,
+        );
+        expect(result, hasLength(2));
+      },
+    );
   });
 
   group('HistoryBuilder.build — ordering', () {

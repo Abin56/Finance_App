@@ -16,18 +16,23 @@ import 'account_providers.dart';
 /// specifically to avoid a circular *file* import: this needs
 /// `expense_providers.dart`/`bill_providers.dart`/etc., which already import
 /// `account_providers.dart` themselves.
-final accountDeletionRepositoriesProvider = Provider<AccountDeletionRepositories>((ref) {
-  final personRepository = ref.watch(personRepositoryProvider);
-  return AccountDeletionRepositories(
-    accountRepository: ref.watch(accountRepositoryProvider),
-    transactionRepository: ref.watch(transactionRepositoryProvider),
-    billRepository: ref.watch(billRepositoryProvider),
-    expenseRepository: ref.watch(expenseRepositoryProvider),
-    personRepository: personRepository,
-    ledgerRepositoryFor: (personId) => ref.watch(ledgerRepositoryProvider(personId)),
-    paymentScheduleRepository: ref.watch(paymentScheduleRepositoryProvider),
-    installmentRepositoryFor: (scheduleId) => ref.watch(installmentRepositoryProvider(scheduleId)),
-    billOccurrenceRepositoryFor: (billId) => ref.watch(billOccurrenceRepositoryProvider(billId)),
-    paymentRepositoryFor: (billId) => ref.watch(paymentRepositoryProvider(billId)),
-  );
-});
+final accountDeletionRepositoriesProvider =
+    Provider<AccountDeletionRepositories>((ref) {
+      final personRepository = ref.watch(personRepositoryProvider);
+      return AccountDeletionRepositories(
+        accountRepository: ref.watch(accountRepositoryProvider),
+        transactionRepository: ref.watch(transactionRepositoryProvider),
+        billRepository: ref.watch(billRepositoryProvider),
+        expenseRepository: ref.watch(expenseRepositoryProvider),
+        personRepository: personRepository,
+        ledgerRepositoryFor: (personId) =>
+            ref.watch(ledgerRepositoryProvider(personId)),
+        paymentScheduleRepository: ref.watch(paymentScheduleRepositoryProvider),
+        installmentRepositoryFor: (scheduleId) =>
+            ref.watch(installmentRepositoryProvider(scheduleId)),
+        billOccurrenceRepositoryFor: (billId) =>
+            ref.watch(billOccurrenceRepositoryProvider(billId)),
+        paymentRepositoryFor: (billId) =>
+            ref.watch(paymentRepositoryProvider(billId)),
+      );
+    });

@@ -10,7 +10,8 @@ import 'installment_repository.dart';
 /// per-installment, with an [installmentRepository] reference so every
 /// write keeps [Installment.amountPaid] in sync — mirrors `PaymentRepository`
 /// exactly.
-class InstallmentPaymentRepository extends FirestoreCrudRepository<InstallmentPayment> {
+class InstallmentPaymentRepository
+    extends FirestoreCrudRepository<InstallmentPayment> {
   InstallmentPaymentRepository(super.collection, this.installmentRepository);
 
   final InstallmentRepository installmentRepository;
@@ -31,7 +32,10 @@ class InstallmentPaymentRepository extends FirestoreCrudRepository<InstallmentPa
       throw const AppException('Payment amount must be greater than 0');
     }
 
-    final remainingAfter = (installment.remainingAmount - amount).clamp(0.0, installment.amountDue);
+    final remainingAfter = (installment.remainingAmount - amount).clamp(
+      0.0,
+      installment.amountDue,
+    );
     final payment = InstallmentPayment(
       id: IdGenerator.generate(),
       installmentId: installment.id,
@@ -52,17 +56,24 @@ class InstallmentPaymentRepository extends FirestoreCrudRepository<InstallmentPa
   }
 
   /// Reverses the payment's effect, then soft-deletes it.
-  Future<void> softDeletePayment(Installment installment, InstallmentPayment payment) async {
+  Future<void> softDeletePayment(
+    Installment installment,
+    InstallmentPayment payment,
+  ) async {
     await installmentRepository.applyPayment(installment, -payment.amount);
     await softDelete(payment);
   }
 
   /// Re-applies the payment's effect, then restores it.
-  Future<void> restorePayment(Installment installment, InstallmentPayment payment) async {
+  Future<void> restorePayment(
+    Installment installment,
+    InstallmentPayment payment,
+  ) async {
     await installmentRepository.applyPayment(installment, payment.amount);
     await restore(payment);
   }
 
   /// No balance change — already reversed at soft-delete time.
-  Future<void> permanentlyDeletePayment(InstallmentPayment payment) => permanentlyDelete(payment);
+  Future<void> permanentlyDeletePayment(InstallmentPayment payment) =>
+      permanentlyDelete(payment);
 }

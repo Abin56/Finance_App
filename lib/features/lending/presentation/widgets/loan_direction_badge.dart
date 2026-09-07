@@ -22,9 +22,9 @@ class LoanDirectionBadge extends StatelessWidget {
       child: Text(
         direction.badgeLabel,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: direction.color,
-              fontWeight: FontWeight.w600,
-            ),
+          color: direction.color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

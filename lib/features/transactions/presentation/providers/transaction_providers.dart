@@ -22,7 +22,10 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
         fromFirestore: Transaction.fromFirestore,
         toFirestore: (transaction, _) => transaction.toFirestore(),
       );
-  return TransactionRepository(collection, ref.watch(accountRepositoryProvider));
+  return TransactionRepository(
+    collection,
+    ref.watch(accountRepositoryProvider),
+  );
 });
 
 final transactionsStreamProvider = StreamProvider<List<Transaction>>((ref) {
@@ -39,6 +42,8 @@ final calculableTransactionsProvider = Provider<List<Transaction>>((ref) {
   return transactions.where((t) => !t.excludeFromCalculations).toList();
 });
 
-final transactionsTrashStreamProvider = StreamProvider<List<Transaction>>((ref) {
+final transactionsTrashStreamProvider = StreamProvider<List<Transaction>>((
+  ref,
+) {
   return ref.watch(transactionRepositoryProvider).watchTrash();
 });

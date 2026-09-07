@@ -11,9 +11,8 @@ import '../../../../features/lending/domain/loan_category.dart';
 import '../../../../features/lending/domain/loan_direction.dart';
 import '../../../../features/lending/domain/loan_status.dart';
 import '../../../../features/lending/presentation/providers/loan_providers.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/widget_configuration.dart';
-import '../../../theme/clay_theme.dart';
-import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.loans] — every active [Loan] regardless of
@@ -37,7 +36,11 @@ class LoansWidgetCard extends ConsumerWidget {
     final totalToPay = ref.watch(totalAmountToPayProvider);
     final textTheme = context.textTheme;
     final colors = context.colors;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return DashboardWidgetCard(
       child: Column(
@@ -47,26 +50,53 @@ class LoansWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.push(AppRoutes.loans),
-                child: Text('See all ›', style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+                child: Text(
+                  'See all ›',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
           if (loans.isEmpty) ...[
             const SizedBox(height: AppSizes.sm),
-            Text('No active loans.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+            Text(
+              'No active loans.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
           ] else ...[
             const SizedBox(height: AppSizes.xs),
             Row(
               children: [
                 if (totalToReceive > 0)
-                  Expanded(child: _TotalStat(label: 'To Receive', amount: totalToReceive, format: format)),
-                if (totalToReceive > 0 && totalToPay > 0) const SizedBox(width: AppSizes.md),
+                  Expanded(
+                    child: _TotalStat(
+                      label: 'To Receive',
+                      amount: totalToReceive,
+                      format: format,
+                    ),
+                  ),
+                if (totalToReceive > 0 && totalToPay > 0)
+                  const SizedBox(width: AppSizes.md),
                 if (totalToPay > 0)
-                  Expanded(child: _TotalStat(label: 'To Pay', amount: totalToPay, format: format)),
+                  Expanded(
+                    child: _TotalStat(
+                      label: 'To Pay',
+                      amount: totalToPay,
+                      format: format,
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: AppSizes.xs),
@@ -80,7 +110,11 @@ class LoansWidgetCard extends ConsumerWidget {
 }
 
 class _TotalStat extends StatelessWidget {
-  const _TotalStat({required this.label, required this.amount, required this.format});
+  const _TotalStat({
+    required this.label,
+    required this.amount,
+    required this.format,
+  });
 
   final String label;
   final double amount;
@@ -93,7 +127,10 @@ class _TotalStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+        Text(
+          label,
+          style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+        ),
         const SizedBox(height: 2),
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -120,28 +157,46 @@ class _LoanRow extends ConsumerWidget {
     final remaining = ref.watch(loanRemainingAmountProvider(loan));
     final title = loan.name?.isNotEmpty == true
         ? loan.name!
-        : (loan.category == LoanCategory.institutional ? (loan.institutionName ?? 'Institutional Loan') : 'Loan');
+        : (loan.category == LoanCategory.institutional
+              ? (loan.institutionName ?? 'Institutional Loan')
+              : 'Loan');
     final textTheme = context.textTheme;
     final colors = context.colors;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(AppClay.radiusSm),
+      borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       onTap: () => context.push('/loans/${loan.id}'),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
         child: Row(
           children: [
-            ClayIconChip(icon: status.icon, color: status.color),
+            FlowFiIconChip(
+              icon: status.icon,
+              color: status.color,
+              size: 26,
+              iconSize: 14,
+            ),
             const SizedBox(width: AppSizes.xs),
-            Icon(loan.direction.icon, size: AppSizes.iconSm, color: loan.direction.color),
+            Icon(
+              loan.direction.icon,
+              size: AppSizes.iconSm,
+              color: loan.direction.color,
+            ),
             const SizedBox(width: AppSizes.sm),
             Expanded(
-              child: Text(title, style: textTheme.bodySmall, overflow: TextOverflow.ellipsis),
+              child: Text(
+                title,
+                style: textTheme.bodySmall,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             const SizedBox(width: AppSizes.sm),
             Text(
               format.format(remaining),
-              style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: colors.onSurface),
+              style: textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colors.onSurface,
+              ),
             ),
           ],
         ),

@@ -47,7 +47,12 @@ import '../providers/transaction_providers.dart';
 /// close this screen and open [SplitExpenseFormSheet] instead — the
 /// existing split engine, not a second implementation of it.
 class AddExpenseScreen extends ConsumerStatefulWidget {
-  const AddExpenseScreen({super.key, this.transaction, this.smsPrefill, this.initialType});
+  const AddExpenseScreen({
+    super.key,
+    this.transaction,
+    this.smsPrefill,
+    this.initialType,
+  });
 
   final Transaction? transaction;
 
@@ -73,7 +78,11 @@ class AddExpenseScreen extends ConsumerStatefulWidget {
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => AddExpenseScreen(transaction: transaction, smsPrefill: smsPrefill, initialType: initialType),
+        builder: (_) => AddExpenseScreen(
+          transaction: transaction,
+          smsPrefill: smsPrefill,
+          initialType: initialType,
+        ),
       ),
     );
   }
@@ -87,20 +96,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   late final _amountController = TextEditingController(
     text: widget.transaction != null
         ? widget.transaction!.amount.toStringAsFixed(2)
-        : (widget.smsPrefill == null ? '' : widget.smsPrefill!.amount.toStringAsFixed(2)),
+        : (widget.smsPrefill == null
+              ? ''
+              : widget.smsPrefill!.amount.toStringAsFixed(2)),
   );
   late final _descriptionController = TextEditingController(
-    text: widget.transaction?.description ?? widget.smsPrefill?.merchantOrSender ?? '',
+    text:
+        widget.transaction?.description ??
+        widget.smsPrefill?.merchantOrSender ??
+        '',
   );
   final _descriptionFocusNode = FocusNode();
   late final _notesController = TextEditingController(
     text: widget.transaction?.notes ?? widget.smsPrefill?.note ?? '',
   );
-  late TransactionType _type = widget.transaction?.type ?? widget.initialType ?? TransactionType.expense;
-  late DateTime _dateTime = widget.transaction?.dateTime ?? widget.smsPrefill?.dateTime ?? DateTime.now();
-  late String? _accountId = widget.transaction?.accountId ?? widget.smsPrefill?.suggestedAccountId;
-  late String? _categoryId = widget.transaction?.categoryId ?? widget.smsPrefill?.suggestedCategoryId;
-  late bool _excludeFromCalculations = widget.transaction?.excludeFromCalculations ?? false;
+  late TransactionType _type =
+      widget.transaction?.type ?? widget.initialType ?? TransactionType.expense;
+  late DateTime _dateTime =
+      widget.transaction?.dateTime ??
+      widget.smsPrefill?.dateTime ??
+      DateTime.now();
+  late String? _accountId =
+      widget.transaction?.accountId ?? widget.smsPrefill?.suggestedAccountId;
+  late String? _categoryId =
+      widget.transaction?.categoryId ?? widget.smsPrefill?.suggestedCategoryId;
+  late bool _excludeFromCalculations =
+      widget.transaction?.excludeFromCalculations ?? false;
   late String? _linkedPersonId = widget.transaction?.linkedPersonId;
 
   /// Whether [_linkedPersonId] represents money owed back — starts matching
@@ -116,8 +137,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   /// Whether the "Move to another month" branch is active — starts true
   /// only when editing a transaction that already has one set.
-  late bool _customAccountingMonth = widget.transaction?.accountingMonth != null;
-  late DateTime _accountingMonth = widget.transaction?.accountingMonth ?? DateTime(_dateTime.year, _dateTime.month);
+  late bool _customAccountingMonth =
+      widget.transaction?.accountingMonth != null;
+  late DateTime _accountingMonth =
+      widget.transaction?.accountingMonth ??
+      DateTime(_dateTime.year, _dateTime.month);
   bool _isSaving = false;
   String? _accountError;
   String? _categoryError;
@@ -156,11 +180,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
     if (picked == null) return;
     setState(() {
-      _dateTime = DateTime(picked.year, picked.month, picked.day, _dateTime.hour, _dateTime.minute);
+      _dateTime = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        _dateTime.hour,
+        _dateTime.minute,
+      );
       // Keep the default ("Same as Transaction Date") in sync with the new
       // date — only meaningful while the user hasn't opted into a custom
       // Accounting Month.
-      if (!_customAccountingMonth) _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
+      if (!_customAccountingMonth)
+        _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
     });
   }
 
@@ -181,7 +212,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final picked = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => _CategoryPickerSheet(categories: categories, selectedId: _categoryId),
+      builder: (sheetContext) =>
+          _CategoryPickerSheet(categories: categories, selectedId: _categoryId),
     );
     if (picked == null) return;
     setState(() {
@@ -221,7 +253,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   /// to an expense with a linked person; switching type away from Expense or
   /// clearing the person always forces it back off, so an edit can never
   /// leave a stray owed [Expense] behind a non-expense/unlinked transaction.
-  bool get _effectiveOwesToggle => _owesPersonToggle && _linkedPersonId != null && _type == TransactionType.expense;
+  bool get _effectiveOwesToggle =>
+      _owesPersonToggle &&
+      _linkedPersonId != null &&
+      _type == TransactionType.expense;
 
   /// Reverses [transaction]'s backing [Expense] (the person originally
   /// linked before this edit) via [ExpenseRepository.unassignFromPerson] —
@@ -241,10 +276,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   /// may already exist for [transaction] (there shouldn't be one on a fresh
   /// reference-only transaction, but `convertToAssigned` handles either way,
   /// same as [TransactionDetailScreen]'s own "Assign to person" action).
-  Future<void> _convertExistingToOwed(Transaction transaction, String description) async {
+  Future<void> _convertExistingToOwed(
+    Transaction transaction,
+    String description,
+  ) async {
     final people = ref.read(peopleStreamProvider).value ?? const [];
     final person = people.where((p) => p.id == _linkedPersonId).firstOrNull;
-    final existingExpense = ref.read(expenseForTransactionProvider(transaction.id));
+    final existingExpense = ref.read(
+      expenseForTransactionProvider(transaction.id),
+    );
     final expenseRepository = ref.read(expenseRepositoryProvider);
     await expenseRepository.convertToAssigned(
       existingExpense: existingExpense,
@@ -270,7 +310,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   /// via [ExpenseRepository.editExpense] (which itself keeps the linked
   /// [Transaction] in sync), so the person's ledger history line updates
   /// instead of being reversed and recreated.
-  Future<void> _editExistingOwed(Transaction transaction, String description) async {
+  Future<void> _editExistingOwed(
+    Transaction transaction,
+    String description,
+  ) async {
     final expense = ref.read(expenseForTransactionProvider(transaction.id));
     if (expense == null) {
       // Defensive fallback: `wasOwed` implied an Expense should exist; if it
@@ -281,8 +324,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final totalAmount = double.parse(_amountController.text.trim());
     final currentInstallments = expense.scheduleId == null
         ? const <Installment>[]
-        : ref.read(installmentsStreamProvider(expense.scheduleId!)).value ?? const <Installment>[];
-    await ref.read(expenseRepositoryProvider).editExpense(
+        : ref.read(installmentsStreamProvider(expense.scheduleId!)).value ??
+              const <Installment>[];
+    await ref
+        .read(expenseRepositoryProvider)
+        .editExpense(
           expense: expense,
           currentInstallments: currentInstallments,
           description: description.isNotEmpty ? description : 'Expense',
@@ -321,10 +367,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final categories = ref.read(categoriesForTypeProvider(_type));
       final description = descriptionInput.isNotEmpty
           ? descriptionInput
-          : categories.where((c) => c.id == _categoryId).firstOrNull?.name ?? (_type == TransactionType.income ? 'Income' : 'Expense');
+          : categories.where((c) => c.id == _categoryId).firstOrNull?.name ??
+                (_type == TransactionType.income ? 'Income' : 'Expense');
 
       final accountingMonth = _customAccountingMonth ? _accountingMonth : null;
-      final wasOwed = _initialOwesPersonToggle && _initialLinkedPersonId != null;
+      final wasOwed =
+          _initialOwesPersonToggle && _initialLinkedPersonId != null;
       final nowOwed = _effectiveOwesToggle;
 
       if (_isEditing) {
@@ -406,7 +454,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           excludeFromCalculations: _excludeFromCalculations,
           accountingMonth: accountingMonth,
         );
-        final createdTransaction = await repository.getByKey(expense.transactionId);
+        final createdTransaction = await repository.getByKey(
+          expense.transactionId,
+        );
         if (createdTransaction != null) {
           await repository.editTransaction(
             createdTransaction,
@@ -456,9 +506,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save expense: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save expense: $e')));
       }
     }
   }
@@ -468,7 +518,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final accountsAsync = ref.watch(accountsStreamProvider);
     final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final categories = ref.watch(categoriesForTypeProvider(_type));
-    final selectedCategory = categories.where((c) => c.id == _categoryId).firstOrNull;
+    final selectedCategory = categories
+        .where((c) => c.id == _categoryId)
+        .firstOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -476,7 +528,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _save,
-            child: Text('Save', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -492,7 +550,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(AppSizes.md, AppSizes.sm, AppSizes.md, AppSizes.md),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSizes.md,
+                  AppSizes.sm,
+                  AppSizes.md,
+                  AppSizes.md,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -503,23 +566,36 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           const SectionLabel('Transaction Details'),
                           const SizedBox(height: AppSizes.sm),
                           SegmentedButton<TransactionType>(
-                            style: const ButtonStyle(visualDensity: VisualDensity.compact),
+                            style: const ButtonStyle(
+                              visualDensity: VisualDensity.compact,
+                            ),
                             segments: [
                               for (final type in TransactionType.values)
-                                ButtonSegment(value: type, label: Text(type.label), icon: Icon(type.icon)),
+                                ButtonSegment(
+                                  value: type,
+                                  label: Text(type.label),
+                                  icon: Icon(type.icon),
+                                ),
                             ],
                             selected: {_type},
                             onSelectionChanged: (selection) {
                               setState(() {
                                 _type = selection.first;
                                 if (_categoryId != null &&
-                                    !categories.any((c) => c.id == _categoryId)) {
+                                    !categories.any(
+                                      (c) => c.id == _categoryId,
+                                    )) {
                                   _categoryId = null;
                                 }
                                 if (_type == TransactionType.income) {
-                                  final accounts = accountsAsync.value ?? const [];
-                                  final selectedAccount = accounts.where((a) => a.id == _accountId).firstOrNull;
-                                  if (selectedAccount != null && selectedAccount.type == AccountType.card) {
+                                  final accounts =
+                                      accountsAsync.value ?? const [];
+                                  final selectedAccount = accounts
+                                      .where((a) => a.id == _accountId)
+                                      .firstOrNull;
+                                  if (selectedAccount != null &&
+                                      selectedAccount.type ==
+                                          AccountType.card) {
                                     _accountId = null;
                                   }
                                 }
@@ -533,16 +609,26 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             controller: _amountController,
                             decoration: _premiumDecoration(
                               context,
-                              prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                              prefixIcon: const Icon(
+                                Icons.currency_rupee_rounded,
+                              ),
                             ),
-                            style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            style: context.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
                             validator: Validators.amount,
                             textInputAction: TextInputAction.next,
-                            onFieldSubmitted: (_) => _descriptionFocusNode.requestFocus(),
+                            onFieldSubmitted: (_) =>
+                                _descriptionFocusNode.requestFocus(),
                           ),
                           const SizedBox(height: AppSizes.sm),
-                          Text('Description (optional)', style: context.textTheme.labelMedium),
+                          Text(
+                            'Description (optional)',
+                            style: context.textTheme.labelMedium,
+                          ),
                           const SizedBox(height: AppSizes.xs),
                           TextFormField(
                             controller: _descriptionController,
@@ -552,17 +638,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               prefixIcon: selectedCategory == null
                                   ? null
                                   : Padding(
-                                      padding: const EdgeInsets.all(AppSizes.sm),
+                                      padding: const EdgeInsets.all(
+                                        AppSizes.sm,
+                                      ),
                                       child: CircleAvatar(
-                                        backgroundColor: Color(selectedCategory.colorValue).withValues(alpha: 0.15),
-                                        child: Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
+                                        backgroundColor: Color(
+                                          selectedCategory.colorValue,
+                                        ).withValues(alpha: 0.15),
+                                        child: Icon(
+                                          selectedCategory.icon,
+                                          color: Color(
+                                            selectedCategory.colorValue,
+                                          ),
+                                          size: AppSizes.iconSm,
+                                        ),
                                       ),
                                     ),
                               suffixIcon: _descriptionController.text.isEmpty
                                   ? null
                                   : IconButton(
-                                      icon: const Icon(Icons.cancel, size: AppSizes.iconSm),
-                                      onPressed: () => setState(_descriptionController.clear),
+                                      icon: const Icon(
+                                        Icons.cancel,
+                                        size: AppSizes.iconSm,
+                                      ),
+                                      onPressed: () => setState(
+                                        _descriptionController.clear,
+                                      ),
                                     ),
                             ),
                             maxLength: 100,
@@ -580,7 +681,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           children: [
                             const SectionLabel('Assign to Person'),
                             const SizedBox(height: AppSizes.sm),
-                            Text('Person (optional)', style: context.textTheme.labelMedium),
+                            Text(
+                              'Person (optional)',
+                              style: context.textTheme.labelMedium,
+                            ),
                             const SizedBox(height: AppSizes.xs),
                             _PersonField(
                               personId: _linkedPersonId,
@@ -593,12 +697,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 type: MaterialType.transparency,
                                 child: SwitchListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  title: const Text('This person owes me this expense'),
+                                  title: const Text(
+                                    'This person owes me this expense',
+                                  ),
                                   subtitle: const Text(
                                     "Adds this amount to what they owe you, so it shows up when you check their balance later.",
                                   ),
                                   value: _owesPersonToggle,
-                                  onChanged: (value) => setState(() => _owesPersonToggle = value),
+                                  onChanged: (value) =>
+                                      setState(() => _owesPersonToggle = value),
                                 ),
                               ),
                             ],
@@ -617,7 +724,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             TextSpan(
                               text: 'Category',
                               style: context.textTheme.labelMedium,
-                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+                              children: const [
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: AppColors.error),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: AppSizes.xs),
@@ -629,32 +741,53 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 if (selectedCategory != null) ...[
                                   CircleAvatar(
                                     radius: 11,
-                                    backgroundColor: Color(selectedCategory.colorValue).withValues(alpha: 0.15),
-                                    child: Icon(selectedCategory.icon, color: Color(selectedCategory.colorValue), size: AppSizes.iconSm),
+                                    backgroundColor: Color(
+                                      selectedCategory.colorValue,
+                                    ).withValues(alpha: 0.15),
+                                    child: Icon(
+                                      selectedCategory.icon,
+                                      color: Color(selectedCategory.colorValue),
+                                      size: AppSizes.iconSm,
+                                    ),
                                   ),
                                   const SizedBox(width: AppSizes.sm),
                                 ],
                                 Expanded(
                                   child: Text(
-                                    selectedCategory?.name ?? 'Select a category',
-                                    style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                                    selectedCategory?.name ??
+                                        'Select a category',
+                                    style: context.textTheme.bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.w600),
                                   ),
                                 ),
-                                Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: context.colors.onSurface.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           if (_activeCategorySuggestion case final source?)
                             Padding(
                               padding: const EdgeInsets.only(top: AppSizes.xs),
-                              child: SmsSuggestionHint(source: source, merchant: widget.smsPrefill?.merchantOrSender),
+                              child: SmsSuggestionHint(
+                                source: source,
+                                merchant: widget.smsPrefill?.merchantOrSender,
+                              ),
                             ),
                           const SizedBox(height: AppSizes.sm),
                           Text.rich(
                             TextSpan(
                               text: 'Date',
                               style: context.textTheme.labelMedium,
-                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+                              children: const [
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: AppColors.error),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: AppSizes.xs),
@@ -668,16 +801,28 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             TextSpan(
                               text: 'Payment Method',
                               style: context.textTheme.labelMedium,
-                              children: const [TextSpan(text: ' *', style: TextStyle(color: Colors.red))],
+                              children: const [
+                                TextSpan(
+                                  text: ' *',
+                                  style: TextStyle(color: AppColors.error),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: AppSizes.xs),
                           accountsAsync.when(
                             loading: () => const LinearProgressIndicator(),
-                            error: (error, _) => Text('Could not load payment methods: $error'),
+                            error: (error, _) =>
+                                Text('Could not load payment methods: $error'),
                             data: (accounts) {
-                              final eligibleAccounts = _type == TransactionType.income
-                                  ? accounts.where((account) => account.type != AccountType.card).toList()
+                              final eligibleAccounts =
+                                  _type == TransactionType.income
+                                  ? accounts
+                                        .where(
+                                          (account) =>
+                                              account.type != AccountType.card,
+                                        )
+                                        .toList()
                                   : accounts;
                               return Wrap(
                                 spacing: AppSizes.sm,
@@ -699,11 +844,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           ),
                           if (_accountError != null) ...[
                             const SizedBox(height: AppSizes.xs),
-                            Text(_accountError!, style: TextStyle(color: context.colors.error, fontSize: 12)),
+                            Text(
+                              _accountError!,
+                              style: TextStyle(
+                                color: context.colors.error,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
-                          if (!_isEditing && _type == TransactionType.expense) ...[
+                          if (!_isEditing &&
+                              _type == TransactionType.expense) ...[
                             const SizedBox(height: AppSizes.sm),
-                            _ShareExpenseRow(onTap: () => _switchToSplitExpense(context)),
+                            _ShareExpenseRow(
+                              onTap: () => _switchToSplitExpense(context),
+                            ),
                           ],
                         ],
                       ),
@@ -719,19 +873,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             type: MaterialType.transparency,
                             child: SwitchListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: const Text("Don't count this in my totals"),
+                              title: const Text(
+                                "Don't count this in my totals",
+                              ),
                               subtitle: const Text(
                                 "Still shows in your history — just won't affect your balance, budgets, or reports.",
                               ),
                               value: _excludeFromCalculations,
-                              onChanged: (value) => setState(() => _excludeFromCalculations = value),
+                              onChanged: (value) => setState(
+                                () => _excludeFromCalculations = value,
+                              ),
                             ),
                           ),
                           Material(
                             type: MaterialType.transparency,
                             child: SwitchListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: const Text('Count this in a different month?'),
+                              title: const Text(
+                                'Count this in a different month?',
+                              ),
                               subtitle: Text(
                                 _customAccountingMonth
                                     ? 'Choose which month it should count toward below.'
@@ -740,7 +900,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               value: _customAccountingMonth,
                               onChanged: (value) => setState(() {
                                 _customAccountingMonth = value;
-                                if (!value) _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
+                                if (!value)
+                                  _accountingMonth = DateTime(
+                                    _dateTime.year,
+                                    _dateTime.month,
+                                  );
                               }),
                             ),
                           ),
@@ -754,23 +918,42 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             const SizedBox(height: AppSizes.xs),
                             MonthYearStepper(
                               value: _accountingMonth,
-                              min: DateTime(_accountingMonthBounds.year - 5, _accountingMonthBounds.month),
-                              max: DateTime(_accountingMonthBounds.year + 2, _accountingMonthBounds.month),
-                              onChanged: (month) => setState(() => _accountingMonth = month),
+                              min: DateTime(
+                                _accountingMonthBounds.year - 5,
+                                _accountingMonthBounds.month,
+                              ),
+                              max: DateTime(
+                                _accountingMonthBounds.year + 2,
+                                _accountingMonthBounds.month,
+                              ),
+                              onChanged: (month) =>
+                                  setState(() => _accountingMonth = month),
                             ),
                             if (!_accountingMonth.isSameMonth(_dateTime)) ...[
                               const SizedBox(height: AppSizes.sm),
                               Container(
                                 padding: const EdgeInsets.all(AppSizes.md),
                                 decoration: BoxDecoration(
-                                  color: AppColors.warning.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                                  border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                                  color: AppColors.warning.withValues(
+                                    alpha: 0.12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(
+                                    AppSizes.radiusMd,
+                                  ),
+                                  border: Border.all(
+                                    color: AppColors.warning.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
                                 ),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: AppSizes.iconSm),
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: AppColors.warning,
+                                      size: AppSizes.iconSm,
+                                    ),
                                     const SizedBox(width: AppSizes.sm),
                                     Expanded(
                                       child: Text(
@@ -851,8 +1034,14 @@ InputDecoration _premiumDecoration(
     isDense: true,
     filled: true,
     fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       borderSide: BorderSide(color: colors.primary, width: 1.6),
@@ -873,7 +1062,11 @@ InputDecoration _premiumDecoration(
 /// field (Category, Person) so they share the same surface treatment as
 /// this screen's text fields instead of looking like a different control.
 class _PremiumTapRow extends StatelessWidget {
-  const _PremiumTapRow({required this.onTap, required this.child, this.errorText});
+  const _PremiumTapRow({
+    required this.onTap,
+    required this.child,
+    this.errorText,
+  });
 
   final VoidCallback onTap;
   final Widget child;
@@ -892,8 +1085,13 @@ class _PremiumTapRow extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
-              decoration: errorText == null ? null : BoxDecoration(border: Border.all(color: colors.error)),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSizes.sm,
+                vertical: AppSizes.sm,
+              ),
+              decoration: errorText == null
+                  ? null
+                  : BoxDecoration(border: Border.all(color: colors.error)),
               child: child,
             ),
           ),
@@ -902,7 +1100,10 @@ class _PremiumTapRow extends StatelessWidget {
           const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: AppSizes.xs),
-            child: Text(errorText!, style: TextStyle(color: colors.error, fontSize: 12)),
+            child: Text(
+              errorText!,
+              style: TextStyle(color: colors.error, fontSize: 12),
+            ),
           ),
         ],
       ],
@@ -914,7 +1115,11 @@ class _PremiumTapRow extends StatelessWidget {
 /// [OutlinedButton.icon] previously used for the Date/Time pickers, matching
 /// the filled-surface language of every other control on this screen.
 class _PremiumTapButton extends StatelessWidget {
-  const _PremiumTapButton({required this.onTap, required this.icon, required this.label});
+  const _PremiumTapButton({
+    required this.onTap,
+    required this.icon,
+    required this.label,
+  });
 
   final VoidCallback onTap;
   final IconData icon;
@@ -930,7 +1135,10 @@ class _PremiumTapButton extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.sm,
+            vertical: AppSizes.sm,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -939,7 +1147,9 @@ class _PremiumTapButton extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                  style: context.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -984,23 +1194,38 @@ class _ShareExpenseRow extends StatelessWidget {
                   gradient: LinearGradient(colors: AppColors.primaryGradient),
                   borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                 ),
-                child: const Icon(Icons.people_outline_rounded, color: Colors.white, size: AppSizes.iconSm),
+                child: const Icon(
+                  Icons.people_outline_rounded,
+                  color: Colors.white,
+                  size: AppSizes.iconSm,
+                ),
               ),
               const SizedBox(width: AppSizes.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Share Expense', style: context.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'Share Expense',
+                      style: context.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 1),
                     Text(
                       'Share this with others',
-                      style: context.textTheme.bodySmall?.copyWith(color: colors.onSurface.withValues(alpha: 0.6)),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: colors.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd, color: colors.onSurface.withValues(alpha: 0.4)),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: AppSizes.iconMd,
+                color: colors.onSurface.withValues(alpha: 0.4),
+              ),
             ],
           ),
         ),
@@ -1013,7 +1238,11 @@ class _ShareExpenseRow extends StatelessWidget {
 /// full-width [PrimaryButton], pinned below the scroll instead of living at
 /// its end, so the primary action is always reachable without scrolling.
 class _BottomSaveBar extends StatelessWidget {
-  const _BottomSaveBar({required this.label, required this.isLoading, required this.onPressed});
+  const _BottomSaveBar({
+    required this.label,
+    required this.isLoading,
+    required this.onPressed,
+  });
 
   final String label;
   final bool isLoading;
@@ -1024,12 +1253,25 @@ class _BottomSaveBar extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.surface,
-        border: Border(top: BorderSide(color: context.colors.outlineVariant.withValues(alpha: 0.6))),
+        border: Border(
+          top: BorderSide(
+            color: context.colors.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
       ),
       child: SafeArea(
         top: false,
-        minimum: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.lg, AppSizes.sm),
-        child: PrimaryButton(label: label, isLoading: isLoading, onPressed: onPressed),
+        minimum: const EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          AppSizes.sm,
+          AppSizes.lg,
+          AppSizes.sm,
+        ),
+        child: PrimaryButton(
+          label: label,
+          isLoading: isLoading,
+          onPressed: onPressed,
+        ),
       ),
     );
   }
@@ -1039,7 +1281,10 @@ class _BottomSaveBar extends StatelessWidget {
 /// scan and tap with one hand than the old icon grid, and stays usable as
 /// the category count grows since the search box filters by name.
 class _CategoryPickerSheet extends StatefulWidget {
-  const _CategoryPickerSheet({required this.categories, required this.selectedId});
+  const _CategoryPickerSheet({
+    required this.categories,
+    required this.selectedId,
+  });
 
   final List<Category> categories;
   final String? selectedId;
@@ -1062,7 +1307,9 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
   Widget build(BuildContext context) {
     final filtered = _query.isEmpty
         ? widget.categories
-        : widget.categories.where((c) => c.name.toLowerCase().contains(_query.toLowerCase())).toList();
+        : widget.categories
+              .where((c) => c.name.toLowerCase().contains(_query.toLowerCase()))
+              .toList();
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -1084,11 +1331,17 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                 decoration: InputDecoration(
                   hintText: 'Search categories',
                   isDense: true,
-                  prefixIcon: const Icon(Icons.search_rounded, size: AppSizes.iconSm),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: AppSizes.iconSm,
+                  ),
                   suffixIcon: _query.isEmpty
                       ? null
                       : IconButton(
-                          icon: const Icon(Icons.close_rounded, size: AppSizes.iconSm),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: AppSizes.iconSm,
+                          ),
                           onPressed: () => setState(() {
                             _searchController.clear();
                             _query = '';
@@ -1103,8 +1356,11 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                     ? Center(
                         child: Text(
                           'No categories match "$_query"',
-                          style: context.textTheme.bodyMedium
-                              ?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                          style: context.textTheme.bodyMedium?.copyWith(
+                            color: context.colors.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
+                          ),
                         ),
                       )
                     : ListView.separated(
@@ -1119,10 +1375,19 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
                             onTap: () => Navigator.of(context).pop(category.id),
                             leading: CircleAvatar(
                               backgroundColor: color.withValues(alpha: 0.15),
-                              child: Icon(category.icon, color: color, size: AppSizes.iconSm),
+                              child: Icon(
+                                category.icon,
+                                color: color,
+                                size: AppSizes.iconSm,
+                              ),
                             ),
                             title: Text(category.name),
-                            trailing: selected ? Icon(Icons.check_rounded, color: context.colors.primary) : null,
+                            trailing: selected
+                                ? Icon(
+                                    Icons.check_rounded,
+                                    color: context.colors.primary,
+                                  )
+                                : null,
                           );
                         },
                       ),
@@ -1143,7 +1408,11 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
 /// [ExpenseRepository.assignToPerson]/`convertToAssigned` for a real ledger
 /// effect — this field itself never does.
 class _PersonField extends ConsumerWidget {
-  const _PersonField({required this.personId, required this.onTap, required this.onClear});
+  const _PersonField({
+    required this.personId,
+    required this.onTap,
+    required this.onClear,
+  });
 
   final String? personId;
   final VoidCallback onTap;
@@ -1152,20 +1421,28 @@ class _PersonField extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final people = ref.watch(peopleStreamProvider).value ?? const [];
-    final person = personId == null ? null : people.where((p) => p.id == personId).firstOrNull;
+    final person = personId == null
+        ? null
+        : people.where((p) => p.id == personId).firstOrNull;
 
     return _PremiumTapRow(
       onTap: onTap,
       child: Row(
         children: [
           if (person != null) ...[
-            PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 11),
+            PersonAvatar(
+              name: person.name,
+              colorValue: person.avatarColorValue,
+              radius: 11,
+            ),
             const SizedBox(width: AppSizes.sm),
           ],
           Expanded(
             child: Text(
               person?.name ?? 'Add a person (optional)',
-              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           if (person != null)
@@ -1175,7 +1452,11 @@ class _PersonField extends ConsumerWidget {
               tooltip: 'Remove person',
             )
           else
-            Icon(Icons.chevron_right_rounded, size: AppSizes.iconMd, color: context.colors.onSurface.withValues(alpha: 0.4)),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: AppSizes.iconMd,
+              color: context.colors.onSurface.withValues(alpha: 0.4),
+            ),
         ],
       ),
     );
@@ -1199,23 +1480,43 @@ class _PaymentMethodChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Material(
-      color: selected ? colors.primary.withValues(alpha: 0.15) : colors.surfaceContainerHighest.withValues(alpha: 0.4),
+      color: selected
+          ? colors.primary.withValues(alpha: 0.15)
+          : colors.surfaceContainerHighest.withValues(alpha: 0.4),
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.xs),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.sm,
+            vertical: AppSizes.xs,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-            border: Border.all(color: selected ? colors.primary : colors.outlineVariant.withValues(alpha: 0.6)),
+            border: Border.all(
+              color: selected
+                  ? colors.primary
+                  : colors.outlineVariant.withValues(alpha: 0.6),
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              account.type == AccountType.bank || account.type == AccountType.card
-                  ? BankLogo(bankId: account.bankId, fallbackName: account.name, size: AppSizes.iconSm)
-                  : Icon(account.type.icon, size: AppSizes.iconSm, color: selected ? colors.primary : colors.onSurface.withValues(alpha: 0.6)),
+              account.type == AccountType.bank ||
+                      account.type == AccountType.card
+                  ? BankLogo(
+                      bankId: account.bankId,
+                      fallbackName: account.name,
+                      size: AppSizes.iconSm,
+                    )
+                  : Icon(
+                      account.type.icon,
+                      size: AppSizes.iconSm,
+                      color: selected
+                          ? colors.primary
+                          : colors.onSurface.withValues(alpha: 0.6),
+                    ),
               const SizedBox(width: 4),
               Text(
                 accountPickerLabel(account, creditCards),

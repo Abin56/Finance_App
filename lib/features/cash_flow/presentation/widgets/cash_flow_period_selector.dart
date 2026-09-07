@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_widgets.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../reports/domain/reports_period.dart';
 import '../../domain/cash_flow_period.dart';
 import '../providers/cash_flow_providers.dart';
@@ -23,23 +24,39 @@ class CashFlowPeriodSelector extends ConsumerWidget {
     final period = ref.watch(cashFlowDateRangeProvider);
     final label = period.labelFor(DateTime.now());
 
-    return ClayCard(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+    return FlowFiCard(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.md,
+        vertical: AppSizes.sm,
+      ),
+      radius: AppSizes.radiusPill,
       onTap: () => _openPicker(context, ref),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.date_range_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+          Icon(
+            Icons.date_range_rounded,
+            size: AppSizes.iconSm,
+            color: context.isDarkMode
+                ? AppColors.primaryDark
+                : AppColors.nearBlack,
+          ),
           const SizedBox(width: AppSizes.sm),
           Flexible(
             child: Text(
               label,
-              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: AppSizes.xs),
-          Icon(Icons.expand_more_rounded, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.6)),
+          Icon(
+            Icons.expand_more_rounded,
+            size: AppSizes.iconSm,
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ],
       ),
     );
@@ -54,7 +71,8 @@ class CashFlowPeriodSelector extends ConsumerWidget {
     if (selected == null) return;
 
     if (selected.preset != CashFlowPreset.custom) {
-      ref.read(cashFlowDateRangeProvider.notifier).state = CashFlowPeriod.preset(selected.preset);
+      ref.read(cashFlowDateRangeProvider.notifier).state =
+          CashFlowPeriod.preset(selected.preset);
       return;
     }
 
@@ -64,7 +82,10 @@ class CashFlowPeriodSelector extends ConsumerWidget {
       context: context,
       firstDate: DateTime(now.year - 10),
       lastDate: DateTime(now.year + 10),
-      initialDateRange: DateTimeRange(start: DateTime(now.year, now.month, 1), end: now),
+      initialDateRange: DateTimeRange(
+        start: DateTime(now.year, now.month, 1),
+        end: now,
+      ),
     );
     if (picked == null) return;
     // `showDateRangePicker` returns both bounds at midnight (00:00:00) — the
@@ -72,7 +93,15 @@ class CashFlowPeriodSelector extends ConsumerWidget {
     // transaction later that same day would be wrongly excluded by an
     // inclusive-end comparison against a range that effectively stops at
     // its very first moment.
-    final end = DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59, 999);
+    final end = DateTime(
+      picked.end.year,
+      picked.end.month,
+      picked.end.day,
+      23,
+      59,
+      59,
+      999,
+    );
     ref.read(cashFlowDateRangeProvider.notifier).state = CashFlowPeriod.custom(
       DateRange(picked.start, end),
     );
@@ -89,7 +118,12 @@ class _PeriodPickerSheet extends ConsumerWidget {
     final current = ref.watch(cashFlowDateRangeProvider);
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          0,
+          AppSizes.lg,
+          AppSizes.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,8 +145,16 @@ class _PeriodPickerSheet extends ConsumerWidget {
   }
 }
 
+/// A period option, styled like a filter chip per the Theme V2 selection
+/// spec: neutral surface + thin border when unselected, a solid lime fill
+/// with near-black foreground when selected (never lime text on a light
+/// tint — lime only reads clearly as a fill).
 class _PresetTile extends StatelessWidget {
-  const _PresetTile({required this.preset, required this.selected, required this.onTap});
+  const _PresetTile({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
 
   final CashFlowPreset preset;
   final bool selected;
@@ -120,22 +162,54 @@ class _PresetTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
-      tileColor: selected ? context.colors.primary.withValues(alpha: 0.1) : null,
-      leading: Icon(
-        preset == CashFlowPreset.custom ? Icons.edit_calendar_outlined : Icons.calendar_today_outlined,
-        color: selected ? context.colors.primary : context.colors.onSurface.withValues(alpha: 0.7),
-      ),
-      title: Text(
-        preset.label,
-        style: TextStyle(
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          color: selected ? context.colors.primary : null,
+    final flowfi = context.flowfi;
+    final foreground = selected ? AppColors.onLime : context.colors.onSurface;
+    final borderRadius = BorderRadius.circular(AppSizes.radiusMd);
+
+    return Material(
+      color: selected ? context.colors.primary : flowfi.mutedSurface,
+      borderRadius: borderRadius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: borderRadius,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: borderRadius,
+            border: selected ? null : Border.all(color: flowfi.border),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.md,
+            vertical: AppSizes.sm,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                preset == CashFlowPreset.custom
+                    ? Icons.edit_calendar_outlined
+                    : Icons.calendar_today_outlined,
+                size: AppSizes.iconSm,
+                color: foreground,
+              ),
+              const SizedBox(width: AppSizes.sm),
+              Expanded(
+                child: Text(
+                  preset.label,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: foreground,
+                  ),
+                ),
+              ),
+              if (selected)
+                Icon(
+                  Icons.check_rounded,
+                  size: AppSizes.iconSm,
+                  color: foreground,
+                ),
+            ],
+          ),
         ),
       ),
-      trailing: selected ? Icon(Icons.check_rounded, color: context.colors.primary) : null,
     );
   }
 }

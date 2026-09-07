@@ -40,8 +40,10 @@ class AccountDeletionRepositories {
   final PersonRepository personRepository;
   final LedgerRepository Function(String personId) ledgerRepositoryFor;
   final PaymentScheduleRepository paymentScheduleRepository;
-  final InstallmentRepository Function(String scheduleId) installmentRepositoryFor;
-  final BillOccurrenceRepository Function(String billId) billOccurrenceRepositoryFor;
+  final InstallmentRepository Function(String scheduleId)
+  installmentRepositoryFor;
+  final BillOccurrenceRepository Function(String billId)
+  billOccurrenceRepositoryFor;
   final PaymentRepository Function(String billId) paymentRepositoryFor;
 }
 
@@ -86,20 +88,30 @@ Future<_AccountDeletionPlan> _gatherAccountDeletionPlan(
   String accountId,
   AccountDeletionRepositories repos,
 ) async {
-  final transactions = await repos.transactionRepository.getAllForAccountIncludingTrash(accountId);
+  final transactions = await repos.transactionRepository
+      .getAllForAccountIncludingTrash(accountId);
   final transactionIds = transactions.map((t) => t.id).toSet();
 
-  final allExpenses = [...await repos.expenseRepository.getAll(), ...await repos.expenseRepository.getTrash()];
-  final expenses = allExpenses.where((e) => transactionIds.contains(e.transactionId)).toList();
+  final allExpenses = [
+    ...await repos.expenseRepository.getAll(),
+    ...await repos.expenseRepository.getTrash(),
+  ];
+  final expenses = allExpenses
+      .where((e) => transactionIds.contains(e.transactionId))
+      .toList();
 
   final affectedPersonIds = <String>{};
   for (final expense in expenses) {
     for (final participant in expense.participants) {
-      if (participant.personId != null) affectedPersonIds.add(participant.personId!);
+      if (participant.personId != null)
+        affectedPersonIds.add(participant.personId!);
     }
   }
 
-  final allBills = [...await repos.billRepository.getAll(), ...await repos.billRepository.getTrash()];
+  final allBills = [
+    ...await repos.billRepository.getAll(),
+    ...await repos.billRepository.getTrash(),
+  ];
   final bills = allBills.where((b) => b.accountId == accountId).toList();
 
   return _AccountDeletionPlan(
@@ -133,14 +145,19 @@ Future<AccountDeletionImpact> previewAccountDeletionImpact(
 /// `CreditCardProfile`; see `credit_card_deletion_service.dart`). Every step
 /// is a genuine permanent delete, never soft-delete — only ever reached
 /// after the destructive-delete dialog's type-to-confirm gate.
-Future<void> permanentlyDeleteAccountHistory(String accountId, AccountDeletionRepositories repos) async {
+Future<void> permanentlyDeleteAccountHistory(
+  String accountId,
+  AccountDeletionRepositories repos,
+) async {
   final plan = await _gatherAccountDeletionPlan(accountId, repos);
 
   // 1. Split/assigned expenses funded from this account — also permanently
   //    deletes each expense's own linked Transaction, so step 2 below must
   //    skip those transactions to avoid a redundant (harmless, but wasteful)
   //    second delete attempt.
-  final expenseTransactionIds = plan.expenses.map((e) => e.transactionId).toSet();
+  final expenseTransactionIds = plan.expenses
+      .map((e) => e.transactionId)
+      .toSet();
   for (final expense in plan.expenses) {
     await repos.expenseRepository.permanentlyDeleteExpense(expense);
   }

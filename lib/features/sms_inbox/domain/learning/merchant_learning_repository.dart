@@ -20,8 +20,10 @@ class MerchantLearningRepository {
 
   final MerchantLearningDao _dao;
 
-  Future<MerchantLearningProfile?> getProfile(String userId, String merchantKey) =>
-      _dao.getProfile(userId, merchantKey);
+  Future<MerchantLearningProfile?> getProfile(
+    String userId,
+    String merchantKey,
+  ) => _dao.getProfile(userId, merchantKey);
 
   Future<MerchantLearningProfile> getOrCreateProfile(
     String userId,
@@ -87,7 +89,9 @@ class MerchantLearningRepository {
     return _dao.transaction((txnDao) async {
       final profile = await txnDao.getOrCreateProfile(userId, merchantKey);
       final currentField = _readField<T>(profile, field);
-      final oldValue = currentField.hasValue ? _encode(field, currentField.value as T) : null;
+      final oldValue = currentField.hasValue
+          ? _encode(field, currentField.value as T)
+          : null;
       final newValueEncoded = _encode(field, newValue);
 
       final updated = _applyToField<T>(
@@ -135,7 +139,10 @@ class MerchantLearningRepository {
     }
   }
 
-  LearnedField<T> _readField<T>(MerchantLearningProfile profile, LearnedFieldType field) {
+  LearnedField<T> _readField<T>(
+    MerchantLearningProfile profile,
+    LearnedFieldType field,
+  ) {
     switch (field) {
       case LearnedFieldType.merchantType:
         return profile.merchantType as LearnedField<T>;
@@ -158,23 +165,33 @@ class MerchantLearningRepository {
     switch (field) {
       case LearnedFieldType.merchantType:
         return profile.copyWith(
-          merchantType: transform(profile.merchantType as LearnedField<T>) as LearnedField<MerchantType>,
+          merchantType:
+              transform(profile.merchantType as LearnedField<T>)
+                  as LearnedField<MerchantType>,
         );
       case LearnedFieldType.category:
         return profile.copyWith(
-          category: transform(profile.category as LearnedField<T>) as LearnedField<String>,
+          category:
+              transform(profile.category as LearnedField<T>)
+                  as LearnedField<String>,
         );
       case LearnedFieldType.subcategory:
         return profile.copyWith(
-          subcategory: transform(profile.subcategory as LearnedField<T>) as LearnedField<String>,
+          subcategory:
+              transform(profile.subcategory as LearnedField<T>)
+                  as LearnedField<String>,
         );
       case LearnedFieldType.paymentProvider:
         return profile.copyWith(
-          paymentProvider: transform(profile.paymentProvider as LearnedField<T>) as LearnedField<PaymentProvider>,
+          paymentProvider:
+              transform(profile.paymentProvider as LearnedField<T>)
+                  as LearnedField<PaymentProvider>,
         );
       case LearnedFieldType.paymentMethod:
         return profile.copyWith(
-          paymentMethod: transform(profile.paymentMethod as LearnedField<T>) as LearnedField<PaymentMethod>,
+          paymentMethod:
+              transform(profile.paymentMethod as LearnedField<T>)
+                  as LearnedField<PaymentMethod>,
         );
     }
   }

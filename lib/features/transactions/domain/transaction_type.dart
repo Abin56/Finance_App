@@ -8,8 +8,8 @@ import '../../../core/constants/app_colors.dart';
 enum TransactionType { income, expense }
 
 extension TransactionTypeX on TransactionType {
-  static TransactionType fromName(String name) =>
-      TransactionType.values.firstWhere((t) => t.name == name, orElse: () => TransactionType.expense);
+  static TransactionType fromName(String name) => TransactionType.values
+      .firstWhere((t) => t.name == name, orElse: () => TransactionType.expense);
 
   String get label {
     switch (this) {

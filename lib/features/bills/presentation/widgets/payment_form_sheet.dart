@@ -20,7 +20,12 @@ import '../providers/bill_providers.dart';
 /// bill's current occurrence. Payments are append-only — this sheet only
 /// ever creates, never edits, matching [PaymentRepository]'s API.
 class PaymentFormSheet extends ConsumerStatefulWidget {
-  const PaymentFormSheet({super.key, required this.bill, required this.occurrence, this.smsPrefill});
+  const PaymentFormSheet({
+    super.key,
+    required this.bill,
+    required this.occurrence,
+    this.smsPrefill,
+  });
 
   final Bill bill;
   final BillOccurrence occurrence;
@@ -29,12 +34,21 @@ class PaymentFormSheet extends ConsumerStatefulWidget {
   /// user picked which bill via the bill picker) — seeds amount/date/note.
   final SmsPrefill? smsPrefill;
 
-  static Future<void> show(BuildContext context, Bill bill, BillOccurrence occurrence, {SmsPrefill? smsPrefill}) {
+  static Future<void> show(
+    BuildContext context,
+    Bill bill,
+    BillOccurrence occurrence, {
+    SmsPrefill? smsPrefill,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
-      builder: (_) => PaymentFormSheet(bill: bill, occurrence: occurrence, smsPrefill: smsPrefill),
+      builder: (_) => PaymentFormSheet(
+        bill: bill,
+        occurrence: occurrence,
+        smsPrefill: smsPrefill,
+      ),
     );
   }
 
@@ -45,15 +59,22 @@ class PaymentFormSheet extends ConsumerStatefulWidget {
 class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(
-    text: (widget.smsPrefill?.amount ?? widget.occurrence.remainingAmount).toStringAsFixed(2),
+    text: (widget.smsPrefill?.amount ?? widget.occurrence.remainingAmount)
+        .toStringAsFixed(2),
   );
-  late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
+  late final _noteController = TextEditingController(
+    text: widget.smsPrefill?.note ?? '',
+  );
   late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   bool _isSaving = false;
   bool _someoneElsePaid = false;
   String? _selectedPersonId;
 
-  bool get _isAmountValid => Validators.amountUpTo(widget.occurrence.remainingAmount)(_amountController.text) == null;
+  bool get _isAmountValid =>
+      Validators.amountUpTo(widget.occurrence.remainingAmount)(
+        _amountController.text,
+      ) ==
+      null;
 
   @override
   void dispose() {
@@ -86,7 +107,8 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
   String _resolveNote(PayerSource payer) {
     final typed = _noteController.text.trim();
     if (typed.isNotEmpty) return typed;
-    if (payer case PersonPayerSource(:final person)) return 'Paid by ${person.name}';
+    if (payer case PersonPayerSource(:final person))
+      return 'Paid by ${person.name}';
     return '';
   }
 
@@ -99,33 +121,40 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
       final amount = double.parse(_amountController.text.trim());
       final payer = _resolvePayer();
 
-      await ref.read(paymentAttributionServiceProvider).apply(
-        items: [
-          PaymentAttributionItem(
-            obligationLabel: 'your ${widget.bill.name} bill',
-            amount: amount,
-            record: ({required amount, required date, required note}) => repository.recordPayment(
-              widget.bill,
-              widget.occurrence,
-              amount: amount,
-              date: date,
-              note: note,
-            ),
-          ),
-        ],
-        payer: payer,
-        date: _date,
-        note: _resolveNote(payer),
-      );
+      await ref
+          .read(paymentAttributionServiceProvider)
+          .apply(
+            items: [
+              PaymentAttributionItem(
+                obligationLabel: 'your ${widget.bill.name} bill',
+                amount: amount,
+                record: ({required amount, required date, required note}) =>
+                    repository.recordPayment(
+                      widget.bill,
+                      widget.occurrence,
+                      amount: amount,
+                      date: date,
+                      note: note,
+                    ),
+              ),
+            ],
+            payer: payer,
+            date: _date,
+            note: _resolveNote(payer),
+          );
 
-      await completeSmsImport(ref, smsPrefill: widget.smsPrefill, linkedEntityId: widget.bill.id);
+      await completeSmsImport(
+        ref,
+        smsPrefill: widget.smsPrefill,
+        linkedEntityId: widget.bill.id,
+      );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record payment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
@@ -146,15 +175,22 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: Validators.amountUpTo(widget.occurrence.remainingAmount),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              validator: Validators.amountUpTo(
+                widget.occurrence.remainingAmount,
+              ),
               autovalidateMode: AutovalidateMode.onUserInteraction,
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSizes.md),
             OutlinedButton.icon(
               onPressed: _pickDate,
-              icon: const Icon(Icons.calendar_today_outlined, size: AppSizes.iconSm),
+              icon: const Icon(
+                Icons.calendar_today_outlined,
+                size: AppSizes.iconSm,
+              ),
               label: Text(_date.fullDate),
             ),
             const SizedBox(height: AppSizes.md),
@@ -172,7 +208,8 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
                 if (!value) _selectedPersonId = null;
               }),
               selectedPersonId: _selectedPersonId,
-              onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+              onPersonChanged: (value) =>
+                  setState(() => _selectedPersonId = value),
             ),
           ],
         ),

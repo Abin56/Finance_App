@@ -6,7 +6,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/theme/clay_widgets.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
 import '../../../../shared/domain/payment_urgency.dart';
 import '../providers/cash_flow_providers.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
@@ -25,12 +26,18 @@ class MoneyToReceiveCard extends ConsumerWidget {
       (
         label: 'Split Expenses',
         breakdown: ref.watch(splitExpensesReceivableProvider),
-        onTap: () => context.goNamed(AppRoutes.transactionsName, queryParameters: {'filter': 'splitExpenses'}),
+        onTap: () => context.goNamed(
+          AppRoutes.transactionsName,
+          queryParameters: {'filter': 'splitExpenses'},
+        ),
       ),
       (
         label: 'Assigned Expenses',
         breakdown: ref.watch(assignedExpensesReceivableProvider),
-        onTap: () => context.goNamed(AppRoutes.transactionsName, queryParameters: {'filter': 'splitExpenses'}),
+        onTap: () => context.goNamed(
+          AppRoutes.transactionsName,
+          queryParameters: {'filter': 'splitExpenses'},
+        ),
       ),
       (
         label: 'People Pending Payments',
@@ -53,11 +60,12 @@ class MoneyToReceiveCard extends ConsumerWidget {
       return const PlaceholderCard(
         icon: Icons.call_received_rounded,
         title: 'Nothing owed to you',
-        message: 'Split expenses, people, and loans you\'re owed money for will appear here.',
+        message:
+            'Split expenses, people, and loans you\'re owed money for will appear here.',
       );
     }
 
-    return ClayCard(
+    return FlowFiCard(
       padding: const EdgeInsets.all(AppSizes.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,15 +73,15 @@ class MoneyToReceiveCard extends ConsumerWidget {
           Text('Money To Receive', style: context.textTheme.titleMedium),
           Text(
             'Currently outstanding — not scoped to the selected period',
-            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.5),
+            ),
           ),
           const SizedBox(height: AppSizes.sm),
-          Text(
+          FlowFiAmountText(
             CurrencyFormatter.instance.format(total),
-            style: context.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: PaymentUrgency.paid.color,
-            ),
+            size: AmountSize.large,
+            color: PaymentUrgency.paid.color,
           ),
           const SizedBox(height: AppSizes.lg),
           for (final row in rows)
@@ -84,13 +92,24 @@ class MoneyToReceiveCard extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
                 child: Row(
                   children: [
-                    Expanded(child: Text(row.label, style: context.textTheme.bodyMedium)),
+                    Expanded(
+                      child: Text(
+                        row.label,
+                        style: context.textTheme.bodyMedium,
+                      ),
+                    ),
                     Text(
                       CurrencyFormatter.instance.format(row.breakdown.amount),
-                      style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(width: AppSizes.xs),
-                    Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm, color: context.colors.onSurface.withValues(alpha: 0.4)),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: AppSizes.iconSm,
+                      color: context.colors.onSurface.withValues(alpha: 0.4),
+                    ),
                   ],
                 ),
               ),

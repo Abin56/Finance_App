@@ -56,18 +56,25 @@ class _CardInfoSection extends StatelessWidget {
           const SizedBox(height: AppSizes.sm),
           if (card.cardHolderName != null && card.cardHolderName!.isNotEmpty)
             _textRow(context, 'Card holder', card.cardHolderName!),
-          if (card.cardNetwork != null) _textRow(context, 'Network', card.cardNetwork!.label),
-          if (card.lastFourDigits != null) _textRow(context, 'Card number', '•••• ${card.lastFourDigits}'),
-          if (card.annualFee > 0) _amountRow(context, 'Annual fee', card.annualFee),
-          if (card.joiningFee > 0) _amountRow(context, 'Joining fee', card.joiningFee),
+          if (card.cardNetwork != null)
+            _textRow(context, 'Network', card.cardNetwork!.label),
+          if (card.lastFourDigits != null)
+            _textRow(context, 'Card number', '•••• ${card.lastFourDigits}'),
+          if (card.annualFee > 0)
+            _amountRow(context, 'Annual fee', card.annualFee),
+          if (card.joiningFee > 0)
+            _amountRow(context, 'Joining fee', card.joiningFee),
           if (card.interestRatePercent != null)
             _textRow(context, 'Interest rate', '${card.interestRatePercent}%'),
-          if (card.autoPay) _textRow(context, 'Auto debit', card.autoDebitAccount ?? 'Enabled'),
+          if (card.autoPay)
+            _textRow(context, 'Auto debit', card.autoDebitAccount ?? 'Enabled'),
           if (card.rewardNotes != null && card.rewardNotes!.isNotEmpty) ...[
             const SizedBox(height: AppSizes.sm),
             Text(
               card.rewardNotes!,
-              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.8)),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.8),
+              ),
             ),
           ],
         ],
@@ -83,12 +90,16 @@ class _CardInfoSection extends StatelessWidget {
         children: [
           Text(
             label,
-            style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
           Flexible(
             child: Text(
               value,
-              style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.end,
             ),
           ),
@@ -132,15 +143,26 @@ class CreditCardDetailScreen extends ConsumerWidget {
     final statements = [...ref.watch(statementsWithLiveTotalsProvider(cardId))]
       ..sort((a, b) => b.periodEnd.compareTo(a.periodEnd));
     final cycleView = ref.watch(statementCycleViewProvider(cardId));
-    final previousCyclePendingIds = cycleView.previousCyclePending.map((s) => s.id).toSet();
+    final previousCyclePendingIds = cycleView.previousCyclePending
+        .map((s) => s.id)
+        .toSet();
 
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-            BankLogo(bankId: account?.bankId, fallbackName: account?.name, size: 32),
+            BankLogo(
+              bankId: account?.bankId,
+              fallbackName: account?.name,
+              size: 32,
+            ),
             const SizedBox(width: AppSizes.sm),
-            Flexible(child: Text(account?.name ?? 'Credit Card', overflow: TextOverflow.ellipsis)),
+            Flexible(
+              child: Text(
+                account?.name ?? 'Credit Card',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             if (!card.status.isActive) ...[
               const SizedBox(width: AppSizes.sm),
               _CardStatusChip(status: card.status),
@@ -157,70 +179,84 @@ class CreditCardDetailScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: ListView(
-        padding: const EdgeInsets.all(AppSizes.lg),
-        children: [
-          if (!card.status.isActive) ...[
-            _ClosedCardNotice(status: card.status),
-            const SizedBox(height: AppSizes.lg),
-          ],
-          if (sharedLimit != null) ...[
-            _SharedLimitBanner(sharedLimit: sharedLimit, cardId: cardId),
-            const SizedBox(height: AppSizes.lg),
-          ],
-          _CardUsageCard(
-            used: standing.outstanding,
-            available: standing.available,
-            creditLimit: effectiveLimit,
-            currentCycleSpend: standing.currentCycleSpend,
-          ),
-          if (_hasCardInfo(card)) ...[
-            const SizedBox(height: AppSizes.lg),
-            _CardInfoSection(card: card),
-          ],
-          if (cycleView.previousCyclePending.isNotEmpty) ...[
-            const SizedBox(height: AppSizes.lg),
-            Text('Previous Cycle Pending', style: context.textTheme.titleMedium),
-            const SizedBox(height: AppSizes.sm),
-            for (final statement in cycleView.previousCyclePending)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                child: _StatementTile(
-                  statement: statement,
-                  isCurrent: false,
-                  isCarriedForward: true,
-                  onTap: () => context.push('${AppRoutes.creditCards}/$cardId/statements/${statement.id}'),
-                ),
-              ),
-          ],
-          const SizedBox(height: AppSizes.lg),
-          Text('Current Cycle', style: context.textTheme.titleMedium),
-          const SizedBox(height: AppSizes.sm),
-          if (current != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSizes.sm),
-              child: _StatementTile(statement: current, isCurrent: true, isCarriedForward: false, onTap: null),
+          padding: const EdgeInsets.all(AppSizes.lg),
+          children: [
+            if (!card.status.isActive) ...[
+              _ClosedCardNotice(status: card.status),
+              const SizedBox(height: AppSizes.lg),
+            ],
+            if (sharedLimit != null) ...[
+              _SharedLimitBanner(sharedLimit: sharedLimit, cardId: cardId),
+              const SizedBox(height: AppSizes.lg),
+            ],
+            _CardUsageCard(
+              used: standing.outstanding,
+              available: standing.available,
+              creditLimit: effectiveLimit,
+              currentCycleSpend: standing.currentCycleSpend,
             ),
-          const SizedBox(height: AppSizes.lg),
-          Text('Statements', style: context.textTheme.titleMedium),
-          const SizedBox(height: AppSizes.sm),
-          if (statements.isEmpty && current == null)
-            const EmptyState(
-              icon: Icons.receipt_long_outlined,
-              title: 'No statements yet',
-              subtitle: 'Statements appear here once a billing cycle closes.',
-            )
-          else
-            for (final statement in statements)
+            if (_hasCardInfo(card)) ...[
+              const SizedBox(height: AppSizes.lg),
+              _CardInfoSection(card: card),
+            ],
+            if (cycleView.previousCyclePending.isNotEmpty) ...[
+              const SizedBox(height: AppSizes.lg),
+              Text(
+                'Previous Cycle Pending',
+                style: context.textTheme.titleMedium,
+              ),
+              const SizedBox(height: AppSizes.sm),
+              for (final statement in cycleView.previousCyclePending)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                  child: _StatementTile(
+                    statement: statement,
+                    isCurrent: false,
+                    isCarriedForward: true,
+                    onTap: () => context.push(
+                      '${AppRoutes.creditCards}/$cardId/statements/${statement.id}',
+                    ),
+                  ),
+                ),
+            ],
+            const SizedBox(height: AppSizes.lg),
+            Text('Current Cycle', style: context.textTheme.titleMedium),
+            const SizedBox(height: AppSizes.sm),
+            if (current != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: AppSizes.sm),
                 child: _StatementTile(
-                  statement: statement,
-                  isCurrent: false,
-                  isCarriedForward: previousCyclePendingIds.contains(statement.id),
-                  onTap: () => context.push('${AppRoutes.creditCards}/$cardId/statements/${statement.id}'),
+                  statement: current,
+                  isCurrent: true,
+                  isCarriedForward: false,
+                  onTap: null,
                 ),
               ),
-        ],
+            const SizedBox(height: AppSizes.lg),
+            Text('Statements', style: context.textTheme.titleMedium),
+            const SizedBox(height: AppSizes.sm),
+            if (statements.isEmpty && current == null)
+              const EmptyState(
+                icon: Icons.receipt_long_outlined,
+                title: 'No statements yet',
+                subtitle: 'Statements appear here once a billing cycle closes.',
+              )
+            else
+              for (final statement in statements)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                  child: _StatementTile(
+                    statement: statement,
+                    isCurrent: false,
+                    isCarriedForward: previousCyclePendingIds.contains(
+                      statement.id,
+                    ),
+                    onTap: () => context.push(
+                      '${AppRoutes.creditCards}/$cardId/statements/${statement.id}',
+                    ),
+                  ),
+                ),
+          ],
         ),
       ),
     );
@@ -244,7 +280,10 @@ class _CardStatusChip extends StatelessWidget {
       ),
       child: Text(
         status.label,
-        style: context.textTheme.labelSmall?.copyWith(color: status.color, fontWeight: FontWeight.w700),
+        style: context.textTheme.labelSmall?.copyWith(
+          color: status.color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -279,7 +318,9 @@ class _ClosedCardNotice extends StatelessWidget {
                 CreditCardStatus.closed || CreditCardStatus.active =>
                   'This card is closed. It stays here for your records; any remaining balance is still shown.',
               },
-              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.8)),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.8),
+              ),
             ),
           ),
         ],
@@ -302,11 +343,15 @@ class _SharedLimitBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
     final card = cards.where((c) => c.id == cardId).firstOrNull;
-    final memberCount = ref.watch(cardsUnderSharedLimitProvider(sharedLimit.id)).length;
+    final memberCount = ref
+        .watch(cardsUnderSharedLimitProvider(sharedLimit.id))
+        .length;
 
     return InkWell(
       borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-      onTap: card == null ? null : () => CreditCardFormSheet.show(context, card: card),
+      onTap: card == null
+          ? null
+          : () => CreditCardFormSheet.show(context, card: card),
       child: Container(
         padding: const EdgeInsets.all(AppSizes.md),
         decoration: BoxDecoration(
@@ -315,12 +360,18 @@ class _SharedLimitBanner extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.account_balance_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+            Icon(
+              Icons.account_balance_rounded,
+              size: AppSizes.iconSm,
+              color: context.colors.primary,
+            ),
             const SizedBox(width: AppSizes.sm),
             Expanded(
               child: Text(
                 'Shared credit limit — ${sharedLimit.name} ($memberCount card${memberCount == 1 ? '' : 's'})',
-                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const Icon(Icons.chevron_right_rounded),
@@ -362,13 +413,18 @@ class _CardUsageCard extends StatelessWidget {
               Flexible(
                 child: Text.rich(
                   TextSpan(
-                    style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                    style: context.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                     children: [
                       TextSpan(text: CurrencyFormatter.instance.format(used)),
                       TextSpan(
-                        text: ' of ${CurrencyFormatter.instance.format(creditLimit)} used',
+                        text:
+                            ' of ${CurrencyFormatter.instance.format(creditLimit)} used',
                         style: context.textTheme.bodyMedium?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.6),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -384,8 +440,8 @@ class _CardUsageCard extends StatelessWidget {
                   color: ratio >= 1
                       ? AppColors.error
                       : ratio >= 0.8
-                          ? AppColors.warning
-                          : context.colors.primary,
+                      ? AppColors.warning
+                      : context.colors.primary,
                 ),
               ),
             ],
@@ -395,8 +451,16 @@ class _CardUsageCard extends StatelessWidget {
           const SizedBox(height: AppSizes.md),
           Row(
             children: [
-              Expanded(child: _MiniStat(label: 'Available', value: available, color: AppColors.success)),
-              Expanded(child: _MiniStat(label: 'This cycle', value: currentCycleSpend)),
+              Expanded(
+                child: _MiniStat(
+                  label: 'Available',
+                  value: available,
+                  color: AppColors.success,
+                ),
+              ),
+              Expanded(
+                child: _MiniStat(label: 'This cycle', value: currentCycleSpend),
+              ),
             ],
           ),
         ],
@@ -419,11 +483,16 @@ class _MiniStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
         ),
       ],
     );
@@ -463,8 +532,15 @@ class _StatementTile extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-            child: Icon(isCurrent ? Icons.hourglass_top_rounded : urgency.icon, color: color, size: AppSizes.iconSm),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isCurrent ? Icons.hourglass_top_rounded : urgency.icon,
+              color: color,
+              size: AppSizes.iconSm,
+            ),
           ),
           const SizedBox(width: AppSizes.md),
           Expanded(
@@ -479,7 +555,9 @@ class _StatementTile extends StatelessWidget {
                 ),
                 Text(
                   isCurrent ? 'In progress' : urgency.label,
-                  style: context.textTheme.bodySmall?.copyWith(color: isCurrent ? null : color),
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: isCurrent ? null : color,
+                  ),
                 ),
               ],
             ),
@@ -489,11 +567,15 @@ class _StatementTile extends StatelessWidget {
             children: [
               Text(
                 CurrencyFormatter.instance.format(statement.remainingAmount),
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: context.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Text(
                 'of ${CurrencyFormatter.instance.format(statement.totalAmount)}',
-                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                ),
               ),
             ],
           ),

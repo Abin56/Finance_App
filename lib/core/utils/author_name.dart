@@ -13,8 +13,13 @@
 /// reliable signal for where one word ends and the next begins, and a wrong
 /// guess is worse than a single run-on word. Falls back to [fallback] when
 /// neither [displayName] nor [email] yields anything usable.
-String authorNameFromEmail(String? email, {String? displayName, String fallback = 'You'}) {
-  if (displayName != null && displayName.trim().isNotEmpty) return displayName.trim();
+String authorNameFromEmail(
+  String? email, {
+  String? displayName,
+  String fallback = 'You',
+}) {
+  if (displayName != null && displayName.trim().isNotEmpty)
+    return displayName.trim();
 
   if (email == null || email.isEmpty) return fallback;
 
@@ -24,5 +29,6 @@ String authorNameFromEmail(String? email, {String? displayName, String fallback 
   final withoutTrailingDigits = localPart.replaceAll(RegExp(r'\d+$'), '');
   if (withoutTrailingDigits.isEmpty) return fallback;
 
-  return withoutTrailingDigits[0].toUpperCase() + withoutTrailingDigits.substring(1);
+  return withoutTrailingDigits[0].toUpperCase() +
+      withoutTrailingDigits.substring(1);
 }

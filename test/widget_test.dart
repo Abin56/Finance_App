@@ -19,8 +19,10 @@ import 'package:finance_app/features/setup_wizard/presentation/providers/setup_w
 /// the mock's default uid is a random UUID, which nothing could pre-seed.
 const _kUid = 'test-uid';
 
-MockFirebaseAuth _signedInAuth() =>
-    MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 'test@example.com'));
+MockFirebaseAuth _signedInAuth() => MockFirebaseAuth(
+  signedIn: true,
+  mockUser: MockUser(uid: _kUid, email: 'test@example.com'),
+);
 
 void main() {
   setUpAll(() async {
@@ -58,7 +60,9 @@ void main() {
     expect(find.text('Spending Snapshot'), findsOneWidget);
   });
 
-  testWidgets('Cash Flow tab shows the moved planning sections', (WidgetTester tester) async {
+  testWidgets('Cash Flow tab shows the moved planning sections', (
+    WidgetTester tester,
+  ) async {
     final auth = _signedInAuth();
     final firestore = FakeFirebaseFirestore();
 
@@ -80,36 +84,44 @@ void main() {
     expect(find.text('Nothing due this month'), findsOneWidget);
   });
 
-  testWidgets('More tab lists secondary destinations and navigates to Reports', (WidgetTester tester) async {
-    final auth = _signedInAuth();
-    final firestore = FakeFirebaseFirestore();
+  testWidgets(
+    'More tab lists secondary destinations and navigates to Reports',
+    (WidgetTester tester) async {
+      final auth = _signedInAuth();
+      final firestore = FakeFirebaseFirestore();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseAuthProvider.overrideWithValue(auth),
-          firestoreProvider.overrideWithValue(firestore),
-        ],
-        child: const _TestApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            firebaseAuthProvider.overrideWithValue(auth),
+            firestoreProvider.overrideWithValue(firestore),
+          ],
+          child: const _TestApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.descendant(of: find.byType(NavigationBar), matching: find.text('More')));
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(NavigationBar),
+          matching: find.text('More'),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(AppBar, 'More'), findsOneWidget);
-    expect(find.text('Reports'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
-    expect(find.text('Backup & Restore'), findsOneWidget);
-    expect(find.text('Trash'), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
+      expect(find.widgetWithText(AppBar, 'More'), findsOneWidget);
+      expect(find.text('Reports'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Backup & Restore'), findsOneWidget);
+      expect(find.text('Trash'), findsOneWidget);
+      expect(find.text('About'), findsOneWidget);
 
-    await tester.tap(find.text('Reports'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Reports'));
+      await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(AppBar, 'Reports'), findsOneWidget);
-  });
+      expect(find.widgetWithText(AppBar, 'Reports'), findsOneWidget);
+    },
+  );
 }
 
 /// Mirrors `FinanceApp` from `main.dart` minus the lifecycle-driven

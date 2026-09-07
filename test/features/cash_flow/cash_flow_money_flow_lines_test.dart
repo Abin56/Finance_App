@@ -56,123 +56,152 @@ void main() {
   }
 
   void setRange(DateTime start, DateTime end) {
-    container.read(cashFlowDateRangeProvider.notifier).state = CashFlowPeriod.custom(DateRange(start, end));
+    container.read(cashFlowDateRangeProvider.notifier).state =
+        CashFlowPeriod.custom(DateRange(start, end));
   }
 
   group('Bug fix — one/two-day ranges no longer leak the whole month', () {
-    test('one-day range: Sep 1 -> Sep 1 includes only Sep 1\'s income/expense', () async {
-      final accountId = await createAccount(container);
-      final transactions = container.read(transactionRepositoryProvider);
+    test(
+      'one-day range: Sep 1 -> Sep 1 includes only Sep 1\'s income/expense',
+      () async {
+        final accountId = await createAccount(container);
+        final transactions = container.read(transactionRepositoryProvider);
 
-      // Sep 1: income 500, expense 200
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 500,
-        dateTime: DateTime(2026, 9, 1, 10),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 200,
-        dateTime: DateTime(2026, 9, 1, 12),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      // Sep 2: income 1000, expense 300
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 1000,
-        dateTime: DateTime(2026, 9, 2, 10),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 300,
-        dateTime: DateTime(2026, 9, 2, 12),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      // Sep 3: income 2000, expense 400
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 2000,
-        dateTime: DateTime(2026, 9, 3, 10),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 400,
-        dateTime: DateTime(2026, 9, 3, 12),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      await container.read(transactionsStreamProvider.future);
+        // Sep 1: income 500, expense 200
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 500,
+          dateTime: DateTime(2026, 9, 1, 10),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 200,
+          dateTime: DateTime(2026, 9, 1, 12),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        // Sep 2: income 1000, expense 300
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 1000,
+          dateTime: DateTime(2026, 9, 2, 10),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 300,
+          dateTime: DateTime(2026, 9, 2, 12),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        // Sep 3: income 2000, expense 400
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 2000,
+          dateTime: DateTime(2026, 9, 3, 10),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 400,
+          dateTime: DateTime(2026, 9, 3, 12),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1, 0, 0, 0), DateTime(2026, 9, 1, 23, 59, 59, 999));
+        setRange(
+          DateTime(2026, 9, 1, 0, 0, 0),
+          DateTime(2026, 9, 1, 23, 59, 59, 999),
+        );
 
-      final cashFlow = container.read(cashFlowForRangeProvider);
-      expect(cashFlow.moneyIn, 500, reason: 'must not include Sep 2/3\'s income');
-      expect(cashFlow.moneyOut, 200, reason: 'must not include Sep 2/3\'s expense');
-      expect(cashFlow.net, 300);
-    });
+        final cashFlow = container.read(cashFlowForRangeProvider);
+        expect(
+          cashFlow.moneyIn,
+          500,
+          reason: 'must not include Sep 2/3\'s income',
+        );
+        expect(
+          cashFlow.moneyOut,
+          200,
+          reason: 'must not include Sep 2/3\'s expense',
+        );
+        expect(cashFlow.net, 300);
+      },
+    );
 
-    test('two-day range: Sep 1 -> Sep 2 includes only those two days', () async {
-      final accountId = await createAccount(container);
-      final transactions = container.read(transactionRepositoryProvider);
+    test(
+      'two-day range: Sep 1 -> Sep 2 includes only those two days',
+      () async {
+        final accountId = await createAccount(container);
+        final transactions = container.read(transactionRepositoryProvider);
 
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 500,
-        dateTime: DateTime(2026, 9, 1, 10),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 200,
-        dateTime: DateTime(2026, 9, 1, 12),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 1000,
-        dateTime: DateTime(2026, 9, 2, 10),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 300,
-        dateTime: DateTime(2026, 9, 2, 12),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 2000,
-        dateTime: DateTime(2026, 9, 3, 10),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 400,
-        dateTime: DateTime(2026, 9, 3, 12),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      await container.read(transactionsStreamProvider.future);
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 500,
+          dateTime: DateTime(2026, 9, 1, 10),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 200,
+          dateTime: DateTime(2026, 9, 1, 12),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 1000,
+          dateTime: DateTime(2026, 9, 2, 10),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 300,
+          dateTime: DateTime(2026, 9, 2, 12),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 2000,
+          dateTime: DateTime(2026, 9, 3, 10),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 400,
+          dateTime: DateTime(2026, 9, 3, 12),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1, 0, 0, 0), DateTime(2026, 9, 2, 23, 59, 59, 999));
+        setRange(
+          DateTime(2026, 9, 1, 0, 0, 0),
+          DateTime(2026, 9, 2, 23, 59, 59, 999),
+        );
 
-      final cashFlow = container.read(cashFlowForRangeProvider);
-      expect(cashFlow.moneyIn, 1500, reason: '500 (Sep 1) + 1000 (Sep 2), not Sep 3\'s 2000');
-      expect(cashFlow.moneyOut, 500, reason: '200 (Sep 1) + 300 (Sep 2), not Sep 3\'s 400');
-    });
+        final cashFlow = container.read(cashFlowForRangeProvider);
+        expect(
+          cashFlow.moneyIn,
+          1500,
+          reason: '500 (Sep 1) + 1000 (Sep 2), not Sep 3\'s 2000',
+        );
+        expect(
+          cashFlow.moneyOut,
+          500,
+          reason: '200 (Sep 1) + 300 (Sep 2), not Sep 3\'s 400',
+        );
+      },
+    );
 
     test('one-week range only includes that week', () async {
       final accountId = await createAccount(container);
@@ -261,7 +290,10 @@ void main() {
       );
       await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1, 0, 0, 0), DateTime(2026, 9, 1, 23, 59, 59, 999));
+      setRange(
+        DateTime(2026, 9, 1, 0, 0, 0),
+        DateTime(2026, 9, 1, 23, 59, 59, 999),
+      );
       expect(container.read(cashFlowForRangeProvider).moneyIn, 500);
     });
 
@@ -277,7 +309,10 @@ void main() {
       );
       await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1, 0, 0, 0), DateTime(2026, 9, 2, 23, 59, 59, 999));
+      setRange(
+        DateTime(2026, 9, 1, 0, 0, 0),
+        DateTime(2026, 9, 2, 23, 59, 59, 999),
+      );
       expect(container.read(cashFlowForRangeProvider).moneyIn, 500);
     });
 
@@ -293,7 +328,10 @@ void main() {
       );
       await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1, 0, 0, 0), DateTime(2026, 9, 1, 23, 59, 59, 999));
+      setRange(
+        DateTime(2026, 9, 1, 0, 0, 0),
+        DateTime(2026, 9, 1, 23, 59, 59, 999),
+      );
       expect(container.read(cashFlowForRangeProvider).moneyIn, 0);
     });
 
@@ -309,190 +347,253 @@ void main() {
       );
       await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1, 0, 0, 0), DateTime(2026, 9, 1, 23, 59, 59, 999));
+      setRange(
+        DateTime(2026, 9, 1, 0, 0, 0),
+        DateTime(2026, 9, 1, 23, 59, 59, 999),
+      );
       expect(container.read(cashFlowForRangeProvider).moneyIn, 0);
     });
   });
 
   group('Money In / Money Out detail lines match the summary total', () {
-    test('Money In detail total equals cashFlowForRangeProvider.moneyIn', () async {
-      final accountId = await createAccount(container);
-      final transactions = container.read(transactionRepositoryProvider);
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 3000,
-        dateTime: DateTime(2026, 9, 2),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 1000,
-        dateTime: DateTime(2026, 9, 1),
-        accountId: accountId,
-        categoryId: 'deposit',
-      );
-      await container.read(transactionsStreamProvider.future);
+    test(
+      'Money In detail total equals cashFlowForRangeProvider.moneyIn',
+      () async {
+        final accountId = await createAccount(container);
+        final transactions = container.read(transactionRepositoryProvider);
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 3000,
+          dateTime: DateTime(2026, 9, 2),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 1000,
+          dateTime: DateTime(2026, 9, 1),
+          accountId: accountId,
+          categoryId: 'deposit',
+        );
+        await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 2, 23, 59, 59, 999));
+        setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 2, 23, 59, 59, 999));
 
-      final summary = container.read(cashFlowForRangeProvider);
-      final lines = container.read(moneyInLinesForRangeProvider);
-      final linesTotal = lines.fold(0.0, (sum, l) => sum + l.amount);
-      expect(linesTotal, summary.moneyIn);
-      expect(linesTotal, 4000);
-    });
+        final summary = container.read(cashFlowForRangeProvider);
+        final lines = container.read(moneyInLinesForRangeProvider);
+        final linesTotal = lines.fold(0.0, (sum, l) => sum + l.amount);
+        expect(linesTotal, summary.moneyIn);
+        expect(linesTotal, 4000);
+      },
+    );
 
-    test('Money Out detail total equals cashFlowForRangeProvider.moneyOut, across expense + EMI + Loan + Bill', () async {
-      final accountId = await createAccount(container);
-      final transactions = container.read(transactionRepositoryProvider);
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 500,
-        dateTime: DateTime(2026, 9, 2),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 1000,
-        dateTime: DateTime(2026, 9, 2),
-        accountId: accountId,
-        categoryId: 'shopping',
-      );
+    test(
+      'Money Out detail total equals cashFlowForRangeProvider.moneyOut, across expense + EMI + Loan + Bill',
+      () async {
+        final accountId = await createAccount(container);
+        final transactions = container.read(transactionRepositoryProvider);
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 500,
+          dateTime: DateTime(2026, 9, 2),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 1000,
+          dateTime: DateTime(2026, 9, 2),
+          accountId: accountId,
+          categoryId: 'shopping',
+        );
 
-      // Both EMI and Loan are paid PARTIALLY (not in full) — a fully-paid
-      // single-installment EMI/Loan flips to `EmiStatus.closed`/
-      // `LoanStatus.closed` and drops out of `activeEmisProvider`/
-      // `activeLoansProvider`, which both `moneyOutLinesForRangeProvider`
-      // and the pre-existing `emiPaidThisMonthProvider`/
-      // `_loanPaidThisMonthProvider` iterate over — a pre-existing
-      // limitation this test isn't meant to exercise.
-      final emis = container.read(emiRepositoryProvider);
-      await emis.createEmi(
-        name: 'Bike EMI',
-        principalAmount: 2000,
-        startDate: DateTime(2026, 9, 1),
-        installmentFrequency: ScheduleType.monthly,
-        installmentCount: 1,
-      );
-      await container.read(emisStreamProvider.future);
-      final emi = container.read(emisStreamProvider).value!.single;
-      final emiInstallmentsSub = container.listen(installmentsStreamProvider(emi.scheduleId), (_, _) {});
-      addTearDown(emiInstallmentsSub.close);
-      await container.read(installmentsStreamProvider(emi.scheduleId).future);
-      final emiInstallment = container.read(installmentsStreamProvider(emi.scheduleId)).value!.single;
-      final emiPaymentKey = (scheduleId: emi.scheduleId, installmentId: emiInstallment.id);
-      await container
-          .read(installmentPaymentRepositoryProvider(emiPaymentKey))
-          .recordPayment(emiInstallment, amount: 1500, date: DateTime(2026, 9, 1));
-      await container.read(installmentsStreamProvider(emi.scheduleId).future);
+        // Both EMI and Loan are paid PARTIALLY (not in full) — a fully-paid
+        // single-installment EMI/Loan flips to `EmiStatus.closed`/
+        // `LoanStatus.closed` and drops out of `activeEmisProvider`/
+        // `activeLoansProvider`, which both `moneyOutLinesForRangeProvider`
+        // and the pre-existing `emiPaidThisMonthProvider`/
+        // `_loanPaidThisMonthProvider` iterate over — a pre-existing
+        // limitation this test isn't meant to exercise.
+        final emis = container.read(emiRepositoryProvider);
+        await emis.createEmi(
+          name: 'Bike EMI',
+          principalAmount: 2000,
+          startDate: DateTime(2026, 9, 1),
+          installmentFrequency: ScheduleType.monthly,
+          installmentCount: 1,
+        );
+        await container.read(emisStreamProvider.future);
+        final emi = container.read(emisStreamProvider).value!.single;
+        final emiInstallmentsSub = container.listen(
+          installmentsStreamProvider(emi.scheduleId),
+          (_, _) {},
+        );
+        addTearDown(emiInstallmentsSub.close);
+        await container.read(installmentsStreamProvider(emi.scheduleId).future);
+        final emiInstallment = container
+            .read(installmentsStreamProvider(emi.scheduleId))
+            .value!
+            .single;
+        final emiPaymentKey = (
+          scheduleId: emi.scheduleId,
+          installmentId: emiInstallment.id,
+        );
+        await container
+            .read(installmentPaymentRepositoryProvider(emiPaymentKey))
+            .recordPayment(
+              emiInstallment,
+              amount: 1500,
+              date: DateTime(2026, 9, 1),
+            );
+        await container.read(installmentsStreamProvider(emi.scheduleId).future);
 
-      final people = container.read(personRepositoryProvider);
-      final person = await people.createPerson(name: 'Alex', avatarColorValue: 0xFF000000, openingBalance: 0);
+        final people = container.read(personRepositoryProvider);
+        final person = await people.createPerson(
+          name: 'Alex',
+          avatarColorValue: 0xFF000000,
+          openingBalance: 0,
+        );
 
-      final loans = container.read(loanRepositoryProvider);
-      final loan = await loans.createLoan(
-        personId: person.id,
-        loanAmount: 1000,
-        loanDate: DateTime(2026, 9, 1),
-        repaymentType: LoanRepaymentType.oneTime,
-        dueDate: DateTime(2026, 9, 1),
-      );
-      await container.read(loansStreamProvider.future);
-      final loanInstallmentsSub = container.listen(installmentsStreamProvider(loan.scheduleId), (_, _) {});
-      addTearDown(loanInstallmentsSub.close);
-      await container.read(installmentsStreamProvider(loan.scheduleId).future);
-      final loanInstallment = container.read(installmentsStreamProvider(loan.scheduleId)).value!.single;
-      final loanPaymentKey = (scheduleId: loan.scheduleId, installmentId: loanInstallment.id);
-      await container
-          .read(installmentPaymentRepositoryProvider(loanPaymentKey))
-          .recordPayment(loanInstallment, amount: 700, date: DateTime(2026, 9, 1));
-      await container.read(installmentsStreamProvider(loan.scheduleId).future);
+        final loans = container.read(loanRepositoryProvider);
+        final loan = await loans.createLoan(
+          personId: person.id,
+          loanAmount: 1000,
+          loanDate: DateTime(2026, 9, 1),
+          repaymentType: LoanRepaymentType.oneTime,
+          dueDate: DateTime(2026, 9, 1),
+        );
+        await container.read(loansStreamProvider.future);
+        final loanInstallmentsSub = container.listen(
+          installmentsStreamProvider(loan.scheduleId),
+          (_, _) {},
+        );
+        addTearDown(loanInstallmentsSub.close);
+        await container.read(
+          installmentsStreamProvider(loan.scheduleId).future,
+        );
+        final loanInstallment = container
+            .read(installmentsStreamProvider(loan.scheduleId))
+            .value!
+            .single;
+        final loanPaymentKey = (
+          scheduleId: loan.scheduleId,
+          installmentId: loanInstallment.id,
+        );
+        await container
+            .read(installmentPaymentRepositoryProvider(loanPaymentKey))
+            .recordPayment(
+              loanInstallment,
+              amount: 700,
+              date: DateTime(2026, 9, 1),
+            );
+        await container.read(
+          installmentsStreamProvider(loan.scheduleId).future,
+        );
 
-      final bills = container.read(billRepositoryProvider);
-      final bill = await bills.createBill(
-        name: 'Netflix',
-        amount: 300,
-        dueDate: DateTime(2026, 9, 1),
-        recurrence: BillRecurrence.oneTime,
-      );
-      await container.read(billsStreamProvider.future);
-      final billSub = container.listen(materializeBillOccurrenceProvider(bill.id), (_, _) {});
-      addTearDown(billSub.close);
-      await container.read(materializeBillOccurrenceProvider(bill.id).future);
-      final occurrence = container.read(currentBillOccurrenceProvider(bill.id))!;
-      final paymentRepo = container.read(paymentRepositoryProvider(bill.id));
-      await paymentRepo.recordPayment(bill, occurrence, amount: 300, date: DateTime(2026, 9, 1));
-      await container.read(billOccurrencesStreamProvider(bill.id).future);
+        final bills = container.read(billRepositoryProvider);
+        final bill = await bills.createBill(
+          name: 'Netflix',
+          amount: 300,
+          dueDate: DateTime(2026, 9, 1),
+          recurrence: BillRecurrence.oneTime,
+        );
+        await container.read(billsStreamProvider.future);
+        final billSub = container.listen(
+          materializeBillOccurrenceProvider(bill.id),
+          (_, _) {},
+        );
+        addTearDown(billSub.close);
+        await container.read(materializeBillOccurrenceProvider(bill.id).future);
+        final occurrence = container.read(
+          currentBillOccurrenceProvider(bill.id),
+        )!;
+        final paymentRepo = container.read(paymentRepositoryProvider(bill.id));
+        await paymentRepo.recordPayment(
+          bill,
+          occurrence,
+          amount: 300,
+          date: DateTime(2026, 9, 1),
+        );
+        await container.read(billOccurrencesStreamProvider(bill.id).future);
 
-      await container.read(transactionsStreamProvider.future);
+        await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 2, 23, 59, 59, 999));
+        setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 2, 23, 59, 59, 999));
 
-      final summary = container.read(cashFlowForRangeProvider);
-      final lines = container.read(moneyOutLinesForRangeProvider);
-      final linesTotal = lines.fold(0.0, (sum, l) => sum + l.amount);
-      expect(linesTotal, summary.moneyOut);
-      expect(linesTotal, 500 + 1000 + 1500 + 700 + 300);
+        final summary = container.read(cashFlowForRangeProvider);
+        final lines = container.read(moneyOutLinesForRangeProvider);
+        final linesTotal = lines.fold(0.0, (sum, l) => sum + l.amount);
+        expect(linesTotal, summary.moneyOut);
+        expect(linesTotal, 500 + 1000 + 1500 + 700 + 300);
 
-      // Different outgoing sources correctly identified.
-      expect(lines.where((l) => l.kind == MoneyFlowKind.expense).length, 2);
-      expect(lines.where((l) => l.kind == MoneyFlowKind.emi).length, 1);
-      expect(lines.where((l) => l.kind == MoneyFlowKind.loan).length, 1);
-      expect(lines.where((l) => l.kind == MoneyFlowKind.bill).length, 1);
-    });
+        // Different outgoing sources correctly identified.
+        expect(lines.where((l) => l.kind == MoneyFlowKind.expense).length, 2);
+        expect(lines.where((l) => l.kind == MoneyFlowKind.emi).length, 1);
+        expect(lines.where((l) => l.kind == MoneyFlowKind.loan).length, 1);
+        expect(lines.where((l) => l.kind == MoneyFlowKind.bill).length, 1);
+      },
+    );
 
-    test('only selected-range items appear in Money Out lines; out-of-range items do not', () async {
-      final accountId = await createAccount(container);
-      final transactions = container.read(transactionRepositoryProvider);
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 500,
-        dateTime: DateTime(2026, 9, 1),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 9999,
-        dateTime: DateTime(2026, 9, 10),
-        accountId: accountId,
-        categoryId: 'food',
-      );
-      await container.read(transactionsStreamProvider.future);
+    test(
+      'only selected-range items appear in Money Out lines; out-of-range items do not',
+      () async {
+        final accountId = await createAccount(container);
+        final transactions = container.read(transactionRepositoryProvider);
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 500,
+          dateTime: DateTime(2026, 9, 1),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 9999,
+          dateTime: DateTime(2026, 9, 10),
+          accountId: accountId,
+          categoryId: 'food',
+        );
+        await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 1, 23, 59, 59, 999));
+        setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 1, 23, 59, 59, 999));
 
-      final lines = container.read(moneyOutLinesForRangeProvider);
-      expect(lines, hasLength(1));
-      expect(lines.single.amount, 500);
-      expect(lines.any((l) => l.amount == 9999), isFalse);
-    });
+        final lines = container.read(moneyOutLinesForRangeProvider);
+        expect(lines, hasLength(1));
+        expect(lines.single.amount, 500);
+        expect(lines.any((l) => l.amount == 9999), isFalse);
+      },
+    );
 
-    test('Money In lines correct date/amount/category, empty state when nothing in range', () async {
-      final accountId = await createAccount(container);
-      final transactions = container.read(transactionRepositoryProvider);
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 3000,
-        dateTime: DateTime(2026, 9, 2, 9),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await container.read(transactionsStreamProvider.future);
+    test(
+      'Money In lines correct date/amount/category, empty state when nothing in range',
+      () async {
+        final accountId = await createAccount(container);
+        final transactions = container.read(transactionRepositoryProvider);
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 3000,
+          dateTime: DateTime(2026, 9, 2, 9),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 2), DateTime(2026, 9, 2, 23, 59, 59, 999));
-      final lines = container.read(moneyInLinesForRangeProvider);
-      expect(lines, hasLength(1));
-      expect(lines.single.amount, 3000);
-      expect(lines.single.date.day, 2);
-      expect(lines.single.date.month, 9);
+        setRange(DateTime(2026, 9, 2), DateTime(2026, 9, 2, 23, 59, 59, 999));
+        final lines = container.read(moneyInLinesForRangeProvider);
+        expect(lines, hasLength(1));
+        expect(lines.single.amount, 3000);
+        expect(lines.single.date.day, 2);
+        expect(lines.single.date.month, 9);
 
-      setRange(DateTime(2026, 9, 5), DateTime(2026, 9, 5, 23, 59, 59, 999));
-      expect(container.read(moneyInLinesForRangeProvider), isEmpty, reason: 'empty state must have no lines');
-      expect(container.read(cashFlowForRangeProvider).moneyIn, 0);
-    });
+        setRange(DateTime(2026, 9, 5), DateTime(2026, 9, 5, 23, 59, 59, 999));
+        expect(
+          container.read(moneyInLinesForRangeProvider),
+          isEmpty,
+          reason: 'empty state must have no lines',
+        );
+        expect(container.read(cashFlowForRangeProvider).moneyIn, 0);
+      },
+    );
 
     test('Money Out lines empty state when nothing spent in range', () async {
       final accountId = await createAccount(container);
@@ -510,30 +611,43 @@ void main() {
       expect(container.read(moneyOutLinesForRangeProvider), isEmpty);
     });
 
-    test('changing the range changes the drill-down lines, never a stale previous range', () async {
-      final accountId = await createAccount(container);
-      final transactions = container.read(transactionRepositoryProvider);
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 100,
-        dateTime: DateTime(2026, 9, 1),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.income,
-        amount: 900,
-        dateTime: DateTime(2026, 9, 12),
-        accountId: accountId,
-        categoryId: 'salary',
-      );
-      await container.read(transactionsStreamProvider.future);
+    test(
+      'changing the range changes the drill-down lines, never a stale previous range',
+      () async {
+        final accountId = await createAccount(container);
+        final transactions = container.read(transactionRepositoryProvider);
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 100,
+          dateTime: DateTime(2026, 9, 1),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 900,
+          dateTime: DateTime(2026, 9, 12),
+          accountId: accountId,
+          categoryId: 'salary',
+        );
+        await container.read(transactionsStreamProvider.future);
 
-      setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 2, 23, 59, 59, 999));
-      expect(container.read(moneyInLinesForRangeProvider).fold(0.0, (s, l) => s + l.amount), 100);
+        setRange(DateTime(2026, 9, 1), DateTime(2026, 9, 2, 23, 59, 59, 999));
+        expect(
+          container
+              .read(moneyInLinesForRangeProvider)
+              .fold(0.0, (s, l) => s + l.amount),
+          100,
+        );
 
-      setRange(DateTime(2026, 9, 10), DateTime(2026, 9, 15, 23, 59, 59, 999));
-      expect(container.read(moneyInLinesForRangeProvider).fold(0.0, (s, l) => s + l.amount), 900);
-    });
+        setRange(DateTime(2026, 9, 10), DateTime(2026, 9, 15, 23, 59, 59, 999));
+        expect(
+          container
+              .read(moneyInLinesForRangeProvider)
+              .fold(0.0, (s, l) => s + l.amount),
+          900,
+        );
+      },
+    );
   });
 }

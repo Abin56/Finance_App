@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
 import '../../../reports/domain/reports_period.dart';
 import '../../domain/cash_flow_period.dart';
 import '../../domain/money_flow_line.dart';
@@ -38,46 +39,36 @@ class MoneyFlowDetailScreen extends ConsumerWidget {
         : ref.watch(moneyOutLinesForRangeProvider);
     final total = lines.fold(0.0, (sum, l) => sum + l.amount);
     final isIn = direction == MoneyFlowDirection.moneyIn;
-    final color = isIn ? const Color(0xFF2E7D32) : const Color(0xFFC62828);
+    final color = isIn ? AppColors.income : AppColors.expense;
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: AppClay.primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        title: Text(
-          isIn ? 'Money In' : 'Money Out',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-        ),
-      ),
+      appBar: AppBar(title: Text(isIn ? 'Money In' : 'Money Out')),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.md),
-              child: ClayCard(
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.md,
+              ),
+              child: FlowFiCard(
                 padding: const EdgeInsets.all(AppSizes.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _rangeLabel(period, range),
-                      style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
                     const SizedBox(height: AppSizes.xs),
-                    Text(
+                    FlowFiAmountText(
                       CurrencyFormatter.instance.format(total),
-                      style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: color),
+                      size: AmountSize.large,
+                      color: color,
                     ),
                   ],
                 ),
@@ -86,26 +77,43 @@ class MoneyFlowDetailScreen extends ConsumerWidget {
             Expanded(
               child: lines.isEmpty
                   ? EmptyState(
-                      icon: isIn ? Icons.call_received_rounded : Icons.call_made_rounded,
-                      title: isIn ? 'No money received during this period' : 'No money spent during this period',
-                      subtitle: 'Nothing contributed to ${isIn ? 'Money In' : 'Money Out'} for the selected range.',
+                      icon: isIn
+                          ? Icons.call_received_rounded
+                          : Icons.call_made_rounded,
+                      title: isIn
+                          ? 'No money received during this period'
+                          : 'No money spent during this period',
+                      subtitle:
+                          'Nothing contributed to ${isIn ? 'Money In' : 'Money Out'} for the selected range.',
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.fabClearance),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSizes.lg,
+                        0,
+                        AppSizes.lg,
+                        AppSizes.fabClearance,
+                      ),
                       itemCount: lines.length,
                       itemBuilder: (context, index) {
                         final line = lines[index];
-                        final showDateHeader = index == 0 || !lines[index - 1].date.isSameDay(line.date);
+                        final showDateHeader =
+                            index == 0 ||
+                            !lines[index - 1].date.isSameDay(line.date);
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (showDateHeader)
                               Padding(
-                                padding: EdgeInsets.only(top: index == 0 ? 0 : AppSizes.md, bottom: AppSizes.xs),
+                                padding: EdgeInsets.only(
+                                  top: index == 0 ? 0 : AppSizes.md,
+                                  bottom: AppSizes.xs,
+                                ),
                                 child: Text(
                                   line.date.sectionLabel,
                                   style: context.textTheme.labelLarge?.copyWith(
-                                    color: context.colors.onSurface.withValues(alpha: 0.6),
+                                    color: context.colors.onSurface.withValues(
+                                      alpha: 0.6,
+                                    ),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -118,18 +126,31 @@ class MoneyFlowDetailScreen extends ConsumerWidget {
             ),
             if (lines.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.lg,
+                  vertical: AppSizes.md,
+                ),
                 decoration: BoxDecoration(
                   color: context.colors.surface,
-                  border: Border(top: BorderSide(color: context.colors.outlineVariant)),
+                  border: Border(
+                    top: BorderSide(color: context.colors.outlineVariant),
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Total', style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'Total',
+                      style: context.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     Text(
                       CurrencyFormatter.instance.format(total),
-                      style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: color),
+                      style: context.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
                     ),
                   ],
                 ),
@@ -170,7 +191,9 @@ class _MoneyFlowLineTile extends StatelessWidget {
               children: [
                 Text(
                   line.title,
-                  style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -178,7 +201,9 @@ class _MoneyFlowLineTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitleParts.join(' · '),
-                    style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.6),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -192,11 +217,16 @@ class _MoneyFlowLineTile extends StatelessWidget {
             children: [
               Text(
                 CurrencyFormatter.instance.format(line.amount),
-                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
               Text(
                 line.kind.label,
-                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.5),
+                ),
               ),
             ],
           ),

@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../features/credit_cards/presentation/providers/credit_card_providers.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/widget_configuration.dart';
-import '../../../theme/clay_theme.dart';
-import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.creditUtilization] — aggregate credit
@@ -37,7 +37,12 @@ class CreditUtilizationWidgetCard extends ConsumerWidget {
           children: [
             Text(config.title, style: textTheme.labelLarge),
             const SizedBox(height: AppSizes.sm),
-            Text('No credit cards yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+            Text(
+              'No credit cards yet.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       );
@@ -46,13 +51,19 @@ class CreditUtilizationWidgetCard extends ConsumerWidget {
     final outstanding = ref.watch(totalCreditCardOutstandingProvider);
     final available = ref.watch(totalCreditAvailableProvider);
     final limit = outstanding + available;
-    final utilization = limit <= 0 ? 0.0 : (outstanding / limit).clamp(0.0, 1.0);
+    final utilization = limit <= 0
+        ? 0.0
+        : (outstanding / limit).clamp(0.0, 1.0);
     final utilizationColor = utilization < 0.3
-        ? AppClay.success
+        ? AppColors.success
         : utilization < 0.75
-            ? AppClay.warning
-            : AppClay.danger;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+        ? AppColors.warning
+        : AppColors.error;
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return DashboardWidgetCard(
       backgroundColor: utilizationColor.withValues(alpha: 0.05),
@@ -64,11 +75,20 @@ class CreditUtilizationWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.push(AppRoutes.creditCards),
-                child: Text('See all ›', style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+                child: Text(
+                  'See all ›',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
@@ -78,19 +98,36 @@ class CreditUtilizationWidgetCard extends ConsumerWidget {
             children: [
               Text(
                 '${(utilization * 100).round()}% Utilized',
-                style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: utilizationColor),
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: utilizationColor,
+                ),
               ),
               Text(
                 '${format.format(outstanding)} / ${format.format(limit)}',
-                style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                style: textTheme.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSizes.sm),
-          ClayProgressBar(value: utilization, height: 8, colors: [utilizationColor.withValues(alpha: 0.7), utilizationColor]),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+            child: LinearProgressIndicator(
+              value: utilization,
+              minHeight: 8,
+              backgroundColor: utilizationColor.withValues(alpha: 0.15),
+              valueColor: AlwaysStoppedAnimation<Color>(utilizationColor),
+            ),
+          ),
           const SizedBox(height: AppSizes.md),
           const Divider(height: 1),
-          for (final card in cards) _CardUtilizationRow(cardId: card.id, lastFourDigits: card.lastFourDigits),
+          for (final card in cards)
+            _CardUtilizationRow(
+              cardId: card.id,
+              lastFourDigits: card.lastFourDigits,
+            ),
         ],
       ),
     );
@@ -98,7 +135,10 @@ class CreditUtilizationWidgetCard extends ConsumerWidget {
 }
 
 class _CardUtilizationRow extends ConsumerWidget {
-  const _CardUtilizationRow({required this.cardId, required this.lastFourDigits});
+  const _CardUtilizationRow({
+    required this.cardId,
+    required this.lastFourDigits,
+  });
 
   final String cardId;
   final String? lastFourDigits;
@@ -107,7 +147,9 @@ class _CardUtilizationRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final standing = ref.watch(creditCardStandingProvider(cardId));
     final limit = standing.outstanding + standing.available;
-    final utilization = limit <= 0 ? 0.0 : (standing.outstanding / limit).clamp(0.0, 1.0);
+    final utilization = limit <= 0
+        ? 0.0
+        : (standing.outstanding / limit).clamp(0.0, 1.0);
     final textTheme = context.textTheme;
     final colors = context.colors;
 
@@ -115,11 +157,18 @@ class _CardUtilizationRow extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          ClayIconChip(icon: Icons.credit_card_rounded, color: colors.onSurfaceVariant),
+          FlowFiIconChip(
+            icon: Icons.credit_card_rounded,
+            color: colors.onSurfaceVariant,
+            size: 26,
+            iconSize: 14,
+          ),
           const SizedBox(width: AppSizes.sm),
           Expanded(
             child: Text(
-              lastFourDigits == null || lastFourDigits!.isEmpty ? 'Card' : '•••• $lastFourDigits',
+              lastFourDigits == null || lastFourDigits!.isEmpty
+                  ? 'Card'
+                  : '•••• $lastFourDigits',
               style: textTheme.bodySmall,
               overflow: TextOverflow.ellipsis,
             ),

@@ -19,7 +19,8 @@ class SpendingTrendChart extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final data = ref.watch(spendingTrendProvider(args));
-    if (data.series.every((s) => s.points.every((p) => p.y == 0))) return const SizedBox.shrink();
+    if (data.series.every((s) => s.points.every((p) => p.y == 0)))
+      return const SizedBox.shrink();
 
     return AppCard(
       child: Column(

@@ -31,7 +31,12 @@ Color _colorFor(InsightSeverity severity) {
 /// Overview/Insights sections, passed straight through rather than
 /// re-derived.
 class FinancialHealthSection extends ConsumerWidget {
-  const FinancialHealthSection({super.key, required this.range, required this.previousRange, required this.period});
+  const FinancialHealthSection({
+    super.key,
+    required this.range,
+    required this.previousRange,
+    required this.period,
+  });
 
   final DateRange range;
   final DateRange previousRange;
@@ -39,8 +44,13 @@ class FinancialHealthSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final indicators =
-        ref.watch(healthIndicatorsProvider((range: range, previousRange: previousRange, period: period)));
+    final indicators = ref.watch(
+      healthIndicatorsProvider((
+        range: range,
+        previousRange: previousRange,
+        period: period,
+      )),
+    );
     if (indicators.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -51,7 +61,10 @@ class FinancialHealthSection extends ConsumerWidget {
           child: Wrap(
             spacing: AppSizes.sm,
             runSpacing: AppSizes.sm,
-            children: [for (final indicator in indicators) _IndicatorBadge(indicator: indicator)],
+            children: [
+              for (final indicator in indicators)
+                _IndicatorBadge(indicator: indicator),
+            ],
           ),
         ),
       ],
@@ -68,7 +81,10 @@ class _IndicatorBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _colorFor(indicator.severity);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.md,
+        vertical: AppSizes.sm,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
@@ -76,7 +92,10 @@ class _IndicatorBadge extends StatelessWidget {
       ),
       child: Text(
         indicator.message,
-        style: context.textTheme.labelMedium?.copyWith(color: color, fontWeight: FontWeight.w600),
+        style: context.textTheme.labelMedium?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

@@ -26,60 +26,78 @@ class TransactionsTrashScreen extends ConsumerWidget {
     final trashAsync = ref.watch(transactionsTrashStreamProvider);
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
-    final trashedExpenses = ref.watch(expensesTrashStreamProvider).value ?? const [];
+    final trashedExpenses =
+        ref.watch(expensesTrashStreamProvider).value ?? const [];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
-      body: SafeArea(child: trashAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (trashed) {
-          if (trashed.isEmpty) {
-            return const EmptyState(
-              icon: Icons.delete_outline_rounded,
-              title: 'Trash is empty',
-              subtitle: 'Deleted transactions will appear here until you restore or remove them.',
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            itemCount: trashed.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
-            itemBuilder: (context, index) {
-              final transaction = trashed[index];
-              final category = categoriesById[transaction.categoryId];
-              final expense = trashedExpenses.where((e) => e.transactionId == transaction.id).firstOrNull;
-              return ListTile(
-                tileColor: Theme.of(context).colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                ),
-                leading: category != null
-                    ? Icon(category.icon, color: Color(category.colorValue))
-                    : const Icon(Icons.receipt_long_outlined),
-                title: Text(CurrencyFormatter.instance.format(transaction.amount)),
-                subtitle: Text('Deleted ${transaction.deletedAt!.toLocal()}'.split('.').first),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.restore_rounded),
-                      tooltip: 'Restore',
-                      onPressed: () => _restore(context, ref, transaction, expense),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete_forever_rounded, color: Theme.of(context).colorScheme.error),
-                      tooltip: 'Delete forever',
-                      onPressed: () => _confirmPermanentDelete(context, ref, transaction),
-                    ),
-                  ],
-                ),
+      body: SafeArea(
+        child: trashAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Something went wrong: $error')),
+          data: (trashed) {
+            if (trashed.isEmpty) {
+              return const EmptyState(
+                icon: Icons.delete_outline_rounded,
+                title: 'Trash is empty',
+                subtitle:
+                    'Deleted transactions will appear here until you restore or remove them.',
               );
-            },
-          );
-        },
-      )),
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(AppSizes.lg),
+              itemCount: trashed.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
+              itemBuilder: (context, index) {
+                final transaction = trashed[index];
+                final category = categoriesById[transaction.categoryId];
+                final expense = trashedExpenses
+                    .where((e) => e.transactionId == transaction.id)
+                    .firstOrNull;
+                return ListTile(
+                  tileColor: Theme.of(context).colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                  ),
+                  leading: category != null
+                      ? Icon(category.icon, color: Color(category.colorValue))
+                      : const Icon(Icons.receipt_long_outlined),
+                  title: Text(
+                    CurrencyFormatter.instance.format(transaction.amount),
+                  ),
+                  subtitle: Text(
+                    'Deleted ${transaction.deletedAt!.toLocal()}'
+                        .split('.')
+                        .first,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.restore_rounded),
+                        tooltip: 'Restore',
+                        onPressed: () =>
+                            _restore(context, ref, transaction, expense),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_forever_rounded,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        tooltip: 'Delete forever',
+                        onPressed: () =>
+                            _confirmPermanentDelete(context, ref, transaction),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -93,7 +111,9 @@ class TransactionsTrashScreen extends ConsumerWidget {
       if (expense != null) {
         await ref.read(expenseRepositoryProvider).restoreExpense(expense);
       } else {
-        await ref.read(transactionRepositoryProvider).restoreTransaction(transaction);
+        await ref
+            .read(transactionRepositoryProvider)
+            .restoreTransaction(transaction);
       }
     } catch (e) {
       if (context.mounted) {
@@ -104,14 +124,23 @@ class TransactionsTrashScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _confirmPermanentDelete(BuildContext context, WidgetRef ref, domain.Transaction transaction) async {
+  Future<void> _confirmPermanentDelete(
+    BuildContext context,
+    WidgetRef ref,
+    domain.Transaction transaction,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete forever?'),
-        content: const Text('This transaction will be permanently removed. This can\'t be undone.'),
+        content: const Text(
+          'This transaction will be permanently removed. This can\'t be undone.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
@@ -123,7 +152,9 @@ class TransactionsTrashScreen extends ConsumerWidget {
     if (confirmed != true) return;
 
     try {
-      await ref.read(transactionRepositoryProvider).permanentlyDeleteTransaction(transaction);
+      await ref
+          .read(transactionRepositoryProvider)
+          .permanentlyDeleteTransaction(transaction);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

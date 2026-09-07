@@ -58,7 +58,8 @@ class PayerPicker extends ConsumerWidget {
             initialValue: selectedPersonId,
             decoration: const InputDecoration(labelText: 'Who paid?'),
             items: [
-              for (final person in people) DropdownMenuItem(value: person.id, child: Text(person.name)),
+              for (final person in people)
+                DropdownMenuItem(value: person.id, child: Text(person.name)),
               const DropdownMenuItem(
                 value: _addNewPersonValue,
                 child: Row(

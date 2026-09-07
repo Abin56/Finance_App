@@ -6,7 +6,11 @@ import 'package:finance_app/features/transactions/domain/transaction.dart';
 import 'package:finance_app/features/transactions/domain/transaction_type.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-CreditCardProfile _card({int statementDay = 17, int paymentDueDay = 5, double? minimumDuePercent}) {
+CreditCardProfile _card({
+  int statementDay = 17,
+  int paymentDueDay = 5,
+  double? minimumDuePercent,
+}) {
   return CreditCardProfile(
     id: 'card1',
     accountId: 'acc1',
@@ -18,7 +22,11 @@ CreditCardProfile _card({int statementDay = 17, int paymentDueDay = 5, double? m
   );
 }
 
-Transaction _purchase({required String id, required double amount, required DateTime dateTime}) {
+Transaction _purchase({
+  required String id,
+  required double amount,
+  required DateTime dateTime,
+}) {
   return Transaction(
     id: id,
     type: TransactionType.expense,
@@ -57,7 +65,11 @@ void main() {
         _purchase(id: 't3', amount: 1200, dateTime: DateTime(2026, 7, 20)),
       ];
 
-      final current = repository.currentCycleFor(card, transactions, now: DateTime(2026, 7, 1));
+      final current = repository.currentCycleFor(
+        card,
+        transactions,
+        now: DateTime(2026, 7, 1),
+      );
 
       expect(current.totalAmount, 1200);
       expect(current.periodStart, DateTime(2026, 6, 18));
@@ -67,180 +79,318 @@ void main() {
 
     test('computes minimumDue from minimumDuePercent when set', () {
       final card = _card(minimumDuePercent: 5);
-      final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
+      final transactions = [
+        _purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18)),
+      ];
 
-      final current = repository.currentCycleFor(card, transactions, now: DateTime(2026, 7, 1));
+      final current = repository.currentCycleFor(
+        card,
+        transactions,
+        now: DateTime(2026, 7, 1),
+      );
 
       expect(current.minimumDue, 50);
     });
 
     test('minimumDue is null when the card does not track it', () {
       final card = _card();
-      final current = repository.currentCycleFor(card, const [], now: DateTime(2026, 7, 1));
+      final current = repository.currentCycleFor(
+        card,
+        const [],
+        now: DateTime(2026, 7, 1),
+      );
 
       expect(current.minimumDue, isNull);
     });
   });
 
   group('StatementRepository.materializeIfDue', () {
-    test('creates exactly one Statement for the most recently closed cycle', () async {
-      final card = _card();
-      final transactions = [
-        _purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18)),
-        _purchase(id: 't2', amount: 700, dateTime: DateTime(2026, 6, 20)),
-        // In next cycle, should not count.
-        _purchase(id: 't3', amount: 1200, dateTime: DateTime(2026, 7, 20)),
-      ];
-
-      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 20));
-
-      expect(statement, isNotNull);
-      expect(statement!.totalAmount, 1200);
-      expect(statement.periodStart, DateTime(2026, 6, 18));
-      expect(statement.periodEnd, DateTime(2026, 7, 17));
-
-      final snapshot = await firestore.collection('creditCards').doc('card1').collection('statements').get();
-      expect(snapshot.docs, hasLength(1));
-    });
-
-    test('is idempotent — a second call for the same cycle materializes nothing new', () async {
-      final card = _card();
-      final transactions = [_purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18))];
-
-      final first = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 20));
-      expect(first, isNotNull);
-
-      final second = await repository.materializeIfDue(
-        card,
-        transactions,
-        [first!],
-        now: DateTime(2026, 7, 20),
-      );
-      expect(second, isNull);
-    });
-
-    test('does not materialize an empty statement when the closed cycle has no transactions', () async {
-      final card = _card();
-      final result = await repository.materializeIfDue(card, const [], const [], now: DateTime(2026, 6, 1));
-      expect(result, isNull);
-    });
-
-    test('excludes split-expense participant shares — totalAmount uses the full Transaction.amount', () async {
-      final card = _card();
-      // A card purchase later split with a friend still shows its full
-      // transaction amount on the statement (Expense.myShare never
-      // reduces Transaction.amount — see Milestone 12's invariant).
-      final transactions = [_purchase(id: 't1', amount: 3000, dateTime: DateTime(2026, 6, 18))];
-
-      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 20));
-
-      expect(statement!.totalAmount, 3000);
-    });
-  });
-
-  group('Milestone 14 Task 4 — no double-counting between closed statements and the current cycle', () {
-    test('a transaction inside the still-open cycle is never counted in the closed statement total', () async {
-      final card = _card();
-      final closedCycleTxn = _purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18));
-      final currentCycleTxn = _purchase(id: 't2', amount: 900, dateTime: DateTime(2026, 7, 5));
-      final allTransactions = [closedCycleTxn, currentCycleTxn];
-
-      // "now" = 20 Jul: the 18 Jun-17 Jul cycle has closed, the 18 Jul-17
-      // Aug cycle is in progress but t2 (5 Jul) actually belongs to the
-      // *closed* cycle, not the in-progress one — picking a "now" that's
-      // unambiguous: t2 must land inside the closed cycle's own window.
-      final statement = await repository.materializeIfDue(
-        card,
-        allTransactions,
-        const [],
-        now: DateTime(2026, 7, 20),
-      );
-
-      // Both transactions fall within 18 Jun-17 Jul, so both count toward
-      // the one closed statement — none leak into a second, still-open
-      // cycle total.
-      expect(statement!.totalAmount, 1400);
-
-      final currentCycle = repository.currentCycleFor(card, allTransactions, now: DateTime(2026, 7, 20));
-      // The current (18 Jul-17 Aug) cycle has zero transactions in its own
-      // window — neither t1 nor t2 leaks into it.
-      expect(currentCycle.totalAmount, 0);
-    });
-  });
-
-  group('Statement-day boundary — creditCardStandingProvider double-counting regression', () {
     test(
-      'on the exact statement day, the materialized statement and currentCycleFor report the same period '
-      '(the precondition creditCardStandingProvider must guard against to avoid double-counting)',
+      'creates exactly one Statement for the most recently closed cycle',
       () async {
-        final card = _card(statementDay: 17);
-        final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
+        final card = _card();
+        final transactions = [
+          _purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18)),
+          _purchase(id: 't2', amount: 700, dateTime: DateTime(2026, 6, 20)),
+          // In next cycle, should not count.
+          _purchase(id: 't3', amount: 1200, dateTime: DateTime(2026, 7, 20)),
+        ];
 
-        // "now" = exactly the statement day (17 Jul) — the cycle 18 Jun-17
-        // Jul is treated as closed by materializeIfDue/mostRecentClosedCycleFor...
-        final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 17));
-        expect(statement, isNotNull, reason: 'the cycle ending exactly today must materialize as closed');
-        expect(statement!.totalAmount, 1000);
-
-        // ...yet currentCycleFor (backing the live "current cycle spend"
-        // figure) still reports that SAME period as the in-progress one,
-        // since it only rolls forward once periodEnd is strictly before
-        // today — this is the exact condition creditCardStandingProvider's
-        // `alreadyMaterialized` check exists to detect and correct for.
-        final current = repository.currentCycleFor(card, transactions, now: DateTime(2026, 7, 17));
-        expect(current.periodStart, statement.periodStart);
-        expect(current.periodEnd, statement.periodEnd);
-        expect(
-          current.totalAmount,
-          statement.totalAmount,
-          reason: 'both report the same cycle\'s spend on the statement day — '
-              'naively summing unpaidStatements + currentCycleSpend would double it',
+        final statement = await repository.materializeIfDue(
+          card,
+          transactions,
+          const [],
+          now: DateTime(2026, 7, 20),
         );
+
+        expect(statement, isNotNull);
+        expect(statement!.totalAmount, 1200);
+        expect(statement.periodStart, DateTime(2026, 6, 18));
+        expect(statement.periodEnd, DateTime(2026, 7, 17));
+
+        final snapshot = await firestore
+            .collection('creditCards')
+            .doc('card1')
+            .collection('statements')
+            .get();
+        expect(snapshot.docs, hasLength(1));
       },
     );
 
-    test('the day after the statement day, currentCycleFor has rolled forward and no longer matches', () async {
-      final card = _card(statementDay: 17);
-      final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
+    test(
+      'is idempotent — a second call for the same cycle materializes nothing new',
+      () async {
+        final card = _card();
+        final transactions = [
+          _purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18)),
+        ];
 
-      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 18));
-      final current = repository.currentCycleFor(card, transactions, now: DateTime(2026, 7, 18));
+        final first = await repository.materializeIfDue(
+          card,
+          transactions,
+          const [],
+          now: DateTime(2026, 7, 20),
+        );
+        expect(first, isNotNull);
 
-      expect(current.periodStart, isNot(statement!.periodStart));
-      expect(current.totalAmount, 0, reason: 'the new cycle (18 Jul onward) has no transactions yet');
-    });
+        final second = await repository.materializeIfDue(card, transactions, [
+          first!,
+        ], now: DateTime(2026, 7, 20));
+        expect(second, isNull);
+      },
+    );
+
+    test(
+      'does not materialize an empty statement when the closed cycle has no transactions',
+      () async {
+        final card = _card();
+        final result = await repository.materializeIfDue(
+          card,
+          const [],
+          const [],
+          now: DateTime(2026, 6, 1),
+        );
+        expect(result, isNull);
+      },
+    );
+
+    test(
+      'excludes split-expense participant shares — totalAmount uses the full Transaction.amount',
+      () async {
+        final card = _card();
+        // A card purchase later split with a friend still shows its full
+        // transaction amount on the statement (Expense.myShare never
+        // reduces Transaction.amount — see Milestone 12's invariant).
+        final transactions = [
+          _purchase(id: 't1', amount: 3000, dateTime: DateTime(2026, 6, 18)),
+        ];
+
+        final statement = await repository.materializeIfDue(
+          card,
+          transactions,
+          const [],
+          now: DateTime(2026, 7, 20),
+        );
+
+        expect(statement!.totalAmount, 3000);
+      },
+    );
   });
+
+  group(
+    'Milestone 14 Task 4 — no double-counting between closed statements and the current cycle',
+    () {
+      test(
+        'a transaction inside the still-open cycle is never counted in the closed statement total',
+        () async {
+          final card = _card();
+          final closedCycleTxn = _purchase(
+            id: 't1',
+            amount: 500,
+            dateTime: DateTime(2026, 6, 18),
+          );
+          final currentCycleTxn = _purchase(
+            id: 't2',
+            amount: 900,
+            dateTime: DateTime(2026, 7, 5),
+          );
+          final allTransactions = [closedCycleTxn, currentCycleTxn];
+
+          // "now" = 20 Jul: the 18 Jun-17 Jul cycle has closed, the 18 Jul-17
+          // Aug cycle is in progress but t2 (5 Jul) actually belongs to the
+          // *closed* cycle, not the in-progress one — picking a "now" that's
+          // unambiguous: t2 must land inside the closed cycle's own window.
+          final statement = await repository.materializeIfDue(
+            card,
+            allTransactions,
+            const [],
+            now: DateTime(2026, 7, 20),
+          );
+
+          // Both transactions fall within 18 Jun-17 Jul, so both count toward
+          // the one closed statement — none leak into a second, still-open
+          // cycle total.
+          expect(statement!.totalAmount, 1400);
+
+          final currentCycle = repository.currentCycleFor(
+            card,
+            allTransactions,
+            now: DateTime(2026, 7, 20),
+          );
+          // The current (18 Jul-17 Aug) cycle has zero transactions in its own
+          // window — neither t1 nor t2 leaks into it.
+          expect(currentCycle.totalAmount, 0);
+        },
+      );
+    },
+  );
+
+  group(
+    'Statement-day boundary — creditCardStandingProvider double-counting regression',
+    () {
+      test(
+        'on the exact statement day, the materialized statement and currentCycleFor report the same period '
+        '(the precondition creditCardStandingProvider must guard against to avoid double-counting)',
+        () async {
+          final card = _card(statementDay: 17);
+          final transactions = [
+            _purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18)),
+          ];
+
+          // "now" = exactly the statement day (17 Jul) — the cycle 18 Jun-17
+          // Jul is treated as closed by materializeIfDue/mostRecentClosedCycleFor...
+          final statement = await repository.materializeIfDue(
+            card,
+            transactions,
+            const [],
+            now: DateTime(2026, 7, 17),
+          );
+          expect(
+            statement,
+            isNotNull,
+            reason: 'the cycle ending exactly today must materialize as closed',
+          );
+          expect(statement!.totalAmount, 1000);
+
+          // ...yet currentCycleFor (backing the live "current cycle spend"
+          // figure) still reports that SAME period as the in-progress one,
+          // since it only rolls forward once periodEnd is strictly before
+          // today — this is the exact condition creditCardStandingProvider's
+          // `alreadyMaterialized` check exists to detect and correct for.
+          final current = repository.currentCycleFor(
+            card,
+            transactions,
+            now: DateTime(2026, 7, 17),
+          );
+          expect(current.periodStart, statement.periodStart);
+          expect(current.periodEnd, statement.periodEnd);
+          expect(
+            current.totalAmount,
+            statement.totalAmount,
+            reason:
+                'both report the same cycle\'s spend on the statement day — '
+                'naively summing unpaidStatements + currentCycleSpend would double it',
+          );
+        },
+      );
+
+      test(
+        'the day after the statement day, currentCycleFor has rolled forward and no longer matches',
+        () async {
+          final card = _card(statementDay: 17);
+          final transactions = [
+            _purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18)),
+          ];
+
+          final statement = await repository.materializeIfDue(
+            card,
+            transactions,
+            const [],
+            now: DateTime(2026, 7, 18),
+          );
+          final current = repository.currentCycleFor(
+            card,
+            transactions,
+            now: DateTime(2026, 7, 18),
+          );
+
+          expect(current.periodStart, isNot(statement!.periodStart));
+          expect(
+            current.totalAmount,
+            0,
+            reason: 'the new cycle (18 Jul onward) has no transactions yet',
+          );
+        },
+      );
+    },
+  );
 
   group('Milestone 14 Task 5 — StatementRepository.editStatement', () {
     test('sets interestCharged and lateFee', () async {
       final card = _card();
-      final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
-      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 20));
+      final transactions = [
+        _purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18)),
+      ];
+      final statement = await repository.materializeIfDue(
+        card,
+        transactions,
+        const [],
+        now: DateTime(2026, 7, 20),
+      );
 
-      await repository.editStatement(statement!, interestCharged: 45, lateFee: 25);
+      await repository.editStatement(
+        statement!,
+        interestCharged: 45,
+        lateFee: 25,
+      );
 
       final refreshed = await repository.getByKey(statement.id);
       expect(refreshed!.interestCharged, 45);
       expect(refreshed.lateFee, 25);
     });
 
-    test('clearInterestCharged/clearLateFee reset the fields to null', () async {
-      final card = _card();
-      final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
-      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 20));
-      await repository.editStatement(statement!, interestCharged: 45, lateFee: 25);
+    test(
+      'clearInterestCharged/clearLateFee reset the fields to null',
+      () async {
+        final card = _card();
+        final transactions = [
+          _purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18)),
+        ];
+        final statement = await repository.materializeIfDue(
+          card,
+          transactions,
+          const [],
+          now: DateTime(2026, 7, 20),
+        );
+        await repository.editStatement(
+          statement!,
+          interestCharged: 45,
+          lateFee: 25,
+        );
 
-      await repository.editStatement(statement, clearInterestCharged: true, clearLateFee: true);
+        await repository.editStatement(
+          statement,
+          clearInterestCharged: true,
+          clearLateFee: true,
+        );
 
-      final refreshed = await repository.getByKey(statement.id);
-      expect(refreshed!.interestCharged, isNull);
-      expect(refreshed.lateFee, isNull);
-    });
+        final refreshed = await repository.getByKey(statement.id);
+        expect(refreshed!.interestCharged, isNull);
+        expect(refreshed.lateFee, isNull);
+      },
+    );
 
     test('does not touch totalAmount', () async {
       final card = _card();
-      final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
-      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 20));
+      final transactions = [
+        _purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18)),
+      ];
+      final statement = await repository.materializeIfDue(
+        card,
+        transactions,
+        const [],
+        now: DateTime(2026, 7, 20),
+      );
 
       await repository.editStatement(statement!, interestCharged: 45);
 
@@ -252,8 +402,15 @@ void main() {
   group('StatementRepository.applyPayment', () {
     test('clamps amountPaid to totalAmount and persists the update', () async {
       final card = _card();
-      final transactions = [_purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18))];
-      final statement = await repository.materializeIfDue(card, transactions, const [], now: DateTime(2026, 7, 20));
+      final transactions = [
+        _purchase(id: 't1', amount: 1000, dateTime: DateTime(2026, 6, 18)),
+      ];
+      final statement = await repository.materializeIfDue(
+        card,
+        transactions,
+        const [],
+        now: DateTime(2026, 7, 20),
+      );
 
       await repository.applyPayment(statement!, 1500);
 

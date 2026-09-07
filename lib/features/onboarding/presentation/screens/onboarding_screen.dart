@@ -61,7 +61,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   /// Marks the tour seen and lets the router take over — completing flips
   /// the onboarding gate, which hands off to the auth gate (i.e. login).
-  Future<void> _finish() => ref.read(onboardingCompletedProvider.notifier).complete();
+  Future<void> _finish() =>
+      ref.read(onboardingCompletedProvider.notifier).complete();
 
   /// Runs a page's permission request with the primary button spinning, then
   /// advances regardless of the answer: every step is optional, so "no" is a
@@ -78,14 +79,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<void> _enableSms() => _runThenAdvance(
-        () => ref.read(smsAvailabilityProvider.notifier).request(),
-      );
+    () => ref.read(smsAvailabilityProvider.notifier).request(),
+  );
 
-  Future<void> _enableNotifications() => _runThenAdvance(
-        () => ReminderNotificationService.requestPermission(),
-      );
+  Future<void> _enableNotifications() =>
+      _runThenAdvance(() => ReminderNotificationService.requestPermission());
 
-  Future<void> _secureApp() => _runThenAdvance(() => PinSetupSheet.show(context));
+  Future<void> _secureApp() =>
+      _runThenAdvance(() => PinSetupSheet.show(context));
 
   /// The SMS page adapts to what the device can actually do: there is no
   /// public SMS-reading API on iOS, and a re-run of onboarding on a device
@@ -103,7 +104,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           icon: Icons.account_balance_wallet_rounded,
           gradient: AppColors.primaryGradient,
           headline: 'Manage all your money in one place.',
-          subtitle: 'Track expenses, income, credit cards, loans, bills, and cash flow — all together.',
+          subtitle:
+              'Track expenses, income, credit cards, loans, bills, and cash flow — all together.',
           badges: [
             OnboardingBadge(
               icon: Icons.trending_up_rounded,
@@ -195,7 +197,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       _OnboardingStep(
         page: const OnboardingPageView(
           icon: Icons.shield_rounded,
-          gradient: [AppColors.primary, AppColors.secondary],
+          // Not [AppColors.primary] (lime) here — lime is reserved for
+          // primary CTAs/selected states, not a generic decorative gradient
+          // fill (see the Theme V2 color-usage rule), so this pairs purple
+          // with teal instead of reusing the brand accent as illustration art.
+          gradient: [AppColors.purple, AppColors.secondary],
           headline: 'Protect your financial data.',
           subtitle:
               'Lock FlowFi with a PIN, and add fingerprint or face unlock where your device supports it. Your PIN is encrypted and never leaves this device.',
@@ -252,10 +258,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSizes.xl, AppSizes.md, AppSizes.md, 0),
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.xl,
+                AppSizes.md,
+                AppSizes.md,
+                0,
+              ),
               child: Row(
                 children: [
-                  OnboardingProgressDots(count: steps.length, currentIndex: _index),
+                  OnboardingProgressDots(
+                    count: steps.length,
+                    currentIndex: _index,
+                  ),
                   const Spacer(),
                   // Nothing left to skip on the final page, and its single
                   // action already ends the tour.
@@ -332,7 +346,12 @@ class _ActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.xl, AppSizes.lg, AppSizes.xl, AppSizes.lg),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.xl,
+        AppSizes.lg,
+        AppSizes.xl,
+        AppSizes.lg,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -363,7 +382,9 @@ class _ActionBar extends StatelessWidget {
                         child: Text(
                           secondaryLabel!,
                           style: context.textTheme.labelLarge?.copyWith(
-                            color: context.colors.onSurface.withValues(alpha: 0.6),
+                            color: context.colors.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       ),

@@ -7,7 +7,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../core/theme/clay_widgets.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/domain/payment_urgency.dart';
 import '../../../../shared/widgets/states/payment_urgency_badge.dart';
 import '../providers/cash_flow_providers.dart';
@@ -27,11 +27,12 @@ class UpcomingPaymentsTimeline extends ConsumerWidget {
       return const PlaceholderCard(
         icon: Icons.event_note_outlined,
         title: 'No upcoming payments',
-        message: 'EMIs, bills, loans, and credit card dues will appear here as they come up.',
+        message:
+            'EMIs, bills, loans, and credit card dues will appear here as they come up.',
       );
     }
 
-    return ClayCard(
+    return FlowFiCard(
       padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,13 +45,16 @@ class UpcomingPaymentsTimeline extends ConsumerWidget {
                 Text('Upcoming Payments', style: context.textTheme.titleMedium),
                 Text(
                   'Always shows what\'s currently due, regardless of the selected period',
-                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSizes.xs),
-          for (final item in items) _TimelineRow(item: item, onTap: () => _onTap(context, item)),
+          for (final item in items)
+            _TimelineRow(item: item, onTap: () => _onTap(context, item)),
         ],
       ),
     );
@@ -81,31 +85,48 @@ class _TimelineRow extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.xs),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.md,
+          vertical: AppSizes.xs,
+        ),
         child: Row(
           children: [
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(color: item.urgency.color, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: item.urgency.color,
+                shape: BoxShape.circle,
+              ),
             ),
             const SizedBox(width: AppSizes.md),
             SizedBox(
               width: 48,
-              child: Text(item.dueDate.shortDate, style: context.textTheme.bodySmall),
+              child: Text(
+                item.dueDate.shortDate,
+                style: context.textTheme.bodySmall,
+              ),
             ),
             const SizedBox(width: AppSizes.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.title, style: context.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    item.title,
+                    style: context.textTheme.bodyMedium,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   if (item.isCarriedOver) ...[
                     const SizedBox(height: 2),
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: PaymentUrgencyBadge(urgency: item.urgency, compact: true),
+                      child: PaymentUrgencyBadge(
+                        urgency: item.urgency,
+                        compact: true,
+                      ),
                     ),
                   ],
                 ],
@@ -118,8 +139,10 @@ class _TimelineRow extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: Text(
                   CurrencyFormatter.instance.format(item.remaining),
-                  style: context.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600, color: item.urgency.color),
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: item.urgency.color,
+                  ),
                 ),
               ),
             ),

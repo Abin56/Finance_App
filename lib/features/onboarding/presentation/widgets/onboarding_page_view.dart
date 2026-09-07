@@ -67,31 +67,31 @@ class OnboardingPageView extends StatelessWidget {
           ),
           const SizedBox(height: AppSizes.xl),
           Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                headline,
-                textAlign: TextAlign.center,
-                style: context.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
-                ),
-              ),
-              const SizedBox(height: AppSizes.md),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: context.textTheme.bodyLarge?.copyWith(
-                  color: context.colors.onSurface.withValues(alpha: 0.62),
-                  height: 1.5,
-                ),
-              ),
-              if (note != null) ...[
-                const SizedBox(height: AppSizes.lg),
-                _NoteCard(text: note!),
-              ],
-            ],
-          )
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    headline,
+                    textAlign: TextAlign.center,
+                    style: context.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.md),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: context.textTheme.bodyLarge?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.62),
+                      height: 1.5,
+                    ),
+                  ),
+                  if (note != null) ...[
+                    const SizedBox(height: AppSizes.lg),
+                    _NoteCard(text: note!),
+                  ],
+                ],
+              )
               .animate()
               .fadeIn(duration: const Duration(milliseconds: 400))
               .slideY(begin: 0.05, end: 0, curve: Curves.easeOutCubic),
@@ -118,12 +118,18 @@ class _NoteCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.colors.primary.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        border: Border.all(color: context.colors.primary.withValues(alpha: 0.22)),
+        border: Border.all(
+          color: context.colors.primary.withValues(alpha: 0.22),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lock_outline_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+          Icon(
+            Icons.lock_outline_rounded,
+            size: AppSizes.iconSm,
+            color: context.colors.primary,
+          ),
           const SizedBox(width: AppSizes.md),
           // Expanded so long privacy copy wraps inside the card instead of
           // overflowing the row at 360dp.

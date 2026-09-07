@@ -6,8 +6,12 @@ import 'package:pdf/pdf.dart';
 abstract class PdfTokens {
   PdfTokens._();
 
-  // Brand — matches AppColors.primary exactly, not the generic finance-blue
-  // placeholder, so an exported statement still looks like it came from FlowFi.
+  // Brand — NOTE: this predates AppColors.primary's current value and no
+  // longer matches it (AppColors.primary is now the Theme V2 lime brand
+  // color; this file is intentionally out of scope for the Theme V2 UI
+  // migration — see that migration's notes — since it only affects
+  // generated PDF exports, not on-screen UI). Kept as its own indigo/purple
+  // tone rather than updated in lockstep.
   static const PdfColor primary = PdfColor.fromInt(0xFF5B5FEF);
   static const PdfColor secondary = PdfColor.fromInt(0xFF00C2A8);
 

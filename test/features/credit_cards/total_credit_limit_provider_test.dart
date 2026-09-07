@@ -48,8 +48,18 @@ void main() {
     final accountB = await createCardAccount('Card B');
 
     final cards = container.read(creditCardRepositoryProvider);
-    await cards.createCard(accountId: accountA, statementDay: 5, paymentDueDay: 25, creditLimit: 50000);
-    await cards.createCard(accountId: accountB, statementDay: 5, paymentDueDay: 25, creditLimit: 75000);
+    await cards.createCard(
+      accountId: accountA,
+      statementDay: 5,
+      paymentDueDay: 25,
+      creditLimit: 50000,
+    );
+    await cards.createCard(
+      accountId: accountB,
+      statementDay: 5,
+      paymentDueDay: 25,
+      creditLimit: 75000,
+    );
 
     await container.read(accountsStreamProvider.future);
     await container.read(creditCardsStreamProvider.future);
@@ -57,71 +67,88 @@ void main() {
     expect(container.read(totalCreditLimitProvider), 125000);
   });
 
-  test('counts a shared credit limit\'s limit exactly once, not per member card', () async {
-    final accountVisa = await createCardAccount('Visa');
-    final accountRupay = await createCardAccount('RuPay');
-    final accountStandalone = await createCardAccount('Standalone');
+  test(
+    'counts a shared credit limit\'s limit exactly once, not per member card',
+    () async {
+      final accountVisa = await createCardAccount('Visa');
+      final accountRupay = await createCardAccount('RuPay');
+      final accountStandalone = await createCardAccount('Standalone');
 
-    final sharedLimits = container.read(sharedCreditLimitRepositoryProvider);
-    final sharedLimit = await sharedLimits.createSharedLimit(name: 'SBI', creditLimit: 200000);
+      final sharedLimits = container.read(sharedCreditLimitRepositoryProvider);
+      final sharedLimit = await sharedLimits.createSharedLimit(
+        name: 'SBI',
+        creditLimit: 200000,
+      );
 
-    final cards = container.read(creditCardRepositoryProvider);
-    await cards.createCard(
-      accountId: accountVisa,
-      statementDay: 5,
-      paymentDueDay: 25,
-      creditLimit: 200000,
-      sharedLimitId: sharedLimit.id,
-    );
-    await cards.createCard(
-      accountId: accountRupay,
-      statementDay: 5,
-      paymentDueDay: 25,
-      creditLimit: 200000,
-      sharedLimitId: sharedLimit.id,
-    );
-    await cards.createCard(accountId: accountStandalone, statementDay: 5, paymentDueDay: 25, creditLimit: 30000);
+      final cards = container.read(creditCardRepositoryProvider);
+      await cards.createCard(
+        accountId: accountVisa,
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 200000,
+        sharedLimitId: sharedLimit.id,
+      );
+      await cards.createCard(
+        accountId: accountRupay,
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 200000,
+        sharedLimitId: sharedLimit.id,
+      );
+      await cards.createCard(
+        accountId: accountStandalone,
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 30000,
+      );
 
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
-    await container.read(sharedCreditLimitsStreamProvider.future);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
+      await container.read(sharedCreditLimitsStreamProvider.future);
 
-    // 200000 (facility, counted once) + 30000 (standalone) — NOT
-    // 200000 + 200000 + 30000, which is what summing raw card.creditLimit
-    // across every card would have produced before the fix.
-    expect(container.read(totalCreditLimitProvider), 230000);
-  });
+      // 200000 (facility, counted once) + 30000 (standalone) — NOT
+      // 200000 + 200000 + 30000, which is what summing raw card.creditLimit
+      // across every card would have produced before the fix.
+      expect(container.read(totalCreditLimitProvider), 230000);
+    },
+  );
 
-  test('credit utilization % is not understated by a shared pair\'s duplicated limit', () async {
-    final accountVisa = await createCardAccount('Visa');
-    final accountRupay = await createCardAccount('RuPay');
+  test(
+    'credit utilization % is not understated by a shared pair\'s duplicated limit',
+    () async {
+      final accountVisa = await createCardAccount('Visa');
+      final accountRupay = await createCardAccount('RuPay');
 
-    final sharedLimits = container.read(sharedCreditLimitRepositoryProvider);
-    final sharedLimit = await sharedLimits.createSharedLimit(name: 'SBI', creditLimit: 100000);
+      final sharedLimits = container.read(sharedCreditLimitRepositoryProvider);
+      final sharedLimit = await sharedLimits.createSharedLimit(
+        name: 'SBI',
+        creditLimit: 100000,
+      );
 
-    final cards = container.read(creditCardRepositoryProvider);
-    await cards.createCard(
-      accountId: accountVisa,
-      statementDay: 5,
-      paymentDueDay: 25,
-      creditLimit: 100000,
-      sharedLimitId: sharedLimit.id,
-    );
-    await cards.createCard(
-      accountId: accountRupay,
-      statementDay: 5,
-      paymentDueDay: 25,
-      creditLimit: 100000,
-      sharedLimitId: sharedLimit.id,
-    );
+      final cards = container.read(creditCardRepositoryProvider);
+      await cards.createCard(
+        accountId: accountVisa,
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 100000,
+        sharedLimitId: sharedLimit.id,
+      );
+      await cards.createCard(
+        accountId: accountRupay,
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 100000,
+        sharedLimitId: sharedLimit.id,
+      );
 
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
-    await container.read(sharedCreditLimitsStreamProvider.future);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
+      await container.read(sharedCreditLimitsStreamProvider.future);
 
-    // No spend yet, so outstanding is 0 and utilization must be exactly 0%
-    // — not silently halved by a doubled denominator, which would still
-    // read as a plausible-looking (but wrong) number for non-zero spend.
-    expect(container.read(totalCreditLimitProvider), 100000);
-  });
+      // No spend yet, so outstanding is 0 and utilization must be exactly 0%
+      // — not silently halved by a doubled denominator, which would still
+      // read as a plausible-looking (but wrong) number for non-zero spend.
+      expect(container.read(totalCreditLimitProvider), 100000);
+    },
+  );
 }

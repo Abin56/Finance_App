@@ -62,7 +62,8 @@ abstract class AiCallReductionDecider {
     required List<MerchantFieldObservation<String>> categoryObservations,
     required DateTime now,
     bool hasStrongRecurringPattern = false,
-    LearningConfidenceThresholds thresholds = const LearningConfidenceThresholds(),
+    LearningConfidenceThresholds thresholds =
+        const LearningConfidenceThresholds(),
   }) {
     if (merchantKey == null || merchantKey.trim().isEmpty) {
       return const AiCallReductionDecision(
@@ -70,7 +71,8 @@ abstract class AiCallReductionDecider {
         reason: AiCallReductionReason.unknownMerchant,
         confidence: 0.0,
         source: LearningSource.inference,
-        explanation: 'No merchant identity resolved yet — nothing learned to reuse.',
+        explanation:
+            'No merchant identity resolved yet — nothing learned to reuse.',
       );
     }
 
@@ -79,7 +81,8 @@ abstract class AiCallReductionDecider {
             .where(
               (o) =>
                   o.isCorrection &&
-                  now.difference(o.timestamp) <= thresholds.recentCorrectionWindow,
+                  now.difference(o.timestamp) <=
+                      thresholds.recentCorrectionWindow,
             )
             .toList()
           ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
@@ -101,7 +104,8 @@ abstract class AiCallReductionDecider {
           reason: AiCallReductionReason.strongPattern,
           confidence: thresholds.minConfidenceToSkipAi,
           source: LearningSource.inference,
-          explanation: 'This matches a recurring transaction pattern for this merchant.',
+          explanation:
+              'This matches a recurring transaction pattern for this merchant.',
         );
       }
       return const AiCallReductionDecision(
@@ -118,7 +122,8 @@ abstract class AiCallReductionDecider {
       counts[observation.value] = (counts[observation.value] ?? 0) + 1;
     }
     if (counts.length > 1) {
-      final sortedCounts = counts.values.toList()..sort((a, b) => b.compareTo(a));
+      final sortedCounts = counts.values.toList()
+        ..sort((a, b) => b.compareTo(a));
       if (sortedCounts[0] - sortedCounts[1] <= 1) {
         return const AiCallReductionDecision(
           shouldCallAi: true,
@@ -131,7 +136,9 @@ abstract class AiCallReductionDecider {
       }
     }
 
-    final resolution = MerchantPreferenceResolver.resolve(categoryObservations)!;
+    final resolution = MerchantPreferenceResolver.resolve(
+      categoryObservations,
+    )!;
     final confidence = LearningConfidence.compute(
       field: categoryField,
       now: now,
@@ -144,7 +151,8 @@ abstract class AiCallReductionDecider {
           .length;
       final isStrongHistory =
           categoryField.source == LearningSource.user &&
-          categoryField.confirmations >= thresholds.minConfirmationsForStrongHistory;
+          categoryField.confirmations >=
+              thresholds.minConfirmationsForStrongHistory;
 
       return AiCallReductionDecision(
         shouldCallAi: false,

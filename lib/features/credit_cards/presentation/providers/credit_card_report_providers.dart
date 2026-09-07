@@ -12,63 +12,82 @@ import 'credit_card_providers.dart';
 /// "which transactions are on a card" a second time. Buckets by
 /// `effectiveMonth`, not raw `dateTime`, matching the Income/Expenses figures
 /// shown alongside this one on the same Reports screen.
-final creditCardSpendForRangeProvider = Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  var total = 0.0;
-  for (final card in cards) {
-    final transactions = ref.watch(transactionsForCardProvider(card.id));
-    total += transactions
-        .where((t) => !t.effectiveMonth.isBefore(range.start) && !t.effectiveMonth.isAfter(range.end))
-        .fold(0.0, (sum, t) => sum + t.amount);
-  }
-  return total;
-});
+final creditCardSpendForRangeProvider =
+    Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      var total = 0.0;
+      for (final card in cards) {
+        final transactions = ref.watch(transactionsForCardProvider(card.id));
+        total += transactions
+            .where(
+              (t) =>
+                  !t.effectiveMonth.isBefore(range.start) &&
+                  !t.effectiveMonth.isAfter(range.end),
+            )
+            .fold(0.0, (sum, t) => sum + t.amount);
+      }
+      return total;
+    });
 
 /// Count of statements (across every card) generated within [start]..[end]
 /// — Reports' "Statement History" count.
-final statementCountForRangeProvider = Provider.family<int, ({DateTime start, DateTime end})>((ref, range) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  var count = 0;
-  for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
-    count += statements
-        .where((s) => !s.generatedDate.isBefore(range.start) && !s.generatedDate.isAfter(range.end))
-        .length;
-  }
-  return count;
-});
+final statementCountForRangeProvider =
+    Provider.family<int, ({DateTime start, DateTime end})>((ref, range) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      var count = 0;
+      for (final card in cards) {
+        final statements =
+            ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+        count += statements
+            .where(
+              (s) =>
+                  !s.generatedDate.isBefore(range.start) &&
+                  !s.generatedDate.isAfter(range.end),
+            )
+            .length;
+      }
+      return count;
+    });
 
 /// Sum of manually-logged [Statement.interestCharged] across every
 /// statement generated within [start]..[end] — omitted entirely from the
 /// Reports UI when 0 (this app has no interest-calculation engine, so this
 /// is purely what the user has logged, not computed).
-final interestChargedForRangeProvider = Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  var total = 0.0;
-  for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
-    for (final statement in statements) {
-      if (statement.generatedDate.isBefore(range.start) || statement.generatedDate.isAfter(range.end)) continue;
-      total += statement.interestCharged ?? 0;
-    }
-  }
-  return total;
-});
+final interestChargedForRangeProvider =
+    Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      var total = 0.0;
+      for (final card in cards) {
+        final statements =
+            ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+        for (final statement in statements) {
+          if (statement.generatedDate.isBefore(range.start) ||
+              statement.generatedDate.isAfter(range.end))
+            continue;
+          total += statement.interestCharged ?? 0;
+        }
+      }
+      return total;
+    });
 
 /// Sum of manually-logged [Statement.lateFee] across every statement
 /// generated within [start]..[end] — same "omit when 0" convention.
-final lateFeesForRangeProvider = Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
-  var total = 0.0;
-  for (final card in cards) {
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
-    for (final statement in statements) {
-      if (statement.generatedDate.isBefore(range.start) || statement.generatedDate.isAfter(range.end)) continue;
-      total += statement.lateFee ?? 0;
-    }
-  }
-  return total;
-});
+final lateFeesForRangeProvider =
+    Provider.family<double, ({DateTime start, DateTime end})>((ref, range) {
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      var total = 0.0;
+      for (final card in cards) {
+        final statements =
+            ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+        for (final statement in statements) {
+          if (statement.generatedDate.isBefore(range.start) ||
+              statement.generatedDate.isAfter(range.end))
+            continue;
+          total += statement.lateFee ?? 0;
+        }
+      }
+      return total;
+    });
 
 /// Sum of every person's pending expense share across every statement —
 /// Reports' "Friend Pending inside statement" figure, reusing

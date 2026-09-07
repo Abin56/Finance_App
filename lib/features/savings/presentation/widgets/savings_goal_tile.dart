@@ -5,9 +5,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/num_extensions.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/charts/progress_bar.dart';
 import '../../domain/savings_goal.dart';
 import '../providers/savings_providers.dart';
@@ -30,7 +30,10 @@ class SavingsGoalTile extends ConsumerWidget {
     return 'To Pay in $days day${days == 1 ? '' : 's'}';
   }
 
-  Future<void> _showContributeDialog(BuildContext context, WidgetRef ref) async {
+  Future<void> _showContributeDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
@@ -49,7 +52,10 @@ class SavingsGoalTile extends ConsumerWidget {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () {
               if (!formKey.currentState!.validate()) return;
@@ -79,7 +85,7 @@ class SavingsGoalTile extends ConsumerWidget {
     final dueDateLabel = _dueDateLabel;
     final overdue = dueDateLabel == 'Missed Payment';
 
-    return ClayCard(
+    return FlowFiCard(
       onTap: () => SavingsGoalFormSheet.show(context, goal: goal),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,12 +96,18 @@ class SavingsGoalTile extends ConsumerWidget {
                 child: Text(
                   goal.name,
                   style: context.textTheme.titleMedium?.copyWith(
-                    color: goal.isCompleted ? context.colors.onSurface.withValues(alpha: 0.5) : null,
+                    color: goal.isCompleted
+                        ? context.colors.onSurface.withValues(alpha: 0.5)
+                        : null,
                   ),
                 ),
               ),
               if (goal.isCompleted)
-                Icon(Icons.check_circle_rounded, color: AppColors.income, size: AppSizes.iconSm),
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: AppColors.income,
+                  size: AppSizes.iconSm,
+                ),
               PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert_rounded),
                 onSelected: (action) async {
@@ -113,15 +125,30 @@ class SavingsGoalTile extends ConsumerWidget {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'contribute', child: Text('Add contribution')),
+                  const PopupMenuItem(
+                    value: 'contribute',
+                    child: Text('Add contribution'),
+                  ),
                   if (!goal.isCompleted)
-                    const PopupMenuItem(value: 'complete', child: Text('Mark completed')),
+                    const PopupMenuItem(
+                      value: 'complete',
+                      child: Text('Mark completed'),
+                    ),
                   if (goal.isCompleted)
-                    const PopupMenuItem(value: 'incomplete', child: Text('Mark incomplete')),
+                    const PopupMenuItem(
+                      value: 'incomplete',
+                      child: Text('Mark incomplete'),
+                    ),
                   if (!goal.isArchived)
-                    const PopupMenuItem(value: 'archive', child: Text('Archive')),
+                    const PopupMenuItem(
+                      value: 'archive',
+                      child: Text('Archive'),
+                    ),
                   if (goal.isArchived)
-                    const PopupMenuItem(value: 'unarchive', child: Text('Unarchive')),
+                    const PopupMenuItem(
+                      value: 'unarchive',
+                      child: Text('Unarchive'),
+                    ),
                 ],
               ),
             ],
@@ -139,13 +166,17 @@ class SavingsGoalTile extends ConsumerWidget {
                 Icon(
                   Icons.event_outlined,
                   size: AppSizes.iconSm,
-                  color: overdue ? AppColors.error : context.colors.onSurface.withValues(alpha: 0.5),
+                  color: overdue
+                      ? AppColors.error
+                      : context.colors.onSurface.withValues(alpha: 0.5),
                 ),
                 const SizedBox(width: AppSizes.xs),
                 Text(
                   dueDateLabel,
                   style: context.textTheme.bodySmall?.copyWith(
-                    color: overdue ? AppColors.error : context.colors.onSurface.withValues(alpha: 0.6),
+                    color: overdue
+                        ? AppColors.error
+                        : context.colors.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],

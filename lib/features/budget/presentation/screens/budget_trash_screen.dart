@@ -21,69 +21,88 @@ class BudgetTrashScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
-      body: SafeArea(child: trashAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (trashed) {
-          if (trashed.isEmpty) {
-            return const EmptyState(
-              icon: Icons.delete_outline_rounded,
-              title: 'Trash is empty',
-              subtitle: 'Deleted budgets will appear here until you restore or remove them.',
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            itemCount: trashed.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
-            itemBuilder: (context, index) {
-              final budget = trashed[index];
-              final categoryName = budget.categoryId == null
-                  ? '${budget.type.label} budget'
-                  : categoriesById[budget.categoryId]?.name ?? 'Category budget';
-              return ListTile(
-                tileColor: Theme.of(context).colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                ),
-                title: Text(categoryName),
-                subtitle: Text(
-                  '${CurrencyFormatter.instance.format(budget.amount)} · Deleted ${budget.deletedAt!.toLocal()}'
-                      .split('.')
-                      .first,
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.restore_rounded),
-                      tooltip: 'Restore',
-                      onPressed: () => ref.read(budgetRepositoryProvider).restore(budget),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete_forever_rounded, color: Theme.of(context).colorScheme.error),
-                      tooltip: 'Delete forever',
-                      onPressed: () => _confirmPermanentDelete(context, ref, budget),
-                    ),
-                  ],
-                ),
+      body: SafeArea(
+        child: trashAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Something went wrong: $error')),
+          data: (trashed) {
+            if (trashed.isEmpty) {
+              return const EmptyState(
+                icon: Icons.delete_outline_rounded,
+                title: 'Trash is empty',
+                subtitle:
+                    'Deleted budgets will appear here until you restore or remove them.',
               );
-            },
-          );
-        },
-      )),
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(AppSizes.lg),
+              itemCount: trashed.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
+              itemBuilder: (context, index) {
+                final budget = trashed[index];
+                final categoryName = budget.categoryId == null
+                    ? '${budget.type.label} budget'
+                    : categoriesById[budget.categoryId]?.name ??
+                          'Category budget';
+                return ListTile(
+                  tileColor: Theme.of(context).colorScheme.surface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+                  ),
+                  title: Text(categoryName),
+                  subtitle: Text(
+                    '${CurrencyFormatter.instance.format(budget.amount)} · Deleted ${budget.deletedAt!.toLocal()}'
+                        .split('.')
+                        .first,
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.restore_rounded),
+                        tooltip: 'Restore',
+                        onPressed: () =>
+                            ref.read(budgetRepositoryProvider).restore(budget),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_forever_rounded,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        tooltip: 'Delete forever',
+                        onPressed: () =>
+                            _confirmPermanentDelete(context, ref, budget),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 
-  Future<void> _confirmPermanentDelete(BuildContext context, WidgetRef ref, Budget budget) async {
+  Future<void> _confirmPermanentDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Budget budget,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete forever?'),
-        content: const Text('This budget will be permanently removed. This can\'t be undone.'),
+        content: const Text(
+          'This budget will be permanently removed. This can\'t be undone.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),

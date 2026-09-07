@@ -9,7 +9,10 @@ import 'person_pending_participants_providers.dart';
 /// redesign), folded from [personSplitParticipantsProvider] so it can never
 /// disagree with the per-row settlement numbers the same screen shows.
 class PersonExpenseStats {
-  const PersonExpenseStats({required this.totalSpent, required this.totalSettled});
+  const PersonExpenseStats({
+    required this.totalSpent,
+    required this.totalSettled,
+  });
 
   final double totalSpent;
   final double totalSettled;
@@ -19,9 +22,19 @@ class PersonExpenseStats {
   double get pending => totalSpent - totalSettled;
 }
 
-final personExpenseStatsProvider = Provider.autoDispose.family<PersonExpenseStats, String>((ref, personId) {
-  final participants = ref.watch(personSplitParticipantsProvider(personId));
-  final totalSpent = participants.fold(0.0, (sum, p) => sum + p.participant.share);
-  final totalSettled = participants.fold(0.0, (sum, p) => sum + p.installment.amountPaid);
-  return PersonExpenseStats(totalSpent: totalSpent, totalSettled: totalSettled);
-});
+final personExpenseStatsProvider = Provider.autoDispose
+    .family<PersonExpenseStats, String>((ref, personId) {
+      final participants = ref.watch(personSplitParticipantsProvider(personId));
+      final totalSpent = participants.fold(
+        0.0,
+        (sum, p) => sum + p.participant.share,
+      );
+      final totalSettled = participants.fold(
+        0.0,
+        (sum, p) => sum + p.installment.amountPaid,
+      );
+      return PersonExpenseStats(
+        totalSpent: totalSpent,
+        totalSettled: totalSettled,
+      );
+    });

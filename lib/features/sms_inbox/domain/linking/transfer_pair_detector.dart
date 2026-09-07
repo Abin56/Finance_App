@@ -97,7 +97,8 @@ class TransferPairDetector {
                 MatchedSignal(
                   signal: MatchingSignal.amount,
                   weight: 0,
-                  description: 'Same amount, opposite direction, own-account flagged.',
+                  description:
+                      'Same amount, opposite direction, own-account flagged.',
                 ),
               ],
               reason: 'Candidate counterpart leg: event ${e.id}.',
@@ -132,7 +133,8 @@ class TransferPairDetector {
         MatchedSignal(
           signal: MatchingSignal.amount,
           weight: 0,
-          description: 'Same amount, opposite direction, both own-account flagged.',
+          description:
+              'Same amount, opposite direction, both own-account flagged.',
         ),
       ],
       evidence: [

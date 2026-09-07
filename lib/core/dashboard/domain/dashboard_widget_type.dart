@@ -121,7 +121,6 @@ extension DashboardWidgetTypeX on DashboardWidgetType {
         return false;
     }
   }
-
 }
 
 /// Compact / Medium / Large — how much space a widget instance occupies and

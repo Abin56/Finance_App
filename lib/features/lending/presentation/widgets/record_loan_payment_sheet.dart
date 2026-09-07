@@ -21,7 +21,12 @@ import '../../domain/loan.dart';
 /// early/advance payments (any date) with no special handling — any
 /// positive amount and date is accepted.
 class RecordLoanPaymentSheet extends ConsumerStatefulWidget {
-  const RecordLoanPaymentSheet({super.key, required this.installment, this.loan, this.smsPrefill});
+  const RecordLoanPaymentSheet({
+    super.key,
+    required this.installment,
+    this.loan,
+    this.smsPrefill,
+  });
 
   final Installment installment;
 
@@ -37,32 +42,50 @@ class RecordLoanPaymentSheet extends ConsumerStatefulWidget {
   /// amount/date/note instead of the installment's full remaining amount/now.
   final SmsPrefill? smsPrefill;
 
-  static Future<void> show(BuildContext context, Installment installment, {Loan? loan, SmsPrefill? smsPrefill}) {
+  static Future<void> show(
+    BuildContext context,
+    Installment installment, {
+    Loan? loan,
+    SmsPrefill? smsPrefill,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
       useSafeArea: true,
-      builder: (_) => RecordLoanPaymentSheet(installment: installment, loan: loan, smsPrefill: smsPrefill),
+      builder: (_) => RecordLoanPaymentSheet(
+        installment: installment,
+        loan: loan,
+        smsPrefill: smsPrefill,
+      ),
     );
   }
 
   @override
-  ConsumerState<RecordLoanPaymentSheet> createState() => _RecordLoanPaymentSheetState();
+  ConsumerState<RecordLoanPaymentSheet> createState() =>
+      _RecordLoanPaymentSheetState();
 }
 
-class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet> {
+class _RecordLoanPaymentSheetState
+    extends ConsumerState<RecordLoanPaymentSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(
-    text: (widget.smsPrefill?.amount ?? widget.installment.remainingAmount).toStringAsFixed(2),
+    text: (widget.smsPrefill?.amount ?? widget.installment.remainingAmount)
+        .toStringAsFixed(2),
   );
-  late final _noteController = TextEditingController(text: widget.smsPrefill?.note ?? '');
+  late final _noteController = TextEditingController(
+    text: widget.smsPrefill?.note ?? '',
+  );
   late DateTime _date = widget.smsPrefill?.dateTime ?? DateTime.now();
   bool _isSaving = false;
   late bool _someoneElsePaid = widget.loan?.payerPersonId != null;
   late String? _selectedPersonId = widget.loan?.payerPersonId;
 
-  bool get _isAmountValid => Validators.amountUpTo(widget.installment.remainingAmount)(_amountController.text) == null;
+  bool get _isAmountValid =>
+      Validators.amountUpTo(widget.installment.remainingAmount)(
+        _amountController.text,
+      ) ==
+      null;
 
   @override
   void dispose() {
@@ -95,7 +118,8 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
   String _resolveNote(PayerSource payer) {
     final typed = _noteController.text.trim();
     if (typed.isNotEmpty) return typed;
-    if (payer case PersonPayerSource(:final person)) return 'Paid by ${person.name}';
+    if (payer case PersonPayerSource(:final person))
+      return 'Paid by ${person.name}';
     return '';
   }
 
@@ -105,43 +129,48 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
 
     try {
       final repository = ref.read(
-        installmentPaymentRepositoryProvider(
-          (scheduleId: widget.installment.scheduleId, installmentId: widget.installment.id),
-        ),
+        installmentPaymentRepositoryProvider((
+          scheduleId: widget.installment.scheduleId,
+          installmentId: widget.installment.id,
+        )),
       );
       final amount = double.parse(_amountController.text.trim());
       final payer = _resolvePayer();
 
-      await ref.read(paymentAttributionServiceProvider).apply(
-        items: [
-          PaymentAttributionItem(
-            obligationLabel: 'your loan payment',
-            amount: amount,
-            record: ({required amount, required date, required note}) => repository.recordPayment(
-              widget.installment,
-              amount: amount,
-              date: date,
-              note: note,
-            ),
-          ),
-        ],
-        payer: payer,
-        date: _date,
-        note: _resolveNote(payer),
-      );
+      await ref
+          .read(paymentAttributionServiceProvider)
+          .apply(
+            items: [
+              PaymentAttributionItem(
+                obligationLabel: 'your loan payment',
+                amount: amount,
+                record: ({required amount, required date, required note}) =>
+                    repository.recordPayment(
+                      widget.installment,
+                      amount: amount,
+                      date: date,
+                      note: note,
+                    ),
+              ),
+            ],
+            payer: payer,
+            date: _date,
+            note: _resolveNote(payer),
+          );
 
       await completeSmsImport(
         ref,
         smsPrefill: widget.smsPrefill,
-        linkedEntityId: '${widget.installment.scheduleId}:${widget.installment.id}',
+        linkedEntityId:
+            '${widget.installment.scheduleId}:${widget.installment.id}',
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record payment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
@@ -164,8 +193,12 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
             TextFormField(
               controller: _amountController,
               decoration: const InputDecoration(labelText: 'Amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: Validators.amountUpTo(widget.installment.remainingAmount),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              validator: Validators.amountUpTo(
+                widget.installment.remainingAmount,
+              ),
               autovalidateMode: AutovalidateMode.onUserInteraction,
               onChanged: (_) => setState(() {}),
             ),
@@ -194,7 +227,8 @@ class _RecordLoanPaymentSheetState extends ConsumerState<RecordLoanPaymentSheet>
                 if (!value) _selectedPersonId = null;
               }),
               selectedPersonId: _selectedPersonId,
-              onPersonChanged: (value) => setState(() => _selectedPersonId = value),
+              onPersonChanged: (value) =>
+                  setState(() => _selectedPersonId = value),
             ),
           ],
         ),

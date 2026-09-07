@@ -30,10 +30,17 @@ class InsightsWidgetCard extends ConsumerWidget {
     final now = DateTime.now();
     final cycle = SalaryCycleFull(anchorDay: anchorDay).resolve(now);
     final cycleLength = cycle.end.difference(cycle.start);
-    final previousCycle = DateRange(cycle.start.subtract(cycleLength), cycle.start.subtract(const Duration(seconds: 1)));
+    final previousCycle = DateRange(
+      cycle.start.subtract(cycleLength),
+      cycle.start.subtract(const Duration(seconds: 1)),
+    );
 
     final insights = ref.watch(
-      generalInsightsProvider((range: cycle, previousRange: previousCycle, period: ReportsPeriod.custom)),
+      generalInsightsProvider((
+        range: cycle,
+        previousRange: previousCycle,
+        period: ReportsPeriod.custom,
+      )),
     );
     final textTheme = context.textTheme;
     final colors = context.colors;
@@ -42,10 +49,19 @@ class InsightsWidgetCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+          Text(
+            config.title,
+            style: textTheme.labelLarge,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: AppSizes.sm),
           if (insights.isEmpty)
-            Text('Nothing to report yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
+            Text(
+              'Nothing to report yet.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            )
           else
             InsightsList(insights: insights),
         ],

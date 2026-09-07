@@ -37,7 +37,11 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
   /// The in-progress (not yet closed) cycle's live totals — an ephemeral,
   /// unsaved [Statement] (`id: 'current'`) for display only. Never written
   /// to Firestore; recomputed on every call.
-  Statement currentCycleFor(CreditCardProfile card, List<Transaction> cardTransactions, {DateTime? now}) {
+  Statement currentCycleFor(
+    CreditCardProfile card,
+    List<Transaction> cardTransactions, {
+    DateTime? now,
+  }) {
     final period = StatementPeriodCalculator.currentCycleFor(card, now: now);
     return Statement(
       id: 'current',
@@ -67,7 +71,10 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
     List<Statement> existing, {
     DateTime? now,
   }) async {
-    final period = StatementPeriodCalculator.mostRecentClosedCycleFor(card, now: now);
+    final period = StatementPeriodCalculator.mostRecentClosedCycleFor(
+      card,
+      now: now,
+    );
     final today = DateTime(
       (now ?? DateTime.now()).year,
       (now ?? DateTime.now()).month,
@@ -76,7 +83,9 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
     if (period.periodEnd.isAfter(today)) return null;
 
     final alreadyExists = existing.any(
-      (s) => s.periodStart.isAtSameMomentAs(period.periodStart) && s.periodEnd.isAtSameMomentAs(period.periodEnd),
+      (s) =>
+          s.periodStart.isAtSameMomentAs(period.periodStart) &&
+          s.periodEnd.isAtSameMomentAs(period.periodEnd),
     );
     if (alreadyExists) return null;
 
@@ -94,7 +103,9 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
       generatedDate: period.periodEnd,
       dueDate: period.dueDate,
       totalAmount: total,
-      minimumDue: card.minimumDuePercent == null ? null : total * card.minimumDuePercent! / 100,
+      minimumDue: card.minimumDuePercent == null
+          ? null
+          : total * card.minimumDuePercent! / 100,
       createdAt: DateTime.now(),
     );
     await add(statement.id, statement);
@@ -168,7 +179,9 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
   /// never exceeds [totalAmount] — mirrors `BillOccurrenceRepository.applyPayment`.
   Future<void> applyPayment(Statement statement, double delta) async {
     if (delta == 0) return;
-    final newAmountPaid = (statement.amountPaid + delta).clamp(0, statement.totalAmount).toDouble();
+    final newAmountPaid = (statement.amountPaid + delta)
+        .clamp(0, statement.totalAmount)
+        .toDouble();
     statement.recordEdit(
       field: 'amountPaid',
       oldValue: statement.amountPaid.toString(),

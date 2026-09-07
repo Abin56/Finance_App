@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_widgets.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/lists/flowfi_list_tile.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/category.dart';
 import '../../domain/category_type.dart';
 
@@ -18,55 +20,46 @@ class CategoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = Color(category.colorValue);
 
-    return ClayCard(
+    return FlowFiCard(
+      padding: EdgeInsets.zero,
       onTap: onTap,
-      child: Row(
-        children: [
-          ClayIconChip(
-            icon: category.icon,
-            color: category.isActive ? color : color.withValues(alpha: 0.4),
-            size: 44,
-            iconSize: AppSizes.iconMd,
+      child: FlowFiListTile(
+        leading: FlowFiIconChip(
+          icon: category.icon,
+          color: category.isActive ? color : color.withValues(alpha: 0.4),
+          size: 44,
+          iconSize: AppSizes.iconMd,
+        ),
+        title: Text(
+          category.name,
+          style: context.textTheme.titleMedium?.copyWith(
+            color: category.isActive
+                ? null
+                : context.colors.onSurface.withValues(alpha: 0.4),
           ),
-          const SizedBox(width: AppSizes.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category.name,
-                  style: context.textTheme.titleMedium?.copyWith(
-                    color: category.isActive ? null : context.colors.onSurface.withValues(alpha: 0.4),
-                  ),
-                ),
-                Text(
-                  category.type.label,
-                  style: context.textTheme.bodyMedium?.copyWith(
-                    color: context.colors.onSurface.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
+        ),
+        subtitle: Text(
+          category.type.label,
+          style: context.textTheme.bodyMedium?.copyWith(
+            color: context.flowfi.textTertiary,
           ),
-          if (category.isDefault)
-            Padding(
-              padding: const EdgeInsets.only(left: AppSizes.sm),
-              child: Text(
+        ),
+        trailing: category.isDefault
+            ? Text(
                 'Default',
                 style: context.textTheme.labelSmall?.copyWith(
                   color: context.colors.onSurface.withValues(alpha: 0.4),
                 ),
-              ),
-            ),
-          if (!category.isActive)
-            Padding(
-              padding: const EdgeInsets.only(left: AppSizes.sm),
-              child: Text(
+              )
+            : null,
+        trailingSubtitle: !category.isActive
+            ? Text(
                 'Inactive',
-                style: context.textTheme.labelSmall?.copyWith(color: context.colors.error),
-              ),
-            ),
-        ],
+                style: context.textTheme.labelSmall?.copyWith(
+                  color: context.colors.error,
+                ),
+              )
+            : null,
       ),
     );
   }

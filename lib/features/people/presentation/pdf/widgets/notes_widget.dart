@@ -27,12 +27,20 @@ class NotesWidget extends pw.StatelessWidget {
         children: [
           pw.Text(
             'Notes',
-            style: pw.TextStyle(font: fonts.semiBold, fontSize: PdfTokens.fontHeading, color: PdfTokens.textPrimary),
+            style: pw.TextStyle(
+              font: fonts.semiBold,
+              fontSize: PdfTokens.fontHeading,
+              color: PdfTokens.textPrimary,
+            ),
           ),
           pw.SizedBox(height: PdfTokens.xs),
           pw.Text(
             model.personNotesText,
-            style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontBody, color: PdfTokens.textPrimary),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: PdfTokens.fontBody,
+              color: PdfTokens.textPrimary,
+            ),
           ),
         ],
       ),

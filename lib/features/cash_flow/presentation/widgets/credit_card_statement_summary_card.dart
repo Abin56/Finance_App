@@ -6,8 +6,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../providers/cash_flow_providers.dart';
 import '../../../../shared/widgets/cards/placeholder_card.dart';
 
@@ -26,7 +26,8 @@ class CreditCardStatementSummaryCard extends ConsumerWidget {
       return PlaceholderCard(
         icon: Icons.credit_card_outlined,
         title: 'No credit cards yet',
-        message: 'Add a card to track its statement cycle and remaining balance.',
+        message:
+            'Add a card to track its statement cycle and remaining balance.',
         onTap: () => context.push(AppRoutes.creditCards),
       );
     }
@@ -34,10 +35,15 @@ class CreditCardStatementSummaryCard extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Credit Card Statement Summary', style: context.textTheme.titleMedium),
+        Text(
+          'Credit Card Statement Summary',
+          style: context.textTheme.titleMedium,
+        ),
         Text(
           'Always shows the current/most recent statement, regardless of the selected period',
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.5),
+          ),
         ),
         const SizedBox(height: AppSizes.sm),
         for (final summary in summaries) ...[
@@ -58,9 +64,11 @@ class _CardStatementTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final card = summary.card;
     final statement = summary.latestStatement;
-    final displayName = card.lastFourDigits != null ? 'Card •••• ${card.lastFourDigits}' : 'Credit Card';
+    final displayName = card.lastFourDigits != null
+        ? 'Card •••• ${card.lastFourDigits}'
+        : 'Credit Card';
 
-    return ClayCard(
+    return FlowFiCard(
       onTap: () => context.push('${AppRoutes.creditCards}/${card.id}'),
       padding: const EdgeInsets.all(AppSizes.md),
       child: Column(
@@ -71,7 +79,9 @@ class _CardStatementTile extends StatelessWidget {
           if (statement == null)
             Text(
               'No statement yet',
-              style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.6),
+              ),
             )
           else ...[
             Row(
@@ -79,24 +89,37 @@ class _CardStatementTile extends StatelessWidget {
                 Expanded(
                   child: _Stat(
                     label: 'Statement Period',
-                    value: '${statement.periodStart.shortDate} – ${statement.periodEnd.shortDate}',
+                    value:
+                        '${statement.periodStart.shortDate} – ${statement.periodEnd.shortDate}',
                   ),
                 ),
-                Expanded(child: _Stat(label: 'Due Date', value: statement.dueDate.shortDate)),
+                Expanded(
+                  child: _Stat(
+                    label: 'Due Date',
+                    value: statement.dueDate.shortDate,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: AppSizes.sm),
             Row(
               children: [
                 Expanded(
-                  child: _Stat(label: 'Current Bill', value: CurrencyFormatter.instance.format(statement.totalAmount)),
+                  child: _Stat(
+                    label: 'Current Bill',
+                    value: CurrencyFormatter.instance.format(
+                      statement.totalAmount,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: _Stat(
                     label: 'Minimum Due',
                     value: statement.minimumDue == null
                         ? '—'
-                        : CurrencyFormatter.instance.format(statement.minimumDue!),
+                        : CurrencyFormatter.instance.format(
+                            statement.minimumDue!,
+                          ),
                   ),
                 ),
               ],
@@ -108,13 +131,17 @@ class _CardStatementTile extends StatelessWidget {
               Expanded(
                 child: _Stat(
                   label: 'Remaining to Pay',
-                  value: CurrencyFormatter.instance.format(summary.standing.outstanding),
+                  value: CurrencyFormatter.instance.format(
+                    summary.standing.outstanding,
+                  ),
                 ),
               ),
               Expanded(
                 child: _Stat(
                   label: 'Available Credit',
-                  value: CurrencyFormatter.instance.format(summary.standing.available),
+                  value: CurrencyFormatter.instance.format(
+                    summary.standing.available,
+                  ),
                 ),
               ),
             ],
@@ -138,13 +165,17 @@ class _Stat extends StatelessWidget {
       children: [
         Text(
           value,
-          style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
       ],
     );

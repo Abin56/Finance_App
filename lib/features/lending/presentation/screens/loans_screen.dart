@@ -40,7 +40,10 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
     super.dispose();
   }
 
-  List<Loan> _applySearch(List<Loan> loans, Map<String, String> personNameById) {
+  List<Loan> _applySearch(
+    List<Loan> loans,
+    Map<String, String> personNameById,
+  ) {
     final query = _query.trim().toLowerCase();
     if (query.isEmpty) return loans;
     return loans.where((l) {
@@ -61,7 +64,9 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
       case LoanCategoryFilter.personal:
         return loans.where((l) => l.category == LoanCategory.personal).toList();
       case LoanCategoryFilter.institutional:
-        return loans.where((l) => l.category == LoanCategory.institutional).toList();
+        return loans
+            .where((l) => l.category == LoanCategory.institutional)
+            .toList();
     }
   }
 
@@ -106,7 +111,10 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(hintText: 'Search loans…', border: InputBorder.none),
+                decoration: const InputDecoration(
+                  hintText: 'Search loans…',
+                  border: InputBorder.none,
+                ),
                 onChanged: (value) => setState(() => _query = value),
               )
             : const Text('Loans'),
@@ -125,9 +133,9 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             tooltip: 'Trash',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const LoansTrashScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const LoansTrashScreen())),
           ),
         ],
       ),
@@ -138,7 +146,8 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
       ),
       body: loansAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
+        error: (error, _) =>
+            Center(child: Text('Something went wrong: $error')),
         data: (loans) {
           if (loans.isEmpty) {
             return EmptyState(
@@ -160,77 +169,104 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
 
           return SafeArea(
             child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, 0),
-                sliver: SliverList.list(
-                  children: [
-                    LoanCategoryFilterChips(
-                      selected: _categoryFilter,
-                      onChanged: (filter) => setState(() => _categoryFilter = filter),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    LoanDirectionFilterChips(
-                      selected: _directionFilter,
-                      onChanged: (filter) => setState(() => _directionFilter = filter),
-                    ),
-                    const SizedBox(height: AppSizes.sm),
-                    LoanStatusFilterChips(
-                      selected: _statusFilter,
-                      onChanged: (filter) => setState(() => _statusFilter = filter),
-                    ),
-                    const SizedBox(height: AppSizes.lg),
-                    if (visible.isEmpty)
-                      const EmptyState(
-                        icon: Icons.search_off_rounded,
-                        title: 'No matching loans',
-                        subtitle: 'Try a different search or filter.',
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSizes.lg,
+                    AppSizes.lg,
+                    AppSizes.lg,
+                    0,
+                  ),
+                  sliver: SliverList.list(
+                    children: [
+                      LoanCategoryFilterChips(
+                        selected: _categoryFilter,
+                        onChanged: (filter) =>
+                            setState(() => _categoryFilter = filter),
                       ),
-                  ],
-                ),
-              ),
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.md),
-                sliver: SliverList.builder(
-                  itemCount: visible.length,
-                  itemBuilder: (context, index) {
-                    final loan = visible[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                      child: Dismissible(
-                        key: ValueKey(loan.id),
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (_) => confirmDelete(context, entityName: 'Loan'),
-                        background: Container(
-                          alignment: Alignment.centerRight,
-                          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                          ),
-                          child: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.error),
+                      const SizedBox(height: AppSizes.sm),
+                      LoanDirectionFilterChips(
+                        selected: _directionFilter,
+                        onChanged: (filter) =>
+                            setState(() => _directionFilter = filter),
+                      ),
+                      const SizedBox(height: AppSizes.sm),
+                      LoanStatusFilterChips(
+                        selected: _statusFilter,
+                        onChanged: (filter) =>
+                            setState(() => _statusFilter = filter),
+                      ),
+                      const SizedBox(height: AppSizes.lg),
+                      if (visible.isEmpty)
+                        const EmptyState(
+                          icon: Icons.search_off_rounded,
+                          title: 'No matching loans',
+                          subtitle: 'Try a different search or filter.',
                         ),
-                        onDismissed: (_) async {
-                          await repository.softDelete(loan);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Loan moved to trash'),
-                              action: SnackBarAction(label: 'Undo', onPressed: () => repository.restore(loan)),
+                    ],
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSizes.lg,
+                    0,
+                    AppSizes.lg,
+                    AppSizes.md,
+                  ),
+                  sliver: SliverList.builder(
+                    itemCount: visible.length,
+                    itemBuilder: (context, index) {
+                      final loan = visible[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                        child: Dismissible(
+                          key: ValueKey(loan.id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) =>
+                              confirmDelete(context, entityName: 'Loan'),
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSizes.lg,
                             ),
-                          );
-                        },
-                        child: LoanTile(
-                          loan: loan,
-                          person: personById[loan.personId],
-                          onTap: () => context.push('${AppRoutes.loans}/${loan.id}'),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.error.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(
+                                AppSizes.radiusLg,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.delete_outline_rounded,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                          onDismissed: (_) async {
+                            await repository.softDelete(loan);
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Loan moved to trash'),
+                                action: SnackBarAction(
+                                  label: 'Undo',
+                                  onPressed: () => repository.restore(loan),
+                                ),
+                              ),
+                            );
+                          },
+                          child: LoanTile(
+                            loan: loan,
+                            person: personById[loan.personId],
+                            onTap: () =>
+                                context.push('${AppRoutes.loans}/${loan.id}'),
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
             ),
           );
         },

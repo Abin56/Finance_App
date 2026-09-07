@@ -10,8 +10,8 @@ import '../../../core/constants/app_colors.dart';
 enum CreditCardStatus { active, blocked, closed, cancelled }
 
 extension CreditCardStatusX on CreditCardStatus {
-  static CreditCardStatus fromName(String name) =>
-      CreditCardStatus.values.firstWhere((s) => s.name == name, orElse: () => CreditCardStatus.active);
+  static CreditCardStatus fromName(String name) => CreditCardStatus.values
+      .firstWhere((s) => s.name == name, orElse: () => CreditCardStatus.active);
 
   String get label {
     switch (this) {

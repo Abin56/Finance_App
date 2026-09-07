@@ -48,7 +48,9 @@ class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
     final people = peopleAsync.value ?? const [];
     final filtered = _query.isEmpty
         ? people
-        : people.where((p) => p.name.toLowerCase().contains(_query.toLowerCase())).toList();
+        : people
+              .where((p) => p.name.toLowerCase().contains(_query.toLowerCase()))
+              .toList();
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -69,11 +71,17 @@ class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
                 decoration: InputDecoration(
                   hintText: 'Search people',
                   isDense: true,
-                  prefixIcon: const Icon(Icons.search_rounded, size: AppSizes.iconSm),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: AppSizes.iconSm,
+                  ),
                   suffixIcon: _query.isEmpty
                       ? null
                       : IconButton(
-                          icon: const Icon(Icons.close_rounded, size: AppSizes.iconSm),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: AppSizes.iconSm,
+                          ),
                           onPressed: () => setState(() {
                             _searchController.clear();
                             _query = '';
@@ -94,19 +102,27 @@ class _PersonPickerSheetState extends ConsumerState<_PersonPickerSheet> {
                     ),
                     if (filtered.isEmpty)
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSizes.lg),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSizes.lg,
+                        ),
                         child: Center(
                           child: Text(
                             'No people match "$_query"',
-                            style: context.textTheme.bodyMedium
-                                ?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                            style: context.textTheme.bodyMedium?.copyWith(
+                              color: context.colors.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
                           ),
                         ),
                       )
                     else
                       for (final person in filtered)
                         ListTile(
-                          leading: PersonAvatar(name: person.name, colorValue: person.avatarColorValue),
+                          leading: PersonAvatar(
+                            name: person.name,
+                            colorValue: person.avatarColorValue,
+                          ),
                           title: Text(person.name),
                           onTap: () => Navigator.of(context).pop(person),
                         ),

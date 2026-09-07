@@ -21,18 +21,21 @@ void main() {
       expect(decision.confidence, 0.0);
     });
 
-    test('known merchant with no history but with a recurring pattern skips AI', () {
-      final decision = AiCallReductionDecider.decide(
-        merchantKey: 'netflix',
-        categoryField: const LearnedField<String>(),
-        categoryObservations: const [],
-        now: now,
-        hasStrongRecurringPattern: true,
-      );
+    test(
+      'known merchant with no history but with a recurring pattern skips AI',
+      () {
+        final decision = AiCallReductionDecider.decide(
+          merchantKey: 'netflix',
+          categoryField: const LearnedField<String>(),
+          categoryObservations: const [],
+          now: now,
+          hasStrongRecurringPattern: true,
+        );
 
-      expect(decision.shouldCallAi, isFalse);
-      expect(decision.reason, AiCallReductionReason.strongPattern);
-    });
+        expect(decision.shouldCallAi, isFalse);
+        expect(decision.reason, AiCallReductionReason.strongPattern);
+      },
+    );
 
     test('strong, consistent user history skips AI and explains why', () {
       final field = LearnedField<String>(
@@ -64,39 +67,42 @@ void main() {
       expect(decision.explanation, contains('8'));
     });
 
-    test('a recent explicit correction is trusted immediately, ahead of older history', () {
-      final field = LearnedField<String>(
-        value: 'Groceries',
-        source: LearningSource.user,
-        confirmations: 0,
-        corrections: 1,
-        lastUpdatedAt: now.subtract(const Duration(days: 1)),
-      );
-      final observations = [
-        MerchantFieldObservation(
-          value: 'Shopping',
-          timestamp: now.subtract(const Duration(days: 200)),
-          isCorrection: false,
-        ),
-        MerchantFieldObservation(
+    test(
+      'a recent explicit correction is trusted immediately, ahead of older history',
+      () {
+        final field = LearnedField<String>(
           value: 'Groceries',
-          timestamp: now.subtract(const Duration(days: 1)),
-          isCorrection: true,
           source: LearningSource.user,
-        ),
-      ];
+          confirmations: 0,
+          corrections: 1,
+          lastUpdatedAt: now.subtract(const Duration(days: 1)),
+        );
+        final observations = [
+          MerchantFieldObservation(
+            value: 'Shopping',
+            timestamp: now.subtract(const Duration(days: 200)),
+            isCorrection: false,
+          ),
+          MerchantFieldObservation(
+            value: 'Groceries',
+            timestamp: now.subtract(const Duration(days: 1)),
+            isCorrection: true,
+            source: LearningSource.user,
+          ),
+        ];
 
-      final decision = AiCallReductionDecider.decide(
-        merchantKey: 'amazon',
-        categoryField: field,
-        categoryObservations: observations,
-        now: now,
-      );
+        final decision = AiCallReductionDecider.decide(
+          merchantKey: 'amazon',
+          categoryField: field,
+          categoryObservations: observations,
+          now: now,
+        );
 
-      expect(decision.shouldCallAi, isFalse);
-      expect(decision.reason, AiCallReductionReason.recentCorrection);
-      expect(decision.source, LearningSource.user);
-    });
+        expect(decision.shouldCallAi, isFalse);
+        expect(decision.reason, AiCallReductionReason.recentCorrection);
+        expect(decision.source, LearningSource.user);
+      },
+    );
 
     test('conflicting near-equal history calls AI rather than guessing', () {
       final field = LearnedField<String>(
@@ -167,22 +173,25 @@ void main() {
       expect(decision.reason, AiCallReductionReason.insufficientConfidence);
     });
 
-    test('decision API surface never exposes amount/direction/account/status/reference fields', () {
-      // Documented via the API itself: `decide` only accepts merchantKey,
-      // a category LearnedField, category observations, now, and a
-      // recurring-pattern flag — there is no parameter through which hard
-      // SMS evidence could reach this decision. This test exists so a
-      // future edit that adds such a parameter fails a code-review nudge
-      // rather than silently widening the surface.
-      expect(
-        AiCallReductionDecider.decide(
-          merchantKey: 'swiggy',
-          categoryField: const LearnedField<String>(),
-          categoryObservations: const [],
-          now: now,
-        ),
-        isA<AiCallReductionDecision>(),
-      );
-    });
+    test(
+      'decision API surface never exposes amount/direction/account/status/reference fields',
+      () {
+        // Documented via the API itself: `decide` only accepts merchantKey,
+        // a category LearnedField, category observations, now, and a
+        // recurring-pattern flag — there is no parameter through which hard
+        // SMS evidence could reach this decision. This test exists so a
+        // future edit that adds such a parameter fails a code-review nudge
+        // rather than silently widening the surface.
+        expect(
+          AiCallReductionDecider.decide(
+            merchantKey: 'swiggy',
+            categoryField: const LearnedField<String>(),
+            categoryObservations: const [],
+            now: now,
+          ),
+          isA<AiCallReductionDecision>(),
+        );
+      },
+    );
   });
 }

@@ -39,7 +39,11 @@ class SplitExpensesWidgetCard extends ConsumerWidget {
     final total = ref.watch(totalPendingSplitAmountProvider);
     final textTheme = context.textTheme;
     final colors = context.colors;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return DashboardWidgetCard(
       child: Column(
@@ -49,11 +53,20 @@ class SplitExpensesWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.push(AppRoutes.transactions),
-                child: Text('See all ›', style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+                child: Text(
+                  'See all ›',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
@@ -61,16 +74,28 @@ class SplitExpensesWidgetCard extends ConsumerWidget {
             const SizedBox(height: AppSizes.sm),
             Text(
               'No pending split expenses.',
-              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
           ] else ...[
             const SizedBox(height: AppSizes.xs),
-            Text('Owed To Me', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+            Text(
+              'Owed To Me',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 2),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
-              child: Text(format.format(total), style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              child: Text(
+                format.format(total),
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             if (items.isNotEmpty) ...[
               const SizedBox(height: AppSizes.sm),

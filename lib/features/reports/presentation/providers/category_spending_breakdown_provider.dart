@@ -14,32 +14,42 @@ import '../widgets/reports_category_list.dart';
 /// (`ReportsPeriodX.reportDateFor`) buckets it into [range], matching every
 /// other Reports figure.
 final categorySpendingBreakdownProvider =
-    Provider.family<List<CategorySpendingEntry>, ({DateRange range, ReportsPeriod period})>((ref, args) {
-  final transactions = ref.watch(calculableTransactionsProvider);
-  final categories = ref.watch(categoriesStreamProvider).value ?? const [];
-  final categoriesById = {for (final c in categories) c.id: c};
+    Provider.family<
+      List<CategorySpendingEntry>,
+      ({DateRange range, ReportsPeriod period})
+    >((ref, args) {
+      final transactions = ref.watch(calculableTransactionsProvider);
+      final categories = ref.watch(categoriesStreamProvider).value ?? const [];
+      final categoriesById = {for (final c in categories) c.id: c};
 
-  final periodTransactions = transactions.where(
-    (t) => args.range.contains(args.period.reportDateFor(t)),
-  );
+      final periodTransactions = transactions.where(
+        (t) => args.range.contains(args.period.reportDateFor(t)),
+      );
 
-  final expenses = periodTransactions
-      .where((t) => t.type == TransactionType.expense)
-      .fold(0.0, (total, t) => total + t.amount);
+      final expenses = periodTransactions
+          .where((t) => t.type == TransactionType.expense)
+          .fold(0.0, (total, t) => total + t.amount);
 
-  final totalsByCategory = <String, double>{};
-  for (final t in periodTransactions.where((t) => t.type == TransactionType.expense)) {
-    totalsByCategory.update(t.categoryId, (v) => v + t.amount, ifAbsent: () => t.amount);
-  }
+      final totalsByCategory = <String, double>{};
+      for (final t in periodTransactions.where(
+        (t) => t.type == TransactionType.expense,
+      )) {
+        totalsByCategory.update(
+          t.categoryId,
+          (v) => v + t.amount,
+          ifAbsent: () => t.amount,
+        );
+      }
 
-  final ranked = totalsByCategory.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-  return [
-    for (final entry in ranked)
-      if (categoriesById[entry.key] != null)
-        CategorySpendingEntry(
-          category: categoriesById[entry.key]!,
-          amount: entry.value,
-          percentOfTotal: expenses == 0 ? 0 : entry.value / expenses,
-        ),
-  ];
-});
+      final ranked = totalsByCategory.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      return [
+        for (final entry in ranked)
+          if (categoriesById[entry.key] != null)
+            CategorySpendingEntry(
+              category: categoriesById[entry.key]!,
+              amount: entry.value,
+              percentOfTotal: expenses == 0 ? 0 : entry.value / expenses,
+            ),
+      ];
+    });

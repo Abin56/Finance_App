@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_sizes.dart';
 import '../../../core/extensions/date_extensions.dart';
 
 /// Small tinted pill flagging a transaction's excluded/reassigned-month
@@ -44,15 +45,21 @@ class TransactionFlagBadge extends StatelessWidget {
 
     const color = Colors.grey;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10, vertical: compact ? 2 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 10,
+        vertical: compact ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
       child: Text(
         label,
-        style: (compact ? Theme.of(context).textTheme.labelSmall : Theme.of(context).textTheme.labelMedium)
-            ?.copyWith(color: color, fontWeight: FontWeight.w600),
+        style:
+            (compact
+                    ? Theme.of(context).textTheme.labelSmall
+                    : Theme.of(context).textTheme.labelMedium)
+                ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }

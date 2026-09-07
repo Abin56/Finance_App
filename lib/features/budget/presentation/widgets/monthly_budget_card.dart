@@ -32,7 +32,11 @@ class _MonthlyBudgetCardState extends ConsumerState<MonthlyBudgetCard> {
 
   void _shiftMonth(int delta) {
     setState(() {
-      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + delta, 1);
+      _selectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + delta,
+        1,
+      );
     });
   }
 
@@ -48,7 +52,10 @@ class _MonthlyBudgetCardState extends ConsumerState<MonthlyBudgetCard> {
             Icon(Icons.calendar_month_outlined, color: context.colors.primary),
             const SizedBox(width: AppSizes.md),
             Expanded(
-              child: Text('Set a monthly budget', style: context.textTheme.titleMedium),
+              child: Text(
+                'Set a monthly budget',
+                style: context.textTheme.titleMedium,
+              ),
             ),
             const Icon(Icons.chevron_right_rounded),
           ],
@@ -60,7 +67,11 @@ class _MonthlyBudgetCardState extends ConsumerState<MonthlyBudgetCard> {
     final isCurrentMonth = _selectedMonth.isSameMonth(DateTime.now());
 
     return AppCard(
-      onTap: () => BudgetFormSheet.show(context, type: BudgetType.monthly, budget: budget),
+      onTap: () => BudgetFormSheet.show(
+        context,
+        type: BudgetType.monthly,
+        budget: budget,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -78,7 +89,10 @@ class _MonthlyBudgetCardState extends ConsumerState<MonthlyBudgetCard> {
                     constraints: const BoxConstraints(),
                     onPressed: () => _shiftMonth(-1),
                   ),
-                  Text(_selectedMonth.monthYear, style: context.textTheme.bodyMedium),
+                  Text(
+                    _selectedMonth.monthYear,
+                    style: context.textTheme.bodyMedium,
+                  ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right_rounded),
                     iconSize: AppSizes.iconSm,
@@ -100,7 +114,9 @@ class _MonthlyBudgetCardState extends ConsumerState<MonthlyBudgetCard> {
               color: insight.isOverBudget ? AppColors.error : null,
             ),
           ),
-          if (isCurrentMonth && !insight.isOverBudget && insight.daysRemaining > 0) ...[
+          if (isCurrentMonth &&
+              !insight.isOverBudget &&
+              insight.daysRemaining > 0) ...[
             const SizedBox(height: AppSizes.xs),
             Text(
               '${CurrencyFormatter.instance.format(insight.averageDailyBudgetRemaining)}/day for the rest of the month',

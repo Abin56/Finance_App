@@ -36,32 +36,40 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
 
   final String transactionId;
 
-  static Future<void> open(BuildContext context, {required String transactionId}) {
+  static Future<void> open(
+    BuildContext context, {
+    required String transactionId,
+  }) {
     return Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => PersonExpenseDetailScreen(transactionId: transactionId)),
+      MaterialPageRoute(
+        builder: (_) => PersonExpenseDetailScreen(transactionId: transactionId),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expense = ref.watch(expenseForTransactionProvider(transactionId));
-    final transaction = (ref.watch(transactionsStreamProvider).value ?? const [])
-        .where((t) => t.id == transactionId)
-        .firstOrNull;
+    final transaction =
+        (ref.watch(transactionsStreamProvider).value ?? const [])
+            .where((t) => t.id == transactionId)
+            .firstOrNull;
 
     if (expense == null || transaction == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
-    final category = categories.where((c) => c.id == expense.categoryId).firstOrNull;
+    final category = categories
+        .where((c) => c.id == expense.categoryId)
+        .firstOrNull;
     final installments = expense.scheduleId == null
         ? const <Installment>[]
-        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [];
-    final detail = HistoryBuilder.splitExpenseDetailFor(
-      expense,
-      {if (expense.scheduleId != null) expense.scheduleId!: installments},
-    );
+        : ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+              const [];
+    final detail = HistoryBuilder.splitExpenseDetailFor(expense, {
+      if (expense.scheduleId != null) expense.scheduleId!: installments,
+    });
 
     final others = expense.participants.where((p) => !p.isMe).toList();
     final installmentById = {for (final i in installments) i.id: i};
@@ -74,7 +82,8 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
             IconButton(
               icon: const Icon(Icons.share_outlined),
               tooltip: 'Share expense',
-              onPressed: () => ShareExpense.share(context, expense, installments),
+              onPressed: () =>
+                  ShareExpense.share(context, expense, installments),
             ),
         ],
       ),
@@ -93,17 +102,26 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: category == null
                             ? context.colors.primary.withValues(alpha: 0.15)
-                            : Color(category.colorValue).withValues(alpha: 0.15),
+                            : Color(
+                                category.colorValue,
+                              ).withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         category?.icon ?? Icons.receipt_long_outlined,
-                        color: category == null ? context.colors.primary : Color(category.colorValue),
+                        color: category == null
+                            ? context.colors.primary
+                            : Color(category.colorValue),
                         size: AppSizes.iconMd,
                       ),
                     ),
                     const SizedBox(width: AppSizes.md),
-                    Expanded(child: Text(expense.description, style: context.textTheme.titleLarge)),
+                    Expanded(
+                      child: Text(
+                        expense.description,
+                        style: context.textTheme.titleLarge,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSizes.md),
@@ -112,7 +130,9 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
                   children: [
                     Text(
                       CurrencyFormatter.instance.format(expense.totalAmount),
-                      style: context.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                      style: context.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(width: AppSizes.sm),
                     ExpenseStatusPill(status: detail.status),
@@ -121,14 +141,20 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
                 const SizedBox(height: AppSizes.xs),
                 Text(
                   '${transaction.dateTime.fullDate} • ${TimeOfDay.fromDateTime(transaction.dateTime).format(context)}',
-                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.6),
+                  ),
                 ),
                 const SizedBox(height: AppSizes.lg),
                 const Divider(height: 1),
                 const SizedBox(height: AppSizes.md),
                 _MetaRow(label: 'Paid by', value: 'You'),
-                _MetaRow(label: 'Category', value: category?.name ?? 'Uncategorized'),
-                if (expense.notes.isNotEmpty) _MetaRow(label: 'Note', value: expense.notes, isLast: true),
+                _MetaRow(
+                  label: 'Category',
+                  value: category?.name ?? 'Uncategorized',
+                ),
+                if (expense.notes.isNotEmpty)
+                  _MetaRow(label: 'Note', value: expense.notes, isLast: true),
               ],
             ),
           ),
@@ -136,7 +162,10 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
             const SizedBox(height: AppSizes.lg),
             _OwesYouCallout(
               name: others.single.name,
-              remaining: installmentById[others.single.installmentId]?.remainingAmount ?? others.single.share,
+              remaining:
+                  installmentById[others.single.installmentId]
+                      ?.remainingAmount ??
+                  others.single.share,
             ),
           ],
           const SizedBox(height: AppSizes.lg),
@@ -150,12 +179,18 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.warning_amber_rounded, size: AppSizes.iconSm, color: AppColors.warning),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: AppSizes.iconSm,
+                  color: AppColors.warning,
+                ),
                 const SizedBox(width: AppSizes.sm),
                 Expanded(
                   child: Text(
                     'Deleting this expense also removes all related payments. You can restore it from Trash.',
-                    style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.7),
+                    ),
                   ),
                 ),
               ],
@@ -168,7 +203,11 @@ class PersonExpenseDetailScreen extends ConsumerWidget {
 }
 
 class _MetaRow extends StatelessWidget {
-  const _MetaRow({required this.label, required this.value, this.isLast = false});
+  const _MetaRow({
+    required this.label,
+    required this.value,
+    this.isLast = false,
+  });
 
   final String label;
   final String value;
@@ -180,10 +219,21 @@ class _MetaRow extends StatelessWidget {
       padding: EdgeInsets.only(bottom: isLast ? 0 : AppSizes.md),
       child: Row(
         children: [
-          Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6))),
+          Text(
+            label,
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
           const Spacer(),
           Flexible(
-            child: Text(value, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.end),
+            child: Text(
+              value,
+              style: context.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.end,
+            ),
           ),
         ],
       ),
@@ -209,11 +259,19 @@ class _OwesYouCallout extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$name owes you', style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7))),
+          Text(
+            '$name owes you',
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
           const SizedBox(height: AppSizes.xs),
           Text(
             CurrencyFormatter.instance.format(remaining),
-            style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: context.colors.primary),
+            style: context.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: context.colors.primary,
+            ),
           ),
         ],
       ),
@@ -231,7 +289,8 @@ class _ActionsCard extends ConsumerWidget {
   final Expense expense;
   final List<Installment> installments;
 
-  List<({ExpenseParticipant participant, Installment installment})> get _collectible {
+  List<({ExpenseParticipant participant, Installment installment})>
+  get _collectible {
     final byId = {for (final i in installments) i.id: i};
     return [
       for (final p in expense.participants)
@@ -243,15 +302,21 @@ class _ActionsCard extends ConsumerWidget {
 
   Future<void> _afterAction(BuildContext context, WidgetRef ref) async {
     if (!context.mounted) return;
-    final refreshed = ref.read(expenseForTransactionProvider(expense.transactionId));
-    if (refreshed != null) await ExpenseUpdatedDialog.show(context, expense: refreshed);
+    final refreshed = ref.read(
+      expenseForTransactionProvider(expense.transactionId),
+    );
+    if (refreshed != null)
+      await ExpenseUpdatedDialog.show(context, expense: refreshed);
   }
 
-  Future<({ExpenseParticipant participant, Installment installment})?> _chooseParticipant(BuildContext context) async {
+  Future<({ExpenseParticipant participant, Installment installment})?>
+  _chooseParticipant(BuildContext context) async {
     final options = _collectible;
     if (options.isEmpty) return null;
     if (options.length == 1) return options.single;
-    return showModalBottomSheet<({ExpenseParticipant participant, Installment installment})>(
+    return showModalBottomSheet<
+      ({ExpenseParticipant participant, Installment installment})
+    >(
       context: context,
       builder: (sheetContext) => SafeArea(
         child: Column(
@@ -259,12 +324,19 @@ class _ActionsCard extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(AppSizes.md),
-              child: Text('Who paid?', style: Theme.of(sheetContext).textTheme.titleMedium),
+              child: Text(
+                'Who paid?',
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
             ),
             for (final option in options)
               ListTile(
                 title: Text(option.participant.name),
-                trailing: Text(CurrencyFormatter.instance.format(option.installment.remainingAmount)),
+                trailing: Text(
+                  CurrencyFormatter.instance.format(
+                    option.installment.remainingAmount,
+                  ),
+                ),
                 onTap: () => Navigator.of(sheetContext).pop(option),
               ),
           ],
@@ -287,11 +359,17 @@ class _ActionsCard extends ConsumerWidget {
             icon: Icons.edit_outlined,
             title: 'Edit Expense',
             onTap: () async {
-              final result = await EditExpenseSheet.show(context, expense: expense);
+              final result = await EditExpenseSheet.show(
+                context,
+                expense: expense,
+              );
               if (!context.mounted) return;
               // Deleted from the edit form → this expense no longer exists, so
               // close the detail screen instead of showing a success dialog.
-              if (ref.read(expenseForTransactionProvider(expense.transactionId)) == null) {
+              if (ref.read(
+                    expenseForTransactionProvider(expense.transactionId),
+                  ) ==
+                  null) {
                 Navigator.of(context).pop();
                 return;
               }
@@ -324,7 +402,10 @@ class _ActionsCard extends ConsumerWidget {
             title: 'Split Expense',
             subtitle: 'Split this expense with others',
             onTap: () async {
-              final result = await SplitExpenseCheckboxSheet.show(context, expense: expense);
+              final result = await SplitExpenseCheckboxSheet.show(
+                context,
+                expense: expense,
+              );
               if (!context.mounted || result != true) return;
               await _afterAction(context, ref);
             },
@@ -355,7 +436,10 @@ class _ActionsCard extends ConsumerWidget {
             title: 'Delete Expense',
             destructive: true,
             onTap: () async {
-              final confirmed = await confirmDelete(context, entityName: 'Expense');
+              final confirmed = await confirmDelete(
+                context,
+                entityName: 'Expense',
+              );
               if (!confirmed || !context.mounted) return;
               await ref.read(expenseRepositoryProvider).deleteExpense(expense);
               if (context.mounted) Navigator.of(context).pop();
@@ -393,7 +477,10 @@ class _ActionRow extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(AppSizes.radiusMd)),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+            ),
             child: Icon(icon, color: color, size: AppSizes.iconSm),
           ),
           const SizedBox(width: AppSizes.md),
@@ -401,16 +488,27 @@ class _ActionRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: context.textTheme.titleMedium?.copyWith(color: destructive ? color : null)),
+                Text(
+                  title,
+                  style: context.textTheme.titleMedium?.copyWith(
+                    color: destructive ? color : null,
+                  ),
+                ),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
               ],
             ),
           ),
-          if (!destructive) Icon(Icons.chevron_right_rounded, color: context.colors.onSurface.withValues(alpha: 0.4)),
+          if (!destructive)
+            Icon(
+              Icons.chevron_right_rounded,
+              color: context.colors.onSurface.withValues(alpha: 0.4),
+            ),
         ],
       ),
     );

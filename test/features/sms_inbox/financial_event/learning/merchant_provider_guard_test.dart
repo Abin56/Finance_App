@@ -35,7 +35,10 @@ void main() {
 
     test('accepts and retrieves a real merchant profile', () {
       final store = MerchantLearningStore();
-      const profile = MerchantLearningProfile(userId: 'u1', merchantKey: 'swiggy');
+      const profile = MerchantLearningProfile(
+        userId: 'u1',
+        merchantKey: 'swiggy',
+      );
       store.put(profile);
 
       expect(store.get('u1', 'swiggy'), same(profile));

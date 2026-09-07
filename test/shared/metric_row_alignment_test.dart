@@ -28,7 +28,12 @@ void main() {
     await LocalSettingsService.init();
   });
 
-  Future<void> pumpAt(WidgetTester tester, double scale, List<Override> overrides, Widget child) async {
+  Future<void> pumpAt(
+    WidgetTester tester,
+    double scale,
+    List<Override> overrides,
+    Widget child,
+  ) async {
     tester.view.physicalSize = _smallPhone;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -39,7 +44,9 @@ void main() {
           // MediaQuery must go inside MaterialApp, which otherwise inserts its
           // own from the view and discards an outer one.
           builder: (context, inner) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
             child: inner!,
           ),
           // A ListView, because the real screens scroll: a bare Scaffold body
@@ -55,28 +62,47 @@ void main() {
   void expectStatsAligned(WidgetTester tester, List<String> labels) {
     final tops = <String, double>{};
     for (final label in labels) {
-      final column = find.ancestor(of: find.text(label), matching: find.byType(Column)).first;
+      final column = find
+          .ancestor(of: find.text(label), matching: find.byType(Column))
+          .first;
       final texts = find.descendant(of: column, matching: find.byType(Text));
       tops[label] = tester.getTopLeft(texts.at(0)).dy;
     }
-    expect(tops.values.toSet().length, 1, reason: 'stat text must share one top edge, got $tops');
+    expect(
+      tops.values.toSet().length,
+      1,
+      reason: 'stat text must share one top edge, got $tops',
+    );
   }
 
   const bd = (due: 123456.78, paid: 23456.78, remaining: 100000.0);
 
   for (final scale in _scales) {
-    testWidgets('ReportsOverviewCard stats stay aligned @${scale}x', (tester) async {
-      await pumpAt(tester, scale, const [], const ReportsOverviewCard(
-        income: 1234567.89,
-        expenses: 987654.32,
-        incomeChangePercent: 12.5,
-        expensesChangePercent: -8.3,
-        netSavingsChangePercent: 4.1,
-      ));
-      expectStatsAligned(tester, ['Total Income', 'Total Expenses', 'Net Savings']);
+    testWidgets('ReportsOverviewCard stats stay aligned @${scale}x', (
+      tester,
+    ) async {
+      await pumpAt(
+        tester,
+        scale,
+        const [],
+        const ReportsOverviewCard(
+          income: 1234567.89,
+          expenses: 987654.32,
+          incomeChangePercent: 12.5,
+          expensesChangePercent: -8.3,
+          netSavingsChangePercent: 4.1,
+        ),
+      );
+      expectStatsAligned(tester, [
+        'Total Income',
+        'Total Expenses',
+        'Net Savings',
+      ]);
     });
 
-    testWidgets('DashboardSpendingSnapshotCard stats stay aligned @${scale}x', (tester) async {
+    testWidgets('DashboardSpendingSnapshotCard stats stay aligned @${scale}x', (
+      tester,
+    ) async {
       await pumpAt(
         tester,
         scale,
@@ -95,7 +121,9 @@ void main() {
       expectStatsAligned(tester, ['Income', 'Expense', 'Net']);
     });
 
-    testWidgets('PaymentsDueCard footer stats stay aligned @${scale}x', (tester) async {
+    testWidgets('PaymentsDueCard footer stats stay aligned @${scale}x', (
+      tester,
+    ) async {
       await pumpAt(tester, scale, [
         totalDueThisMonthProvider.overrideWithValue(bd),
         creditCardDueThisMonthBreakdownProvider.overrideWithValue(bd),
@@ -106,7 +134,6 @@ void main() {
       ], const PaymentsDueCard());
       expectStatsAligned(tester, ['Total Due', 'Already Paid', 'Remaining']);
     });
-
   }
 }
 

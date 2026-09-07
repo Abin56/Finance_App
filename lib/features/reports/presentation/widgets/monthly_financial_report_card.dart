@@ -50,16 +50,32 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
     final billsPaid = ref.watch(billsPaidForRangeProvider(range));
     final emiPaid = ref.watch(emiPaidForRangeProvider(range));
     final loanPaid = ref.watch(loanPaidForRangeProvider(range));
-    final creditCardBillsPaid = ref.watch(creditCardBillsPaidForRangeProvider(range));
+    final creditCardBillsPaid = ref.watch(
+      creditCardBillsPaidForRangeProvider(range),
+    );
     final billOccurrences = ref.watch(currentOccurrenceByBillIdProvider);
     final pendingBills =
-        ref.watch(overdueBillsProvider).fold(0.0, (sum, b) => sum + billOccurrences[b.id]!.remainingAmount) +
-            ref.watch(upcomingBillsProvider).fold(0.0, (sum, b) => sum + billOccurrences[b.id]!.remainingAmount);
+        ref
+            .watch(overdueBillsProvider)
+            .fold(
+              0.0,
+              (sum, b) => sum + billOccurrences[b.id]!.remainingAmount,
+            ) +
+        ref
+            .watch(upcomingBillsProvider)
+            .fold(
+              0.0,
+              (sum, b) => sum + billOccurrences[b.id]!.remainingAmount,
+            );
     final pendingEmi = ref.watch(totalRemainingEmiBalanceProvider);
     final pendingLoans = ref.watch(totalAmountToReceiveProvider);
     final moneyToReceive = ref.watch(totalMoneyToReceiveProvider);
     final moneyCollected = ref.watch(
-      moneyReceivedForRangeProvider((start: periodStart, end: periodEnd, monthGranular: monthGranular)),
+      moneyReceivedForRangeProvider((
+        start: periodStart,
+        end: periodEnd,
+        monthGranular: monthGranular,
+      )),
     );
     final ccOutstanding = ref.watch(totalCreditCardOutstandingProvider);
     final utilization = ref.watch(creditUtilizationPercentProvider);
@@ -73,7 +89,10 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Monthly Financial Report', style: context.textTheme.titleMedium),
+          Text(
+            'Monthly Financial Report',
+            style: context.textTheme.titleMedium,
+          ),
           const SizedBox(height: AppSizes.lg),
           _ReportRow('Total Income', income),
           _ReportRow('Total Expenses', expenses),
@@ -116,8 +135,12 @@ class _ReportRow extends StatelessWidget {
         children: [
           Expanded(child: Text(label, style: context.textTheme.bodyMedium)),
           Text(
-            isPercent ? '${value.toStringAsFixed(1)}%' : CurrencyFormatter.instance.format(value),
-            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            isPercent
+                ? '${value.toStringAsFixed(1)}%'
+                : CurrencyFormatter.instance.format(value),
+            style: context.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -139,7 +162,9 @@ class _NotTrackedRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.5),
+              ),
             ),
           ),
           Text(

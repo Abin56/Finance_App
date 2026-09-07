@@ -22,13 +22,21 @@ class StatementInfoWidget extends pw.StatelessWidget {
       children: [
         pw.Text(
           generated,
-          style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontCaption, color: PdfTokens.textSecondary),
+          style: pw.TextStyle(
+            font: fonts.regular,
+            fontSize: PdfTokens.fontCaption,
+            color: PdfTokens.textSecondary,
+          ),
         ),
         if (model.filterDescription.isNotEmpty) ...[
           pw.SizedBox(height: 2),
           pw.Text(
             'Showing: ${model.filterDescription}',
-            style: pw.TextStyle(font: fonts.semiBold, fontSize: PdfTokens.fontCaption, color: PdfTokens.primary),
+            style: pw.TextStyle(
+              font: fonts.semiBold,
+              fontSize: PdfTokens.fontCaption,
+              color: PdfTokens.primary,
+            ),
           ),
         ],
       ],

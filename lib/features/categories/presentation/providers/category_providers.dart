@@ -41,9 +41,10 @@ final categoriesTrashStreamProvider = StreamProvider<List<Category>>((ref) {
 
 /// Active categories applicable to [transactionType], for populating the
 /// transaction form's category picker.
-final categoriesForTypeProvider = Provider.family<List<Category>, TransactionType>((ref, transactionType) {
-  final categories = ref.watch(categoriesStreamProvider).value ?? const [];
-  return categories
-      .where((c) => c.isActive && c.type.appliesTo(transactionType))
-      .toList();
-});
+final categoriesForTypeProvider =
+    Provider.family<List<Category>, TransactionType>((ref, transactionType) {
+      final categories = ref.watch(categoriesStreamProvider).value ?? const [];
+      return categories
+          .where((c) => c.isActive && c.type.appliesTo(transactionType))
+          .toList();
+    });

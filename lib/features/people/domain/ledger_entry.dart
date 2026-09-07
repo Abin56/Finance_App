@@ -55,8 +55,9 @@ class LedgerEntry extends SoftDeletableEntity {
   /// both when posting the entry and when reversing it on soft-delete, so
   /// the two can never disagree about which direction this entry moved
   /// the balance.
-  double get signedAmount =>
-      type == LedgerEntryType.adjustment ? (increasesBalance ? amount : -amount) : type.signFor(amount);
+  double get signedAmount => type == LedgerEntryType.adjustment
+      ? (increasesBalance ? amount : -amount)
+      : type.signFor(amount);
 
   factory LedgerEntry.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -64,16 +65,16 @@ class LedgerEntry extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return LedgerEntry(
-      id: snapshot.id,
-      personId: data['personId'] as String,
-      type: LedgerEntryTypeX.fromName(data['type'] as String),
-      amount: (data['amount'] as num).toDouble(),
-      date: (data['date'] as Timestamp).toDate(),
-      note: data['note'] as String? ?? '',
-      transactionRef: data['transactionRef'] as String?,
-      increasesBalance: data['increasesBalance'] as bool? ?? true,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        personId: data['personId'] as String,
+        type: LedgerEntryTypeX.fromName(data['type'] as String),
+        amount: (data['amount'] as num).toDouble(),
+        date: (data['date'] as Timestamp).toDate(),
+        note: data['note'] as String? ?? '',
+        transactionRef: data['transactionRef'] as String?,
+        increasesBalance: data['increasesBalance'] as bool? ?? true,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -92,7 +93,9 @@ class LedgerEntry extends SoftDeletableEntity {
       'increasesBalance': increasesBalance,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

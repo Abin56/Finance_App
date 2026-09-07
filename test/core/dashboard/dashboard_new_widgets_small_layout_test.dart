@@ -129,11 +129,19 @@ void main() {
     peopleStreamProvider.overrideWith((ref) => Stream.value(people)),
     accountsStreamProvider.overrideWith((ref) => Stream.value([cardAccount])),
     creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
-    sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-    statementsStreamProvider.overrideWith((ref, cardId) => Stream.value([statement])),
+    sharedCreditLimitsStreamProvider.overrideWith(
+      (ref) => Stream.value(const []),
+    ),
+    statementsStreamProvider.overrideWith(
+      (ref, cardId) => Stream.value([statement]),
+    ),
     statementsWithLiveTotalsProvider.overrideWith((ref, cardId) => [statement]),
     creditCardStandingProvider.overrideWith(
-      (ref, cardId) => (outstanding: 434567.89, available: 65432.11, currentCycleSpend: 200000.0),
+      (ref, cardId) => (
+        outstanding: 434567.89,
+        available: 65432.11,
+        currentCycleSpend: 200000.0,
+      ),
     ),
     // Empty streams for every other Upcoming Due source
     // ([upcomingDueProvider]) — these widgets don't exercise EMI/Loan/Bill/
@@ -147,47 +155,54 @@ void main() {
   ];
 
   for (final scale in [1.0, 1.3, 2.0]) {
-    testWidgets('new dashboard widgets fit a small phone without overflow @${scale}x', (tester) async {
-      tester.view.physicalSize = _smallPhone;
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
+    testWidgets(
+      'new dashboard widgets fit a small phone without overflow @${scale}x',
+      (tester) async {
+        tester.view.physicalSize = _smallPhone;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: overrides,
-          child: MaterialApp(
-            builder: (context, child) => MediaQuery(
-              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
-              child: child!,
-            ),
-            home: Scaffold(
-              body: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  FinancialViewWidgetCard(config: heroConfig),
-                  const SizedBox(height: 16),
-                  QuickActionsWidgetCard(config: quickActionsConfig),
-                  const SizedBox(height: 16),
-                  PeopleWidgetCard(config: peopleConfig),
-                  const SizedBox(height: 16),
-                  CreditCardsWidgetCard(config: cardsConfig),
-                ],
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: overrides,
+            child: MaterialApp(
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: child!,
+              ),
+              home: Scaffold(
+                body: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    FinancialViewWidgetCard(config: heroConfig),
+                    const SizedBox(height: 16),
+                    QuickActionsWidgetCard(config: quickActionsConfig),
+                    const SizedBox(height: 16),
+                    PeopleWidgetCard(config: peopleConfig),
+                    const SizedBox(height: 16),
+                    CreditCardsWidgetCard(config: cardsConfig),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull);
-      expect(find.text('You Owe'), findsOneWidget);
-      expect(find.text('Owed to You'), findsOneWidget);
-      await tester.scrollUntilVisible(find.text('Outstanding'), 200);
-      expect(find.text('Outstanding'), findsOneWidget);
-    });
+        expect(tester.takeException(), isNull);
+        expect(find.text('You Owe'), findsOneWidget);
+        expect(find.text('Owed to You'), findsOneWidget);
+        await tester.scrollUntilVisible(find.text('Outstanding'), 200);
+        expect(find.text('Outstanding'), findsOneWidget);
+      },
+    );
   }
 
-  testWidgets('billing cycle hero shows cycle progress and next card due', (tester) async {
+  testWidgets('billing cycle hero shows cycle progress and next card due', (
+    tester,
+  ) async {
     tester.view.physicalSize = _smallPhone;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);

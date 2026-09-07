@@ -8,9 +8,9 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
-import '../../../../core/theme/clay_theme.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/filter/sms_sort_order.dart';
 import '../../domain/notification_access_availability.dart';
 import '../../domain/sms_availability.dart';
@@ -127,8 +127,9 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
       if (!mounted) return;
       NotificationAccessDialog.show(
         context,
-        onEnable: () =>
-            ref.read(notificationAccessAvailabilityProvider.notifier).openSettings(),
+        onEnable: () => ref
+            .read(notificationAccessAvailabilityProvider.notifier)
+            .openSettings(),
       );
     });
   }
@@ -155,46 +156,32 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
     }
 
     return Scaffold(
+      // Low-noise app bar — background blends with the scaffold, no
+      // elevation, no gradient (matches the rest of Theme V2's screens).
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: AppClay.primaryGradient,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        foregroundColor: Colors.white,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
-              child: const Icon(Icons.sms_rounded, size: AppSizes.iconSm, color: Colors.white),
+            FlowFiIconChip(
+              icon: Icons.sms_rounded,
+              color: context.colors.primary,
+              size: 34,
+              iconSize: AppSizes.iconSm,
             ),
             const SizedBox(width: AppSizes.sm),
-            Text(
-              'SMS Inbox',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-            ),
+            const Text('SMS Inbox'),
           ],
         ),
         actions: [
           if (!_selectionMode) ...[
             IconButton(
               key: _sortFieldKey,
-              icon: const Icon(Icons.swap_vert_rounded, color: Colors.white),
+              icon: const Icon(Icons.swap_vert_rounded),
               tooltip: 'Sort',
               onPressed: () => _openSortMenu(context),
             ),
             IconButton(
-              icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+              icon: const Icon(Icons.refresh_rounded),
               tooltip: 'Refresh',
               onPressed: () => ref.read(smsInboxItemsProvider.notifier).scan(),
             ),
@@ -382,7 +369,11 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
                 _selectionMode ? _toggleSelected(item.id) : _openDetail(item),
             onLongPress: () => setState(() => _selectedIds.add(item.id)),
           ),
-          Divider(height: 1, indent: 80, color: AppClay.primary.withValues(alpha: 0.08)),
+          Divider(
+            height: 1,
+            indent: 80,
+            color: context.colors.outline.withValues(alpha: 0.6),
+          ),
         ],
       ),
     );

@@ -40,7 +40,11 @@ extension LoanDirectionFilterX on LoanDirectionFilter {
 
 /// Horizontal row of single-select filter chips for [LoanDirectionFilter].
 class LoanDirectionFilterChips extends StatelessWidget {
-  const LoanDirectionFilterChips({super.key, required this.selected, required this.onChanged});
+  const LoanDirectionFilterChips({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   final LoanDirectionFilter selected;
   final ValueChanged<LoanDirectionFilter> onChanged;
@@ -58,7 +62,9 @@ class LoanDirectionFilterChips extends StatelessWidget {
                 label: Text(filter.label),
                 selected: selected == filter,
                 onSelected: (_) => onChanged(filter),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                ),
               ),
             ),
         ],
@@ -86,7 +92,11 @@ extension LoanCategoryFilterX on LoanCategoryFilter {
 
 /// Horizontal row of single-select filter chips for [LoanCategoryFilter].
 class LoanCategoryFilterChips extends StatelessWidget {
-  const LoanCategoryFilterChips({super.key, required this.selected, required this.onChanged});
+  const LoanCategoryFilterChips({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   final LoanCategoryFilter selected;
   final ValueChanged<LoanCategoryFilter> onChanged;
@@ -104,7 +114,9 @@ class LoanCategoryFilterChips extends StatelessWidget {
                 label: Text(filter.label),
                 selected: selected == filter,
                 onSelected: (_) => onChanged(filter),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                ),
               ),
             ),
         ],
@@ -115,7 +127,11 @@ class LoanCategoryFilterChips extends StatelessWidget {
 
 /// Horizontal row of single-select filter chips for [LoanListFilter].
 class LoanStatusFilterChips extends StatelessWidget {
-  const LoanStatusFilterChips({super.key, required this.selected, required this.onChanged});
+  const LoanStatusFilterChips({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   final LoanListFilter selected;
   final ValueChanged<LoanListFilter> onChanged;
@@ -133,7 +149,9 @@ class LoanStatusFilterChips extends StatelessWidget {
                 label: Text(filter.label),
                 selected: selected == filter,
                 onSelected: (_) => onChanged(filter),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                ),
               ),
             ),
         ],

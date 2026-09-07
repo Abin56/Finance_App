@@ -48,11 +48,20 @@ class FinancialEventLearningService {
       confirmed.add(field);
     }
 
-    await confirm<MerchantType>(LearnedFieldType.merchantType, action.merchantType);
+    await confirm<MerchantType>(
+      LearnedFieldType.merchantType,
+      action.merchantType,
+    );
     await confirm<String>(LearnedFieldType.category, action.category);
     await confirm<String>(LearnedFieldType.subcategory, action.subcategory);
-    await confirm<PaymentProvider>(LearnedFieldType.paymentProvider, action.paymentProvider);
-    await confirm<PaymentMethod>(LearnedFieldType.paymentMethod, action.paymentMethod);
+    await confirm<PaymentProvider>(
+      LearnedFieldType.paymentProvider,
+      action.paymentProvider,
+    );
+    await confirm<PaymentMethod>(
+      LearnedFieldType.paymentMethod,
+      action.paymentMethod,
+    );
 
     if (confirmed.isEmpty) {
       return LearningUpdateResult.empty(merchantKey);
@@ -94,7 +103,9 @@ class FinancialEventLearningService {
       LearnedField<T>? currentField,
     ) async {
       if (newValue == null) return;
-      if (currentField != null && currentField.hasValue && currentField.value == newValue) {
+      if (currentField != null &&
+          currentField.hasValue &&
+          currentField.value == newValue) {
         await _repository.confirmField<T>(
           userId: action.userId,
           merchantKey: merchantKey,
@@ -116,9 +127,21 @@ class FinancialEventLearningService {
       corrected.add(field);
     }
 
-    await correct<MerchantType>(LearnedFieldType.merchantType, action.merchantType, current?.merchantType);
-    await correct<String>(LearnedFieldType.category, action.category, current?.category);
-    await correct<String>(LearnedFieldType.subcategory, action.subcategory, current?.subcategory);
+    await correct<MerchantType>(
+      LearnedFieldType.merchantType,
+      action.merchantType,
+      current?.merchantType,
+    );
+    await correct<String>(
+      LearnedFieldType.category,
+      action.category,
+      current?.category,
+    );
+    await correct<String>(
+      LearnedFieldType.subcategory,
+      action.subcategory,
+      current?.subcategory,
+    );
     await correct<PaymentProvider>(
       LearnedFieldType.paymentProvider,
       action.paymentProvider,
@@ -136,7 +159,8 @@ class FinancialEventLearningService {
 
     final parts = <String>[];
     if (corrected.isNotEmpty) parts.add('corrected ${_describe(corrected)}');
-    if (confirmed.isNotEmpty) parts.add('confirmed ${_describe(confirmed)} (already that value)');
+    if (confirmed.isNotEmpty)
+      parts.add('confirmed ${_describe(confirmed)} (already that value)');
 
     return LearningUpdateResult(
       merchantKey: merchantKey,
@@ -167,5 +191,6 @@ class FinancialEventLearningService {
     return key;
   }
 
-  String _describe(List<LearnedFieldType> fields) => fields.map((f) => f.name).join(', ');
+  String _describe(List<LearnedFieldType> fields) =>
+      fields.map((f) => f.name).join(', ');
 }

@@ -31,7 +31,9 @@ class EmptyState extends StatelessWidget {
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0,
+              minHeight: constraints.hasBoundedHeight
+                  ? constraints.maxHeight
+                  : 0,
             ),
             child: Center(
               child: Padding(
@@ -46,7 +48,11 @@ class EmptyState extends StatelessWidget {
                         color: context.colors.primary.withValues(alpha: 0.08),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(icon, size: AppSizes.iconXl, color: context.colors.primary),
+                      child: Icon(
+                        icon,
+                        size: AppSizes.iconXl,
+                        color: context.colors.primary,
+                      ),
                     ),
                     const SizedBox(height: AppSizes.xl),
                     Text(
