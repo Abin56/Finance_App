@@ -42,32 +42,46 @@ class SmsMessageDetailSheet {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: AppSizes.md),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSizes.md),
-                decoration: BoxDecoration(
-                  color: context.colors.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-                ),
-                child: Text(
-                  item.rawMessage.body,
-                  style: context.textTheme.bodySmall,
-                ),
-              ),
-              if (item.parsed?.referenceNumber != null) ...[
-                const SizedBox(height: AppSizes.sm),
-                Text(
-                  'Ref ${item.parsed!.referenceNumber}',
-                  style: context.textTheme.labelSmall?.copyWith(
-                    color: context.colors.onSurface.withValues(alpha: 0.6),
+              // The message body (long for RCS) and the candidate summary
+              // (can grow with several review-reason rows) can together
+              // exceed the sheet's height — scroll them as one block rather
+              // than the fixed title/actions around them.
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSizes.md),
+                        decoration: BoxDecoration(
+                          color: context.colors.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                        ),
+                        child: Text(
+                          item.rawMessage.body,
+                          style: context.textTheme.bodySmall,
+                        ),
+                      ),
+                      if (item.parsed?.referenceNumber != null) ...[
+                        const SizedBox(height: AppSizes.sm),
+                        Text(
+                          'Ref ${item.parsed!.referenceNumber}',
+                          style: context.textTheme.labelSmall?.copyWith(
+                            color: context.colors.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                      // Only ever built once the sheet is on screen, and it
+                      // renders nothing when no candidate exists yet — see
+                      // its own class doc.
+                      Consumer(
+                        builder: (context, ref, _) =>
+                            SmsCandidateSummary(smsItemId: item.id),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-              // Only ever built once the sheet is on screen, and it renders
-              // nothing when no candidate exists yet — see its own class doc.
-              Consumer(
-                builder: (context, ref, _) =>
-                    SmsCandidateSummary(smsItemId: item.id),
               ),
               const SizedBox(height: AppSizes.lg),
               _Actions(status: item.status, sheetContext: sheetContext),
