@@ -166,21 +166,36 @@ class SmartImportController extends Notifier<SmartImportState> {
     const extractor = ScreenshotTransactionExtractor();
     final detected = <DetectedTransaction>[];
     var anyTextFound = false;
+    // One corrupt/unsupported image must never discard transactions already
+    // pulled from other images in the same batch — each image's OCR call is
+    // caught individually, that image is skipped, and the loop continues.
+    // Only reported to the user if it left the batch with nothing at all
+    // (see `allImagesFailed` below); a partial failure among an otherwise
+    // successful batch is silent by design, matching how a single failed
+    // import row doesn't block the rest of the batch either.
+    var failedImageCount = 0;
 
-    try {
-      for (var i = 0; i < state.images.length; i++) {
-        state = state.copyWith(
-          processingLabel: 'Reading image ${i + 1} of ${state.images.length}…',
-        );
+    for (var i = 0; i < state.images.length; i++) {
+      state = state.copyWith(
+        processingLabel: 'Reading image ${i + 1} of ${state.images.length}…',
+      );
+      try {
         final ocrResult = await ocrService.extractText(state.images[i]);
         if (ocrResult.hasText) anyTextFound = true;
         detected.addAll(extractor.extract(ocrResult, sourceImageIndex: i));
+      } catch (_) {
+        failedImageCount++;
       }
-    } catch (_) {
+    }
+
+    final allImagesFailed = failedImageCount == state.images.length;
+    if (allImagesFailed) {
       state = state.copyWith(
         stage: SmartImportStage.pickingImages,
         clearProcessingLabel: true,
-        errorMessage: 'We had trouble reading that image. Please try again.',
+        errorMessage: state.images.length == 1
+            ? 'We had trouble reading that image. Please try again.'
+            : 'We had trouble reading these images. Please try again.',
       );
       return;
     }
@@ -223,6 +238,15 @@ class SmartImportController extends Notifier<SmartImportState> {
       detected: detected,
       images: const [],
       clearProcessingLabel: true,
+      // A partial failure (some, not all, images unreadable) still reaches
+      // review with whatever succeeded — surfaced as a plain-language note
+      // rather than silently under-counting, so the user knows why they see
+      // fewer transactions than screenshots.
+      errorMessage: failedImageCount > 0
+          ? (failedImageCount == 1
+                ? "Couldn't read 1 of ${state.images.length} images. The rest were processed normally."
+                : "Couldn't read $failedImageCount of ${state.images.length} images. The rest were processed normally.")
+          : null,
     );
     _deleteFiles(scannedImages);
   }

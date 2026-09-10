@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
@@ -11,6 +12,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/animations/count_up_text.dart';
 import '../../../../shared/widgets/bank_logo.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../transactions/presentation/screens/transactions_screen.dart';
@@ -35,17 +37,14 @@ class CreditCardsScreen extends ConsumerStatefulWidget {
   ConsumerState<CreditCardsScreen> createState() => _CreditCardsScreenState();
 }
 
-/// A lighter tint pulled from the hero card's own gradient
-/// ([_LimitSummaryCard._defaultGradient]) — used for "Add Card" so it reads
-/// as part of the same purple wallet family instead of an unrelated brand
-/// or semantic color.
-const Color _addCardAccent = Color(0xFF6B3F8C);
+/// "Add Card" accent — the app's own lime brand color, matching every other
+/// primary/CTA surface in the app (see [AppColors.primary]).
+const Color _addCardAccent = AppColors.primary;
 
-/// Fallback for a card whose linked account has no color yet — deliberately
-/// this file's own purple wallet accent rather than [ColorScheme.primary],
-/// which is a pale, washed-out blue in dark mode and lerps toward black into
-/// a flat, boring gray gradient instead of a rich card face.
-final int _defaultCardColorValue = _addCardAccent.toARGB32();
+/// Fallback for a card whose linked account has no color yet — the app's
+/// dark hero tone ([AppColors.nearBlack]), matching the hero surface used
+/// everywhere else instead of an unrelated one-off color.
+final int _defaultCardColorValue = AppColors.nearBlack.toARGB32();
 
 class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
   int _frontIndex = 0;
@@ -282,13 +281,13 @@ class _AddCardButton extends StatelessWidget {
               const Icon(
                 Icons.add_rounded,
                 size: AppSizes.iconSm,
-                color: Colors.white,
+                color: AppColors.onLime,
               ),
               const SizedBox(width: 4),
               Text(
                 'Add Card',
                 style: context.textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
+                  color: AppColors.onLime,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -706,13 +705,14 @@ class _QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final iconColor = accentColor != null
-        ? Colors.white
+        ? AppColors.onLime
         : context.colors.onSurface.withValues(alpha: 0.8);
     final circleColor =
         accentColor ??
         context.colors.surfaceContainerHighest.withValues(alpha: 0.6);
-    final labelColor =
-        accentColor ?? context.colors.onSurface.withValues(alpha: 0.7);
+    final labelColor = accentColor != null
+        ? context.colors.onSurface
+        : context.colors.onSurface.withValues(alpha: 0.7);
 
     return Material(
       color: Colors.transparent,
@@ -861,9 +861,9 @@ class _StandaloneLimitSummaryCard extends ConsumerWidget {
 }
 
 /// Shared visual for both the per-facility and the pooled-standalone summary
-/// — gradient surface, big Available figure, Total/Used stat row, and a
-/// zoned (0% Good · High · Over Limit · 100%) progress bar with an animated
-/// percent read-out.
+/// — the app's standard dark hero surface ([FlowFiCard.hero]), big Available
+/// figure, Total/Used stat row, and a zoned (0% Good · High · Over Limit ·
+/// 100%) progress bar with an animated percent read-out.
 class _LimitSummaryCard extends StatelessWidget {
   const _LimitSummaryCard({
     required this.title,
@@ -874,27 +874,91 @@ class _LimitSummaryCard extends StatelessWidget {
     this.gradientColors,
   });
 
-  static const List<Color> _defaultGradient = [
-    Color(0xFF1A0B2E),
-    Color(0xFF3B1F5C),
-  ];
-
   final String title;
   final double totalLimit;
   final double available;
   final double used;
   final double ratio;
+
+  /// Optional per-card tint (from that card's own color) — when absent, the
+  /// card renders on the app's standard hero surface like every other
+  /// financial summary card.
   final List<Color>? gradientColors;
 
   @override
   Widget build(BuildContext context) {
+    final flowfi = context.flowfi;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.account_balance_rounded,
+              size: AppSizes.iconSm,
+              color: flowfi.onHeroSurfaceMuted,
+            ),
+            const SizedBox(width: AppSizes.xs),
+            Expanded(
+              child: Text(
+                title,
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: flowfi.onHeroSurfaceMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.sm),
+        Text(
+          'Available Credit',
+          style: context.textTheme.bodySmall?.copyWith(
+            color: flowfi.onHeroSurfaceMuted,
+          ),
+        ),
+        const SizedBox(height: 2),
+        CountUpText(
+          value: available,
+          formatter: CurrencyFormatter.instance.format,
+          style: context.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: flowfi.onHeroSurface,
+          ),
+        ),
+        const SizedBox(height: AppSizes.sm),
+        Row(
+          children: [
+            Expanded(
+              child: _HeroStat(label: 'Total Limit', value: totalLimit),
+            ),
+            Expanded(child: _HeroStat(label: 'Used', value: used)),
+          ],
+        ),
+        const SizedBox(height: AppSizes.sm),
+        _ZonedUtilizationBar(ratio: ratio),
+      ],
+    );
+
+    if (gradientColors == null) {
+      return FlowFiCard.hero(
+        accent: true,
+        padding: const EdgeInsets.all(AppSizes.md),
+        child: content,
+      );
+    }
+
+    // Per-card variant: same hero shell, tinted with that card's own color
+    // instead of the flat near-black surface.
     return Material(
       borderRadius: BorderRadius.circular(AppSizes.radiusCard),
       clipBehavior: Clip.antiAlias,
       child: Ink(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: gradientColors ?? _defaultGradient,
+            colors: gradientColors!,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -902,60 +966,9 @@ class _LimitSummaryCard extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(AppSizes.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.account_balance_rounded,
-                    size: AppSizes.iconSm,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                  const SizedBox(width: AppSizes.xs),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.sm),
-              Text(
-                'Available Credit',
-                style: context.textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.75),
-                ),
-              ),
-              const SizedBox(height: 2),
-              CountUpText(
-                value: available,
-                formatter: CurrencyFormatter.instance.format,
-                style: context.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: AppSizes.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: _HeroStat(label: 'Total Limit', value: totalLimit),
-                  ),
-                  Expanded(
-                    child: _HeroStat(label: 'Used', value: used),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.sm),
-              _ZonedUtilizationBar(ratio: ratio),
-            ],
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: flowfi.onHeroSurface),
+            child: content,
           ),
         ),
       ),

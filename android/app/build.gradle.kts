@@ -22,7 +22,13 @@ if (hasKeystore) {
 
 android {
     namespace = "com.example.finance_app"
-    compileSdk = flutter.compileSdkVersion
+    // Flutter's own default (flutter.compileSdkVersion) is 34, but
+    // flutter_plugin_android_lifecycle (a transitive dependency of
+    // file_picker) requires compiling against API 36+ — overridden
+    // explicitly rather than deferring to the (currently too old) Flutter
+    // default. minSdk/targetSdk are left on Flutter's defaults since only
+    // compileSdk was the actual blocker.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     // Distribution channel is an explicit build flavor, not an environment

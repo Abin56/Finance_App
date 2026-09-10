@@ -103,6 +103,39 @@ void main() {
 
       expect(outcome.status, PdfOpenStatus.empty);
     });
+
+    test(
+      'reports empty (routing to OCR fallback) for a page with only a stray '
+      'watermark character, rather than treating it as real content',
+      () async {
+        final file = await _buildPdf(
+          tempDir,
+          'stray_char.pdf',
+          pageTexts: ['1'],
+        );
+
+        final outcome = await service.open(file);
+
+        expect(outcome.status, PdfOpenStatus.empty);
+      },
+    );
+
+    test(
+      'succeeds for a page with genuinely little but meaningful text, never '
+      'misclassifying it as scanned',
+      () async {
+        final file = await _buildPdf(
+          tempDir,
+          'sparse_but_real.pdf',
+          pageTexts: ['05/09/2026 SWIGGY BANGALORE 420.00'],
+        );
+
+        final outcome = await service.open(file);
+
+        expect(outcome.status, PdfOpenStatus.success);
+        expect(outcome.result!.fullText, contains('SWIGGY'));
+      },
+    );
   });
 
   group('password-protected PDFs', () {

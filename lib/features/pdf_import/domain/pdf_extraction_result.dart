@@ -81,4 +81,46 @@ class PdfExtractionResult {
   bool get hasAnyText => pages.any((p) => p.hasText);
 
   String get fullText => pages.map((p) => p.fullText).join('\n');
+
+  /// A minimum character count per page, on average, below which embedded
+  /// text is treated as noise (a stray watermark, a single page number, a
+  /// PDF producer's metadata leaking into the text layer) rather than real
+  /// statement content — see [looksLikeScannedDocument].
+  ///
+  /// Deliberately very low: this only needs to catch "basically nothing but
+  /// a character or two" pages (a lone digit, a single symbol) — anything
+  /// resembling even one short real word or a terse transaction line must
+  /// never trip this, since distinguishing a sparse statement from a dense
+  /// one is [PdfTransactionParser]'s job, not this heuristic's. A higher
+  /// threshold risks misrouting a real, if brief, statement page through
+  /// unnecessary OCR — worse than the reverse, since OCR is slower and
+  /// strictly less reliable than text that was already extracted cleanly.
+  static const int _meaningfulCharsPerPageThreshold = 4;
+
+  /// Whether this extraction looks like it came from a scanned/photographed
+  /// statement with no real embedded text layer, as opposed to a statement
+  /// with genuinely little text on some pages (a short addendum page, a
+  /// mostly-blank final page). Never trips just because total character
+  /// count is small — a PDF with one dense page and several blank ones must
+  /// not be misclassified as scanned, so this checks total characters across
+  /// the whole document against a per-page-scaled floor, not a single
+  /// absolute cutoff.
+  ///
+  /// This is a conservative, testable heuristic — not a certainty. Its
+  /// scope is deliberately narrow: it's used only to decide whether OCR
+  /// fallback is worth attempting when embedded-text extraction already
+  /// found (per [hasAnyText]) either nothing, or so little that it's
+  /// unlikely to be genuine statement content (e.g. a single stray
+  /// character left by a PDF producer's metadata).
+  bool get looksLikeScannedDocument {
+    if (pages.isEmpty) return false;
+    if (!hasAnyText) return true;
+
+    final totalChars = pages.fold<int>(
+      0,
+      (sum, page) => sum + page.fullText.trim().length,
+    );
+    final floor = _meaningfulCharsPerPageThreshold * pages.length;
+    return totalChars < floor;
+  }
 }

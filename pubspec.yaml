@@ -102,7 +102,7 @@ dependencies:
   # Screenshot Import; file_picker lets the user choose an arbitrary PDF from
   # device storage (image_picker cannot select non-image files).
   syncfusion_flutter_pdf: ^34.2.6
-  pdfrx: ^1.1.19
+  pdfrx: ^2.6.1
   file_picker: ^8.1.7
 
 dev_dependencies:

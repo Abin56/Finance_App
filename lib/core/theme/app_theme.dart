@@ -30,6 +30,7 @@ abstract class AppTheme {
             onSecondary: Colors.white,
             surface: AppColors.darkSurface,
             onSurface: AppColors.darkTextPrimary,
+            onSurfaceVariant: AppColors.darkTextPrimary,
             surfaceContainerHighest: AppColors.darkSurfaceVariant,
             error: AppColors.error,
             onError: Colors.white,
@@ -42,6 +43,7 @@ abstract class AppTheme {
             onSecondary: Colors.white,
             surface: AppColors.lightSurface,
             onSurface: AppColors.lightTextPrimary,
+            onSurfaceVariant: AppColors.lightTextPrimary,
             surfaceContainerHighest: AppColors.lightSurfaceVariant,
             error: AppColors.error,
             onError: Colors.white,
@@ -179,6 +181,10 @@ abstract class AppTheme {
           vertical: AppSizes.md,
         ),
         hintStyle: textTheme.bodyMedium?.copyWith(color: textSecondary),
+        labelStyle: textTheme.bodyLarge?.copyWith(color: textSecondary),
+        floatingLabelStyle: textTheme.bodyMedium?.copyWith(
+          color: onSurfaceAccent,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSizes.radiusMd),
           borderSide: BorderSide(color: colorScheme.outline),

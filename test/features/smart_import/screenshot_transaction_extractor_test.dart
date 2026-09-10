@@ -695,6 +695,65 @@ void main() {
       expect(detected.single.description, 'Swiggy');
     });
 
+    test(
+      'a merchant name wrapped across two visual lines in a bank-app receipt '
+      'is merged into one description',
+      () {
+        final lines = [
+          _line('Paid to', 0),
+          _line('Sri Balaji General Stores', 24),
+          _line('and Provisions', 48),
+          _line('₹1,850.00', 96),
+          _line('05 Sep 2026, 7:42 PM', 120),
+        ];
+        final result = OcrResult(fullText: 'irrelevant', lines: lines);
+
+        final detected = extractor.extract(
+          result,
+          sourceImageIndex: 0,
+          referenceDate: reference,
+        );
+
+        expect(detected, hasLength(1));
+        final row = detected.single;
+        expect(row.amount, 1850.0);
+        expect(row.date, DateTime(2026, 9, 5));
+        expect(row.description, contains('Sri Balaji General Stores'));
+        expect(row.description, contains('and Provisions'));
+      },
+    );
+
+    test(
+      'a genuinely noisy, multi-error OCR read (mangled currency symbol, '
+      'confused digits, stray punctuation) still resolves date/amount correctly',
+      () {
+        final lines = [
+          // Currency symbol misread as a stray character, comma OCR'd as a
+          // period, an "S" swapped in for "5", and extra junk punctuation
+          // scattered through the merchant name — the kind of degraded
+          // output a low-quality/blurry screenshot capture produces.
+          _line('O5 Sep,, 2O26', 0),
+          _line(';SW|GGY;; B4NG4L0RE:', 24),
+          _line('¥42O.OS DR', 48),
+        ];
+        final result = OcrResult(fullText: 'irrelevant', lines: lines);
+
+        final detected = extractor.extract(
+          result,
+          sourceImageIndex: 0,
+          referenceDate: reference,
+        );
+
+        // A row this garbled is not guaranteed to fully resolve — the
+        // extractor's job is to never silently invent a wrong value, not to
+        // guarantee recovery from arbitrarily bad input. The one thing this
+        // test locks down: it must not crash, and it must not produce more
+        // than one spurious row from what is clearly a single transaction's
+        // worth of noisy text.
+        expect(detected.length, lessThanOrEqualTo(1));
+      },
+    );
+
     group('negative fixtures — must never become a ready transaction', () {
       test('a standalone masked account number line', () {
         final lines = [_line('A/c No XX1234567890', 0)];

@@ -104,9 +104,21 @@ class SyncfusionPdfStatementService implements PdfStatementService {
       final result = PdfExtractionResult(pages: pages);
       if (!result.hasAnyText) {
         // Not necessarily empty — likely a scanned/image-only PDF with no
-        // embedded text layer at all. Reported as `empty` here; the OCR
-        // fallback (a later phase) is what actually handles this case by
-        // rasterizing pages instead of relying on this text path.
+        // embedded text layer at all. Reported as `empty` here;
+        // `PdfImportController` is what actually handles this case, via
+        // `PdfOcrFallbackService` rasterizing pages and running OCR instead
+        // of relying on this text path. Deliberately not folded into this
+        // service: it stays scoped to "read the PDF's own embedded text",
+        // never importing `pdfrx` or an OCR engine itself.
+        return const PdfOpenOutcome.empty();
+      }
+      // A page or two with genuinely little text (a short addendum, a
+      // mostly-blank closing page) must not be misclassified as scanned —
+      // `looksLikeScannedDocument` checks total character volume against a
+      // conservative per-page floor rather than tripping on any single
+      // sparse page, so a real (if terse) statement always takes this path
+      // rather than being needlessly routed through OCR.
+      if (result.looksLikeScannedDocument) {
         return const PdfOpenOutcome.empty();
       }
       return PdfOpenOutcome.success(result);

@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -127,12 +128,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: context.flowfi.heroSurface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        // Flat near-black hero surface, not a gradient — Theme V2 keeps
-        // gradients minimal (see AppColors.primaryGradient's doc comment).
-        flexibleSpace: ColoredBox(color: context.flowfi.heroSurface),
+        systemOverlayStyle: SystemUiOverlayStyle.light,
         title: _searching
             ? TextField(
                 controller: _searchController,
@@ -142,7 +141,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 decoration: const InputDecoration(
                   hintText: 'Search notes, category, account…',
                   hintStyle: TextStyle(color: Colors.white70),
+                  filled: false,
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
                 ),
                 onChanged: (value) => setState(() => _query = value),
               )
@@ -163,11 +167,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     ),
                   ),
                   const SizedBox(width: AppSizes.sm),
-                  Text(
-                    'History',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                  Flexible(
+                    child: Text(
+                      'History',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -201,7 +209,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 count: _filter.activeCount,
                 isLabelVisible: _filter.activeCount > 0,
                 backgroundColor: Colors.white,
-                textColor: AppColors.primary,
+                textColor: AppColors.onLime,
                 child: const Icon(Icons.tune_rounded, color: Colors.white),
               ),
               tooltip: 'Filters',
@@ -218,7 +226,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     count: pendingCount,
                     isLabelVisible: pendingCount > 0,
                     backgroundColor: Colors.white,
-                    textColor: AppColors.primary,
+                    textColor: AppColors.onLime,
                     child: const Icon(Icons.sms_outlined, color: Colors.white),
                   ),
                   tooltip: 'SMS Inbox',
