@@ -223,13 +223,16 @@ abstract class SmsRegexUtils {
     ).hasMatch(body)) {
       return SmsTransactionCategory.bankFee;
     }
-    if (lower.contains('cash deposit') || lower.contains('deposited cash'))
+    if (lower.contains('cash deposit') || lower.contains('deposited cash')) {
       return SmsTransactionCategory.cashDeposit;
+    }
     if (lower.contains('recharge')) return SmsTransactionCategory.recharge;
-    if (lower.contains('bill payment') || lower.contains('bill paid'))
+    if (lower.contains('bill payment') || lower.contains('bill paid')) {
       return SmsTransactionCategory.billPayment;
-    if (lower.contains('atm') && lower.contains('withdraw'))
+    }
+    if (lower.contains('atm') && lower.contains('withdraw')) {
       return SmsTransactionCategory.atmWithdrawal;
+    }
     if (lower.contains('emi')) return SmsTransactionCategory.loanEmiDebit;
     if (lower.contains('credit card') ||
         lower.contains('card ending') ||
@@ -255,10 +258,12 @@ abstract class SmsRegexUtils {
         lower.contains('card')) {
       return SmsTransactionCategory.cardPurchase;
     }
-    if (direction == SmsTransactionDirection.credit)
+    if (direction == SmsTransactionDirection.credit) {
       return SmsTransactionCategory.bankCredit;
-    if (direction == SmsTransactionDirection.debit)
+    }
+    if (direction == SmsTransactionDirection.debit) {
       return SmsTransactionCategory.bankDebit;
+    }
     return SmsTransactionCategory.unknown;
   }
 }

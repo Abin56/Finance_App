@@ -103,7 +103,22 @@ dependencies:
   # device storage (image_picker cannot select non-image files).
   syncfusion_flutter_pdf: ^34.2.6
   pdfrx: ^2.6.1
-  file_picker: ^8.1.7
+  # Pinned to >=10.3.3 (not the latest 12.x): 10.3.3 fixed Android compileSdk
+  # to use flutter.compileSdkVersion instead of a hardcoded value that
+  # conflicted with flutter_plugin_android_lifecycle's compileSdk 36
+  # requirement (build failure: ":file_picker is currently compiled against
+  # android-34"). 12.x is intentionally avoided — it changes pickFiles()'s
+  # return type and removes the withData parameter this app's
+  # PdfFilePickerService relies on; upgrading past 10.x/11.x would require
+  # rewriting that call site, which is out of scope for this dependency fix.
+  file_picker: ">=10.3.3 <11.0.0"
+
+# google_sign_in_android 7.2.x fails to compile against this project's
+# Kotlin/AGP setup ("cannot find symbol ResultUtilsKt") because the plugin's
+# Kotlin sources aren't compiled before its Java sources reference them.
+# Pin to the last known-good release until upstream fixes it.
+dependency_overrides:
+  google_sign_in_android: 7.1.0
 
 dev_dependencies:
   flutter_test:

@@ -103,8 +103,9 @@ Future<_AccountDeletionPlan> _gatherAccountDeletionPlan(
   final affectedPersonIds = <String>{};
   for (final expense in expenses) {
     for (final participant in expense.participants) {
-      if (participant.personId != null)
+      if (participant.personId != null) {
         affectedPersonIds.add(participant.personId!);
+      }
     }
   }
 

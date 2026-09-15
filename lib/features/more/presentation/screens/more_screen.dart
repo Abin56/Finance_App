@@ -187,8 +187,9 @@ class _ProfileCard extends StatelessWidget {
 
   String get _initials {
     final trimmed = (name ?? '').trim();
-    if (trimmed.isEmpty)
+    if (trimmed.isEmpty) {
       return (email?.isNotEmpty ?? false) ? email![0].toUpperCase() : '?';
+    }
     final parts = trimmed
         .split(RegExp(r'\s+'))
         .where((p) => p.isNotEmpty)

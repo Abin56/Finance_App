@@ -167,8 +167,9 @@ class ObligationClassifier {
   ObligationType _classifyType(String body, ObligationSemanticBucket bucket) {
     final lower = body.toLowerCase();
     if (RegExp(r'\bemi\b').hasMatch(lower)) return ObligationType.emiObligation;
-    if (RegExp(r'\bloan\b').hasMatch(lower))
+    if (RegExp(r'\bloan\b').hasMatch(lower)) {
       return ObligationType.loanObligation;
+    }
     if (RegExp(r'\bcredit card\b').hasMatch(lower)) {
       return ObligationType.creditCardDue;
     }

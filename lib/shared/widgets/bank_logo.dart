@@ -81,8 +81,9 @@ class BankLogo extends StatelessWidget {
 
   Widget _build(BankInfo? bank) {
     if (bank == null) return _GenericBadge(size: size, radius: _radius);
-    if (bank.id == BankRegistry.generic.id)
+    if (bank.id == BankRegistry.generic.id) {
       return _InitialsBadge(bank: bank, size: size, radius: _radius);
+    }
 
     return FutureBuilder<bool>(
       future: _LogoAssetCache.svgExists(bank.id),

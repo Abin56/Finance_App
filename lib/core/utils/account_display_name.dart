@@ -9,8 +9,9 @@ import '../models/bank_info.dart';
 /// picked, since "SBI" + "Savings" + the last 4 digits already uniquely
 /// identify the account without asking the user to type anything.
 String bankAccountDisplayName({required BankInfo bank, String? last4}) {
-  if (last4 != null && last4.isNotEmpty)
+  if (last4 != null && last4.isNotEmpty) {
     return '${bank.shortCode} • ****$last4';
+  }
   return '${bank.shortCode} Account';
 }
 

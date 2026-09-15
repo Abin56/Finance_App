@@ -190,8 +190,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       // Keep the default ("Same as Transaction Date") in sync with the new
       // date — only meaningful while the user hasn't opted into a custom
       // Accounting Month.
-      if (!_customAccountingMonth)
+      if (!_customAccountingMonth) {
         _accountingMonth = DateTime(_dateTime.year, _dateTime.month);
+      }
     });
   }
 
@@ -900,11 +901,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               value: _customAccountingMonth,
                               onChanged: (value) => setState(() {
                                 _customAccountingMonth = value;
-                                if (!value)
+                                if (!value) {
                                   _accountingMonth = DateTime(
                                     _dateTime.year,
                                     _dateTime.month,
                                   );
+                                }
                               }),
                             ),
                           ),

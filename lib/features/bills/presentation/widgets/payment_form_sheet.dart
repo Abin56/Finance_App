@@ -107,8 +107,9 @@ class _PaymentFormSheetState extends ConsumerState<PaymentFormSheet> {
   String _resolveNote(PayerSource payer) {
     final typed = _noteController.text.trim();
     if (typed.isNotEmpty) return typed;
-    if (payer case PersonPayerSource(:final person))
+    if (payer case PersonPayerSource(:final person)) {
       return 'Paid by ${person.name}';
+    }
     return '';
   }
 

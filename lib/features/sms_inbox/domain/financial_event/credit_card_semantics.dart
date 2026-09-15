@@ -56,15 +56,17 @@ abstract class CreditCardSemantics {
   );
 
   static CreditCardSemanticVerdict detect(String body) {
-    if (!_mentionsCreditCard.hasMatch(body))
+    if (!_mentionsCreditCard.hasMatch(body)) {
       return CreditCardSemanticVerdict.notApplicable;
+    }
 
     final isPurchase = _purchasePattern.hasMatch(body);
     final isBillPayment = _billPaymentPattern.hasMatch(body);
 
     if (isPurchase && !isBillPayment) return CreditCardSemanticVerdict.purchase;
-    if (isBillPayment && !isPurchase)
+    if (isBillPayment && !isPurchase) {
       return CreditCardSemanticVerdict.billPayment;
+    }
     return CreditCardSemanticVerdict.ambiguous;
   }
 }

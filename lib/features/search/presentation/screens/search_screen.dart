@@ -141,8 +141,9 @@ class _GroupedResults extends StatelessWidget {
       itemCount: slots.length,
       itemBuilder: (context, index) {
         final slot = slots[index];
-        if (slot is SearchResultGroup)
+        if (slot is SearchResultGroup) {
           return _GroupHeader(group: slot, results: results);
+        }
         return _ResultTile(result: slot as SearchResult);
       },
     );

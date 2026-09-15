@@ -158,8 +158,9 @@ class MerchantCategorySuggester {
   ) {
     for (final name in candidateNames) {
       for (final category in categories) {
-        if (category.name.toLowerCase() == name.toLowerCase())
+        if (category.name.toLowerCase() == name.toLowerCase()) {
           return category.id;
+        }
       }
     }
     return null;

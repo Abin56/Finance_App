@@ -664,8 +664,9 @@ class FinancialEventExtractor {
     if (moneyMovement.value == false) return FinancialEventType.reminder;
     if (aiResult?.eventType != null) {
       final aiType = _eventTypeFromAiName(aiResult!.eventType!);
-      if (aiType != null && aiType != FinancialEventType.reminder)
+      if (aiType != null && aiType != FinancialEventType.reminder) {
         return aiType;
+      }
     }
     // Deterministic override: a credit-card purchase and a credit-card bill
     // payment both mention "credit card", but only `CreditCardSemantics`
@@ -685,8 +686,9 @@ class FinancialEventExtractor {
     // the coarse bankCredit->receipt mapping. The status signal is cheap and
     // already computed, so use it here rather than leaving reversals
     // under-classified whenever AI is unavailable.
-    if (transactionStatus.value == TransactionStatus.reversed)
+    if (transactionStatus.value == TransactionStatus.reversed) {
       return FinancialEventType.reversal;
+    }
     return FinancialEventTypeMapper.eventTypeFor(smsCategory);
   }
 
@@ -704,10 +706,12 @@ class FinancialEventExtractor {
       final aiRole = _roleFromAiName(aiResult!.role!);
       if (aiRole != null) return aiRole;
     }
-    if (creditCardVerdict == CreditCardSemanticVerdict.purchase)
+    if (creditCardVerdict == CreditCardSemanticVerdict.purchase) {
       return FinancialEventRole.originalCharge;
-    if (creditCardVerdict == CreditCardSemanticVerdict.billPayment)
+    }
+    if (creditCardVerdict == CreditCardSemanticVerdict.billPayment) {
       return FinancialEventRole.linkedSettlement;
+    }
     return FinancialEventTypeMapper.roleFor(smsCategory);
   }
 

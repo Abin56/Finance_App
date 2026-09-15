@@ -184,8 +184,9 @@ abstract class PersonTimelineBuilder {
         category != PersonTimelineCategory.assignedExpense) {
       return null;
     }
-    if (entry.type == LedgerEntryType.receivedBack)
+    if (entry.type == LedgerEntryType.receivedBack) {
       return PersonTimelineStatus.completed;
+    }
 
     final installmentStatus = installment?.status;
     if (installmentStatus == null) return null;
@@ -206,8 +207,9 @@ abstract class PersonTimelineBuilder {
     LedgerEntry entry,
     Map<String, int> participantCountByTransactionRef,
   ) {
-    if (entry.type == LedgerEntryType.adjustment)
+    if (entry.type == LedgerEntryType.adjustment) {
       return PersonTimelineCategory.other;
+    }
     final isExpenseLinked =
         entry.note.startsWith(_splitSettlementPrefix) ||
         entry.note.startsWith(_splitGivenPrefix);
@@ -277,8 +279,9 @@ abstract class PersonTimelineBuilder {
       for (final installment in sortedInstallments) {
         if (!includeDeleted && installment.isDeleted) continue;
         if (installment.status == InstallmentStatus.upcoming &&
-            installment.id != nextUpcomingId)
+            installment.id != nextUpcomingId) {
           continue;
+        }
         entries.add(
           PersonTimelineEntry(
             id: 'loan-installment-${loan.id}-${installment.id}',

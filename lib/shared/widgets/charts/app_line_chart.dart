@@ -60,8 +60,9 @@ class AppLineChart extends StatelessWidget {
                 getTitlesWidget: (value, meta) {
                   final labels = data.xAxisLabels;
                   final index = value.toInt();
-                  if (labels == null || index < 0 || index >= labels.length)
+                  if (labels == null || index < 0 || index >= labels.length) {
                     return const SizedBox.shrink();
+                  }
                   return Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(

@@ -246,12 +246,15 @@ abstract class PasteTransactionExtractor {
     final parts = <String>[];
     for (final line in lines) {
       var remainder = line;
-      if (dateRawText != null)
+      if (dateRawText != null) {
         remainder = remainder.replaceAll(dateRawText, '');
-      if (amountRawText != null)
+      }
+      if (amountRawText != null) {
         remainder = remainder.replaceAll(amountRawText, '');
-      if (referenceRawText != null)
+      }
+      if (referenceRawText != null) {
         remainder = remainder.replaceAll(referenceRawText, '');
+      }
       // Must run before `_directionKeywordPattern` — "paid" alone is one of
       // that pattern's debit keywords, so stripping it first would leave a
       // dangling "to" that the multi-word "paid to" phrase below can no

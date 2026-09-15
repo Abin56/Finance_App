@@ -49,8 +49,9 @@ class AppBarChart extends StatelessWidget {
                 showTitles: true,
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
-                  if (index < 0 || index >= data.categories.length)
+                  if (index < 0 || index >= data.categories.length) {
                     return const SizedBox.shrink();
+                  }
                   return Padding(
                     padding: const EdgeInsets.only(top: AppSizes.xs),
                     child: Text(

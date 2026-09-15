@@ -113,8 +113,9 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
           59,
           59,
         );
-        if (e.date.isBefore(_dateRange!.start) || e.date.isAfter(endOfRangeDay))
+        if (e.date.isBefore(_dateRange!.start) || e.date.isAfter(endOfRangeDay)) {
           return false;
+        }
       }
       if (_dismissedEntryIds.contains(e.id)) return false;
       return true;
@@ -891,10 +892,12 @@ class _ContactLedgerTile extends StatelessWidget {
 
   String get _title {
     final note = entry.note;
-    if (note.startsWith(_splitSettlementPrefix))
+    if (note.startsWith(_splitSettlementPrefix)) {
       return note.substring(_splitSettlementPrefix.length).trim();
-    if (note.startsWith(_splitGivenPrefix))
+    }
+    if (note.startsWith(_splitGivenPrefix)) {
       return note.substring(_splitGivenPrefix.length).trim();
+    }
     return note.isNotEmpty ? note : entry.title;
   }
 

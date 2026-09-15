@@ -250,8 +250,9 @@ class BillOccurrenceRepository extends FirestoreCrudRepository<BillOccurrence> {
   /// needs its own independently cancellable reminder.
   void _scheduleReminders(Bill bill, BillOccurrence occurrence) {
     if (occurrence.status == BillStatus.paid ||
-        occurrence.status == BillStatus.skipped)
+        occurrence.status == BillStatus.skipped) {
       return;
+    }
     ReminderNotificationService.reschedule(
       ownerId: occurrence.id,
       title: bill.name,

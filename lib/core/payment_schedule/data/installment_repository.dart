@@ -295,8 +295,9 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
   List<Installment> overdue(List<Installment> all, {DateTime? now}) {
     final today = (now ?? DateTime.now()).dateOnly;
     return all.where((i) {
-      if (i.amountPaid >= i.amountDue || i.isSkipped || i.amountPaid > 0)
+      if (i.amountPaid >= i.amountDue || i.isSkipped || i.amountPaid > 0) {
         return false;
+      }
       return i.dueDate.dateOnly.isBefore(today);
     }).toList();
   }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/extensions/context_extensions.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../providers/pdf_import_providers.dart';
 import '../providers/pdf_import_state.dart';
 
@@ -61,54 +64,106 @@ class _PdfPasswordDialogState extends ConsumerState<PdfPasswordDialog> {
 
     final state = ref.watch(pdfImportControllerProvider);
 
+    final hasError = state.passwordError != null;
+
     return PopScope(
       canPop: !_submitting,
-      child: AlertDialog(
-        title: const Text('Password protected PDF'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter the password to open this statement.'),
-            const SizedBox(height: AppSizes.md),
-            TextField(
-              controller: _controller,
-              obscureText: _obscure,
-              autofocus: true,
-              enabled: !_submitting,
-              onSubmitted: (_) => _submit(),
-              decoration: InputDecoration(
-                labelText: 'Password',
-                errorText: state.passwordError,
-                isDense: true,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscure
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
+      child: Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  FlowFiIconChip(
+                    icon: Icons.lock_outline_rounded,
+                    color: context.colors.primary,
+                    size: 44,
                   ),
-                  onPressed: () => setState(() => _obscure = !_obscure),
+                  const SizedBox(width: AppSizes.md),
+                  Expanded(
+                    child: Text(
+                      'Password protected PDF',
+                      style: context.textTheme.titleMedium,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSizes.sm),
+              Text(
+                'Enter the password to open this statement. Nothing you '
+                'type here is stored or shown anywhere else.',
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: context.colors.onSurfaceVariant,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: AppSizes.lg),
+              TextField(
+                controller: _controller,
+                obscureText: _obscure,
+                autofocus: true,
+                enabled: !_submitting,
+                onSubmitted: (_) => _submit(),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  errorText: state.passwordError,
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.key_outlined),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                  enabledBorder: hasError
+                      ? OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppSizes.radiusSm,
+                          ),
+                          borderSide: const BorderSide(
+                            color: AppColors.expense,
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(height: AppSizes.lg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _submitting
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: AppSizes.sm),
+                  FilledButton(
+                    onPressed: _submitting ? null : _submit,
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Unlock'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: _submitting ? null : () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: _submitting ? null : _submit,
-            child: _submitting
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Unlock'),
-          ),
-        ],
       ),
     );
   }

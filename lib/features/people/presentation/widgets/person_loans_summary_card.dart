@@ -162,8 +162,9 @@ class _UpcomingEmiRow extends StatelessWidget {
   /// record, so the fallback is reproduced directly here instead.
   String get _title {
     if (loan.name?.isNotEmpty == true) return loan.name!;
-    if (loan.category == LoanCategory.personal)
+    if (loan.category == LoanCategory.personal) {
       return 'Loan to ${counterpartyName ?? 'unknown'}';
+    }
     return loan.institutionName ?? 'Institutional Loan';
   }
 

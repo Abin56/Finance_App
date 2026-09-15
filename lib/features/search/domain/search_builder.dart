@@ -234,8 +234,9 @@ abstract class SearchBuilder {
         p.phone,
         p.email,
         p.notes,
-      ], amount: p.currentBalance.abs()))
+      ], amount: p.currentBalance.abs())) {
         continue;
+      }
 
       yield SearchResult(
         id: 'person-${p.id}',
@@ -268,8 +269,9 @@ abstract class SearchBuilder {
         b.notes,
         category?.name,
         accountName,
-      ], amount: b.amount))
+      ], amount: b.amount)) {
         continue;
+      }
 
       yield SearchResult(
         id: 'bill-${b.id}',
@@ -295,8 +297,9 @@ abstract class SearchBuilder {
   static Iterable<SearchResult> _emis(SearchQuery q, List<Emi> emis) sync* {
     for (final e in emis) {
       if (e.isDeleted) continue;
-      if (!q.matches([e.name, e.lenderName], amount: e.principalAmount))
+      if (!q.matches([e.name, e.lenderName], amount: e.principalAmount)) {
         continue;
+      }
 
       yield SearchResult(
         id: 'emi-${e.id}',
@@ -327,8 +330,9 @@ abstract class SearchBuilder {
         l.name,
         counterpartyName,
         if (isInstitutional) l.loanNumber,
-      ], amount: l.loanAmount))
+      ], amount: l.loanAmount)) {
         continue;
+      }
 
       yield SearchResult(
         id: 'loan-${l.id}',
@@ -359,8 +363,9 @@ abstract class SearchBuilder {
         name,
         c.lastFourDigits,
         c.cardNetwork?.label,
-      ], amount: c.creditLimit))
+      ], amount: c.creditLimit)) {
         continue;
+      }
 
       yield SearchResult(
         id: 'card-${c.id}',
@@ -383,8 +388,9 @@ abstract class SearchBuilder {
   ) sync* {
     for (final a in accounts) {
       if (a.isDeleted) continue;
-      if (!q.matches([a.name, a.type.label], amount: a.currentBalance))
+      if (!q.matches([a.name, a.type.label], amount: a.currentBalance)) {
         continue;
+      }
 
       yield SearchResult(
         id: 'account-${a.id}',

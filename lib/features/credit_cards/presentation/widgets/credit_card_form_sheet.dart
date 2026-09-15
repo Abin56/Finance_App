@@ -879,8 +879,9 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
 
   String? _dayValidator(String? value) {
     final day = int.tryParse(value?.trim() ?? '');
-    if (day == null || day < 1 || day > 31)
+    if (day == null || day < 1 || day > 31) {
       return 'Enter a day between 1 and 31';
+    }
     return null;
   }
 
@@ -948,8 +949,9 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
             _sharedLimitAmountController.text = _creditLimitController.text
                 .trim();
           }
-          if (_addNewPairCard && _pairColorValue == _colorValue)
+          if (_addNewPairCard && _pairColorValue == _colorValue) {
             _pairColorValue = _nextDistinctPairColor();
+          }
         }),
         child: Container(
           padding: const EdgeInsets.all(AppSizes.md),
@@ -1007,8 +1009,9 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                         .text
                         .trim();
                   }
-                  if (value && _pairColorValue == _colorValue)
+                  if (value && _pairColorValue == _colorValue) {
                     _pairColorValue = _nextDistinctPairColor();
+                  }
                 }),
               ),
             ],
@@ -1470,8 +1473,9 @@ class _CreditCardFormSheetState extends ConsumerState<CreditCardFormSheet> {
                     selected: {_limitSource},
                     onSelectionChanged: (selection) => setState(() {
                       _limitSource = selection.first;
-                      if (_limitSource != _LimitSource.newSharedLimit)
+                      if (_limitSource != _LimitSource.newSharedLimit) {
                         _addNewPairCard = false;
+                      }
                       if (_limitSource == _LimitSource.newSharedLimit &&
                           _sharedLimitNameController.text.trim().isEmpty) {
                         _sharedLimitNameController.text =

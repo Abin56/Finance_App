@@ -112,8 +112,9 @@ abstract class CycleEngine {
       final classification = anchor.classify(item.cycleDate, now: now);
       switch (classification) {
         case CycleClassification.previous:
-          if (!item.isSettled && item.carryForwardEligible)
+          if (!item.isSettled && item.carryForwardEligible) {
             previousPending.add(item);
+          }
         case CycleClassification.current:
           current.add(item);
         case CycleClassification.future:

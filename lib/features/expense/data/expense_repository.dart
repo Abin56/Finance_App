@@ -541,8 +541,9 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
         await installmentRepository.softDelete(installment);
       }
       final schedule = await paymentScheduleRepository.getByKey(oldScheduleId);
-      if (schedule != null)
+      if (schedule != null) {
         await paymentScheduleRepository.softDelete(schedule);
+      }
     }
 
     // Reverse + soft-delete the original per-person "gave" entries so their

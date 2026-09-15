@@ -305,8 +305,9 @@ class _ActionsCard extends ConsumerWidget {
     final refreshed = ref.read(
       expenseForTransactionProvider(expense.transactionId),
     );
-    if (refreshed != null)
+    if (refreshed != null) {
       await ExpenseUpdatedDialog.show(context, expense: refreshed);
+    }
   }
 
   Future<({ExpenseParticipant participant, Installment installment})?>

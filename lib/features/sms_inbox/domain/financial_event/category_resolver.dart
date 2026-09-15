@@ -79,11 +79,12 @@ class CategoryResolver {
 
     if (aiCategoryName != null && aiCategoryName.trim().isNotEmpty) {
       final match = _resolveByName(aiCategoryName, categories);
-      if (match != null)
+      if (match != null) {
         return CategorySuggestion(
           categoryId: match,
           source: SuggestionSource.aiInference,
         );
+      }
     }
 
     final fromKeyword = _fromContextualKeyword(merchant, categories);

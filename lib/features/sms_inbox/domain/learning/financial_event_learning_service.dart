@@ -159,8 +159,9 @@ class FinancialEventLearningService {
 
     final parts = <String>[];
     if (corrected.isNotEmpty) parts.add('corrected ${_describe(corrected)}');
-    if (confirmed.isNotEmpty)
+    if (confirmed.isNotEmpty) {
       parts.add('confirmed ${_describe(confirmed)} (already that value)');
+    }
 
     return LearningUpdateResult(
       merchantKey: merchantKey,

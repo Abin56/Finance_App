@@ -93,8 +93,9 @@ abstract class FinancialEventTypeMapper {
   /// the AI (when available) upgrade it to `originalCharge`/`linkedSettlement`
   /// via its own `role` field.
   static FinancialEventRole roleFor(SmsTransactionCategory category) {
-    if (category == SmsTransactionCategory.creditCardPurchase)
+    if (category == SmsTransactionCategory.creditCardPurchase) {
       return FinancialEventRole.originalCharge;
+    }
     return FinancialEventRole.standalone;
   }
 }

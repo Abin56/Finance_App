@@ -310,8 +310,9 @@ final moneyReceivedForRangeProvider =
         final bucketDate = range.monthGranular
             ? transaction.effectiveMonth
             : transaction.dateTime;
-        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) {
           continue;
+        }
         final installments =
             ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
             const [];

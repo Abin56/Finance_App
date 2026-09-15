@@ -1,7 +1,6 @@
 import 'package:finance_app/core/dashboard/presentation/providers/upcoming_due_provider.dart';
 import 'package:finance_app/core/payment_schedule/domain/installment.dart';
 import 'package:finance_app/core/payment_schedule/domain/owner_type.dart';
-import 'package:finance_app/core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import 'package:finance_app/features/bills/domain/bill.dart';
 import 'package:finance_app/features/bills/domain/bill_occurrence.dart';
 import 'package:finance_app/features/bills/domain/bill_recurrence.dart';

@@ -71,8 +71,9 @@ abstract class PaymentProviderResolver {
     VpaInfo? vpa,
   }) {
     for (final entry in _explicitPhrasePatterns.entries) {
-      if (entry.value.hasMatch(body))
+      if (entry.value.hasMatch(body)) {
         return (provider: entry.key, isExplicit: true);
+      }
     }
     final handle = vpa?.handle.toLowerCase();
     if (handle != null && _handleHints.containsKey(handle)) {

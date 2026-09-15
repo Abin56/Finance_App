@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../providers/pdf_import_providers.dart';
 import '../providers/pdf_import_state.dart';
+import '../widgets/pdf_import_stage_dots.dart';
 import '../widgets/pdf_password_dialog.dart';
 import 'pdf_transaction_review_screen.dart';
 
@@ -94,7 +97,14 @@ class _PdfImportScreenState extends ConsumerState<PdfImportScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('PDF Statement')),
-      body: isBusy ? _BusyView(state: state) : const _PickFileView(),
+      body: Column(
+        children: [
+          const PdfImportStageDots(currentStep: 0),
+          Expanded(
+            child: isBusy ? _BusyView(state: state) : const _PickFileView(),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -122,7 +132,11 @@ class _BusyView extends StatelessWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: AppSizes.lg),
-          Text(label, style: context.textTheme.bodyMedium),
+          Text(
+            label,
+            style: context.textTheme.titleSmall,
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -132,41 +146,104 @@ class _BusyView extends StatelessWidget {
 class _PickFileView extends ConsumerWidget {
   const _PickFileView();
 
+  static const _steps = [
+    ('Choose a PDF', Icons.description_outlined),
+    ('We find the transactions', Icons.search_rounded),
+    ('Review before anything saves', Icons.fact_check_outlined),
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(pdfImportControllerProvider.notifier);
+    final heroBg = context.isDarkMode
+        ? AppColors.raisedDark
+        : AppColors.nearBlack;
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSizes.lg),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(
-              Icons.picture_as_pdf_outlined,
-              size: 64,
-              color: context.colors.onSurfaceVariant,
-            ),
-            const SizedBox(height: AppSizes.lg),
-            Text(
-              'Import a bank statement',
-              style: context.textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSizes.xs),
-            Text(
-              'Select a PDF statement from your bank or credit card — FlowFi '
-              'will find the transactions for you to review. Nothing is '
-              'saved until you confirm.',
-              style: context.textTheme.bodyMedium?.copyWith(
-                color: context.colors.onSurfaceVariant,
+            Container(
+              padding: const EdgeInsets.all(AppSizes.xl),
+              decoration: BoxDecoration(
+                color: heroBg,
+                borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+                boxShadow: AppShadows.soft(context),
               ),
-              textAlign: TextAlign.center,
+              child: Column(
+                children: [
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: AppColors.limeStrong.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.picture_as_pdf_rounded,
+                      size: AppSizes.iconXl,
+                      color: AppColors.limeStrong,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.lg),
+                  Text(
+                    'Upload your statement',
+                    style: context.textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSizes.xs),
+                  Text(
+                    'A PDF from your bank or credit card — nothing is saved '
+                    'until you confirm.',
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.72),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSizes.lg),
+            const SizedBox(height: AppSizes.xl),
+            for (var i = 0; i < _steps.length; i++)
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: i == _steps.length - 1 ? 0 : AppSizes.md,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: context.colors.primary.withValues(alpha: 0.08),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _steps[i].$2,
+                        size: AppSizes.iconSm,
+                        color: context.colors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: AppSizes.md),
+                    Expanded(
+                      child: Text(
+                        _steps[i].$1,
+                        style: context.textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: AppSizes.xl),
             PrimaryButton(
               label: 'Choose PDF',
+              icon: Icons.upload_file_rounded,
               onPressed: controller.pickFile,
             ),
           ],

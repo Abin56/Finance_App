@@ -94,8 +94,9 @@ final upcomingDueProvider =
         final view = ref.watch(emiCycleViewRecordProvider(emi));
         final relevant = [...view.previousCyclePending, ...view.current];
         for (final installment in relevant) {
-          if (installment.remainingAmount <= 0 || installment.isSkipped)
+          if (installment.remainingAmount <= 0 || installment.isSkipped) {
             continue;
+          }
           if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
           final isCarriedOver = view.previousCyclePending.contains(installment);
           items.add((
@@ -117,8 +118,9 @@ final upcomingDueProvider =
         final view = ref.watch(loanCycleViewRecordProvider(loan));
         final relevant = [...view.previousCyclePending, ...view.current];
         for (final installment in relevant) {
-          if (installment.remainingAmount <= 0 || installment.isSkipped)
+          if (installment.remainingAmount <= 0 || installment.isSkipped) {
             continue;
+          }
           if (installment.dueDate.dateOnly.isAfter(cutoff)) continue;
           final isCarriedOver = view.previousCyclePending.contains(installment);
           items.add((
@@ -145,8 +147,9 @@ final upcomingDueProvider =
         ];
         for (final occurrence in relevant) {
           if (occurrence.status == BillStatus.skipped ||
-              occurrence.remainingAmount <= 0)
+              occurrence.remainingAmount <= 0) {
             continue;
+          }
           if (occurrence.dueDate.dateOnly.isAfter(cutoff)) continue;
           final isCarriedOver = view.previousCyclePending.contains(occurrence);
           items.add((

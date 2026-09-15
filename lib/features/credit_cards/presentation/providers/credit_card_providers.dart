@@ -189,8 +189,9 @@ final statementCycleViewProvider = Provider.autoDispose
     .family<StatementCycleView, String>((ref, cardId) {
       final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
       final card = cards.where((c) => c.id == cardId).firstOrNull;
-      if (card == null)
+      if (card == null) {
         return (previousCyclePending: <Statement>[], current: null);
+      }
 
       final statements = ref.watch(statementsWithLiveTotalsProvider(cardId));
       final anchor = CycleAnchor(anchorDay: card.statementDay);
@@ -456,8 +457,9 @@ final sharedCreditLimitStandingProvider = Provider.autoDispose
       final sharedLimit = sharedLimits
           .where((g) => g.id == sharedLimitId)
           .firstOrNull;
-      if (sharedLimit == null)
+      if (sharedLimit == null) {
         return (outstanding: 0, available: 0, currentCycleSpend: 0);
+      }
 
       final memberCards = ref.watch(
         cardsUnderSharedLimitProvider(sharedLimitId),
@@ -498,8 +500,9 @@ final creditCardStandingProvider = Provider.autoDispose
     .family<CreditCardStanding, String>((ref, cardId) {
       final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
       final card = cards.where((c) => c.id == cardId).firstOrNull;
-      if (card == null)
+      if (card == null) {
         return (outstanding: 0, available: 0, currentCycleSpend: 0);
+      }
 
       if (card.sharedLimitId != null) {
         return ref.watch(
@@ -537,8 +540,9 @@ final nextStatementDueDateForCardProvider = Provider.autoDispose
       DateTime? soonest;
       for (final statement in statements) {
         if (statement.remainingAmount <= 0) continue;
-        if (soonest == null || statement.dueDate.isBefore(soonest))
+        if (soonest == null || statement.dueDate.isBefore(soonest)) {
           soonest = statement.dueDate;
+        }
       }
       return soonest;
     });
@@ -552,8 +556,9 @@ final nextStatementDueProvider = Provider<Statement?>((ref) {
     final statements = ref.watch(statementsWithLiveTotalsProvider(card.id));
     for (final statement in statements) {
       if (statement.remainingAmount <= 0) continue;
-      if (soonest == null || statement.dueDate.isBefore(soonest.dueDate))
+      if (soonest == null || statement.dueDate.isBefore(soonest.dueDate)) {
         soonest = statement;
+      }
     }
   }
   return soonest;
@@ -566,8 +571,9 @@ final nextStatementDateProvider = Provider<DateTime?>((ref) {
   DateTime? soonest;
   for (final card in cards) {
     final period = StatementPeriodCalculator.currentCycleFor(card);
-    if (soonest == null || period.periodEnd.isBefore(soonest))
+    if (soonest == null || period.periodEnd.isBefore(soonest)) {
       soonest = period.periodEnd;
+    }
   }
   return soonest;
 });

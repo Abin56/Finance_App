@@ -124,9 +124,10 @@ class _EditExpenseSheetState extends ConsumerState<EditExpenseSheet> {
     ];
     final remainder =
         ((newTotal - scaled.fold(0.0, (s, v) => s + v)) * 100).round() / 100;
-    if (scaled.isNotEmpty)
+    if (scaled.isNotEmpty) {
       scaled[scaled.length - 1] =
           ((scaled.last + remainder) * 100).round() / 100;
+    }
     return [
       for (var i = 0; i < participants.length; i++)
         ExpenseParticipantInput(

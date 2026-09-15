@@ -21,8 +21,9 @@ class MerchantIdentityCache {
   final Map<String, MerchantIdentity> _store = {};
 
   String? _keyFor({String? vpaRaw, String? merchantText}) {
-    if (vpaRaw != null && vpaRaw.trim().isNotEmpty)
+    if (vpaRaw != null && vpaRaw.trim().isNotEmpty) {
       return 'vpa:${vpaRaw.trim().toLowerCase()}';
+    }
     final normalized = MerchantKey.normalize(merchantText);
     return normalized == null ? null : 'text:$normalized';
   }

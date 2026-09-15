@@ -651,8 +651,9 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                   final trimmed = value?.trim() ?? '';
                   if (trimmed.isEmpty) return null;
                   final day = int.tryParse(trimmed);
-                  if (day == null || day < 1 || day > 31)
+                  if (day == null || day < 1 || day > 31) {
                     return 'Enter a day between 1 and 31';
+                  }
                   return null;
                 },
                 onChanged: (_) => setState(() {}),

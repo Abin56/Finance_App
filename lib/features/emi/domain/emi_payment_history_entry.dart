@@ -106,12 +106,15 @@ class EmiPaymentHistoryEntry {
     InstallmentPayment payment,
     Installment installment,
   ) {
-    if (payment.date.isBefore(installment.dueDate))
+    if (payment.date.isBefore(installment.dueDate)) {
       return EmiPaymentHistoryStatus.advance;
-    if (payment.amount < installment.amountDue)
+    }
+    if (payment.amount < installment.amountDue) {
       return EmiPaymentHistoryStatus.partial;
-    if (installment.dueDate.isBefore(payment.date))
+    }
+    if (installment.dueDate.isBefore(payment.date)) {
       return EmiPaymentHistoryStatus.overdue;
+    }
     return EmiPaymentHistoryStatus.paid;
   }
 }

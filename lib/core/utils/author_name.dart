@@ -18,8 +18,9 @@ String authorNameFromEmail(
   String? displayName,
   String fallback = 'You',
 }) {
-  if (displayName != null && displayName.trim().isNotEmpty)
+  if (displayName != null && displayName.trim().isNotEmpty) {
     return displayName.trim();
+  }
 
   if (email == null || email.isEmpty) return fallback;
 

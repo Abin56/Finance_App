@@ -78,8 +78,9 @@ class _AddCardToSharedLimitSheetState
     // The facility's name is usually the bank name — prefill so most users
     // never have to open the bank picker at all.
     _bankId = BankRegistry.matchByName(widget.sharedLimit.name)?.id;
-    if (_bankId != null)
+    if (_bankId != null) {
       _colorValue = BankRegistry.byId(_bankId)!.primaryColor.toARGB32();
+    }
     _colorAppliedByBank = _colorValue;
   }
 
@@ -152,8 +153,9 @@ class _AddCardToSharedLimitSheetState
 
   String? _dayValidator(String? value) {
     final day = int.tryParse(value?.trim() ?? '');
-    if (day == null || day < 1 || day > 31)
+    if (day == null || day < 1 || day > 31) {
       return 'Enter a day between 1 and 31';
+    }
     return null;
   }
 

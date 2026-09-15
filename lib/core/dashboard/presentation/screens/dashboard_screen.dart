@@ -176,8 +176,9 @@ class _EditModeList extends ConsumerWidget {
       itemBuilder: (context, index) {
         final dashboardWidget = layout.widgets[index];
         final config = state.configs[dashboardWidget.configId];
-        if (config == null)
+        if (config == null) {
           return const SizedBox.shrink(key: ValueKey('missing'));
+        }
         return Padding(
           key: ValueKey(dashboardWidget.id),
           padding: const EdgeInsets.only(bottom: AppSizes.lg),

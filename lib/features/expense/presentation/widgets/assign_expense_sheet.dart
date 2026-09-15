@@ -147,8 +147,9 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
     if (!formValid ||
         _accountId == null ||
         _categoryId == null ||
-        _personId == null)
+        _personId == null) {
       return;
+    }
 
     setState(() => _isSaving = true);
     try {
@@ -359,8 +360,9 @@ class _AssignExpenseSheetState extends ConsumerState<AssignExpenseSheet> {
                 value: _customAccountingMonth,
                 onChanged: (value) => setState(() {
                   _customAccountingMonth = value;
-                  if (!value)
+                  if (!value) {
                     _accountingMonth = DateTime(_date.year, _date.month);
+                  }
                 }),
               ),
               if (_customAccountingMonth) ...[

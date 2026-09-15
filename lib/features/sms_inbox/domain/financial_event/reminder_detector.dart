@@ -33,8 +33,9 @@ class ReminderDetector {
   const ReminderDetector();
 
   ReminderVerdict detect(String body) {
-    if (!ReminderSignals.looksLikeReminder(body))
+    if (!ReminderSignals.looksLikeReminder(body)) {
       return const ReminderVerdict.notAReminder();
+    }
     return const ReminderVerdict(
       isReminder: true,
       reason:

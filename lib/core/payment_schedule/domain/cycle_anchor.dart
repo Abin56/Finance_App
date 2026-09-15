@@ -65,8 +65,9 @@ class CycleAnchor {
   CycleClassification classify(DateTime date, {DateTime? now}) {
     final current = currentCycleFor(now: now);
     if (current.contains(date)) return CycleClassification.current;
-    if (date.dateOnly.isBefore(current.start))
+    if (date.dateOnly.isBefore(current.start)) {
       return CycleClassification.previous;
+    }
     return CycleClassification.future;
   }
 }

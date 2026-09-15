@@ -54,18 +54,23 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
     return bills.where((b) {
       final occurrence = occurrenceByBillId[b.id];
       if (occurrence == null) return false;
-      if (_filter.status != null && occurrence.status != _filter.status)
+      if (_filter.status != null && occurrence.status != _filter.status) {
         return false;
-      if (_filter.categoryId != null && b.categoryId != _filter.categoryId)
+      }
+      if (_filter.categoryId != null && b.categoryId != _filter.categoryId) {
         return false;
-      if (_filter.accountId != null && b.accountId != _filter.accountId)
+      }
+      if (_filter.accountId != null && b.accountId != _filter.accountId) {
         return false;
+      }
       if (_filter.startDate != null &&
-          occurrence.dueDate.isBefore(_filter.startDate!))
+          occurrence.dueDate.isBefore(_filter.startDate!)) {
         return false;
+      }
       if (_filter.endDate != null &&
-          occurrence.dueDate.isAfter(_filter.endDate!))
+          occurrence.dueDate.isAfter(_filter.endDate!)) {
         return false;
+      }
 
       if (query.isEmpty) return true;
       final categoryName = categoryNamesById[b.categoryId] ?? '';

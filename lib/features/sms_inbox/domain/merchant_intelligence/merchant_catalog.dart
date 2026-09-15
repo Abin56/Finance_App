@@ -319,8 +319,9 @@ abstract class MerchantIntelligenceCatalog {
   /// OR it's a bare provider-app token from [UpiProviderResolver].
   static bool isPaymentProviderName(String normalizedKey) {
     final entry = _entries[normalizedKey];
-    if (entry != null)
+    if (entry != null) {
       return entry.merchantType == MerchantType.paymentProvider;
+    }
     return false;
   }
 }

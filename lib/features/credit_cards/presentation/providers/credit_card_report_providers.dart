@@ -62,8 +62,9 @@ final interestChargedForRangeProvider =
             ref.watch(statementsStreamProvider(card.id)).value ?? const [];
         for (final statement in statements) {
           if (statement.generatedDate.isBefore(range.start) ||
-              statement.generatedDate.isAfter(range.end))
+              statement.generatedDate.isAfter(range.end)) {
             continue;
+          }
           total += statement.interestCharged ?? 0;
         }
       }
@@ -81,8 +82,9 @@ final lateFeesForRangeProvider =
             ref.watch(statementsStreamProvider(card.id)).value ?? const [];
         for (final statement in statements) {
           if (statement.generatedDate.isBefore(range.start) ||
-              statement.generatedDate.isAfter(range.end))
+              statement.generatedDate.isAfter(range.end)) {
             continue;
+          }
           total += statement.lateFee ?? 0;
         }
       }

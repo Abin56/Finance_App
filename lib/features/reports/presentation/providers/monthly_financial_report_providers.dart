@@ -25,8 +25,9 @@ final emiPaidForRangeProvider = Provider.autoDispose
             ref.watch(installmentsStreamProvider(emi.scheduleId)).value ??
             const [];
         for (final i in installments) {
-          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
+          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) {
             continue;
+          }
           total += i.amountPaid;
         }
       }
@@ -44,8 +45,9 @@ final loanPaidForRangeProvider = Provider.autoDispose
             ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
             const [];
         for (final i in installments) {
-          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
+          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) {
             continue;
+          }
           total += i.amountPaid;
         }
       }
@@ -64,8 +66,9 @@ final billsPaidForRangeProvider = Provider.autoDispose
         final occurrences =
             ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
         for (final o in occurrences) {
-          if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end))
+          if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end)) {
             continue;
+          }
           total += o.amountPaid;
         }
       }
@@ -82,8 +85,9 @@ final creditCardBillsPaidForRangeProvider = Provider.autoDispose
         final statements =
             ref.watch(statementsStreamProvider(card.id)).value ?? const [];
         for (final s in statements) {
-          if (s.dueDate.isBefore(range.start) || s.dueDate.isAfter(range.end))
+          if (s.dueDate.isBefore(range.start) || s.dueDate.isAfter(range.end)) {
             continue;
+          }
           total += s.amountPaid;
         }
       }

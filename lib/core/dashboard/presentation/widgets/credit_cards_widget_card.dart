@@ -179,8 +179,9 @@ class _CardUsageRow extends ConsumerWidget {
     Statement? soonest;
     for (final statement in statements) {
       if (statement.remainingAmount <= 0) continue;
-      if (soonest == null || statement.dueDate.isBefore(soonest.dueDate))
+      if (soonest == null || statement.dueDate.isBefore(soonest.dueDate)) {
         soonest = statement;
+      }
     }
     return soonest;
   }

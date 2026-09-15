@@ -193,12 +193,12 @@ class _ReviewBody extends ConsumerWidget {
             itemCount: state.detected.length,
             itemBuilder: (context, index) {
               final transaction = state.detected[index];
-              final categoryName = categories
-                  .firstWhereOrNull((c) => c.id == transaction.categoryId)
-                  ?.name;
+              final category = categories.firstWhereOrNull(
+                (c) => c.id == transaction.categoryId,
+              );
               return DetectedTransactionTile(
                 transaction: transaction,
-                categoryName: categoryName,
+                category: category,
                 onToggleSelected: (selected) =>
                     controller.toggleSelected(transaction.id, selected),
                 onTap: () =>

@@ -116,8 +116,9 @@ class CashFlowChart extends StatelessWidget {
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index < 0 || index >= weeks.length)
+                        if (index < 0 || index >= weeks.length) {
                           return const SizedBox.shrink();
+                        }
                         return Padding(
                           padding: const EdgeInsets.only(top: AppSizes.xs),
                           child: Text(

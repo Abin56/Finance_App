@@ -5,15 +5,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/bank_logo.dart';
-import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
-import '../../../smart_import/presentation/widgets/detected_transaction_tile.dart';
 import '../providers/pdf_import_providers.dart';
 import '../providers/pdf_import_state.dart';
 import '../widgets/pdf_detected_transaction_edit_sheet.dart';
+import '../widgets/pdf_detected_transaction_tile.dart';
+import '../widgets/pdf_import_stage_dots.dart';
 
 /// The staged review for PDF Statement import — nothing here has touched
 /// Firestore yet. A copy of Paste Import's `PasteTransactionReviewScreen`
@@ -47,11 +48,18 @@ class PdfTransactionReviewScreen extends ConsumerWidget {
           title: Text(_titleFor(state)),
           automaticallyImplyLeading: state.stage != PdfImportStage.importing,
         ),
-        body: switch (state.stage) {
-          PdfImportStage.importing => _ImportingView(state: state),
-          PdfImportStage.done => _ImportSummaryScreenBody(state: state),
-          _ => _ReviewBody(state: state),
-        },
+        body: Column(
+          children: [
+            PdfImportStageDots(currentStep: _stepFor(state)),
+            Expanded(
+              child: switch (state.stage) {
+                PdfImportStage.importing => _ImportingView(state: state),
+                PdfImportStage.done => _ImportSummaryScreenBody(state: state),
+                _ => _ReviewBody(state: state),
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -60,6 +68,12 @@ class PdfTransactionReviewScreen extends ConsumerWidget {
     PdfImportStage.done => 'Import complete',
     PdfImportStage.importing => 'Importing…',
     _ => 'PDF Statement',
+  };
+
+  int _stepFor(PdfImportState state) => switch (state.stage) {
+    PdfImportStage.done => 2,
+    PdfImportStage.importing => 1,
+    _ => 1,
   };
 }
 
@@ -109,6 +123,11 @@ class _ReviewBody extends ConsumerWidget {
         .length;
     final allSelected =
         state.detected.isNotEmpty && state.detected.every((d) => d.isSelected);
+    final readyCount = state.detected.length - state.needsReviewCount;
+    final totalAmount = state.detected.fold<double>(
+      0,
+      (sum, d) => sum + (d.amount ?? 0),
+    );
 
     return Column(
       children: [
@@ -123,69 +142,155 @@ class _ReviewBody extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
-                      // Deliberately "We found N transactions" rather than
-                      // any bank-name claim — the parser is validated only
+                      // Deliberately "N Transactions" rather than any
+                      // bank-name claim — the parser is validated only
                       // against synthetic layouts, never a specific bank.
-                      '${state.detected.length} transaction${state.detected.length == 1 ? '' : 's'} found in this statement',
-                      style: context.textTheme.titleMedium,
+                      '${state.detected.length} Transaction${state.detected.length == 1 ? '' : 's'}',
+                      style: context.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: allSelected
-                        ? controller.deselectAll
-                        : controller.selectAll,
-                    child: Text(allSelected ? 'Deselect all' : 'Select all'),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        CurrencyFormatter.instance.format(totalAmount),
+                        style: context.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Total Amount',
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: context.flowfi.textTertiary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              if (state.needsReviewCount > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSizes.xs),
-                  child: Text(
-                    '${state.needsReviewCount} transaction${state.needsReviewCount == 1 ? '' : 's'} need review',
-                    style: context.textTheme.bodySmall?.copyWith(
+              const SizedBox(height: AppSizes.sm),
+              Row(
+                children: [
+                  _CountBadge(
+                    label: '$readyCount Ready',
+                    color: AppColors.income,
+                  ),
+                  if (state.needsReviewCount > 0) ...[
+                    const SizedBox(width: AppSizes.sm),
+                    _CountBadge(
+                      label: '${state.needsReviewCount} Need Review',
                       color: AppColors.pending,
                     ),
-                  ),
-                ),
+                  ],
+                ],
+              ),
               const SizedBox(height: AppSizes.md),
-              DropdownButtonFormField<String>(
-                initialValue: state.accountId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Account',
-                  isDense: true,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.md,
+                  vertical: AppSizes.xs,
                 ),
-                hint: const Text('Select which account these belong to'),
-                items: [
-                  for (final account in accounts)
-                    DropdownMenuItem(
-                      value: account.id,
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  border: Border.all(color: context.colors.outlineVariant),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSizes.xs),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          BankLogo(
-                            bankId: account.bankId,
-                            fallbackName: account.name,
-                            size: 20,
+                          Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: AppSizes.iconSm,
+                            color: context.colors.onSurfaceVariant,
                           ),
-                          const SizedBox(width: AppSizes.sm),
-                          Flexible(
-                            child: Text(
-                              account.name,
-                              overflow: TextOverflow.ellipsis,
+                          const SizedBox(width: AppSizes.xs),
+                          Text(
+                            'Account',
+                            style: context.textTheme.labelMedium?.copyWith(
+                              color: context.colors.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                     ),
-                ],
-                onChanged: (value) {
-                  if (value != null) controller.setAccount(value);
-                },
+                    DropdownButtonFormField<String>(
+                      initialValue: state.accountId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: AppSizes.xs,
+                        ),
+                      ),
+                      hint: const Text('Select which account these belong to'),
+                      items: [
+                        for (final account in accounts)
+                          DropdownMenuItem(
+                            value: account.id,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                BankLogo(
+                                  bankId: account.bankId,
+                                  fallbackName: account.name,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: AppSizes.sm),
+                                Flexible(
+                                  child: Text(
+                                    account.name,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) controller.setAccount(value);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            AppSizes.md,
+            AppSizes.lg,
+            0,
+          ),
+          child: Row(
+            children: [
+              Checkbox(
+                value: allSelected,
+                onChanged: (_) => allSelected
+                    ? controller.deselectAll()
+                    : controller.selectAll(),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              const SizedBox(width: AppSizes.xs),
+              Text('Select all', style: context.textTheme.bodyMedium),
+              const Spacer(),
+              Text(
+                '${state.detected.where((d) => d.isSelected).length} selected',
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.flowfi.textTertiary,
+                ),
               ),
             ],
           ),
@@ -201,9 +306,9 @@ class _ReviewBody extends ConsumerWidget {
             itemCount: state.detected.length,
             itemBuilder: (context, index) {
               final transaction = state.detected[index];
-              final categoryName = categories
-                  .firstWhereOrNull((c) => c.id == transaction.categoryId)
-                  ?.name;
+              final category = categories.firstWhereOrNull(
+                (c) => c.id == transaction.categoryId,
+              );
               return Dismissible(
                 key: ValueKey(transaction.id),
                 direction: DismissDirection.endToStart,
@@ -224,9 +329,9 @@ class _ReviewBody extends ConsumerWidget {
                 ),
                 onDismissed: (_) =>
                     controller.removeTransaction(transaction.id),
-                child: DetectedTransactionTile(
+                child: PdfDetectedTransactionTile(
                   transaction: transaction,
-                  categoryName: categoryName,
+                  category: category,
                   onToggleSelected: (selected) =>
                       controller.toggleSelected(transaction.id, selected),
                   onTap: () => PdfDetectedTransactionEditSheet.show(
@@ -254,51 +359,167 @@ class _ReviewBody extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (state.accountId == null)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: AppSizes.sm),
-                    child: Text(
-                      'Select an account to continue',
-                      style: TextStyle(color: AppColors.pending),
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                else ...[
-                  if (missingCategoryCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                      child: Text(
+                _ReviewFooterNotice(
+                  messages: [
+                    if (state.accountId == null)
+                      'Select an account to continue'
+                    else ...[
+                      if (missingCategoryCount > 0)
                         '$missingCategoryCount selected transaction${missingCategoryCount == 1 ? '' : 's'} '
-                        'need a category before they can be imported.',
-                        style: const TextStyle(color: AppColors.pending),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  if (selectedNeedsReviewCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                      child: Text(
+                            'need a category before they can be imported.',
+                      if (selectedNeedsReviewCount > 0)
                         '$selectedNeedsReviewCount selected transaction${selectedNeedsReviewCount == 1 ? '' : 's'} '
-                        "still need${selectedNeedsReviewCount == 1 ? 's' : ''} review and won't be imported yet.",
-                        style: const TextStyle(color: AppColors.pending),
-                        textAlign: TextAlign.center,
+                            "still need${selectedNeedsReviewCount == 1 ? 's' : ''} review and won't be imported yet.",
+                    ],
+                  ],
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${readyForImport.length} transaction${readyForImport.length == 1 ? '' : 's'} selected',
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: context.flowfi.textTertiary,
+                        ),
                       ),
                     ),
-                ],
-                PrimaryButton(
-                  label: 'Import Selected (${readyForImport.length})',
-                  onPressed:
-                      state.accountId != null &&
-                          readyForImport.isNotEmpty &&
-                          missingCategoryCount == 0
-                      ? controller.import
-                      : null,
+                    const SizedBox(width: AppSizes.sm),
+                    Flexible(
+                      child: _ImportPillButton(
+                        label: 'Import ${readyForImport.length} Transactions',
+                        onPressed:
+                            state.accountId != null &&
+                                readyForImport.isNotEmpty &&
+                                missingCategoryCount == 0
+                            ? controller.import
+                            : null,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The rounded, trailing-chevron "Import N Transactions" pill button — a
+/// one-off style distinct from the app's standard [PrimaryButton] (which
+/// puts its optional icon before the label, not after), so this is a small
+/// local widget rather than a change to that shared component.
+class _ImportPillButton extends StatelessWidget {
+  const _ImportPillButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSizes.lg,
+          vertical: AppSizes.sm + 2,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+          const SizedBox(width: AppSizes.xs),
+          const Icon(Icons.arrow_forward_rounded, size: AppSizes.iconSm),
+        ],
+      ),
+    );
+  }
+}
+
+/// A pill badge used next to the "N transactions found" title to call out
+/// a secondary count (e.g. "N need review") without stacking a whole extra
+/// line of colored text underneath, as the previous layout did.
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
+      child: Text(
+        label,
+        style: context.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Consolidates every currently-true footer warning (no account selected,
+/// missing category, still needs review) into one amber notice card instead
+/// of several separately-margined colored text lines — same visual idiom as
+/// [DetectedTransactionTile]'s duplicate-warning box. Renders nothing when
+/// [messages] is empty.
+class _ReviewFooterNotice extends StatelessWidget {
+  const _ReviewFooterNotice({required this.messages});
+
+  final List<String> messages;
+
+  @override
+  Widget build(BuildContext context) {
+    if (messages.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSizes.sm),
+      padding: const EdgeInsets.all(AppSizes.sm),
+      decoration: BoxDecoration(
+        color: AppColors.pending.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: AppSizes.iconSm,
+            color: AppColors.pending,
+          ),
+          const SizedBox(width: AppSizes.xs),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < messages.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: i == 0 ? 0 : AppSizes.xs,
+                    ),
+                    child: Text(
+                      messages[i],
+                      style: context.textTheme.bodySmall,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -311,20 +532,33 @@ class _ImportingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = state.importProgress;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: AppSizes.lg),
-          Text('Importing…', style: context.textTheme.titleMedium),
-          if (progress != null) ...[
-            const SizedBox(height: AppSizes.xs),
-            Text(
-              '${progress.$1} / ${progress.$2}',
-              style: context.textTheme.bodyMedium,
-            ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.xxl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: AppSizes.lg),
+            Text('Importing…', style: context.textTheme.titleMedium),
+            if (progress != null) ...[
+              const SizedBox(height: AppSizes.md),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                child: LinearProgressIndicator(
+                  value: progress.$2 == 0 ? null : progress.$1 / progress.$2,
+                  minHeight: 6,
+                  color: AppColors.primary,
+                  backgroundColor: context.colors.outlineVariant,
+                ),
+              ),
+              const SizedBox(height: AppSizes.xs),
+              Text(
+                '${progress.$1} / ${progress.$2}',
+                style: context.textTheme.bodyMedium,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -340,8 +574,9 @@ class _ImportSummaryScreenBody extends ConsumerWidget {
     if (result == null) return const SizedBox.shrink();
 
     final lines = <String>['${result.imported} imported'];
-    if (result.skippedDuplicates > 0)
+    if (result.skippedDuplicates > 0) {
       lines.add('${result.skippedDuplicates} skipped as duplicates');
+    }
     if (result.failed > 0) lines.add('${result.failed} failed');
 
     return EmptyState(

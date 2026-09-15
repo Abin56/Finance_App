@@ -23,8 +23,9 @@ class AppPieChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = data.slices.fold(0.0, (sum, s) => sum + s.value);
-    if (data.slices.isEmpty || total <= 0)
+    if (data.slices.isEmpty || total <= 0) {
       return SizedBox(height: size, width: size);
+    }
 
     return SizedBox(
       height: size,

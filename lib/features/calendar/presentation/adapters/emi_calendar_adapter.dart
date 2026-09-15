@@ -17,8 +17,9 @@ List<CalendarEvent> emisToCalendarEvents(
   for (final emi in emis) {
     final installments = installmentsByScheduleId[emi.scheduleId] ?? const [];
     for (final installment in installments) {
-      if (installment.status == InstallmentStatus.paid || installment.isSkipped)
+      if (installment.status == InstallmentStatus.paid || installment.isSkipped) {
         continue;
+      }
       events.add(
         CalendarEvent(
           date: installment.dueDate.dateOnly,

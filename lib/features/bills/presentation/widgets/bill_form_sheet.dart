@@ -206,8 +206,9 @@ class _BillFormSheetState extends ConsumerState<BillFormSheet> {
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   final parsed = int.tryParse(value?.trim() ?? '');
-                  if (parsed == null || parsed <= 0)
+                  if (parsed == null || parsed <= 0) {
                     return 'Enter a whole number of days';
+                  }
                   return null;
                 },
               ),

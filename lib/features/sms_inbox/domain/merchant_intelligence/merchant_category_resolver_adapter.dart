@@ -212,8 +212,9 @@ class MerchantAwareCategoryResolver {
   ) {
     for (final candidate in candidateNames) {
       for (final category in categories) {
-        if (category.name.toLowerCase() == candidate.toLowerCase())
+        if (category.name.toLowerCase() == candidate.toLowerCase()) {
           return category.id;
+        }
       }
     }
     return null;

@@ -68,8 +68,9 @@ class AutomationPolicy {
     }
 
     if (!input.accountResolved) return AutomationAction.needsReview;
-    if (input.confidenceLevel != ConfidenceLevel.high)
+    if (input.confidenceLevel != ConfidenceLevel.high) {
       return AutomationAction.needsReview;
+    }
 
     return input.autoCreateEnabled
         ? AutomationAction.createTransaction

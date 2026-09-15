@@ -87,8 +87,9 @@ class _RecordEmiMultiPaymentSheetState
   /// someone else paid, since there's no free-text note field in this
   /// sheet (each installment already carries its own label).
   String _noteFor(PayerSource payer) {
-    if (payer case PersonPayerSource(:final person))
+    if (payer case PersonPayerSource(:final person)) {
       return 'Paid by ${person.name}';
+    }
     return '';
   }
 

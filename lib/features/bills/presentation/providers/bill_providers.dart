@@ -146,11 +146,13 @@ final totalDueThisWeekProvider = Provider<double>((ref) {
     final occurrence = occurrences[bill.id];
     if (occurrence == null) continue;
     if (occurrence.status == BillStatus.paid ||
-        occurrence.status == BillStatus.skipped)
+        occurrence.status == BillStatus.skipped) {
       continue;
+    }
     if (occurrence.dueDate.dateOnly.isBefore(today) ||
-        occurrence.dueDate.dateOnly.isAfter(weekEnd))
+        occurrence.dueDate.dateOnly.isAfter(weekEnd)) {
       continue;
+    }
     total += occurrence.remainingAmount;
   }
   return total;

@@ -904,8 +904,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                         decimal: true,
                       ),
                       onChanged: (_) {
-                        if (_splitType == SplitType.custom)
+                        if (_splitType == SplitType.custom) {
                           _meRow.locked = true;
+                        }
                         _revalidateSplit();
                       },
                     ),
@@ -947,8 +948,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                       : 'Amount',
                   mixedMode: _splitType == SplitType.custom,
                   onValueChanged: () {
-                    if (_splitType == SplitType.custom)
+                    if (_splitType == SplitType.custom) {
                       _participants[i].locked = true;
+                    }
                     _revalidateSplit();
                   },
                   onToggleLock: () {
@@ -1049,8 +1051,9 @@ class _SplitExpenseFormSheetState extends ConsumerState<SplitExpenseFormSheet> {
                 value: _customAccountingMonth,
                 onChanged: (value) => setState(() {
                   _customAccountingMonth = value;
-                  if (!value)
+                  if (!value) {
                     _accountingMonth = DateTime(_date.year, _date.month);
+                  }
                 }),
               ),
               if (_customAccountingMonth) ...[

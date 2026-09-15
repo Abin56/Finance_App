@@ -150,8 +150,9 @@ class SmsMessageTile extends StatelessWidget {
   }
 
   Color _amountColor(BuildContext context, SmsTransactionDirection? direction) {
-    if (direction == null)
+    if (direction == null) {
       return context.colors.onSurface.withValues(alpha: 0.55);
+    }
     return direction == SmsTransactionDirection.credit
         ? AppColors.credit
         : AppColors.debit;

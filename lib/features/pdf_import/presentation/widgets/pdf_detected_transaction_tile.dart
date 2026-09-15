@@ -10,37 +10,36 @@ import '../../../../shared/widgets/lists/flowfi_list_tile.dart';
 import '../../../../shared/widgets/states/flowfi_amount_text.dart';
 import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../categories/domain/category.dart';
+import '../../../smart_import/domain/detected_transaction.dart';
 import '../../../transactions/domain/transaction_type.dart';
-import '../../domain/detected_transaction.dart';
 
-/// One row on the review screen — a checkbox, a category icon chip (same
-/// [FlowFiIconChip]/[FlowFiListTile]/[FlowFiAmountText] primitives
-/// [TransactionTile] uses, so a detected row looks like the same app rather
-/// than a separate one), the essentials (date, description, amount), a
-/// plain-language status, and — when relevant — a possible-duplicate warning
-/// with quick Skip/Import-anyway actions. Tapping anywhere on the row (other
-/// than the checkbox) opens the edit sheet.
-class DetectedTransactionTile extends StatelessWidget {
-  const DetectedTransactionTile({
+/// PDF import's row on the review screen — same [FlowFiCard]/
+/// [FlowFiListTile]/[FlowFiIconChip]/[FlowFiAmountText] primitives
+/// [TransactionTile] uses elsewhere in the app, styled to match the
+/// approved Figma mockup: a colored category icon chip, description +
+/// category, and a status/duplicate pill next to the date.
+class PdfDetectedTransactionTile extends StatelessWidget {
+  const PdfDetectedTransactionTile({
     super.key,
     required this.transaction,
+    required this.category,
     required this.onToggleSelected,
     required this.onTap,
     required this.onSkipDuplicate,
     required this.onImportAnywayDuplicate,
-    this.category,
   });
 
   final DetectedTransaction transaction;
-  final ValueChanged<bool> onToggleSelected;
-  final VoidCallback onTap;
-  final VoidCallback onSkipDuplicate;
-  final VoidCallback onImportAnywayDuplicate;
 
   /// The resolved category this row is suggested/assigned to — null shows a
   /// neutral "uncategorized" chip, exactly like [TransactionTile] does for a
   /// real transaction with no category.
   final Category? category;
+
+  final ValueChanged<bool> onToggleSelected;
+  final VoidCallback onTap;
+  final VoidCallback onSkipDuplicate;
+  final VoidCallback onImportAnywayDuplicate;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +113,10 @@ class DetectedTransactionTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: AppSizes.xs),
-                  _StatusChip(needsReview: needsReview),
+                  _StatusChip(
+                    needsReview: needsReview,
+                    isDuplicate: transaction.isDuplicate,
+                  ),
                 ],
               ),
             ),
@@ -155,12 +157,17 @@ class DetectedTransactionTile extends StatelessWidget {
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.needsReview});
+  const _StatusChip({required this.needsReview, required this.isDuplicate});
   final bool needsReview;
+  final bool isDuplicate;
 
   @override
   Widget build(BuildContext context) {
-    final color = needsReview ? AppColors.pending : AppColors.income;
+    final (color, icon, label) = isDuplicate
+        ? (AppColors.pending, Icons.content_copy_rounded, 'Duplicate')
+        : needsReview
+        ? (AppColors.pending, Icons.error_outline_rounded, 'Review')
+        : (AppColors.income, Icons.check_circle_outline_rounded, 'Ready');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
       decoration: BoxDecoration(
@@ -170,16 +177,10 @@ class _StatusChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            needsReview
-                ? Icons.error_outline_rounded
-                : Icons.check_circle_outline_rounded,
-            size: AppSizes.iconSm,
-            color: color,
-          ),
+          Icon(icon, size: AppSizes.iconSm, color: color),
           const SizedBox(width: 2),
           Text(
-            needsReview ? 'Needs review' : 'Ready',
+            label,
             style: context.textTheme.bodySmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w600,

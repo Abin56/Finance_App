@@ -113,11 +113,13 @@ class SmsFilterCriteria {
     // Checked first and unconditionally: a flagged duplicate must never
     // appear in the default feed no matter what other facets are set, and the
     // Duplicates review must never show anything else.
-    if ((duplicates == SmsDuplicateVisibility.only) != item.isDuplicate)
+    if ((duplicates == SmsDuplicateVisibility.only) != item.isDuplicate) {
       return false;
+    }
 
-    if (categories.isNotEmpty && !categories.contains(parsed?.category))
+    if (categories.isNotEmpty && !categories.contains(parsed?.category)) {
       return false;
+    }
     if (!direction.matches(parsed?.direction)) return false;
     if (statuses.isNotEmpty && !statuses.contains(item.status)) return false;
 
@@ -140,8 +142,9 @@ class SmsFilterCriteria {
     }
 
     if (cardIds.isNotEmpty &&
-        !cardIds.contains(context.cardMatcher.cardIdFor(item)))
+        !cardIds.contains(context.cardMatcher.cardIdFor(item))) {
       return false;
+    }
 
     return true;
   }

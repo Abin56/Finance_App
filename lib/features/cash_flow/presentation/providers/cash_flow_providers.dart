@@ -338,8 +338,9 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((
       if (view.current != null) view.current!,
     ];
     for (final o in relevant) {
-      if (o.status == BillStatus.paid || o.status == BillStatus.skipped)
+      if (o.status == BillStatus.paid || o.status == BillStatus.skipped) {
         continue;
+      }
       final isCarriedOver = view.previousCyclePending.contains(o);
       items.add((
         kind: UpcomingPaymentKind.bill,
@@ -493,8 +494,9 @@ final moneyInLinesForRangeFamilyProvider =
       for (final t in transactions) {
         if (t.isDeleted || t.type != TransactionType.income) continue;
         final bucketDate = period.bucketDateFor(t);
-        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) {
           continue;
+        }
         lines.add((
           kind: MoneyFlowKind.income,
           date: t.dateTime,
@@ -512,8 +514,9 @@ final moneyInLinesForRangeFamilyProvider =
         final transaction = calculableById[expense.transactionId];
         if (transaction == null) continue;
         final bucketDate = period.bucketDateFor(transaction);
-        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) {
           continue;
+        }
         final installments =
             ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
             const [];
@@ -634,8 +637,9 @@ final moneyOutLinesForRangeFamilyProvider =
       for (final t in transactions) {
         if (t.isDeleted || t.type != TransactionType.expense) continue;
         final bucketDate = period.bucketDateFor(t);
-        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+        if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) {
           continue;
+        }
         lines.add((
           kind: MoneyFlowKind.expense,
           date: t.dateTime,
@@ -651,8 +655,9 @@ final moneyOutLinesForRangeFamilyProvider =
             ref.watch(installmentsStreamProvider(emi.scheduleId)).value ??
             const [];
         for (final i in installments) {
-          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end))
+          if (i.dueDate.isBefore(range.start) || i.dueDate.isAfter(range.end)) {
             continue;
+          }
           if (i.amountPaid <= 0) continue;
           lines.add((
             kind: MoneyFlowKind.emi,
@@ -721,8 +726,9 @@ final moneyOutLinesForRangeFamilyProvider =
             ref.watch(billOccurrencesStreamProvider(bill.id)).value ?? const [];
         for (final o in occurrences) {
           if (o.status == BillStatus.skipped) continue;
-          if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end))
+          if (o.dueDate.isBefore(range.start) || o.dueDate.isAfter(range.end)) {
             continue;
+          }
           if (o.amountPaid <= 0) continue;
           lines.add((
             kind: MoneyFlowKind.bill,
@@ -841,8 +847,9 @@ final myExpenseLinesForRangeProvider = Provider<List<MyExpenseLine>>((ref) {
   for (final t in transactions) {
     if (t.isDeleted || t.type != TransactionType.expense) continue;
     final bucketDate = period.bucketDateFor(t);
-    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end))
+    if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) {
       continue;
+    }
 
     final expense = expenseByTransactionId[t.id];
     final myShare = expense?.myShare ?? t.amount;

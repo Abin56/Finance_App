@@ -189,8 +189,9 @@ final upcomingDueBreakdownProvider =
           var principal = 0.0;
           var interest = 0.0;
           for (final installment in installments) {
-            if (installment.remainingAmount <= 0 || installment.isSkipped)
+            if (installment.remainingAmount <= 0 || installment.isSkipped) {
               continue;
+            }
             final p = installment.principalPortion;
             final i = installment.interestPortion;
             if (p != null && i != null) {

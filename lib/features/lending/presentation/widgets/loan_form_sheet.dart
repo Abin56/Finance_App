@@ -197,8 +197,9 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
   /// Always false for one-time loans (they have no editable terms).
   bool get _termsChanged {
     final loan = widget.loan;
-    if (loan == null || loan.repaymentType != LoanRepaymentType.installment)
+    if (loan == null || loan.repaymentType != LoanRepaymentType.installment) {
       return false;
+    }
     final newCount = int.tryParse(_installmentCountController.text.trim());
     if (newCount == null || newCount != loan.installmentCount) return true;
     if (_installmentFrequency != loan.installmentFrequency) return true;
@@ -218,8 +219,9 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
   /// installment loans; one-time loans use [_dueDate] instead.
   bool get _loanDateChanged {
     final loan = widget.loan;
-    if (loan == null || loan.repaymentType != LoanRepaymentType.installment)
+    if (loan == null || loan.repaymentType != LoanRepaymentType.installment) {
       return false;
+    }
     return !_loanDate.isAtSameMomentAs(loan.loanDate);
   }
 
@@ -599,8 +601,9 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
               onChanged: (value) async {
                 if (value == _addNewPersonValue) {
                   final newPersonId = await PersonFormSheet.show(context);
-                  if (newPersonId != null)
+                  if (newPersonId != null) {
                     setState(() => _payerPersonId = newPersonId);
+                  }
                   return;
                 }
                 setState(() => _payerPersonId = value);

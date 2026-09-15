@@ -96,8 +96,9 @@ class SmsCandidateSummary extends ConsumerWidget {
     if (cardId != null) {
       final cards = ref.watch(activeCreditCardsProvider);
       final card = cards.firstWhereOrNull((c) => c.id == cardId);
-      if (card?.lastFourDigits != null)
+      if (card?.lastFourDigits != null) {
         return '${account.name} •••• ${card!.lastFourDigits}';
+      }
     }
     return account.name;
   }

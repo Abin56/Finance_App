@@ -12,7 +12,6 @@ import 'package:finance_app/features/expense/data/expense_repository.dart';
 import 'package:finance_app/features/expense/domain/split_type.dart';
 import 'package:finance_app/features/expense/presentation/providers/expense_providers.dart';
 import 'package:finance_app/features/reports/domain/reports_period.dart';
-import 'package:finance_app/features/transactions/domain/transaction_type.dart';
 import 'package:finance_app/features/transactions/presentation/providers/transaction_providers.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';

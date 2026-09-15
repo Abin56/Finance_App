@@ -195,12 +195,12 @@ class _ReviewBody extends ConsumerWidget {
             itemCount: state.detected.length,
             itemBuilder: (context, index) {
               final transaction = state.detected[index];
-              final categoryName = categories
-                  .firstWhereOrNull((c) => c.id == transaction.categoryId)
-                  ?.name;
+              final category = categories.firstWhereOrNull(
+                (c) => c.id == transaction.categoryId,
+              );
               return DetectedTransactionTile(
                 transaction: transaction,
-                categoryName: categoryName,
+                category: category,
                 onToggleSelected: (selected) =>
                     controller.toggleSelected(transaction.id, selected),
                 onTap: () => PasteDetectedTransactionEditSheet.show(
@@ -312,8 +312,9 @@ class _ImportSummaryScreenBody extends ConsumerWidget {
     if (result == null) return const SizedBox.shrink();
 
     final lines = <String>['${result.imported} imported'];
-    if (result.skippedDuplicates > 0)
+    if (result.skippedDuplicates > 0) {
       lines.add('${result.skippedDuplicates} skipped as duplicates');
+    }
     if (result.failed > 0) lines.add('${result.failed} failed');
 
     return EmptyState(
