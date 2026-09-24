@@ -93,17 +93,33 @@ class PersonRepository extends FirestoreCrudRepository<Person> {
   /// Applies a signed delta to a person's running balance — the hook
   /// [LedgerRepository] calls on every ledger write so `currentBalance`
   /// never has to be derived by summing every ledger entry on each read.
-  /// Mirrors [AccountRepository.adjustBalance] exactly.
+  /// Mirrors [AccountRepository.adjustBalance] exactly, including running
+  /// inside a Firestore transaction that re-reads the person fresh rather
+  /// than trusting [person]'s possibly-stale in-memory snapshot — this app
+  /// and the web app share the same people/ledger data and can write to the
+  /// same person concurrently. [person]'s `currentBalance`/`editHistory` are
+  /// synced to the value actually persisted, preserving every existing
+  /// caller's "mutates in place" expectation.
   Future<void> adjustBalance(Person person, double delta) async {
     if (delta == 0) return;
-    final newBalance = person.currentBalance + delta;
-    person.recordEdit(
-      field: 'currentBalance',
-      oldValue: person.currentBalance.toString(),
-      newValue: newBalance.toString(),
-    );
-    person.currentBalance = newBalance;
-    await update(person);
+    final docRef = collection.doc(person.id);
+    await collection.firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      final current = snapshot.data();
+      if (current == null) {
+        throw const AppException('Person not found');
+      }
+      final newBalance = current.currentBalance + delta;
+      current.recordEdit(
+        field: 'currentBalance',
+        oldValue: current.currentBalance.toString(),
+        newValue: newBalance.toString(),
+      );
+      current.currentBalance = newBalance;
+      transaction.set(docRef, current);
+      person.currentBalance = current.currentBalance;
+      person.editHistory = current.editHistory;
+    });
   }
 
   /// Permanently deletes [person] and every [LedgerEntry] ever recorded

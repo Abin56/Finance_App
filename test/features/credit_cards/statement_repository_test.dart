@@ -26,6 +26,8 @@ Transaction _purchase({
   required String id,
   required double amount,
   required DateTime dateTime,
+  bool excludeFromCalculations = false,
+  String? transferId,
 }) {
   return Transaction(
     id: id,
@@ -35,6 +37,8 @@ Transaction _purchase({
     accountId: 'acc1',
     categoryId: 'cat1',
     createdAt: dateTime,
+    excludeFromCalculations: excludeFromCalculations,
+    transferId: transferId,
   );
 }
 
@@ -398,6 +402,81 @@ void main() {
       expect(refreshed!.totalAmount, 1000);
     });
   });
+
+  group(
+    'Global financial integrity audit — totalFor must exclude excludeFromCalculations/transfer legs',
+    () {
+      test(
+        'excludeFromCalculations transactions do not inflate the current-cycle total',
+        () {
+          final card = _card();
+          final transactions = [
+            _purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18)),
+            _purchase(
+              id: 't2',
+              amount: 9999,
+              dateTime: DateTime(2026, 6, 20),
+              excludeFromCalculations: true,
+            ),
+          ];
+
+          final current = repository.currentCycleFor(
+            card,
+            transactions,
+            now: DateTime(2026, 7, 1),
+          );
+
+          expect(current.totalAmount, 500);
+        },
+      );
+
+      test('transfer legs do not inflate the current-cycle total', () {
+        final card = _card();
+        final transactions = [
+          _purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18)),
+          _purchase(
+            id: 't2',
+            amount: 9999,
+            dateTime: DateTime(2026, 6, 20),
+            transferId: 'transfer-1',
+          ),
+        ];
+
+        final current = repository.currentCycleFor(
+          card,
+          transactions,
+          now: DateTime(2026, 7, 1),
+        );
+
+        expect(current.totalAmount, 500);
+      });
+
+      test(
+        'a materialized statement total permanently excludes an excludeFromCalculations transaction',
+        () async {
+          final card = _card();
+          final transactions = [
+            _purchase(id: 't1', amount: 500, dateTime: DateTime(2026, 6, 18)),
+            _purchase(
+              id: 't2',
+              amount: 9999,
+              dateTime: DateTime(2026, 6, 20),
+              excludeFromCalculations: true,
+            ),
+          ];
+
+          final statement = await repository.materializeIfDue(
+            card,
+            transactions,
+            const [],
+            now: DateTime(2026, 7, 20),
+          );
+
+          expect(statement!.totalAmount, 500);
+        },
+      );
+    },
+  );
 
   group('StatementRepository.applyPayment', () {
     test('clamps amountPaid to totalAmount and persists the update', () async {

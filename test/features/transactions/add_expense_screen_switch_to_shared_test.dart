@@ -80,18 +80,13 @@ void main() {
       await tester.enterText(textFields.at(1), 'Team lunch'); // Description
       await tester.pumpAndSettle();
 
-      // Switch to Shared Expense.
+      // Switch to Shared Expense — opens the Split sheet directly, no
+      // chooser in between (see `AddExpenseScreen._switchToSplitExpense`).
       await tester.ensureVisible(find.text('Share Expense'));
       await tester.tap(find.text('Share Expense'));
       await tester.pumpAndSettle();
 
-      // AddExpenseChooser sheet is open, offering the two options.
-      expect(find.text('Share with several people'), findsOneWidget);
-
-      // Choose the split flow — should open with the description carried over.
-      await tester.tap(find.text('Share with several people'));
-      await tester.pumpAndSettle();
-
+      expect(find.byType(SplitExpenseFormSheet), findsOneWidget);
       expect(find.text('Team lunch'), findsWidgets);
       expect(find.text('250.00'), findsWidgets);
 

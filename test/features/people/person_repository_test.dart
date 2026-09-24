@@ -207,6 +207,36 @@ void main() {
 
       expect(person.editHistory, isEmpty);
     });
+
+    test(
+      'REGRESSION (audit finding, 2026-09-23): composes two concurrent '
+      'deltas instead of losing one — mirrors AccountRepository\'s '
+      'equivalent regression test. Two independently fetched copies of the '
+      'same person (simulating this app and the web app both holding a '
+      'balance they read moments apart) each applying their own delta from '
+      'that same stale starting point must compose correctly, not have the '
+      'second write silently clobber the first\'s effect.',
+      () async {
+        final created = await repository.createPerson(
+          name: 'Alex',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 1000,
+        );
+
+        final mobileCopy = await repository.getByKey(created.id);
+        final webCopy = await repository.getByKey(created.id);
+        expect(mobileCopy!.currentBalance, 1000);
+        expect(webCopy!.currentBalance, 1000);
+
+        await repository.adjustBalance(mobileCopy, 200);
+        expect((await repository.getByKey(created.id))?.currentBalance, 1200);
+
+        await repository.adjustBalance(webCopy, 300);
+
+        final finalPerson = await repository.getByKey(created.id);
+        expect(finalPerson?.currentBalance, 1500);
+      },
+    );
   });
 
   group('PersonRepository.deletePersonAndLedger', () {

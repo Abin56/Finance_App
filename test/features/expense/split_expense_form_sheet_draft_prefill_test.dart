@@ -89,6 +89,15 @@ void main() {
     await pump(tester);
 
     expect(find.text('Dinner with friends'), findsNothing);
+
+    // Advanced Options is collapsed by default with no prefill (progressive
+    // disclosure — see `_advancedExpanded`'s doc comment); expand it before
+    // asserting on the toggles inside.
+    final header = find.text('Advanced options');
+    await tester.ensureVisible(header);
+    await tester.tap(header);
+    await tester.pumpAndSettle();
+
     final excludeToggle = find.widgetWithText(
       SwitchListTile,
       "Don't count this in my totals",

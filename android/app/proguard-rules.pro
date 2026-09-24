@@ -10,3 +10,10 @@
 # runtime (swallowed by AsyncValue.guard), which looks like a dead button.
 -keep class com.baseflow.permissionhandler.** { *; }
 -keep class com.juliusgithaiga.flutter_sms_inbox.** { *; }
+
+# google_mlkit_text_recognition references optional script-specific recognizers
+# (Chinese/Devanagari/Japanese/Korean) that are not bundled; only Latin is used.
+-dontwarn com.google.mlkit.vision.text.chinese.**
+-dontwarn com.google.mlkit.vision.text.devanagari.**
+-dontwarn com.google.mlkit.vision.text.japanese.**
+-dontwarn com.google.mlkit.vision.text.korean.**

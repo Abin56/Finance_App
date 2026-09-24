@@ -35,10 +35,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Advanced Options is collapsed by default (progressive disclosure, so
+  /// the fast/common entry path doesn't scroll past rarely-used settings) —
+  /// tap its header row to reveal the toggles below before interacting with
+  /// them. See `docs/ui-ux-design-system.md` §6: redesigns may change *how*
+  /// an option is reached as long as the resulting behavior is unchanged.
+  Future<void> expandAdvancedOptions(WidgetTester tester) async {
+    final header = find.text('Advanced options');
+    await tester.ensureVisible(header);
+    await tester.tap(header);
+    await tester.pumpAndSettle();
+  }
+
   testWidgets(
     '"Don\'t count this in my totals" toggle starts off and can be switched on',
     (tester) async {
       await pump(tester);
+      await expandAdvancedOptions(tester);
 
       final toggle = find.widgetWithText(
         SwitchListTile,
@@ -59,6 +72,7 @@ void main() {
     'Accounting Month starts as "counted in the transaction\'s own month" with no stepper or warning',
     (tester) async {
       await pump(tester);
+      await expandAdvancedOptions(tester);
 
       expect(find.textContaining('Right now: counted in'), findsOneWidget);
       expect(find.byTooltip('Next month'), findsNothing);
@@ -70,6 +84,7 @@ void main() {
     'switching to a different Accounting Month shows the stepper and the warning banner',
     (tester) async {
       await pump(tester);
+      await expandAdvancedOptions(tester);
 
       final accountingMonthToggle = find.widgetWithText(
         SwitchListTile,

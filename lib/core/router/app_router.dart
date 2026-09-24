@@ -181,8 +181,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.personStatement,
-        builder: (context, state) =>
-            PersonStatementScreen(personId: state.pathParameters['personId']!),
+        pageBuilder: (context, state) => _BottomSheetPage<void>(
+          key: state.pageKey,
+          child: PersonStatementScreen(
+            personId: state.pathParameters['personId']!,
+          ),
+        ),
       ),
       GoRoute(
         path: AppRoutes.creditors,
@@ -353,3 +357,32 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Presents a route as a draggable, rounded modal bottom sheet (popup) instead
+/// of a full-page transition. Swipe down or tap the scrim to dismiss.
+class _BottomSheetPage<T> extends Page<T> {
+  const _BottomSheetPage({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Route<T> createRoute(BuildContext context) {
+    return ModalBottomSheetRoute<T>(
+      settings: this,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      constraints: BoxConstraints.tightFor(
+        height: MediaQuery.sizeOf(context).height * 0.92,
+      ),
+      capturedThemes: InheritedTheme.capture(
+        from: context,
+        to: Navigator.of(context, rootNavigator: true).context,
+      ),
+      builder: (_) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: child,
+      ),
+    );
+  }
+}

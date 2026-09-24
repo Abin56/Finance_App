@@ -113,7 +113,8 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
           59,
           59,
         );
-        if (e.date.isBefore(_dateRange!.start) || e.date.isAfter(endOfRangeDay)) {
+        if (e.date.isBefore(_dateRange!.start) ||
+            e.date.isAfter(endOfRangeDay)) {
           return false;
         }
       }
@@ -322,55 +323,14 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     return [
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-        sliver: SliverList.builder(
-          itemCount: slots.length,
-          itemBuilder: (context, index) {
-            final slot = slots[index];
-            if (slot is _CycleSectionHeader) {
-              return _CycleSectionHeaderTile(header: slot);
-            }
-            if (slot is String) {
-              return Padding(
-                padding: const EdgeInsets.only(
-                  top: AppSizes.sm,
-                  bottom: AppSizes.sm,
-                ),
-                child: Text(
-                  slot,
-                  style: context.textTheme.titleSmall?.copyWith(
-                    color: context.colors.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              );
-            }
-            final entry = slot as PersonTimelineEntry;
-            if (entry.isSectionHeader) {
-              return Padding(
-                padding: const EdgeInsets.only(
-                  top: AppSizes.xs,
-                  bottom: AppSizes.xs,
-                ),
-                child: Text(
-                  entry.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              );
-            }
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppSizes.xs),
-              child: _buildTile(
-                context,
-                person,
-                entry,
-                ledgerEntryById,
-                carriedForward: cycleView.carriedForwardIds.contains(entry.id),
-              ),
-            );
-          },
+        sliver: SliverToBoxAdapter(
+          child: _buildTable(
+            context,
+            person,
+            slots,
+            ledgerEntryById,
+            cycleView,
+          ),
         ),
       ),
       if (_tab == _LedgerTab.history)
@@ -460,90 +420,131 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     return slots;
   }
 
-  Widget _buildTile(
+  /// The People transaction table: one horizontally scrollable grid with a
+  /// header row, section/cycle label rows, and one numbered row per entry.
+  Widget _buildTable(
+    BuildContext context,
+    Person person,
+    List<Object> slots,
+    Map<String, LedgerEntry> ledgerEntryById,
+    PersonCycleView cycleView,
+  ) {
+    var number = 0;
+    final rows = <Widget>[const _TableHeaderRow()];
+    for (final slot in slots) {
+      if (slot is _CycleSectionHeader) {
+        rows.add(_TableSectionRow(label: slot.label, emphasized: true));
+      } else if (slot is String) {
+        rows.add(_TableSectionRow(label: slot));
+      } else {
+        final entry = slot as PersonTimelineEntry;
+        if (entry.isSectionHeader) {
+          rows.add(_TableSectionRow(label: entry.title));
+          continue;
+        }
+        number++;
+        final transactionRef = _transactionRefFor(entry, ledgerEntryById);
+        final ledgerEntry = ledgerEntryById[entry.id];
+        rows.add(
+          _LedgerTableRow(
+            number: number,
+            entry: entry,
+            carriedForward: cycleView.carriedForwardIds.contains(entry.id),
+            onTap: entry.category == PersonTimelineCategory.reference
+                ? () => context.push('${AppRoutes.transactions}/${entry.id}')
+                : transactionRef == null
+                ? null
+                : () => PersonExpenseDetailScreen.open(
+                    context,
+                    transactionId: transactionRef,
+                  ),
+            onDelete: ledgerEntry == null
+                ? null
+                : () => _deleteEntry(
+                    context,
+                    person,
+                    entry,
+                    ledgerEntry,
+                    transactionRef,
+                  ),
+          ),
+        );
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        border: Border.all(
+          color: context.colors.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: _kTableWidth,
+          child: Column(children: rows),
+        ),
+      ),
+    );
+  }
+
+  /// Confirms, then deletes one ledger-backed row — cascading through the
+  /// whole expense when the entry is expense-linked, otherwise moving just the
+  /// ledger entry to trash with an Undo.
+  Future<void> _deleteEntry(
     BuildContext context,
     Person person,
     PersonTimelineEntry entry,
-    Map<String, LedgerEntry> ledgerEntryById, {
-    bool carriedForward = false,
-  }) {
-    final transactionRef = _transactionRefFor(entry, ledgerEntryById);
-    final tile = _ContactLedgerTile(
-      entry: entry,
-      carriedForward: carriedForward,
-      onTap: entry.category == PersonTimelineCategory.reference
-          ? () => context.push('${AppRoutes.transactions}/${entry.id}')
-          : transactionRef == null
-          ? null
-          : () => PersonExpenseDetailScreen.open(
-              context,
-              transactionId: transactionRef,
-            ),
+    LedgerEntry ledgerEntry,
+    String? transactionRef,
+  ) async {
+    final confirmed = await confirmDelete(
+      context,
+      entityName: transactionRef == null ? 'Entry' : 'Expense',
     );
-
-    // Loan-derived entries have no editable ledger document, so they can't be
-    // swipe-deleted; everything else keeps the swipe-to-trash gesture.
-    final ledgerEntry = ledgerEntryById[entry.id];
-    if (ledgerEntry == null) return tile;
+    if (confirmed != true || !context.mounted) return;
 
     final ledgerRepository = ref.read(
       ledgerRepositoryProvider(widget.personId),
     );
-    return Dismissible(
-      key: ValueKey(entry.id),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => confirmDelete(
-        context,
-        entityName: transactionRef == null ? 'Entry' : 'Expense',
-      ),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
-        decoration: BoxDecoration(
-          color: context.colors.error.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-        ),
-        child: Icon(Icons.delete_outline_rounded, color: context.colors.error),
-      ),
-      onDismissed: (_) async {
-        setState(() => _dismissedEntryIds.add(entry.id));
-        if (transactionRef != null) {
-          // Expense-linked entry: cascade-delete the whole expense (transaction,
-          // schedule/installments, every linked ledger entry across all
-          // participants) via ExpenseRepository.deleteExpense, otherwise the
-          // Transaction/Expense docs stay live and keep counting toward
-          // Dashboard/report totals and the person's cached balance.
-          final expenses = await ref.read(expenseRepositoryProvider).getAll();
-          final expense = expenses.firstWhereOrNull(
-            (e) => e.transactionId == transactionRef,
-          );
-          if (expense != null) {
-            await ref.read(expenseRepositoryProvider).deleteExpense(expense);
-          } else {
-            await ledgerRepository.softDeleteEntry(person, ledgerEntry);
-          }
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Expense deleted')));
-          return;
-        }
+    setState(() => _dismissedEntryIds.add(entry.id));
+    if (transactionRef != null) {
+      // Expense-linked entry: cascade-delete the whole expense (transaction,
+      // schedule/installments, every linked ledger entry across all
+      // participants) via ExpenseRepository.deleteExpense, otherwise the
+      // Transaction/Expense docs stay live and keep counting toward
+      // Dashboard/report totals and the person's cached balance.
+      final expenses = await ref.read(expenseRepositoryProvider).getAll();
+      final expense = expenses.firstWhereOrNull(
+        (e) => e.transactionId == transactionRef,
+      );
+      if (expense != null) {
+        await ref.read(expenseRepositoryProvider).deleteExpense(expense);
+      } else {
         await ledgerRepository.softDeleteEntry(person, ledgerEntry);
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Entry moved to trash'),
-            action: SnackBarAction(
-              label: 'Undo',
-              onPressed: () {
-                ledgerRepository.restoreEntry(person, ledgerEntry);
-                setState(() => _dismissedEntryIds.remove(entry.id));
-              },
-            ),
-          ),
-        );
-      },
-      child: tile,
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Expense deleted')));
+      return;
+    }
+    await ledgerRepository.softDeleteEntry(person, ledgerEntry);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Entry moved to trash'),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () {
+            ledgerRepository.restoreEntry(person, ledgerEntry);
+            setState(() => _dismissedEntryIds.remove(entry.id));
+          },
+        ),
+      ),
     );
   }
 
@@ -869,22 +870,108 @@ class _MenuTile extends StatelessWidget {
   }
 }
 
-/// One row in the Contact Ledger's month-grouped list (Figma frame 1's card):
-/// a tinted category/type icon, the expense description, its date and money
-/// direction, the signed amount, and — for expense entries — a status pill.
-class _ContactLedgerTile extends StatelessWidget {
-  const _ContactLedgerTile({
+const double _kNoW = 48;
+const double _kStatusW = 132;
+const double _kDateW = 92;
+const double _kDescW = 230;
+const double _kAmountW = 120;
+const double _kTypeW = 150;
+const double _kActionW = 56;
+const double _kTableWidth =
+    _kNoW + _kStatusW + _kDateW + _kDescW + _kAmountW + _kTypeW + _kActionW;
+
+/// Header row of the People transaction table (NO / STATUS / DATE / …).
+class _TableHeaderRow extends StatelessWidget {
+  const _TableHeaderRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = context.textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.6,
+      color: context.colors.onSurface.withValues(alpha: 0.6),
+    );
+    Widget cell(String t, double w, {TextAlign align = TextAlign.left}) =>
+        SizedBox(
+          width: w,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
+            child: Text(t, style: style, textAlign: align),
+          ),
+        );
+    return Container(
+      height: 40,
+      color: context.colors.onSurface.withValues(alpha: 0.05),
+      child: Row(
+        children: [
+          cell('NO', _kNoW),
+          cell('STATUS', _kStatusW),
+          cell('DATE', _kDateW),
+          cell('DESCRIPTION', _kDescW),
+          cell('AMOUNT', _kAmountW, align: TextAlign.right),
+          cell('TYPE', _kTypeW),
+          const SizedBox(width: _kActionW),
+        ],
+      ),
+    );
+  }
+}
+
+/// A full-width label row inside the table (month / cycle / loan headings).
+class _TableSectionRow extends StatelessWidget {
+  const _TableSectionRow({required this.label, this.emphasized = false});
+
+  final String label;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: _kTableWidth,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.md,
+        vertical: AppSizes.sm,
+      ),
+      decoration: BoxDecoration(
+        color: emphasized
+            ? context.colors.primary.withValues(alpha: 0.08)
+            : null,
+        border: Border(
+          top: BorderSide(color: context.colors.outline.withValues(alpha: 0.2)),
+        ),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: context.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: emphasized
+              ? context.colors.primary
+              : context.colors.onSurface.withValues(alpha: 0.7),
+        ),
+      ),
+    );
+  }
+}
+
+/// One numbered transaction row of the People table: NO, status, date,
+/// description (+ subtitle), signed amount, type, and a delete action.
+class _LedgerTableRow extends StatelessWidget {
+  const _LedgerTableRow({
+    required this.number,
     required this.entry,
     required this.onTap,
+    required this.onDelete,
     this.carriedForward = false,
   });
 
+  final int number;
   final PersonTimelineEntry entry;
   final VoidCallback? onTap;
 
-  /// True when this entry is previous-cycle-pending, shown again at the top
-  /// of the Current Cycle section so the user can't miss it — see
-  /// `personCycleViewProvider`.
+  /// Null for loan-derived entries, which have no editable ledger document.
+  final VoidCallback? onDelete;
   final bool carriedForward;
 
   static const _splitSettlementPrefix = 'Split settlement:';
@@ -901,9 +988,6 @@ class _ContactLedgerTile extends StatelessWidget {
     return note.isNotEmpty ? note : entry.title;
   }
 
-  /// True when this entry has a resolved total with some (but not all) of it
-  /// paid — the case where showing just the reduced amount would otherwise
-  /// hide that a payment was already made against it.
   bool get _hasPartialPayment {
     final total = entry.totalAmount;
     final paid = entry.paidAmount;
@@ -912,142 +996,171 @@ class _ContactLedgerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final muted = colors.onSurface.withValues(alpha: 0.6);
     final signed = entry.signedAmount;
-    final positive = signed >= 0;
-    final amountColor = entry.color;
-    final directionLabel = signed == 0
+    final direction = signed == 0
         ? null
-        : (positive ? 'To Receive' : 'To Pay');
-    final directionColor = positive ? AppColors.success : AppColors.error;
+        : (signed >= 0 ? 'To Receive' : 'To Pay');
+
+    Widget cell(double w, Widget child) => SizedBox(
+      width: w,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
+        child: child,
+      ),
+    );
+
+    final Widget status;
+    if (carriedForward) {
+      status = const _TableChip(label: 'Carried fwd', color: AppColors.warning);
+    } else if (entry.category == PersonTimelineCategory.reference) {
+      status = const _TableChip(label: 'Reference', color: AppColors.pending);
+    } else if (entry.status != null) {
+      status = _TableChip(
+        label: entry.status!.label,
+        color: entry.status!.color,
+      );
+    } else {
+      status = Text('—', style: TextStyle(color: muted));
+    }
 
     return Material(
       color: carriedForward
-          ? AppColors.warning.withValues(alpha: 0.08)
-          : context.colors.surface,
-      borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-      clipBehavior: Clip.antiAlias,
-      child: Container(
-        decoration: carriedForward
-            ? BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: AppColors.warning, width: 3),
-                ),
-              )
-            : null,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSizes.md,
-              vertical: AppSizes.sm,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: amountColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  ),
-                  child: Icon(
-                    entry.icon,
-                    color: amountColor,
-                    size: AppSizes.iconSm,
-                  ),
-                ),
-                const SizedBox(width: AppSizes.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (carriedForward)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
-                          child: Text(
-                            'CARRIED FORWARD · PREVIOUS CYCLE PENDING',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.textTheme.labelSmall?.copyWith(
-                              color: AppColors.warning,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                        ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _title,
-                              style: context.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: AppSizes.sm),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                CurrencyFormatter.instance.format(
-                                  entry.remainingDisplayAmount.abs(),
-                                ),
-                                style: context.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: amountColor,
-                                ),
-                              ),
-                              if (_hasPartialPayment)
-                                Text(
-                                  'of ${CurrencyFormatter.instance.format(entry.totalAmount!.abs())}',
-                                  style: context.textTheme.labelSmall?.copyWith(
-                                    color: context.colors.onSurface.withValues(
-                                      alpha: 0.6,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              directionLabel == null
-                                  ? entry.date.fullDate
-                                  : '${entry.date.fullDate} · $directionLabel',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.textTheme.bodySmall?.copyWith(
-                                color: directionLabel == null
-                                    ? context.colors.onSurface.withValues(
-                                        alpha: 0.6,
-                                      )
-                                    : directionColor,
-                              ),
-                            ),
-                          ),
-                          if (entry.category ==
-                              PersonTimelineCategory.reference) ...[
-                            const SizedBox(width: AppSizes.sm),
-                            const _ReferenceOnlyPill(),
-                          ] else if (entry.status != null) ...[
-                            const SizedBox(width: AppSizes.sm),
-                            _StatusPill(status: entry.status!),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          ? AppColors.warning.withValues(alpha: 0.06)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: 60,
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: colors.outline.withValues(alpha: 0.2)),
             ),
           ),
+          child: Row(
+            children: [
+              cell(
+                _kNoW,
+                Text(
+                  number.toString().padLeft(2, '0'),
+                  style: context.textTheme.bodySmall?.copyWith(color: muted),
+                ),
+              ),
+              cell(
+                _kStatusW,
+                Align(alignment: Alignment.centerLeft, child: status),
+              ),
+              cell(
+                _kDateW,
+                Text(entry.date.shortDate, style: context.textTheme.bodyMedium),
+              ),
+              cell(
+                _kDescW,
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (entry.otherParticipantNames.isNotEmpty ||
+                        direction != null)
+                      Text(
+                        entry.otherParticipantNames.isNotEmpty
+                            ? 'with ${entry.otherParticipantNames.join(', ')}'
+                            : direction!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: muted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              cell(
+                _kAmountW,
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      CurrencyFormatter.instance.format(
+                        entry.remainingDisplayAmount.abs(),
+                      ),
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: entry.color,
+                      ),
+                    ),
+                    if (_hasPartialPayment)
+                      Text(
+                        'of ${CurrencyFormatter.instance.format(entry.totalAmount!.abs())}',
+                        style: context.textTheme.labelSmall?.copyWith(
+                          color: muted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              cell(
+                _kTypeW,
+                Text(
+                  entry.category.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textTheme.bodySmall?.copyWith(color: muted),
+                ),
+              ),
+              SizedBox(
+                width: _kActionW,
+                child: onDelete == null
+                    ? null
+                    : IconButton(
+                        tooltip: 'Delete',
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          size: AppSizes.iconSm,
+                          color: colors.error,
+                        ),
+                        onPressed: onDelete,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TableChip extends StatelessWidget {
+  const _TableChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: context.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -1061,99 +1174,4 @@ class _CycleSectionHeader {
   const _CycleSectionHeader(this.label);
 
   final String label;
-}
-
-class _CycleSectionHeaderTile extends StatelessWidget {
-  const _CycleSectionHeaderTile({required this.header});
-
-  final _CycleSectionHeader header;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSizes.md, bottom: AppSizes.xs),
-      child: Text(
-        header.label,
-        style: context.textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-/// The frame-1 status pill wording (Settled ✓ / Pending / Partial / Overdue)
-/// for a person-timeline entry, mapped from [PersonTimelineStatus].
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status});
-
-  final PersonTimelineStatus status;
-
-  (String, Color) get _display {
-    switch (status) {
-      case PersonTimelineStatus.completed:
-        return ('Settled ✓', AppColors.success);
-      case PersonTimelineStatus.pending:
-        return ('Pending', AppColors.pending);
-      case PersonTimelineStatus.partial:
-        return ('Partial', AppColors.warning);
-      case PersonTimelineStatus.overdue:
-        return ('Overdue', AppColors.error);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = _display;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-      ),
-      child: Text(
-        label,
-        style: context.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-/// Flags a [PersonTimelineCategory.reference] tile — a transaction merely
-/// linked to this person (`Transaction.linkedPersonId`) with no "owes me"
-/// toggle, so it shows its real amount ([PersonTimelineEntry.displayAmount])
-/// but never affects this person's balance or the stats card above. Without
-/// this, a nonzero tile amount next to zero stats/balance reads as a bug
-/// rather than "this was just a note".
-class _ReferenceOnlyPill extends StatelessWidget {
-  const _ReferenceOnlyPill();
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Reference only — does not affect balance',
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSizes.sm,
-          vertical: 2,
-        ),
-        decoration: BoxDecoration(
-          color: context.colors.onSurface.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
-        ),
-        child: Text(
-          'Reference only',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: context.textTheme.labelSmall?.copyWith(
-            color: context.colors.onSurface.withValues(alpha: 0.6),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
 }

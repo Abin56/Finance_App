@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/audit_entry.dart';
 import '../../../core/models/soft_deletable_entity.dart';
+import '../../../core/payment_schedule/domain/payment_allocation_type.dart';
 import 'transaction_type.dart';
 
 /// A single income or expense movement against an [Account]. The dashboard,
@@ -23,6 +24,12 @@ class Transaction extends SoftDeletableEntity {
     this.linkedPersonId,
     this.owesPersonToggle = false,
     this.source,
+    this.transferId,
+    this.loanId,
+    this.emiId,
+    this.installmentId,
+    this.installmentPaymentId,
+    this.paymentAllocationType,
   });
 
   @override
@@ -82,6 +89,48 @@ class Transaction extends SoftDeletableEntity {
   /// existed before this field was introduced.
   final String? source;
 
+  /// Set on both legs of a transfer between two of the user's own accounts —
+  /// currently only ever written by the web app (`TransactionRepository.
+  /// createTransferPair`/`linkTransferPair`); this app has no transfer-entry
+  /// UI of its own yet. Round-tripped losslessly (read + written back
+  /// unchanged on every edit/soft-delete/restore, via [toFirestore]) so that
+  /// editing a transfer leg on this app — e.g. renaming its description —
+  /// never silently strips the field a full-document `.set()` would
+  /// otherwise drop, which would desync it from the web app's own
+  /// transfer-pair bookkeeping. Purely a passthrough marker on this app: see
+  /// [isTransfer] for the one place it's actually read.
+  final String? transferId;
+
+  /// Exactly one of [loanId]/[emiId] is set when this transaction backs a
+  /// loan/EMI payment recorded through `LoanAdvancePaymentRepository` (or
+  /// its future EMI counterpart) — never both, since a loan and an EMI are
+  /// always separate obligations. Both null for every pre-existing
+  /// transaction and every non-loan transaction. Purely additive/optional —
+  /// safe to ignore for any code that doesn't care about loan/EMI linkage.
+  final String? loanId;
+  final String? emiId;
+
+  /// The specific `Installment` (and, 1:1, the `InstallmentPayment`) this
+  /// transaction's money movement backs. Null for every non-loan/EMI
+  /// transaction, and for the "sibling" installment-payment docs of a
+  /// multi-installment fan-out that share one [installmentPaymentId]/
+  /// transaction rather than getting their own.
+  final String? installmentId;
+  final String? installmentPaymentId;
+
+  /// Denormalized copy of the backing `InstallmentPayment.allocationType`,
+  /// so transaction-list/report UIs can filter/label "Loan EMI" vs
+  /// "Prepayment" without a join. Null for every non-loan/EMI transaction.
+  final PaymentAllocationType? paymentAllocationType;
+
+  /// Whether this transaction is one leg of a transfer between two of the
+  /// user's own accounts — money moving, not real income or a real expense.
+  /// Mirrors the web app's `isTransfer()` (`lib/models/transaction.ts`); the
+  /// single predicate [calculableTransactionsProvider] additionally excludes
+  /// on, so a transfer created on the web app is never double-counted as
+  /// both income and expense in this app's Dashboard/Reports/Budget totals.
+  bool get isTransfer => transferId != null;
+
   /// The signed delta this transaction applies to its account's balance —
   /// the single source of truth for balance math, so the repository never
   /// has to duplicate "income adds, expense subtracts" logic.
@@ -121,6 +170,16 @@ class Transaction extends SoftDeletableEntity {
         owesPersonToggle: data['owesPersonToggle'] as bool? ?? false,
         createdAt: (data['createdAt'] as Timestamp).toDate(),
         source: data['source'] as String?,
+        transferId: data['transferId'] as String?,
+        loanId: data['loanId'] as String?,
+        emiId: data['emiId'] as String?,
+        installmentId: data['installmentId'] as String?,
+        installmentPaymentId: data['installmentPaymentId'] as String?,
+        paymentAllocationType: data['paymentAllocationType'] == null
+            ? null
+            : PaymentAllocationTypeX.fromName(
+                data['paymentAllocationType'] as String?,
+              ),
       )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -147,6 +206,12 @@ class Transaction extends SoftDeletableEntity {
       'owesPersonToggle': owesPersonToggle,
       'createdAt': Timestamp.fromDate(createdAt),
       'source': source,
+      'transferId': transferId,
+      'loanId': loanId,
+      'emiId': emiId,
+      'installmentId': installmentId,
+      'installmentPaymentId': installmentPaymentId,
+      'paymentAllocationType': paymentAllocationType?.name,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null
           ? null

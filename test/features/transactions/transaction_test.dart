@@ -62,6 +62,35 @@ void main() {
     });
   });
 
+  group('Transaction.isTransfer', () {
+    test('is false when transferId is null', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      expect(transaction.isTransfer, isFalse);
+    });
+
+    test('is true when transferId is set', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        transferId: 'transfer-1',
+      );
+      expect(transaction.isTransfer, isTrue);
+    });
+  });
+
   group('Transaction.balanceEffect', () {
     test('equals signedAmount when not excluded', () {
       final transaction = Transaction(
@@ -363,6 +392,102 @@ void main() {
         final restored = (await collection.doc('t1').get()).data()!;
 
         expect(restored.source, isNull);
+      },
+    );
+
+    test('preserves a non-null transferId (a web-created transfer leg)', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 2000,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        transferId: 'transfer-1',
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.transferId, 'transfer-1');
+      expect(restored.isTransfer, isTrue);
+    });
+
+    test('defaults transferId to null for a normal transaction', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 300,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.transferId, isNull);
+      expect(restored.isTransfer, isFalse);
+    });
+
+    test(
+      'editing an unrelated field (e.g. via recordEdit + re-save) does not '
+      'wipe transferId — regression for the full-document .set() overwrite '
+      'that would otherwise silently strip web-only fields not in this '
+      "app's own model on every edit/soft-delete/restore",
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('transactions')
+            .withConverter<Transaction>(
+              fromFirestore: Transaction.fromFirestore,
+              toFirestore: (t, _) => t.toFirestore(),
+            );
+
+        await firestore.collection('transactions').doc('t1').set({
+          'type': 'expense',
+          'amount': 2000.0,
+          'dateTime': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'accountId': 'a1',
+          'categoryId': 'c1',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'transferId': 'transfer-1',
+        });
+
+        final loaded = (await collection.doc('t1').get()).data()!;
+        loaded.recordEdit(
+          field: 'notes',
+          oldValue: '',
+          newValue: 'Edited on mobile',
+        );
+        loaded.notes = 'Edited on mobile';
+
+        // Mirrors TransactionRepository.editTransaction's full-document
+        // .set() write (via FirestoreCrudRepository.update).
+        await collection.doc('t1').set(loaded);
+        final restored = (await collection.doc('t1').get()).data()!;
+
+        expect(restored.notes, 'Edited on mobile');
+        expect(restored.transferId, 'transfer-1');
+        expect(restored.isTransfer, isTrue);
       },
     );
 

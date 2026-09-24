@@ -320,6 +320,13 @@ void main() {
             categoryId: foodCategory.id,
             description: 'Swiggy',
           );
+      // fake_cloud_firestore's transaction support (now used internally by
+      // createTransaction — see TransactionRepository's class doc comment)
+      // doesn't await its underlying write before resolving, so the
+      // `.snapshots()`-backed stream below can briefly observe a stale
+      // snapshot — same known fake-only gap documented in
+      // transfer_lifecycle_test.dart and account_repository_test.dart.
+      await Future<void>.delayed(Duration.zero);
       await container.read(transactionsStreamProvider.future);
       controller.setAccount(account.id); // re-triggers the duplicate check
       final afterDuplicateCheck = container.read(pdfImportControllerProvider);

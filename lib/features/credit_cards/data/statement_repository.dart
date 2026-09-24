@@ -27,10 +27,21 @@ class StatementRepository extends FirestoreCrudRepository<Statement> {
   /// Sums [cardTransactions] whose `dateTime` falls within [period] —
   /// the one true definition of a statement period's total, used both to
   /// materialize a new statement and to correct an existing one's total at
-  /// read time when transactions inside it have since changed.
+  /// read time when transactions inside it have since changed. Excludes
+  /// [Transaction.excludeFromCalculations] and transfer legs, matching
+  /// every other financial total in the app (see
+  /// `calculableTransactionsProvider`) — otherwise an excluded/reimbursement
+  /// entry or a transfer leg posted to the card account would inflate the
+  /// statement total while every other total in the app ignores it.
   double totalFor(List<Transaction> cardTransactions, StatementPeriod period) {
     return cardTransactions
-        .where((t) => !t.isDeleted && period.contains(t.dateTime))
+        .where(
+          (t) =>
+              !t.isDeleted &&
+              !t.excludeFromCalculations &&
+              !t.isTransfer &&
+              period.contains(t.dateTime),
+        )
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 

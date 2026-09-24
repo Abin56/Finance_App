@@ -288,6 +288,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
       dateTime: date,
       accountId: accountId,
       categoryId: categoryId,
+      description: description,
       notes: notes,
       excludeFromCalculations: excludeFromCalculations,
       accountingMonth: accountingMonth,

@@ -18,3 +18,12 @@ class StorageException extends AppException {
 class NotFoundException extends AppException {
   const NotFoundException(super.message, {super.cause});
 }
+
+/// Thrown when a loan/EMI payment or prepayment cannot be safely reversed —
+/// e.g. a later payment or re-amortization has already happened on the same
+/// loan. Carries [message] as a user-facing explanation; never thrown for a
+/// merely-inconvenient case, only when reversing would silently rewrite
+/// later financial history.
+class PaymentReversalBlockedException extends AppException {
+  const PaymentReversalBlockedException(super.message, {super.cause});
+}

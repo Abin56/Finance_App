@@ -21,6 +21,7 @@ import '../../../../shared/widgets/states/expense_status_pill.dart';
 import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../../shared/widgets/states/transaction_flag_badge.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
+import '../../../categories/domain/category.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../expense/domain/expense.dart';
 import '../../../expense/domain/expense_participant.dart';
@@ -155,7 +156,7 @@ class TransactionDetailScreen extends ConsumerWidget {
             _TransactionHeroCard(
               transaction: transaction,
               accountName: account?.name,
-              categoryName: category?.name,
+              category: category,
             ),
             if (canReassign) ...[
               const SizedBox(height: AppSizes.lg),
@@ -653,12 +654,12 @@ class _TransactionHeroCard extends ConsumerWidget {
   const _TransactionHeroCard({
     required this.transaction,
     required this.accountName,
-    required this.categoryName,
+    required this.category,
   });
 
   final Transaction transaction;
   final String? accountName;
-  final String? categoryName;
+  final Category? category;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -720,11 +721,36 @@ class _TransactionHeroCard extends ConsumerWidget {
           const SizedBox(height: AppSizes.lg),
           const Divider(height: 1),
           const SizedBox(height: AppSizes.lg),
-          _DetailGridRow(
-            icon: Icons.event_outlined,
-            label: 'Transaction Date',
-            value: transaction.dateTime.fullDate,
+          // Date and Category are the two facts someone scans for first —
+          // pulled out of the plain label/value list below into their own
+          // pair of tinted tiles, each carrying its own icon (the category's
+          // real color, not just another gray row) so they read at a glance
+          // instead of blending into Account/Person/Note.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _HighlightTile(
+                  icon: Icons.event_outlined,
+                  iconColor: context.colors.primary,
+                  label: 'Date',
+                  value: transaction.dateTime.fullDate,
+                ),
+              ),
+              const SizedBox(width: AppSizes.sm),
+              Expanded(
+                child: _HighlightTile(
+                  icon: category?.icon ?? Icons.sell_outlined,
+                  iconColor: category == null
+                      ? context.colors.onSurface.withValues(alpha: 0.55)
+                      : Color(category!.colorValue),
+                  label: 'Category',
+                  value: category?.name ?? 'Uncategorized',
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: AppSizes.md),
           if (transaction.accountingMonth != null)
             _DetailGridRow(
               icon: Icons.calendar_month_outlined,
@@ -735,11 +761,6 @@ class _TransactionHeroCard extends ConsumerWidget {
             icon: Icons.account_balance_wallet_outlined,
             label: 'Account',
             value: accountName ?? 'Unknown account',
-          ),
-          _DetailGridRow(
-            icon: Icons.sell_outlined,
-            label: 'Category',
-            value: categoryName ?? 'Uncategorized',
             isLast: transaction.notes.isEmpty && linkedPersonName == null,
           ),
           if (linkedPersonName != null)
@@ -759,6 +780,64 @@ class _TransactionHeroCard extends ConsumerWidget {
               value: transaction.notes,
               isLast: true,
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A tinted, rounded tile pairing an icon with a small label above a bold
+/// value — used side by side for Date/Category so those two facts read as
+/// scannable at-a-glance chips instead of two more rows in the plain
+/// [_DetailGridRow] list below them.
+class _HighlightTile extends StatelessWidget {
+  const _HighlightTile({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.sm),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          FlowFiIconChip(icon: icon, color: iconColor, size: 36),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: context.textTheme.labelSmall?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.55),
+                  ),
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
