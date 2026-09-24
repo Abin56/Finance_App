@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/theme/clay_widgets.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../reports/domain/reports_period.dart';
 import '../../domain/cash_flow_preset.dart';
 import '../providers/cash_flow_providers.dart';
@@ -20,7 +20,7 @@ class CashFlowRangeSelector extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selection = ref.watch(cashFlowSelectionProvider);
 
-    return ClayCard(
+    return FlowFiCard(
       onTap: () => _showPicker(context, ref),
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
       child: Row(

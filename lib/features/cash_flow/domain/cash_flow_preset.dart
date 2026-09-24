@@ -1,44 +1,8 @@
 import '../../../core/extensions/date_extensions.dart';
 import '../../reports/domain/reports_period.dart';
+import 'cash_flow_period.dart';
 
-/// The Cash Flow Center's own period presets, distinct from
-/// [ReportsPeriod] (Reports has different options — Today/This Year/
-/// Financial Year — that don't fit a forward-looking planning screen).
-/// Reuses [DateRange] as the shared "inclusive start/end" shape so range
-/// containment logic (`DateRange.contains`) stays in one place.
-enum CashFlowPreset { thisMonth, lastMonth, thisWeek, custom }
-
-extension CashFlowPresetX on CashFlowPreset {
-  String get label {
-    switch (this) {
-      case CashFlowPreset.thisMonth:
-        return 'This Month';
-      case CashFlowPreset.lastMonth:
-        return 'Last Month';
-      case CashFlowPreset.thisWeek:
-        return 'This Week';
-      case CashFlowPreset.custom:
-        return 'Custom';
-    }
-  }
-
-  /// Inclusive start/end for this preset, relative to [now]. [custom] has
-  /// no inherent range — callers must supply their own picked range and
-  /// never call this getter for it.
-  DateRange rangeFor(DateTime now) {
-    switch (this) {
-      case CashFlowPreset.thisMonth:
-        return DateRange(now.startOfMonth, now.endOfMonth);
-      case CashFlowPreset.lastMonth:
-        final lastMonth = DateTime(now.year, now.month - 1);
-        return DateRange(lastMonth.startOfMonth, lastMonth.endOfMonth);
-      case CashFlowPreset.thisWeek:
-        return DateRange(now.startOfWeek, now.endOfWeek);
-      case CashFlowPreset.custom:
-        throw UnsupportedError('CashFlowPreset.custom has no inherent range');
-    }
-  }
-}
+export 'cash_flow_period.dart' show CashFlowPreset, CashFlowPresetX;
 
 /// The Cash Flow Center's currently selected period — a [preset] plus the
 /// [range] it resolves to (computed once at selection time so the screen

@@ -165,6 +165,86 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     return result;
   }
 
+  /// Records a transfer between two of the user's own accounts as two linked
+  /// legs sharing one generated `transferId` — an expense leg on
+  /// [sourceAccountId], an income leg on [destinationAccountId], both dated
+  /// [dateTime] and both `excludeFromCalculations: true` so
+  /// [Transaction.isTransfer]'s exclusion in [calculableTransactionsProvider]
+  /// is belt-and-suspenders rather than the only thing keeping a transfer out
+  /// of income/expense totals. Mirrors the web app's own
+  /// `TransactionRepository.createTransferPair` (see [Transaction.transferId]'s
+  /// doc comment) — this app has no transfer-entry UI of its own yet, so this
+  /// exists for callers (tests, future UI) that need to construct a transfer
+  /// the same way the web app does. Both legs are written in one Firestore
+  /// transaction, same atomicity guarantee as every other method here.
+  Future<(Transaction source, Transaction destination)> createTransferPair({
+    required double amount,
+    required DateTime dateTime,
+    required String sourceAccountId,
+    required String destinationAccountId,
+    required String categoryId,
+    String description = '',
+    String notes = '',
+  }) async {
+    final transferId = IdGenerator.generate();
+    late final Transaction sourceLeg;
+    late final Transaction destinationLeg;
+    await collection.firestore.runTransaction((transaction) async {
+      // Both accounts must be read before either is written — Firestore
+      // transactions require every read to precede every write — so both
+      // legs are built by hand here instead of calling
+      // [createTransactionInTransaction] twice back-to-back (which would
+      // read the destination account after the source leg's write).
+      final sourceAccount = await accountRepository.getForUpdateInTransaction(
+        transaction,
+        sourceAccountId,
+      );
+      final destinationAccount = await accountRepository
+          .getForUpdateInTransaction(transaction, destinationAccountId);
+
+      sourceLeg = Transaction(
+        id: IdGenerator.generate(),
+        type: TransactionType.expense,
+        amount: amount,
+        dateTime: dateTime,
+        accountId: sourceAccountId,
+        categoryId: categoryId,
+        description: description,
+        notes: notes,
+        excludeFromCalculations: true,
+        transferId: transferId,
+        createdAt: DateTime.now(),
+      );
+      destinationLeg = Transaction(
+        id: IdGenerator.generate(),
+        type: TransactionType.income,
+        amount: amount,
+        dateTime: dateTime,
+        accountId: destinationAccountId,
+        categoryId: categoryId,
+        description: description,
+        notes: notes,
+        excludeFromCalculations: true,
+        transferId: transferId,
+        createdAt: DateTime.now(),
+      );
+
+      accountRepository.applyBalanceDeltaWrite(
+        transaction,
+        sourceAccount,
+        sourceLeg.balanceEffect,
+      );
+      accountRepository.applyBalanceDeltaWrite(
+        transaction,
+        destinationAccount,
+        destinationLeg.balanceEffect,
+      );
+      transaction.set(collection.doc(sourceLeg.id), sourceLeg);
+      transaction.set(collection.doc(destinationLeg.id), destinationLeg);
+    });
+    return (sourceLeg, destinationLeg);
+  }
+
   /// Composable form of [editTransaction] — see the class doc comment for
   /// why this exists and the read-before-write ordering constraint on
   /// callers. Handles every edit permutation — amount, type, or account can

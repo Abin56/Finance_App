@@ -23,6 +23,7 @@ import '../../../reports/domain/reports_period.dart';
 import '../../../transactions/domain/transaction_type.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 import '../../domain/cash_flow_period.dart';
+import '../../domain/cash_flow_preset.dart' show CashFlowSelection;
 import '../../domain/money_flow_line.dart';
 
 /// Aggregation providers for the Dashboard's "Cash Flow Center" sections.
@@ -163,6 +164,22 @@ final totalDueThisMonthProvider = Provider<DueCategoryBreakdown>((ref) {
     ref.watch(billsDueThisMonthBreakdownProvider),
     ref.watch(otherScheduledDueThisMonthBreakdownProvider),
   ]);
+});
+
+/// [totalDueThisMonthProvider]/[upcomingPaymentsTimelineProvider] generalized
+/// to [cashFlowSelectionProvider]'s user-picked range instead of always the
+/// current calendar month/cycle — the Range Selector's own Section 1 rollup:
+/// every unpaid, non-skipped EMI/Loan installment, Bill, and Credit Card
+/// statement due within the selected range, summed. Unlike
+/// [totalDueThisMonthProvider] (which merges this month with prior-cycle
+/// carry-forward regardless of what's selected), this filters
+/// [upcomingPaymentsForRangeProvider]'s own items by [dueDate] falling inside
+/// the range, so the two headline figures agree by construction.
+final totalDueForRangeProvider = Provider<DueCategoryBreakdown>((ref) {
+  final items = ref.watch(upcomingPaymentsForRangeProvider);
+  final due = items.fold(0.0, (sum, i) => sum + i.amountDue);
+  final remaining = items.fold(0.0, (sum, i) => sum + i.remaining);
+  return (due: due, paid: due - remaining, remaining: remaining);
 });
 
 /// A single row's amount/count for Section 2 ("Money To Receive").
@@ -333,10 +350,18 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((
   final bills = ref.watch(billsStreamProvider).value ?? const [];
   for (final bill in bills) {
     final view = ref.watch(billOccurrenceCycleViewProvider(bill.id));
-    final relevant = [
-      ...view.previousCyclePending,
-      if (view.current != null) view.current!,
-    ];
+    // [view.current] is "the current unsettled occurrence", not "an
+    // occurrence classified as current-cycle" — with only one outstanding
+    // occurrence on a bill, it can be the exact same occurrence
+    // [CycleEngine] already classified into [view.previousCyclePending],
+    // so a plain concatenation would double-count it. Keyed by `.id` (not a
+    // `Set<BillOccurrence>`, since equality isn't overridden) to match
+    // [view.previousCyclePending.contains(o)] below by identity/id, not by
+    // object equality.
+    final relevant = {
+      for (final o in view.previousCyclePending) o.id: o,
+      if (view.current != null) view.current!.id: view.current!,
+    }.values;
     for (final o in relevant) {
       if (o.status == BillStatus.paid || o.status == BillStatus.skipped) {
         continue;
@@ -393,6 +418,25 @@ final upcomingPaymentsTimelineProvider = Provider<List<UpcomingPaymentItem>>((
   return items;
 });
 
+/// [upcomingPaymentsTimelineProvider] filtered to [cashFlowSelectionProvider]'s
+/// user-picked range, by each item's own [UpcomingPaymentItem.dueDate] — the
+/// Range Selector's own Section 4 timeline. Distinct from
+/// [upcomingPaymentsTimelineProvider] itself, which
+/// [UpcomingPaymentsTimeline] reads directly and which deliberately always
+/// shows what's currently due regardless of any selected range (see that
+/// provider's doc comment) — this range-scoped variant exists for
+/// [totalDueForRangeProvider] and any UI that explicitly wants "what's due
+/// within the range I picked" instead.
+final upcomingPaymentsForRangeProvider = Provider<List<UpcomingPaymentItem>>((
+  ref,
+) {
+  final range = ref.watch(cashFlowSelectionProvider).range;
+  return ref
+      .watch(upcomingPaymentsTimelineProvider)
+      .where((i) => range.contains(i.dueDate))
+      .toList();
+});
+
 /// Section 5's Money In/Out/Net figures.
 typedef CashFlowSummary = ({double moneyIn, double moneyOut, double net});
 
@@ -439,6 +483,17 @@ final cashFlowDateRangeProvider = StateProvider<CashFlowPeriod>((ref) {
   return const CashFlowPeriod.preset(CashFlowPreset.thisMonth);
 });
 
+/// The Cash Flow Range Selector widget's own selection state
+/// ([CashFlowRangeSelector]) — a [CashFlowSelection] (preset + resolved
+/// range) rather than [cashFlowDateRangeProvider]'s [CashFlowPeriod], since
+/// the selector always carries an already-resolved [DateRange] (picked via
+/// `showDateRangePicker` for [CashFlowPreset.custom], or resolved
+/// immediately against `DateTime.now()` for a preset) rather than
+/// re-resolving "This Month" against "now" on every read.
+final cashFlowSelectionProvider = StateProvider<CashFlowSelection>((ref) {
+  return CashFlowSelection.initial();
+});
+
 /// [cashFlowDateRangeProvider]'s period resolved against "now" into a
 /// concrete [DateRange] — the single value every range-scoped Cash Flow
 /// provider below reads, so "This Month" rolls forward at a month boundary
@@ -446,6 +501,28 @@ final cashFlowDateRangeProvider = StateProvider<CashFlowPeriod>((ref) {
 final resolvedCashFlowRangeProvider = Provider<DateRange>((ref) {
   final period = ref.watch(cashFlowDateRangeProvider);
   return period.rangeFor(DateTime.now());
+});
+
+/// [cashFlowSelectionProvider]'s selection converted into the
+/// [CashFlowPeriod] shape every range-scoped provider below already reads —
+/// re-derived via [CashFlowPeriod.preset] for every non-custom preset so
+/// "This Month" still rolls forward at a month boundary rather than reusing
+/// the (possibly stale) range captured at selection time.
+///
+/// Unlike [CashFlowPeriod.custom]'s own day-precision `dateTime` bucketing
+/// (built for a range picked directly via `showDateRangePicker`, potentially
+/// as short as a single day — see [CashFlowPeriod.isMonthGranular]'s doc
+/// comment), the Range Selector's [CashFlowPreset.custom] is always built
+/// from whole-month presets or a whole-month custom pick, so it's bucketed
+/// via [CashFlowPeriod.preset]'s month-granular `effectiveMonth` rule
+/// instead — [CashFlowPeriod.preset] ignores its `preset` argument's
+/// `rangeFor` result wherever a caller supplies its own [range] anyway
+/// (every provider below reads [cashFlowSelectionProvider]'s own `.range`,
+/// never re-deriving one from the period), so passing [CashFlowPreset.thisMonth]
+/// here purely selects "month-granular bucketing", not an actual "this
+/// month" range.
+final _selectedCashFlowPeriodProvider = Provider<CashFlowPeriod>((ref) {
+  return const CashFlowPeriod.preset(CashFlowPreset.thisMonth);
 });
 
 /// A (period, range) pair — the argument every range-parameterized Money
@@ -749,8 +826,8 @@ final moneyOutLinesForRangeFamilyProvider =
 /// selected [cashFlowDateRangeProvider] — what the Cash Flow screen and its
 /// Money In detail screen actually watch.
 final moneyInLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
-  final period = ref.watch(cashFlowDateRangeProvider);
-  final range = ref.watch(resolvedCashFlowRangeProvider);
+  final period = ref.watch(_selectedCashFlowPeriodProvider);
+  final range = ref.watch(cashFlowSelectionProvider).range;
   return ref.watch(
     moneyInLinesForRangeFamilyProvider((period: period, range: range)),
   );
@@ -760,8 +837,8 @@ final moneyInLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
 /// selected [cashFlowDateRangeProvider] — what the Cash Flow screen and its
 /// Money Out detail screen actually watch.
 final moneyOutLinesForRangeProvider = Provider<List<MoneyFlowLine>>((ref) {
-  final period = ref.watch(cashFlowDateRangeProvider);
-  final range = ref.watch(resolvedCashFlowRangeProvider);
+  final period = ref.watch(_selectedCashFlowPeriodProvider);
+  final range = ref.watch(cashFlowSelectionProvider).range;
   return ref.watch(
     moneyOutLinesForRangeFamilyProvider((period: period, range: range)),
   );
@@ -804,8 +881,8 @@ final cashFlowForRangeProvider = Provider<CashFlowSummary>((ref) {
 /// [myExpenseBreakdownForTransactionsProvider] Reports already uses, so the
 /// Expense-vs-plain-transaction / split-share math is never re-derived here.
 final myExpensesForRangeProvider = Provider<MyExpenseBreakdown>((ref) {
-  final period = ref.watch(cashFlowDateRangeProvider);
-  final range = ref.watch(resolvedCashFlowRangeProvider);
+  final period = ref.watch(_selectedCashFlowPeriodProvider);
+  final range = ref.watch(cashFlowSelectionProvider).range;
   final transactions = ref.watch(calculableTransactionsProvider);
   final rangeTransactions = transactions.where((t) {
     if (t.isDeleted) return false;
@@ -827,8 +904,8 @@ final myExpensesForRangeProvider = Provider<MyExpenseBreakdown>((ref) {
 /// [myExpensesForRangeProvider]'s own [Transaction.effectiveMonth]-vs-
 /// [Transaction.dateTime] choice for the selected period.
 final myExpenseLinesForRangeProvider = Provider<List<MyExpenseLine>>((ref) {
-  final period = ref.watch(cashFlowDateRangeProvider);
-  final range = ref.watch(resolvedCashFlowRangeProvider);
+  final period = ref.watch(_selectedCashFlowPeriodProvider);
+  final range = ref.watch(cashFlowSelectionProvider).range;
   final categoriesById = {
     for (final c in ref.watch(categoriesStreamProvider).value ?? const [])
       c.id: c,
