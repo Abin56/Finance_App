@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/theme/clay_theme.dart';
+import '../widgets/cash_flow_range_selector.dart';
 import '../widgets/cash_flow_summary_card.dart';
 import '../widgets/credit_card_statement_summary_card.dart';
 import '../widgets/money_to_receive_card.dart';
+import '../widgets/my_expenses_card.dart';
 import '../widgets/payments_due_card.dart';
 import '../widgets/upcoming_payments_timeline.dart';
 
@@ -26,6 +28,8 @@ class CashFlowScreen extends StatelessWidget {
           // Bottom padding clears the shell's floating "+" button.
           padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
           children: const [
+            CashFlowRangeSelector(),
+            SizedBox(height: AppSizes.lg),
             PaymentsDueCard(),
             SizedBox(height: AppSizes.lg),
             MoneyToReceiveCard(),
@@ -35,6 +39,8 @@ class CashFlowScreen extends StatelessWidget {
             CreditCardStatementSummaryCard(),
             SizedBox(height: AppSizes.lg),
             CashFlowSummaryCard(),
+            SizedBox(height: AppSizes.lg),
+            MyExpensesCard(),
           ],
         ),
       ),

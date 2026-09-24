@@ -20,11 +20,11 @@ class MoneyToReceiveCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final total = ref.watch(totalMoneyToReceiveProvider);
+    final total = ref.watch(totalMoneyToReceiveForRangeProvider);
     final rows = [
       (
         label: 'Split Expenses',
-        breakdown: ref.watch(splitExpensesReceivableProvider),
+        breakdown: ref.watch(splitExpensesReceivableForRangeProvider),
         onTap: () => context.goNamed(AppRoutes.transactionsName, queryParameters: {'filter': 'splitExpenses'}),
       ),
       (

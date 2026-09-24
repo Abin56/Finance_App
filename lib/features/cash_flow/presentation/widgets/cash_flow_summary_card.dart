@@ -8,21 +8,21 @@ import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../providers/cash_flow_providers.dart';
 
-/// Section 5 of the Cash Flow Center — "This Month Cash Flow". Money In
+/// Section 5 of the Cash Flow Center — "Cash Flow Summary". Money In
 /// (income + collections), Money Out (expenses + EMI/Bill/Loan payments),
-/// and Net Cash Flow for the current calendar month.
+/// and Net Cash Flow for the selected period.
 class CashFlowSummaryCard extends ConsumerWidget {
   const CashFlowSummaryCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cashFlow = ref.watch(cashFlowThisMonthProvider);
+    final cashFlow = ref.watch(cashFlowForRangeProvider);
 
     return ClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('This Month Cash Flow', style: context.textTheme.titleMedium),
+          Text('Cash Flow Summary', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.md),
           Row(
             children: [

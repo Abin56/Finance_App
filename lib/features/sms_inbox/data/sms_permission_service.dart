@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../core/services/local_settings_service.dart';
@@ -16,7 +17,9 @@ class SmsPermissionService {
   static const String _hasRequestedKey = 'sms_inbox_has_requested_permission';
 
   Future<SmsAvailability> checkStatus() async {
-    if (!Platform.isAndroid) return SmsAvailability.unsupportedPlatform;
+    // `Platform.isAndroid` throws on web (no `dart:io`), so check `kIsWeb`
+    // first rather than let it short-circuit `||`.
+    if (kIsWeb || !Platform.isAndroid) return SmsAvailability.unsupportedPlatform;
 
     final status = await Permission.sms.status;
     return _mapStatus(status);
@@ -25,7 +28,7 @@ class SmsPermissionService {
   /// Actually triggers the OS permission dialog. Callers should show the
   /// explanation copy first (before ever calling this), per the spec.
   Future<SmsAvailability> requestPermission() async {
-    if (!Platform.isAndroid) return SmsAvailability.unsupportedPlatform;
+    if (kIsWeb || !Platform.isAndroid) return SmsAvailability.unsupportedPlatform;
 
     await LocalSettingsService.setBool(_hasRequestedKey, true);
     final status = await Permission.sms.request();

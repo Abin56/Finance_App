@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 
@@ -16,7 +17,7 @@ class SmsReaderAdapter {
   static const int _maxScanCount = 500;
 
   Future<List<RawSmsMessage>> readInbox() async {
-    if (!Platform.isAndroid) return const [];
+    if (kIsWeb || !Platform.isAndroid) return const [];
 
     final List<SmsMessage> messages;
     try {

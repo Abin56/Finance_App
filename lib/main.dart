@@ -39,7 +39,11 @@ Future<void> main() async {
 
   await LocalSettingsService.init();
   await ReminderNotificationService.init();
-  await SmsInboxDatabase.init();
+  // SMS Inbox reads the device's SMS store, a mobile-only capability with no
+  // web equivalent — sqflite also has no web backend, so skip it there.
+  if (!kIsWeb) {
+    await SmsInboxDatabase.init();
+  }
 
   runApp(const ProviderScope(child: FinanceApp()));
 }

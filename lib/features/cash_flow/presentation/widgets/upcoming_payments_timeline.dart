@@ -21,7 +21,7 @@ class UpcomingPaymentsTimeline extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final items = ref.watch(upcomingPaymentsTimelineProvider);
+    final items = ref.watch(upcomingPaymentsForRangeProvider);
 
     if (items.isEmpty) {
       return const PlaceholderCard(

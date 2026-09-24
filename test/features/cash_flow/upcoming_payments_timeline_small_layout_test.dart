@@ -1,5 +1,7 @@
+import 'package:finance_app/features/cash_flow/domain/cash_flow_preset.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
 import 'package:finance_app/features/cash_flow/presentation/widgets/upcoming_payments_timeline.dart';
+import 'package:finance_app/features/reports/domain/reports_period.dart';
 import 'package:finance_app/shared/domain/payment_urgency.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,7 +47,18 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [upcomingPaymentsTimelineProvider.overrideWithValue(items)],
+        overrides: [
+          upcomingPaymentsTimelineProvider.overrideWithValue(items),
+          // The widget now reads the range-filtered provider — give it a
+          // wide-open range so both fixture items (up to 20 days in the
+          // past/future) survive the filter regardless of today's date.
+          cashFlowSelectionProvider.overrideWith(
+            (ref) => CashFlowSelection(
+              preset: CashFlowPreset.custom,
+              range: DateRange(now.subtract(const Duration(days: 60)), now.add(const Duration(days: 60))),
+            ),
+          ),
+        ],
         child: MaterialApp(
           builder: (context, inner) => MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),

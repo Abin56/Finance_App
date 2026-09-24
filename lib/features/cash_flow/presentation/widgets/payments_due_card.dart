@@ -21,12 +21,12 @@ class PaymentsDueCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final total = ref.watch(totalDueThisMonthProvider);
+    final total = ref.watch(totalDueForRangeProvider);
     final rows = [
-      (label: 'Credit Cards', breakdown: ref.watch(creditCardDueThisMonthBreakdownProvider), route: AppRoutes.creditCards),
-      (label: 'EMI', breakdown: ref.watch(emiDueThisMonthBreakdownProvider), route: AppRoutes.emis),
-      (label: 'Loans', breakdown: ref.watch(loanDueThisMonthBreakdownProvider), route: AppRoutes.loans),
-      (label: 'Bills', breakdown: ref.watch(billsDueThisMonthBreakdownProvider), route: AppRoutes.bills),
+      (label: 'Credit Cards', breakdown: ref.watch(creditCardDueForRangeBreakdownProvider), route: AppRoutes.creditCards),
+      (label: 'EMI', breakdown: ref.watch(emiDueForRangeBreakdownProvider), route: AppRoutes.emis),
+      (label: 'Loans', breakdown: ref.watch(loanDueForRangeBreakdownProvider), route: AppRoutes.loans),
+      (label: 'Bills', breakdown: ref.watch(billsDueForRangeBreakdownProvider), route: AppRoutes.bills),
       (
         label: 'Other Scheduled Payments',
         breakdown: ref.watch(otherScheduledDueThisMonthBreakdownProvider),
@@ -37,8 +37,8 @@ class PaymentsDueCard extends ConsumerWidget {
     if (total.due == 0) {
       return const PlaceholderCard(
         icon: Icons.event_available_rounded,
-        title: 'Nothing due this month',
-        message: 'Credit card bills, EMIs, loans, and bills due this month will appear here.',
+        title: 'Nothing due in this period',
+        message: 'Credit card bills, EMIs, loans, and bills due in the selected period will appear here.',
       );
     }
 
@@ -46,7 +46,7 @@ class PaymentsDueCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Payments Due This Month', style: context.textTheme.titleMedium),
+          Text('Payments Due', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.md),
           Text(
             CurrencyFormatter.instance.format(total.due),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
@@ -19,7 +20,10 @@ class ReminderNotificationService {
   static bool _initialized = false;
 
   static Future<void> init() async {
-    if (_initialized) return;
+    // flutter_local_notifications has no web implementation — it resolves
+    // its platform channel via `dart:io`'s `Platform`, which throws
+    // Unsupported error on web rather than degrading gracefully.
+    if (kIsWeb || _initialized) return;
     tz_data.initializeTimeZones();
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -46,6 +50,7 @@ class ReminderNotificationService {
   /// Safe to call repeatedly: once the user has answered, both platforms
   /// resolve with the standing decision instead of prompting again.
   static Future<bool> requestPermission() async {
+    if (kIsWeb) return false;
     await init();
 
     if (Platform.isAndroid) {
@@ -79,6 +84,7 @@ class ReminderNotificationService {
     required DateTime dueDate,
     required List<int> offsets,
   }) async {
+    if (kIsWeb) return;
     await cancel(ownerId);
     if (offsets.isEmpty) return;
 
@@ -117,6 +123,7 @@ class ReminderNotificationService {
   /// Cancels every notification previously scheduled for [ownerId], across
   /// every possible offset — safe to call even if none were scheduled.
   static Future<void> cancel(String ownerId) async {
+    if (kIsWeb) return;
     for (final offset in _knownOffsets) {
       await _plugin.cancel(_notificationId(ownerId, offset));
     }

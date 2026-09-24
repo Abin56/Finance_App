@@ -413,6 +413,9 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
   }) {
     switch (purpose.targetKind) {
       case ReceiptTargetKind.person:
+        if (people.isEmpty) {
+          return [_EmptyTargetHint(context, "You haven't added anyone yet — add a person first.")];
+        }
         return [
           DropdownButtonFormField<String>(
             initialValue: people.any((p) => p.id == _personId) ? _personId : null,
@@ -429,6 +432,9 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         ];
 
       case ReceiptTargetKind.loanInstallment:
+        if (loans.isEmpty) {
+          return [_EmptyTargetHint(context, 'No active loans found — add a loan first.')];
+        }
         return [
           DropdownButtonFormField<String>(
             initialValue: loans.any((l) => l.id == _loanId) ? _loanId : null,
@@ -471,6 +477,9 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         ];
 
       case ReceiptTargetKind.emiInstallment:
+        if (emis.isEmpty) {
+          return [_EmptyTargetHint(context, 'No active EMIs found — add an EMI first.')];
+        }
         return [
           DropdownButtonFormField<String>(
             initialValue: emis.any((e) => e.id == _emiId) ? _emiId : null,
@@ -509,6 +518,9 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         ];
 
       case ReceiptTargetKind.savingsGoal:
+        if (savingsGoals.isEmpty) {
+          return [_EmptyTargetHint(context, 'No active savings goals found — add one first.')];
+        }
         return [
           DropdownButtonFormField<String>(
             initialValue: savingsGoals.any((g) => g.id == _savingsGoalId) ? _savingsGoalId : null,
@@ -525,6 +537,9 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         ];
 
       case ReceiptTargetKind.splitExpenseParticipant:
+        if (pendingSplitParticipants.isEmpty) {
+          return [_EmptyTargetHint(context, 'No pending shared expenses found to settle.')];
+        }
         return [
           DropdownButtonFormField<String>(
             initialValue: pendingSplitParticipants.any((e) => e.installment.id == _splitParticipantKey)
@@ -553,6 +568,33 @@ class _MoneyReceivedSheetState extends ConsumerState<MoneyReceivedSheet> {
         return const [];
     }
   }
+}
+
+/// Shown in place of a target picker dropdown when its underlying list
+/// (loans, EMIs, savings goals, etc.) is empty — a `DropdownButtonFormField`
+/// with no items silently disables itself, so without this the picker would
+/// look broken (tapping it does nothing) rather than explaining why.
+Widget _EmptyTargetHint(BuildContext context, String message) {
+  final colors = Theme.of(context).colorScheme;
+  return Container(
+    padding: const EdgeInsets.all(AppSizes.sm),
+    decoration: BoxDecoration(
+      color: colors.errorContainer.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.info_outline, size: AppSizes.iconSm, color: colors.onErrorContainer),
+        const SizedBox(width: AppSizes.xs),
+        Expanded(
+          child: Text(
+            message,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onErrorContainer),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 /// The filled, borderless-until-focus field decoration every field on this
