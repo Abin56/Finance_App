@@ -70,25 +70,29 @@ class WidgetConfiguration {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'title': title,
-        'dateStrategy': _dateStrategyToJson(dateStrategy),
-        'financialViewModule': financialViewModule.name,
-        'size': size.name,
-        'isVisible': isVisible,
-        'accountIds': accountIds,
-        'categoryIds': categoryIds,
-        'personIds': personIds,
-      };
+    'id': id,
+    'type': type.name,
+    'title': title,
+    'dateStrategy': _dateStrategyToJson(dateStrategy),
+    'financialViewModule': financialViewModule.name,
+    'size': size.name,
+    'isVisible': isVisible,
+    'accountIds': accountIds,
+    'categoryIds': categoryIds,
+    'personIds': personIds,
+  };
 
   factory WidgetConfiguration.fromJson(Map<String, dynamic> json) {
     return WidgetConfiguration(
       id: json['id'] as String,
       type: DashboardWidgetType.values.byName(json['type'] as String),
       title: json['title'] as String,
-      dateStrategy: _dateStrategyFromJson(json['dateStrategy'] as Map<String, dynamic>),
-      financialViewModule: FinancialViewModule.values.byName(json['financialViewModule'] as String),
+      dateStrategy: _dateStrategyFromJson(
+        json['dateStrategy'] as Map<String, dynamic>,
+      ),
+      financialViewModule: FinancialViewModule.values.byName(
+        json['financialViewModule'] as String,
+      ),
       size: DashboardWidgetSize.values.byName(json['size'] as String),
       isVisible: json['isVisible'] as bool,
       accountIds: (json['accountIds'] as List<dynamic>).cast<String>(),
@@ -104,15 +108,24 @@ class WidgetConfiguration {
 /// touching [WidgetConfiguration] itself.
 Map<String, dynamic> _dateStrategyToJson(DateRangeStrategy strategy) {
   return switch (strategy) {
-    SalaryCycleToDate(:final anchorDay) => {'kind': 'salaryCycleToDate', 'anchorDay': anchorDay},
-    SalaryCycleFull(:final anchorDay) => {'kind': 'salaryCycleFull', 'anchorDay': anchorDay},
-    ReportsPeriodStrategy(:final period) => {'kind': 'reportsPeriod', 'period': period.name},
+    SalaryCycleToDate(:final anchorDay) => {
+      'kind': 'salaryCycleToDate',
+      'anchorDay': anchorDay,
+    },
+    SalaryCycleFull(:final anchorDay) => {
+      'kind': 'salaryCycleFull',
+      'anchorDay': anchorDay,
+    },
+    ReportsPeriodStrategy(:final period) => {
+      'kind': 'reportsPeriod',
+      'period': period.name,
+    },
     LastNDays(:final days) => {'kind': 'lastNDays', 'days': days},
     CustomDateRange(:final start, :final end) => {
-        'kind': 'customRange',
-        'start': start.toIso8601String(),
-        'end': end.toIso8601String(),
-      },
+      'kind': 'customRange',
+      'start': start.toIso8601String(),
+      'end': end.toIso8601String(),
+    },
   };
 }
 

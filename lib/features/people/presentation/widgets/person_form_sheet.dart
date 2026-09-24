@@ -19,11 +19,15 @@ class PersonFormSheet extends ConsumerStatefulWidget {
 
   final Person? person;
 
-  static Future<void> show(BuildContext context, {Person? person}) {
-    return showModalBottomSheet(
+  /// Resolves with the created/edited person's id once saved (null if the
+  /// sheet is dismissed without saving) — lets a caller like [LoanFormSheet]
+  /// auto-select a person just created from a "+ Add new person" shortcut.
+  static Future<String?> show(BuildContext context, {Person? person}) {
+    return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
+      useSafeArea: true,
       builder: (_) => PersonFormSheet(person: person),
     );
   }
@@ -35,15 +39,18 @@ class PersonFormSheet extends ConsumerStatefulWidget {
 class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.person?.name);
-  late final _phoneController = TextEditingController(text: widget.person?.phone);
-  late final _emailController = TextEditingController(text: widget.person?.email);
-  late final _notesController = TextEditingController(text: widget.person?.notes ?? '');
-  late final _openingBalanceController = TextEditingController(
-    text: widget.person == null ? '0' : widget.person!.openingBalance.toStringAsFixed(2),
+  late final _phoneController = TextEditingController(
+    text: widget.person?.phone,
   );
-  late int _avatarColorValue = widget.person?.avatarColorValue ?? AppColors.categoryPalette.first.toARGB32();
+  late final _openingBalanceController = TextEditingController(
+    text: widget.person == null
+        ? '0'
+        : widget.person!.openingBalance.toStringAsFixed(2),
+  );
+  late int _avatarColorValue =
+      widget.person?.avatarColorValue ??
+      AppColors.categoryPalette.first.toARGB32();
   final _phoneFocusNode = FocusNode();
-  final _emailFocusNode = FocusNode();
   bool _isSaving = false;
 
   bool get _isEditing => widget.person != null;
@@ -52,11 +59,8 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _emailController.dispose();
-    _notesController.dispose();
     _openingBalanceController.dispose();
     _phoneFocusNode.dispose();
-    _emailFocusNode.dispose();
     super.dispose();
   }
 
@@ -67,34 +71,32 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
     try {
       final repository = ref.read(personRepositoryProvider);
       final phone = _phoneController.text.trim();
-      final email = _emailController.text.trim();
 
+      String personId;
       if (_isEditing) {
         await repository.editPerson(
           widget.person!,
           name: _nameController.text.trim(),
           phone: phone.isEmpty ? null : phone,
-          email: email.isEmpty ? null : email,
-          notes: _notesController.text.trim(),
           avatarColorValue: _avatarColorValue,
         );
+        personId = widget.person!.id;
       } else {
-        await repository.createPerson(
+        final created = await repository.createPerson(
           name: _nameController.text.trim(),
           phone: phone.isEmpty ? null : phone,
-          email: email.isEmpty ? null : email,
-          notes: _notesController.text.trim(),
           avatarColorValue: _avatarColorValue,
           openingBalance: double.parse(_openingBalanceController.text.trim()),
         );
+        personId = created.id;
       }
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(personId);
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save person: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save person: $e')));
       }
     }
   }
@@ -125,21 +127,13 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
             TextFormField(
               controller: _phoneController,
               focusNode: _phoneFocusNode,
-              decoration: _premiumDecoration(context, label: 'Phone (optional)'),
+              decoration: _premiumDecoration(
+                context,
+                label: 'Phone (optional)',
+              ),
               style: Theme.of(context).textTheme.bodyMedium,
               keyboardType: TextInputType.phone,
               validator: Validators.phone,
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) => _emailFocusNode.requestFocus(),
-            ),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
-              controller: _emailController,
-              focusNode: _emailFocusNode,
-              decoration: _premiumDecoration(context, label: 'Email (optional)'),
-              style: Theme.of(context).textTheme.bodyMedium,
-              keyboardType: TextInputType.emailAddress,
-              validator: Validators.email,
               textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: AppSizes.md),
@@ -156,7 +150,10 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
                     : 'Positive = they owe you, negative = you owe them',
               ),
               style: Theme.of(context).textTheme.bodyMedium,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
               validator: Validators.signedAmount,
             ),
             const SizedBox(height: AppSizes.md),
@@ -164,17 +161,8 @@ class _PersonFormSheetState extends ConsumerState<PersonFormSheet> {
             const SizedBox(height: AppSizes.sm),
             ColorSwatchPicker(
               value: Color(_avatarColorValue),
-              onChanged: (color) => setState(() => _avatarColorValue = color.toARGB32()),
-            ),
-            const SizedBox(height: AppSizes.md),
-            const SectionLabel('Notes'),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
-              controller: _notesController,
-              decoration: _premiumDecoration(context, label: 'Notes (optional)'),
-              style: Theme.of(context).textTheme.bodyMedium,
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
+              onChanged: (color) =>
+                  setState(() => _avatarColorValue = color.toARGB32()),
             ),
           ],
         ),
@@ -196,11 +184,20 @@ InputDecoration _premiumDecoration(
     labelText: label,
     helperText: helperText,
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: AppSizes.sm),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSizes.sm,
+      vertical: AppSizes.sm,
+    ),
     filled: true,
     fillColor: colors.surfaceContainerHighest.withValues(alpha: 0.5),
-    border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
-    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSizes.radiusMd), borderSide: BorderSide.none),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      borderSide: BorderSide.none,
+    ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
       borderSide: BorderSide(color: colors.primary, width: 1.6),

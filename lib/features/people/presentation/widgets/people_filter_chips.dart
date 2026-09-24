@@ -36,7 +36,11 @@ extension PeopleFilterX on PeopleFilter {
 
 /// Horizontal row of single-select filter chips for [PeopleFilter].
 class PeopleFilterChips extends StatelessWidget {
-  const PeopleFilterChips({super.key, required this.selected, required this.onChanged});
+  const PeopleFilterChips({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   final PeopleFilter selected;
   final ValueChanged<PeopleFilter> onChanged;
@@ -54,7 +58,9 @@ class PeopleFilterChips extends StatelessWidget {
                 label: Text(filter.label),
                 selected: selected == filter,
                 onSelected: (_) => onChanged(filter),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                ),
               ),
             ),
         ],

@@ -17,14 +17,14 @@ class LoanInterest {
   final InterestPeriod period;
 
   factory LoanInterest.fromMap(Map<String, dynamic> map) => LoanInterest(
-        type: InterestTypeX.fromName(map['type'] as String),
-        ratePercent: (map['ratePercent'] as num).toDouble(),
-        period: InterestPeriodX.fromName(map['period'] as String),
-      );
+    type: InterestTypeX.fromName(map['type'] as String),
+    ratePercent: (map['ratePercent'] as num).toDouble(),
+    period: InterestPeriodX.fromName(map['period'] as String),
+  );
 
   Map<String, dynamic> toMap() => {
-        'type': type.name,
-        'ratePercent': ratePercent,
-        'period': period.name,
-      };
+    'type': type.name,
+    'ratePercent': ratePercent,
+    'period': period.name,
+  };
 }

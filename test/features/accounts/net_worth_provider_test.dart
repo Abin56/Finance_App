@@ -25,9 +25,24 @@ void main() {
 
   test('netWorthProvider sums currentBalance across every account', () async {
     final accounts = container.read(accountRepositoryProvider);
-    await accounts.createAccount(name: 'Wallet', type: AccountType.cash, openingBalance: 1000, colorValue: 0xFF000000);
-    await accounts.createAccount(name: 'Bank', type: AccountType.bank, openingBalance: 5000, colorValue: 0xFF000000);
-    await accounts.createAccount(name: 'Credit line', type: AccountType.card, openingBalance: -800, colorValue: 0xFF000000);
+    await accounts.createAccount(
+      name: 'Wallet',
+      type: AccountType.cash,
+      openingBalance: 1000,
+      colorValue: 0xFF000000,
+    );
+    await accounts.createAccount(
+      name: 'Bank',
+      type: AccountType.bank,
+      openingBalance: 5000,
+      colorValue: 0xFF000000,
+    );
+    await accounts.createAccount(
+      name: 'Credit line',
+      type: AccountType.card,
+      openingBalance: -800,
+      colorValue: 0xFF000000,
+    );
 
     await container.read(accountsStreamProvider.future);
 

@@ -3,7 +3,14 @@
 /// (a person, a loan/EMI installment, or a savings goal), independent of
 /// the purpose's plain-language label. Purposes that don't settle anything
 /// beyond "money arrived in an account" use [none].
-enum ReceiptTargetKind { person, loanInstallment, emiInstallment, savingsGoal, splitExpenseParticipant, none }
+enum ReceiptTargetKind {
+  person,
+  loanInstallment,
+  emiInstallment,
+  savingsGoal,
+  splitExpenseParticipant,
+  none,
+}
 
 /// Why money was received — shown to the user in plain language (per this
 /// app's Plain Language UX Rule) and used by `ReceiptClassificationRouter`
@@ -30,8 +37,8 @@ enum ReceiptPurpose {
 }
 
 extension ReceiptPurposeX on ReceiptPurpose {
-  static ReceiptPurpose fromName(String name) =>
-      ReceiptPurpose.values.firstWhere((p) => p.name == name, orElse: () => ReceiptPurpose.other);
+  static ReceiptPurpose fromName(String name) => ReceiptPurpose.values
+      .firstWhere((p) => p.name == name, orElse: () => ReceiptPurpose.other);
 
   String get label {
     switch (this) {

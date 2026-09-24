@@ -73,14 +73,19 @@ class Statement extends SoftDeletableEntity {
 
   final DateTime createdAt;
 
-  double get remainingAmount => (totalAmount - amountPaid).clamp(0, totalAmount);
+  double get remainingAmount =>
+      (totalAmount - amountPaid).clamp(0, totalAmount);
 
   /// Whether [date] falls within `[periodStart, periodEnd]` (inclusive,
   /// date-only) — the single place every screen/provider checks "is this
   /// transaction inside this statement" instead of each re-deriving it.
   bool contains(DateTime date) {
     final day = DateTime(date.year, date.month, date.day);
-    final start = DateTime(periodStart.year, periodStart.month, periodStart.day);
+    final start = DateTime(
+      periodStart.year,
+      periodStart.month,
+      periodStart.day,
+    );
     final end = DateTime(periodEnd.year, periodEnd.month, periodEnd.day);
     return !day.isBefore(start) && !day.isAfter(end);
   }
@@ -92,19 +97,19 @@ class Statement extends SoftDeletableEntity {
   /// field (including [amountPaid], [editHistory], etc.).
   Statement withLiveTotal(double liveTotalAmount, double? liveMinimumDue) {
     return Statement(
-      id: id,
-      cardId: cardId,
-      periodStart: periodStart,
-      periodEnd: periodEnd,
-      generatedDate: generatedDate,
-      dueDate: dueDate,
-      totalAmount: liveTotalAmount,
-      minimumDue: liveMinimumDue,
-      createdAt: createdAt,
-      amountPaid: amountPaid,
-      interestCharged: interestCharged,
-      lateFee: lateFee,
-    )
+        id: id,
+        cardId: cardId,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        generatedDate: generatedDate,
+        dueDate: dueDate,
+        totalAmount: liveTotalAmount,
+        minimumDue: liveMinimumDue,
+        createdAt: createdAt,
+        amountPaid: amountPaid,
+        interestCharged: interestCharged,
+        lateFee: lateFee,
+      )
       ..deletedAt = deletedAt
       ..lastEditedAt = lastEditedAt
       ..editHistory = editHistory;
@@ -127,19 +132,19 @@ class Statement extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Statement(
-      id: snapshot.id,
-      cardId: data['cardId'] as String,
-      periodStart: (data['periodStart'] as Timestamp).toDate(),
-      periodEnd: (data['periodEnd'] as Timestamp).toDate(),
-      generatedDate: (data['generatedDate'] as Timestamp).toDate(),
-      dueDate: (data['dueDate'] as Timestamp).toDate(),
-      totalAmount: (data['totalAmount'] as num).toDouble(),
-      minimumDue: (data['minimumDue'] as num?)?.toDouble(),
-      amountPaid: (data['amountPaid'] as num?)?.toDouble() ?? 0,
-      interestCharged: (data['interestCharged'] as num?)?.toDouble(),
-      lateFee: (data['lateFee'] as num?)?.toDouble(),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        cardId: data['cardId'] as String,
+        periodStart: (data['periodStart'] as Timestamp).toDate(),
+        periodEnd: (data['periodEnd'] as Timestamp).toDate(),
+        generatedDate: (data['generatedDate'] as Timestamp).toDate(),
+        dueDate: (data['dueDate'] as Timestamp).toDate(),
+        totalAmount: (data['totalAmount'] as num).toDouble(),
+        minimumDue: (data['minimumDue'] as num?)?.toDouble(),
+        amountPaid: (data['amountPaid'] as num?)?.toDouble() ?? 0,
+        interestCharged: (data['interestCharged'] as num?)?.toDouble(),
+        lateFee: (data['lateFee'] as num?)?.toDouble(),
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -161,7 +166,9 @@ class Statement extends SoftDeletableEntity {
       'lateFee': lateFee,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

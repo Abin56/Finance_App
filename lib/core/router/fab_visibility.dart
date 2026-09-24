@@ -26,10 +26,14 @@ class ModalRouteCounter extends Notifier<int> {
   void decrement() => state = state > 0 ? state - 1 : 0;
 }
 
-final modalRouteCountProvider = NotifierProvider<ModalRouteCounter, int>(ModalRouteCounter.new);
+final modalRouteCountProvider = NotifierProvider<ModalRouteCounter, int>(
+  ModalRouteCounter.new,
+);
 
 /// Whether the global FAB should currently be shown.
-final fabVisibleProvider = Provider<bool>((ref) => ref.watch(modalRouteCountProvider) == 0);
+final fabVisibleProvider = Provider<bool>(
+  (ref) => ref.watch(modalRouteCountProvider) == 0,
+);
 
 /// Attach one instance per [StatefulShellBranch] so every sheet or dialog a
 /// tab screen opens hides the FAB automatically — no call-site opt-in, so

@@ -20,10 +20,10 @@ class DashboardWidget {
   final String configId;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'configId': configId,
-      };
+    'id': id,
+    'type': type.name,
+    'configId': configId,
+  };
 
   factory DashboardWidget.fromJson(Map<String, dynamic> json) {
     return DashboardWidget(
@@ -62,10 +62,10 @@ class DashboardLayout {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'widgets': widgets.map((w) => w.toJson()).toList(),
-      };
+    'id': id,
+    'name': name,
+    'widgets': widgets.map((w) => w.toJson()).toList(),
+  };
 
   factory DashboardLayout.fromJson(Map<String, dynamic> json) {
     return DashboardLayout(

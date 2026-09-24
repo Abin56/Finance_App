@@ -62,7 +62,11 @@ class LedgerRepository extends FirestoreCrudRepository<LedgerEntry> {
   /// `ExpenseRepository.editExpense` so editing a split/assigned expense's
   /// amount updates the same history line the user tapped instead of
   /// leaving it stale next to a separate "Correct Balance" entry.
-  Future<void> editEntryAmount(Person person, LedgerEntry entry, double newAmount) async {
+  Future<void> editEntryAmount(
+    Person person,
+    LedgerEntry entry,
+    double newAmount,
+  ) async {
     if (newAmount <= 0) {
       throw const AppException('Amount must be greater than 0');
     }
@@ -74,7 +78,10 @@ class LedgerRepository extends FirestoreCrudRepository<LedgerEntry> {
       apply: (v) => entry.amount = v,
     );
     await update(entry);
-    await personRepository.adjustBalance(person, entry.signedAmount - oldSignedAmount);
+    await personRepository.adjustBalance(
+      person,
+      entry.signedAmount - oldSignedAmount,
+    );
   }
 
   /// Reverses the entry's balance effect, then soft-deletes it — mirrors
@@ -93,23 +100,30 @@ class LedgerRepository extends FirestoreCrudRepository<LedgerEntry> {
 
   /// No balance change — already reversed at soft-delete time. Mirrors
   /// `TransactionRepository.permanentlyDeleteTransaction`.
-  Future<void> permanentlyDeleteEntry(LedgerEntry entry) => permanentlyDelete(entry);
+  Future<void> permanentlyDeleteEntry(LedgerEntry entry) =>
+      permanentlyDelete(entry);
 
   /// Active entries whose [LedgerEntry.transactionRef] matches
   /// [transactionId] — a targeted query for callers that only need "this
   /// expense's" ledger entries, instead of fetching the whole subcollection
   /// via [getAll] and filtering client-side.
   Future<List<LedgerEntry>> getByTransactionRef(String transactionId) async {
-    final snapshot =
-        await collection.where('deletedAt', isNull: true).where('transactionRef', isEqualTo: transactionId).get();
+    final snapshot = await collection
+        .where('deletedAt', isNull: true)
+        .where('transactionRef', isEqualTo: transactionId)
+        .get();
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
 
   /// [getByTransactionRef], but over trashed entries — mirrors [getTrash]
   /// vs [getAll].
-  Future<List<LedgerEntry>> getTrashByTransactionRef(String transactionId) async {
-    final snapshot =
-        await collection.where('deletedAt', isNull: false).where('transactionRef', isEqualTo: transactionId).get();
+  Future<List<LedgerEntry>> getTrashByTransactionRef(
+    String transactionId,
+  ) async {
+    final snapshot = await collection
+        .where('deletedAt', isNull: false)
+        .where('transactionRef', isEqualTo: transactionId)
+        .get();
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
 }

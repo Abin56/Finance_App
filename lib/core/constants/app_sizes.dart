@@ -12,22 +12,25 @@ abstract class AppSizes {
   static const double xxl = 32;
   static const double xxxl = 48;
 
-  // Radius — flat/sharp-cornered design language: every rounded surface in the app
-  // resolves through these constants, so zeroing them here flattens cards, buttons,
-  // inputs, chips, bottom sheets, and dialogs app-wide from one place, without
-  // touching the widgets that reference them. [radiusPill] stays at 999 — that's a
-  // genuine pill/circle shape (nav indicators, filter chips), not a "rounded
-  // rectangle" corner, so it's deliberately left alone (mirrors the web app's
-  // decision to keep `rounded-full` untouched while flattening its numbered scale).
-  static const double radiusSm = 0;
-  static const double radiusMd = 0;
-  static const double radiusLg = 0;
-  static const double radiusXl = 0;
+  // Radius — Theme V2's rounded, controlled geometry: every rounded surface in
+  // the app resolves through these constants, so the scale can be tuned from
+  // one place without touching the widgets that reference them. Deliberately
+  // NOT uniform — smaller elements (chips, small icon surfaces) get tighter
+  // radii than large ones (hero cards, sheets), so nothing reads as either a
+  // sharp rectangle or an over-rounded blob. [radiusPill] stays at 999 for
+  // genuine pill/circle shapes (nav indicators, filter chips).
+  static const double radiusXs = 8;
+  static const double radiusSm = 12;
+  static const double radiusMd = 16;
+  static const double radiusLg = 20;
+  static const double radiusXl = 24;
+  static const double radius2Xl = 28;
   static const double radiusPill = 999;
 
-  /// Premium dashboard card radius (Figma spec) — distinct from [radiusLg]/
-  /// [radiusXl], used by the redesigned Dashboard's hero/summary cards.
-  static const double radiusCard = 0;
+  /// Premium dashboard/hero card radius (Figma spec) — distinct from
+  /// [radiusLg]/[radiusXl], used by the redesigned Dashboard's hero/summary
+  /// cards and other high-emphasis financial surfaces.
+  static const double radiusCard = 24;
 
   // Icon sizes
   static const double iconSm = 16;

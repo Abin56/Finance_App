@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/data/bank_registry.dart';
@@ -10,6 +11,8 @@ import '../../../../core/extensions/num_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/animations/count_up_text.dart';
+import '../../../../shared/widgets/bank_logo.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../transactions/presentation/screens/transactions_screen.dart';
@@ -34,17 +37,14 @@ class CreditCardsScreen extends ConsumerStatefulWidget {
   ConsumerState<CreditCardsScreen> createState() => _CreditCardsScreenState();
 }
 
-/// A lighter tint pulled from the hero card's own gradient
-/// ([_LimitSummaryCard._defaultGradient]) — used for "Add Card" so it reads
-/// as part of the same purple wallet family instead of an unrelated brand
-/// or semantic color.
-const Color _addCardAccent = Color(0xFF6B3F8C);
+/// "Add Card" accent — the app's own lime brand color, matching every other
+/// primary/CTA surface in the app (see [AppColors.primary]).
+const Color _addCardAccent = AppColors.primary;
 
-/// Fallback for a card whose linked account has no color yet — deliberately
-/// this file's own purple wallet accent rather than [ColorScheme.primary],
-/// which is a pale, washed-out blue in dark mode and lerps toward black into
-/// a flat, boring gray gradient instead of a rich card face.
-final int _defaultCardColorValue = _addCardAccent.toARGB32();
+/// Fallback for a card whose linked account has no color yet — the app's
+/// dark hero tone ([AppColors.nearBlack]), matching the hero surface used
+/// everywhere else instead of an unrelated one-off color.
+final int _defaultCardColorValue = AppColors.nearBlack.toARGB32();
 
 class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
   int _frontIndex = 0;
@@ -60,7 +60,8 @@ class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
     return Scaffold(
       body: cardsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
+        error: (error, _) =>
+            Center(child: Text('Something went wrong: $error')),
         // Loading/error state comes from the raw stream above; the actual
         // list to render is `activeCreditCardsProvider` — excludes cards
         // whose linked Account has been soft-deleted (each card's overflow
@@ -72,11 +73,11 @@ class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
               slivers: [
                 _SliverHeader(hasCards: false),
                 SliverFillRemaining(
-                  hasScrollBody: false,
                   child: EmptyState(
                     icon: Icons.credit_card_outlined,
                     title: 'No credit cards yet',
-                    subtitle: 'Add a card to track its statement cycle and remaining balance.',
+                    subtitle:
+                        'Add a card to track its statement cycle and remaining balance.',
                     action: FilledButton(
                       onPressed: () => CreditCardFormSheet.show(context),
                       child: const Text('Add your first card'),
@@ -92,10 +93,16 @@ class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
             // each group, ascending by bank name (A→Z) — cards with no bank
             // set sort last within their group.
             ..sort((a, b) {
-              final statusCompare = (a.status.isActive ? 0 : 1).compareTo(b.status.isActive ? 0 : 1);
+              final statusCompare = (a.status.isActive ? 0 : 1).compareTo(
+                b.status.isActive ? 0 : 1,
+              );
               if (statusCompare != 0) return statusCompare;
-              final bankA = BankRegistry.byId(accountBankIdById[a.accountId])?.name ?? '￿';
-              final bankB = BankRegistry.byId(accountBankIdById[b.accountId])?.name ?? '￿';
+              final bankA =
+                  BankRegistry.byId(accountBankIdById[a.accountId])?.name ??
+                  '￿';
+              final bankB =
+                  BankRegistry.byId(accountBankIdById[b.accountId])?.name ??
+                  '￿';
               return bankA.toLowerCase().compareTo(bankB.toLowerCase());
             });
           final frontIndex = _frontIndex.clamp(0, sortedCards.length - 1);
@@ -113,16 +120,29 @@ class _CreditCardsScreenState extends ConsumerState<CreditCardsScreen> {
                     accountBankIdById: accountBankIdById,
                     accountColorById: accountColorById,
                     frontIndex: frontIndex,
-                    onFrontIndexChanged: (index) => setState(() => _frontIndex = index),
+                    onFrontIndexChanged: (index) =>
+                        setState(() => _frontIndex = index),
                   ),
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, 0),
-                sliver: SliverToBoxAdapter(child: _QuickActionsRow(card: frontCard)),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSizes.lg,
+                  AppSizes.md,
+                  AppSizes.lg,
+                  0,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: _QuickActionsRow(card: frontCard),
+                ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSizes.lg,
+                  AppSizes.md,
+                  AppSizes.lg,
+                  0,
+                ),
                 sliver: SliverList.list(
                   children: [
                     _CardStandingSummaryCard(
@@ -169,7 +189,8 @@ Map<String, String> _sharedLimitRoleLabels(List<CreditCardProfile> cards) {
   final labels = <String, String>{};
   for (final group in bySharedLimit.values) {
     if (group.length < 2) continue;
-    final ordered = List<CreditCardProfile>.of(group)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    final ordered = List<CreditCardProfile>.of(group)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     for (var i = 0; i < ordered.length; i++) {
       labels[ordered[i].id] = switch (i) {
         0 => 'Primary Card',
@@ -192,7 +213,12 @@ class _SliverHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: EdgeInsets.fromLTRB(AppSizes.lg, context.viewPadding.top + AppSizes.sm, AppSizes.lg, AppSizes.md),
+      padding: EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        context.viewPadding.top + AppSizes.sm,
+        AppSizes.lg,
+        AppSizes.md,
+      ),
       sliver: SliverToBoxAdapter(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -204,12 +230,16 @@ class _SliverHeader extends StatelessWidget {
                 children: [
                   Text(
                     'My Cards',
-                    style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                    style: context.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'Manage your cards and credit limit',
-                    style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
               ),
@@ -241,16 +271,23 @@ class _AddCardButton extends StatelessWidget {
       child: InkWell(
         onTap: () => CreditCardFormSheet.show(context),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.md,
+            vertical: AppSizes.sm,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.add_rounded, size: AppSizes.iconSm, color: Colors.white),
+              const Icon(
+                Icons.add_rounded,
+                size: AppSizes.iconSm,
+                color: AppColors.onLime,
+              ),
               const SizedBox(width: 4),
               Text(
                 'Add Card',
                 style: context.textTheme.labelLarge?.copyWith(
-                  color: Colors.white,
+                  color: AppColors.onLime,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -262,12 +299,12 @@ class _AddCardButton extends StatelessWidget {
   }
 }
 
-/// A fanned wallet-card deck — the front card sits flush left at full
-/// width, and every other card peeks out from behind its right edge as a
-/// thin colored sliver (narrower/more-covered the further back it sits),
-/// matching the reference design's stacked-deck look. Tapping a peeking
-/// sliver brings that card to the front; tapping the front card opens it.
-class _HeroCarousel extends StatelessWidget {
+/// A swipeable center-focused carousel — the current card sits front and
+/// center at full size, with its neighbors peeking in from the sides at a
+/// reduced scale/opacity, growing to full size as they're swiped to center.
+/// Tapping the centered card opens it; tapping a side neighbor swipes it to
+/// center.
+class _HeroCarousel extends StatefulWidget {
   const _HeroCarousel({
     required this.cards,
     required this.accountNameById,
@@ -285,97 +322,105 @@ class _HeroCarousel extends StatelessWidget {
   final ValueChanged<int> onFrontIndexChanged;
 
   @override
+  State<_HeroCarousel> createState() => _HeroCarouselState();
+}
+
+class _HeroCarouselState extends State<_HeroCarousel> {
+  // Fractional peek of each neighbor card, so the PageView reads as a
+  // center-focused carousel rather than one full-bleed page per card.
+  static const double _viewportFraction = 0.82;
+
+  late final PageController _controller = PageController(
+    viewportFraction: _viewportFraction,
+    initialPage: widget.frontIndex,
+  );
+
+  @override
+  void didUpdateWidget(covariant _HeroCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Keep the page in sync when the front index changes from outside this
+    // widget (e.g. the card list below jumping the carousel to a card).
+    if (widget.frontIndex != oldWidget.frontIndex && _controller.hasClients) {
+      final current = _controller.page?.round();
+      if (current != widget.frontIndex) {
+        _controller.animateToPage(
+          widget.frontIndex,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final count = cards.length;
-    // Every card after the front one peeks by this many pixels of its
-    // right edge, stacked in order so the deck reads back-to-front, left
-    // to right — the reference design's fanned wallet look.
-    const peekWidth = 26.0;
-    const maxPeeks = 4;
-    final behindCount = (count - 1).clamp(0, maxPeeks);
-
     return AspectRatio(
-      aspectRatio: 1.85,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final frontWidth = constraints.maxWidth - (peekWidth * behindCount);
-          // Deck order behind the front card, nearest-behind first.
-          final order = [
-            for (var offset = 1; offset < count; offset++) (frontIndex + offset) % count,
-          ];
-
-          return Stack(
-            children: [
-              // Painted back-to-front so nearer cards' slivers sit on top.
-              for (var i = order.length - 1; i >= 0; i--)
-                _buildPeekingCard(context, order[i], depth: i, peekWidth: peekWidth, maxPeeks: maxPeeks),
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: frontWidth,
+      aspectRatio: 1.62,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification is ScrollEndNotification) {
+            final settled = _controller.page?.round();
+            if (settled != null && settled != widget.frontIndex) {
+              widget.onFrontIndexChanged(settled);
+            }
+          }
+          return false;
+        },
+        child: PageView.builder(
+          controller: _controller,
+          itemCount: widget.cards.length,
+          onPageChanged: widget.onFrontIndexChanged,
+          itemBuilder: (context, index) {
+            final card = widget.cards[index];
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                // Distance of this page from the currently-centered page,
+                // clamped to a full page so the shrink/fade never overshoots
+                // mid-swipe. Falls back to the static index delta before the
+                // controller is attached to a viewport.
+                final page = _controller.hasClients
+                    ? (_controller.page ?? widget.frontIndex.toDouble())
+                    : widget.frontIndex.toDouble();
+                final delta = (page - index).clamp(-1.0, 1.0).abs();
+                final scale = 1.0 - (delta * 0.16);
+                final opacity = 1.0 - (delta * 0.4);
+                return Transform.scale(
+                  scale: scale,
+                  child: Opacity(opacity: opacity, child: child),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
                 child: GestureDetector(
-                  onTap: () => _CardQuickDetailSheet.show(context, card: cards[frontIndex]),
-                  onHorizontalDragEnd: count > 1
-                      ? (details) {
-                          final velocity = details.primaryVelocity ?? 0;
-                          if (velocity < -100) {
-                            onFrontIndexChanged((frontIndex + 1) % count);
-                          } else if (velocity > 100) {
-                            onFrontIndexChanged((frontIndex - 1 + count) % count);
-                          }
-                        }
-                      : null,
+                  onTap: () {
+                    if (index == widget.frontIndex) {
+                      _CardQuickDetailSheet.show(context, card: card);
+                    } else {
+                      _controller.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.easeOutCubic,
+                      );
+                    }
+                  },
                   child: _HeroCardFace(
-                    key: ValueKey(cards[frontIndex].id),
-                    card: cards[frontIndex],
-                    name: accountNameById[cards[frontIndex].accountId] ?? 'Card',
-                    bankId: accountBankIdById[cards[frontIndex].accountId],
-                    colorValue: accountColorById[cards[frontIndex].accountId],
+                    key: ValueKey(card.id),
+                    card: card,
+                    name: widget.accountNameById[card.accountId] ?? 'Card',
+                    bankId: widget.accountBankIdById[card.accountId],
+                    colorValue: widget.accountColorById[card.accountId],
                   ),
                 ),
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPeekingCard(
-    BuildContext context,
-    int index, {
-    required int depth,
-    required double peekWidth,
-    required int maxPeeks,
-  }) {
-    if (depth >= maxPeeks) return const SizedBox.shrink();
-    final card = cards[index];
-    final colorValue = accountColorById[card.accountId] ?? _defaultCardColorValue;
-    // The gradient's own highlight stop, not the raw stored color — a
-    // low-saturation pick (e.g. "Silver") would otherwise fade to a flat
-    // gray sliver instead of matching the richer face it peeks out from.
-    final base = cardFaceGradientColors(Color(colorValue)).first;
-    // Each card behind the front one occupies its own fixed-width slot,
-    // shifted further right the deeper it sits — rather than a single
-    // widening block — so every card's own right edge stays visible as a
-    // distinct sliver, each set slightly further back (smaller, darker),
-    // matching the reference design's fanned-deck look.
-    const gap = 3.0;
-    final inset = 6.0 * depth;
-
-    return Positioned(
-      right: peekWidth * depth,
-      top: inset,
-      bottom: inset,
-      width: peekWidth - gap,
-      child: GestureDetector(
-        onTap: () => onFrontIndexChanged(index),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Color.lerp(base, Colors.black, 0.15 + (depth * 0.15)),
-            borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -383,7 +428,13 @@ class _HeroCarousel extends StatelessWidget {
 }
 
 class _HeroCardFace extends StatelessWidget {
-  const _HeroCardFace({super.key, required this.card, required this.name, this.bankId, this.colorValue});
+  const _HeroCardFace({
+    super.key,
+    required this.card,
+    required this.name,
+    this.bankId,
+    this.colorValue,
+  });
 
   final CreditCardProfile card;
   final String name;
@@ -394,7 +445,7 @@ class _HeroCardFace extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
+        borderRadius: BorderRadius.circular(cardFaceRadius),
         boxShadow: AppShadows.soft(context),
       ),
       // The hero slot's own AspectRatio (1.62, to leave room for the fanned
@@ -439,7 +490,10 @@ class _CardQuickDetailSheet extends ConsumerWidget {
 
   final CreditCardProfile card;
 
-  static Future<void> show(BuildContext context, {required CreditCardProfile card}) {
+  static Future<void> show(
+    BuildContext context, {
+    required CreditCardProfile card,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -454,7 +508,12 @@ class _CardQuickDetailSheet extends ConsumerWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.md, AppSizes.lg, AppSizes.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          AppSizes.md,
+          AppSizes.lg,
+          AppSizes.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,21 +533,41 @@ class _CardQuickDetailSheet extends ConsumerWidget {
               card.lastFourDigits != null && card.lastFourDigits!.isNotEmpty
                   ? '•••• ${card.lastFourDigits}'
                   : 'Card details',
-              style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: context.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: AppSizes.lg),
             Row(
               children: [
-                Expanded(child: _QuickDetailStat(label: 'Available', value: standing.available)),
-                Expanded(child: _QuickDetailStat(label: 'Total Limit', value: card.creditLimit)),
+                Expanded(
+                  child: _QuickDetailStat(
+                    label: 'Available',
+                    value: standing.available,
+                  ),
+                ),
+                Expanded(
+                  child: _QuickDetailStat(
+                    label: 'Total Limit',
+                    value: card.creditLimit,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: AppSizes.md),
             Row(
               children: [
-                Expanded(child: _QuickDetailStat(label: 'Used', value: standing.outstanding)),
                 Expanded(
-                  child: _QuickDetailStat.text(label: 'Next Due', text: _CardListTile._dueLabel(nextDue)),
+                  child: _QuickDetailStat(
+                    label: 'Used',
+                    value: standing.outstanding,
+                  ),
+                ),
+                Expanded(
+                  child: _QuickDetailStat.text(
+                    label: 'Next Due',
+                    text: _CardListTile._dueLabel(nextDue),
+                  ),
                 ),
               ],
             ),
@@ -511,9 +590,11 @@ class _CardQuickDetailSheet extends ConsumerWidget {
 }
 
 class _QuickDetailStat extends StatelessWidget {
-  const _QuickDetailStat({required this.label, required double this.value}) : text = null;
+  const _QuickDetailStat({required this.label, required double this.value})
+    : text = null;
 
-  const _QuickDetailStat.text({required this.label, required this.text}) : value = null;
+  const _QuickDetailStat.text({required this.label, required this.text})
+    : value = null;
 
   final String label;
   final double? value;
@@ -524,11 +605,18 @@ class _QuickDetailStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6))),
+        Text(
+          label,
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
         const SizedBox(height: 2),
         Text(
           text ?? CurrencyFormatter.instance.format(value!),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -569,7 +657,10 @@ class _QuickActionsRow extends StatelessWidget {
               icon: Icons.receipt_outlined,
               label: 'Transactions',
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => TransactionsScreen(initialAccountId: card.accountId)),
+                MaterialPageRoute(
+                  builder: (_) =>
+                      TransactionsScreen(initialAccountId: card.accountId),
+                ),
               ),
             ),
           ),
@@ -595,7 +686,12 @@ class _QuickActionsRow extends StatelessWidget {
 }
 
 class _QuickAction extends StatelessWidget {
-  const _QuickAction({required this.icon, required this.label, required this.onTap, this.accentColor});
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.accentColor,
+  });
 
   final IconData icon;
   final String label;
@@ -608,9 +704,15 @@ class _QuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = accentColor != null ? Colors.white : context.colors.onSurface.withValues(alpha: 0.8);
-    final circleColor = accentColor ?? context.colors.surfaceContainerHighest.withValues(alpha: 0.6);
-    final labelColor = accentColor ?? context.colors.onSurface.withValues(alpha: 0.7);
+    final iconColor = accentColor != null
+        ? AppColors.onLime
+        : context.colors.onSurface.withValues(alpha: 0.8);
+    final circleColor =
+        accentColor ??
+        context.colors.surfaceContainerHighest.withValues(alpha: 0.6);
+    final labelColor = accentColor != null
+        ? context.colors.onSurface
+        : context.colors.onSurface.withValues(alpha: 0.7);
 
     return Material(
       color: Colors.transparent,
@@ -618,7 +720,10 @@ class _QuickAction extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.xs, vertical: AppSizes.xs),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.xs,
+            vertical: AppSizes.xs,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -630,7 +735,7 @@ class _QuickAction extends StatelessWidget {
                   color: circleColor,
                   shape: BoxShape.circle,
                   boxShadow: accentColor != null
-                      ? [BoxShadow(color: accentColor!.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))]
+                      ? AppShadows.soft(context)
                       : null,
                 ),
                 child: Icon(icon, size: AppSizes.iconSm, color: iconColor),
@@ -638,7 +743,10 @@ class _QuickAction extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 label,
-                style: context.textTheme.labelSmall?.copyWith(color: labelColor, fontWeight: accentColor != null ? FontWeight.w700 : null),
+                style: context.textTheme.labelSmall?.copyWith(
+                  color: labelColor,
+                  fontWeight: accentColor != null ? FontWeight.w700 : null,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -666,9 +774,13 @@ class _CardStandingSummaryCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final standing = ref.watch(creditCardStandingProvider(card.id));
     final sharedLimit = ref.watch(sharedCreditLimitForCardProvider(card.id));
-    final memberCards = sharedLimit == null ? const <CreditCardProfile>[] : ref.watch(cardsUnderSharedLimitProvider(sharedLimit.id));
+    final memberCards = sharedLimit == null
+        ? const <CreditCardProfile>[]
+        : ref.watch(cardsUnderSharedLimitProvider(sharedLimit.id));
     final totalLimit = sharedLimit?.creditLimit ?? card.creditLimit;
-    final ratio = totalLimit <= 0 ? 0.0 : (standing.outstanding / totalLimit).clampedProgress;
+    final ratio = totalLimit <= 0
+        ? 0.0
+        : (standing.outstanding / totalLimit).clampedProgress;
     final base = Color(colorValue ?? _defaultCardColorValue);
     final gradientColors = cardFaceGradientColors(base);
 
@@ -676,7 +788,9 @@ class _CardStandingSummaryCard extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _LimitSummaryCard(
-          title: sharedLimit != null ? '${sharedLimit.name} Shared Credit' : 'Card Credit Overview',
+          title: sharedLimit != null
+              ? '${sharedLimit.name} Shared Credit'
+              : 'Card Credit Overview',
           totalLimit: totalLimit,
           available: standing.available,
           used: standing.outstanding,
@@ -690,16 +804,26 @@ class _CardStandingSummaryCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: Text(
-                  memberCards.length == 1 ? '1 physical card' : '${memberCards.length} physical cards',
-                  style: context.textTheme.labelLarge?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7)),
+                  memberCards.length == 1
+                      ? '1 physical card'
+                      : '${memberCards.length} physical cards',
+                  style: context.textTheme.labelLarge?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.7),
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               TextButton.icon(
-                onPressed: () => AddCardToSharedLimitSheet.show(context, sharedLimit: sharedLimit),
+                onPressed: () => AddCardToSharedLimitSheet.show(
+                  context,
+                  sharedLimit: sharedLimit,
+                ),
                 icon: const Icon(Icons.add_rounded, size: AppSizes.iconSm),
                 label: const Text('Add another card'),
-                style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
               ),
             ],
           ),
@@ -722,7 +846,9 @@ class _StandaloneLimitSummaryCard extends ConsumerWidget {
     final totalLimit = ref.watch(totalCreditLimitProvider);
     final totalAvailable = ref.watch(totalCreditAvailableProvider);
     final totalOutstanding = ref.watch(totalCreditCardOutstandingProvider);
-    final ratio = totalLimit <= 0 ? 0.0 : (totalOutstanding / totalLimit).clampedProgress;
+    final ratio = totalLimit <= 0
+        ? 0.0
+        : (totalOutstanding / totalLimit).clampedProgress;
 
     return _LimitSummaryCard(
       title: 'Credit Overview',
@@ -735,9 +861,9 @@ class _StandaloneLimitSummaryCard extends ConsumerWidget {
 }
 
 /// Shared visual for both the per-facility and the pooled-standalone summary
-/// — gradient surface, big Available figure, Total/Used stat row, and a
-/// zoned (0% Good · High · Over Limit · 100%) progress bar with an animated
-/// percent read-out.
+/// — the app's standard dark hero surface ([FlowFiCard.hero]), big Available
+/// figure, Total/Used stat row, and a zoned (0% Good · High · Over Limit ·
+/// 100%) progress bar with an animated percent read-out.
 class _LimitSummaryCard extends StatelessWidget {
   const _LimitSummaryCard({
     required this.title,
@@ -748,24 +874,91 @@ class _LimitSummaryCard extends StatelessWidget {
     this.gradientColors,
   });
 
-  static const List<Color> _defaultGradient = [Color(0xFF1A0B2E), Color(0xFF3B1F5C)];
-
   final String title;
   final double totalLimit;
   final double available;
   final double used;
   final double ratio;
+
+  /// Optional per-card tint (from that card's own color) — when absent, the
+  /// card renders on the app's standard hero surface like every other
+  /// financial summary card.
   final List<Color>? gradientColors;
 
   @override
   Widget build(BuildContext context) {
+    final flowfi = context.flowfi;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.account_balance_rounded,
+              size: AppSizes.iconSm,
+              color: flowfi.onHeroSurfaceMuted,
+            ),
+            const SizedBox(width: AppSizes.xs),
+            Expanded(
+              child: Text(
+                title,
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: flowfi.onHeroSurfaceMuted,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.sm),
+        Text(
+          'Available Credit',
+          style: context.textTheme.bodySmall?.copyWith(
+            color: flowfi.onHeroSurfaceMuted,
+          ),
+        ),
+        const SizedBox(height: 2),
+        CountUpText(
+          value: available,
+          formatter: CurrencyFormatter.instance.format,
+          style: context.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: flowfi.onHeroSurface,
+          ),
+        ),
+        const SizedBox(height: AppSizes.sm),
+        Row(
+          children: [
+            Expanded(
+              child: _HeroStat(label: 'Total Limit', value: totalLimit),
+            ),
+            Expanded(child: _HeroStat(label: 'Used', value: used)),
+          ],
+        ),
+        const SizedBox(height: AppSizes.sm),
+        _ZonedUtilizationBar(ratio: ratio),
+      ],
+    );
+
+    if (gradientColors == null) {
+      return FlowFiCard.hero(
+        accent: true,
+        padding: const EdgeInsets.all(AppSizes.md),
+        child: content,
+      );
+    }
+
+    // Per-card variant: same hero shell, tinted with that card's own color
+    // instead of the flat near-black surface.
     return Material(
       borderRadius: BorderRadius.circular(AppSizes.radiusCard),
       clipBehavior: Clip.antiAlias,
       child: Ink(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: gradientColors ?? _defaultGradient,
+            colors: gradientColors!,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -773,47 +966,9 @@ class _LimitSummaryCard extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.all(AppSizes.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.account_balance_rounded, size: AppSizes.iconSm, color: Colors.white.withValues(alpha: 0.9)),
-                  const SizedBox(width: AppSizes.xs),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSizes.sm),
-              Text(
-                'Available Credit',
-                style: context.textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.75)),
-              ),
-              const SizedBox(height: 2),
-              CountUpText(
-                value: available,
-                formatter: CurrencyFormatter.instance.format,
-                style: context.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-              const SizedBox(height: AppSizes.sm),
-              Row(
-                children: [
-                  Expanded(child: _HeroStat(label: 'Total Limit', value: totalLimit)),
-                  Expanded(child: _HeroStat(label: 'Used', value: used)),
-                ],
-              ),
-              const SizedBox(height: AppSizes.sm),
-              _ZonedUtilizationBar(ratio: ratio),
-            ],
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: flowfi.onHeroSurface),
+            child: content,
           ),
         ),
       ),
@@ -832,11 +987,19 @@ class _HeroStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: context.textTheme.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.75))),
+        Text(
+          label,
+          style: context.textTheme.bodySmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.75),
+          ),
+        ),
         const SizedBox(height: 2),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: Colors.white),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -863,7 +1026,10 @@ class _ZonedUtilizationBar extends StatelessWidget {
           children: [
             Text(
               '${ratio.asPercent} used',
-              style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800, color: Colors.white),
+              style: context.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
             ),
           ],
         ),
@@ -886,18 +1052,31 @@ class _ZonedUtilizationBar extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('0%', style: context.textTheme.labelSmall?.copyWith(color: Colors.white.withValues(alpha: 0.7))),
+            Text(
+              '0%',
+              style: context.textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
+            ),
             Text(
               'Good',
-              style: context.textTheme.labelSmall?.copyWith(color: Colors.white.withValues(alpha: 0.85), fontWeight: FontWeight.w600),
+              style: context.textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontWeight: FontWeight.w600,
+              ),
             ),
             Text(
               'High',
-              style: context.textTheme.labelSmall?.copyWith(color: Colors.white.withValues(alpha: 0.85), fontWeight: FontWeight.w600),
+              style: context.textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.85),
+                fontWeight: FontWeight.w600,
+              ),
             ),
             Text(
               '100%',
-              style: context.textTheme.labelSmall?.copyWith(color: Colors.white.withValues(alpha: 0.7)),
+              style: context.textTheme.labelSmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),
@@ -935,7 +1114,9 @@ class _AllCardsSectionState extends State<_AllCardsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filter == null ? widget.cards : widget.cards.where((c) => c.status == _filter).toList();
+    final filtered = _filter == null
+        ? widget.cards
+        : widget.cards.where((c) => c.status == _filter).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -945,10 +1126,15 @@ class _AllCardsSectionState extends State<_AllCardsSection> {
             Expanded(
               child: Text(
                 'All Cards (${filtered.length})',
-                style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                style: context.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
-            _StatusFilterDropdown(value: _filter, onChanged: (value) => setState(() => _filter = value)),
+            _StatusFilterDropdown(
+              value: _filter,
+              onChanged: (value) => setState(() => _filter = value),
+            ),
           ],
         ),
         const SizedBox(height: AppSizes.xs),
@@ -958,7 +1144,9 @@ class _AllCardsSectionState extends State<_AllCardsSection> {
             child: Center(
               child: Text(
                 'No cards match this filter.',
-                style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                ),
               ),
             ),
           )
@@ -971,10 +1159,16 @@ class _AllCardsSectionState extends State<_AllCardsSection> {
               children: [
                 for (var i = 0; i < filtered.length; i++) ...[
                   if (i > 0)
-                    Divider(height: 1, indent: AppSizes.lg, endIndent: AppSizes.lg, color: context.colors.outlineVariant),
+                    Divider(
+                      height: 1,
+                      indent: AppSizes.lg,
+                      endIndent: AppSizes.lg,
+                      color: context.colors.outlineVariant,
+                    ),
                   _CardListTile(
                     card: filtered[i],
-                    name: widget.accountNameById[filtered[i].accountId] ?? 'Card',
+                    name:
+                        widget.accountNameById[filtered[i].accountId] ?? 'Card',
                     bankId: widget.accountBankIdById[filtered[i].accountId],
                     colorValue: widget.accountColorById[filtered[i].accountId],
                     roleLabel: widget.roleLabelById[filtered[i].id],
@@ -1003,8 +1197,9 @@ class _StatusFilterDropdown extends StatelessWidget {
     final backgroundColor = isFiltered
         ? context.colors.primaryContainer.withValues(alpha: 0.5)
         : context.colors.surfaceContainerHighest.withValues(alpha: 0.6);
-    final foregroundColor =
-        isFiltered ? context.colors.onPrimaryContainer : context.colors.onSurface.withValues(alpha: 0.75);
+    final foregroundColor = isFiltered
+        ? context.colors.onPrimaryContainer
+        : context.colors.onSurface.withValues(alpha: 0.75);
 
     return Material(
       color: backgroundColor,
@@ -1016,10 +1211,14 @@ class _StatusFilterDropdown extends StatelessWidget {
         padding: EdgeInsets.zero,
         itemBuilder: (context) => [
           const PopupMenuItem(value: null, child: Text('All Cards')),
-          for (final status in CreditCardStatus.values) PopupMenuItem(value: status, child: Text(status.label)),
+          for (final status in CreditCardStatus.values)
+            PopupMenuItem(value: status, child: Text(status.label)),
         ],
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.md,
+            vertical: AppSizes.sm,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1041,7 +1240,13 @@ class _StatusFilterDropdown extends StatelessWidget {
 }
 
 class _CardListTile extends ConsumerWidget {
-  const _CardListTile({required this.card, required this.name, this.bankId, this.colorValue, this.roleLabel});
+  const _CardListTile({
+    required this.card,
+    required this.name,
+    this.bankId,
+    this.colorValue,
+    this.roleLabel,
+  });
 
   final CreditCardProfile card;
   final String name;
@@ -1062,7 +1267,10 @@ class _CardListTile extends ConsumerWidget {
       child: InkWell(
         onTap: () => context.push('${AppRoutes.creditCards}/${card.id}'),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.md, vertical: AppSizes.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.md,
+            vertical: AppSizes.sm,
+          ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1087,21 +1295,27 @@ class _CardListTile extends ConsumerWidget {
                           spacing: AppSizes.xs,
                           runSpacing: AppSizes.xs,
                           children: [
-                            if (roleLabel != null) _RoleBadge(label: roleLabel!),
-                            if (!card.status.isActive) _StatusPill(status: card.status),
+                            if (roleLabel != null)
+                              _RoleBadge(label: roleLabel!),
+                            if (!card.status.isActive)
+                              _StatusPill(status: card.status),
                           ],
                         ),
                       ),
                     Text(
                       name,
-                      style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                      style: context.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Due ${_dueLabel(nextDue)}',
-                      style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1117,14 +1331,18 @@ class _CardListTile extends ConsumerWidget {
                   children: [
                     Text(
                       'Available',
-                      style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       CurrencyFormatter.instance.format(standing.available),
-                      style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                      style: context.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1142,7 +1360,18 @@ class _CardListTile extends ConsumerWidget {
   static String _dueLabel(DateTime? date) {
     if (date == null) return '—';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]}';
   }
@@ -1166,7 +1395,10 @@ class _RoleBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: context.textTheme.labelSmall?.copyWith(color: context.colors.primary, fontWeight: FontWeight.w700),
+        style: context.textTheme.labelSmall?.copyWith(
+          color: context.colors.primary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -1179,7 +1411,11 @@ class _RoleBadge extends StatelessWidget {
 /// and repeats the account name, which at this row's narrow width left no
 /// room for the digits themselves.
 class _CardListThumbnail extends StatelessWidget {
-  const _CardListThumbnail({required this.colorValue, this.bankId, this.lastFourDigits});
+  const _CardListThumbnail({
+    required this.colorValue,
+    this.bankId,
+    this.lastFourDigits,
+  });
 
   final int colorValue;
   final String? bankId;
@@ -1197,20 +1433,41 @@ class _CardListThumbnail extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: cardFaceGradientColors(base),
         ),
+        borderRadius: BorderRadius.circular(cardFaceRadius * 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           if (bankName != null)
-            Text(
-              bankName,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 10, height: 1.15),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                BankLogo(
+                  bankId: bankId,
+                  size: 14,
+                  shape: BankLogoShape.roundedSquare,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    bankName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      height: 1.15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           Text(
-            lastFourDigits != null && lastFourDigits!.isNotEmpty ? '•••• $lastFourDigits' : '',
+            lastFourDigits != null && lastFourDigits!.isNotEmpty
+                ? '•••• $lastFourDigits'
+                : '',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 11,
@@ -1255,14 +1512,21 @@ class _CardMenu extends ConsumerWidget {
             context.push('${AppRoutes.creditCards}/${card.id}');
           case 'transactions':
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => TransactionsScreen(initialAccountId: card.accountId)),
+              MaterialPageRoute(
+                builder: (_) =>
+                    TransactionsScreen(initialAccountId: card.accountId),
+              ),
             );
           case 'edit':
             CreditCardFormSheet.show(context, card: card);
           case 'deactivate':
-            await ref.read(creditCardRepositoryProvider).editCard(card, status: CreditCardStatus.blocked);
+            await ref
+                .read(creditCardRepositoryProvider)
+                .editCard(card, status: CreditCardStatus.blocked);
           case 'activate':
-            await ref.read(creditCardRepositoryProvider).editCard(card, status: CreditCardStatus.active);
+            await ref
+                .read(creditCardRepositoryProvider)
+                .editCard(card, status: CreditCardStatus.active);
           case 'delete':
             await _deleteCard(context, ref, card, name);
         }
@@ -1313,8 +1577,14 @@ class _CardMenu extends ConsumerWidget {
         PopupMenuItem(
           value: 'delete',
           child: ListTile(
-            leading: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.error),
-            title: Text('Delete card', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            leading: Icon(
+              Icons.delete_outline_rounded,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Delete card',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
             contentPadding: EdgeInsets.zero,
           ),
         ),
@@ -1326,15 +1596,28 @@ class _CardMenu extends ConsumerWidget {
 /// Confirms, then soft-deletes the [Account] backing [card] — a card IS an
 /// account, so removing a card is removing that account (with the same
 /// trash/undo safety net every other account gets).
-Future<void> _deleteCard(BuildContext context, WidgetRef ref, CreditCardProfile card, String name) async {
+Future<void> _deleteCard(
+  BuildContext context,
+  WidgetRef ref,
+  CreditCardProfile card,
+  String name,
+) async {
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Delete card?'),
-      content: Text('"$name" will be moved to trash. Its transactions and statements are kept.'),
+      content: Text(
+        '"$name" will be moved to trash. Its transactions and statements are kept.',
+      ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Delete'),
+        ),
       ],
     ),
   );
@@ -1350,7 +1633,10 @@ Future<void> _deleteCard(BuildContext context, WidgetRef ref, CreditCardProfile 
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text('$name moved to trash'),
-      action: SnackBarAction(label: 'Undo', onPressed: () => accountRepository.restore(account)),
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () => accountRepository.restore(account),
+      ),
     ),
   );
 }
@@ -1370,7 +1656,10 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(
         status.label,
-        style: context.textTheme.labelSmall?.copyWith(color: status.color, fontWeight: FontWeight.w700),
+        style: context.textTheme.labelSmall?.copyWith(
+          color: status.color,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

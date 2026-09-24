@@ -26,8 +26,9 @@ class FirebaseAuthRepository implements AuthRepository {
   Future<void>? _googleSignInInit;
 
   @override
-  Stream<AppUser?> get authStateChanges =>
-      _auth.authStateChanges().map((user) => user == null ? null : AppUser.fromFirebaseUser(user));
+  Stream<AppUser?> get authStateChanges => _auth.authStateChanges().map(
+    (user) => user == null ? null : AppUser.fromFirebaseUser(user),
+  );
 
   @override
   AppUser? get currentUser {
@@ -54,7 +55,10 @@ class FirebaseAuthRepository implements AuthRepository {
 
     final user = credential.user;
     if (user == null) {
-      throw FirebaseAuthException(code: 'null-user', message: 'Sign-in did not return a user.');
+      throw FirebaseAuthException(
+        code: 'null-user',
+        message: 'Sign-in did not return a user.',
+      );
     }
     return AppUser.fromFirebaseUser(user);
   }
@@ -75,7 +79,10 @@ class FirebaseAuthRepository implements AuthRepository {
 
     final idToken = account.authentication.idToken;
     if (idToken == null) {
-      throw FirebaseAuthException(code: 'missing-id-token', message: 'Google did not return an ID token.');
+      throw FirebaseAuthException(
+        code: 'missing-id-token',
+        message: 'Google did not return an ID token.',
+      );
     }
 
     final authCredential = GoogleAuthProvider.credential(idToken: idToken);

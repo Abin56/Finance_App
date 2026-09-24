@@ -4,9 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
+import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/person.dart';
 import '../providers/people_providers.dart';
@@ -33,6 +32,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
   String _query = '';
   PeopleFilter _filter = PeopleFilter.all;
   PeopleSort _sort = PeopleSort.name;
+  final _sortFieldKey = GlobalKey();
 
   @override
   void dispose() {
@@ -52,23 +52,27 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
   }
 
   Future<void> _openSortMenu(BuildContext context) async {
-    final selected = await showModalBottomSheet<PeopleSort>(
+    final selected = await showAnchoredSortMenu<PeopleSort>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final sort in PeopleSort.values)
-              ListTile(
-                title: Text(sort.label),
-                trailing: sort == _sort ? const Icon(Icons.check_rounded) : null,
-                onTap: () => Navigator.of(sheetContext).pop(sort),
-              ),
-          ],
-        ),
-      ),
+      anchorKey: _sortFieldKey,
+      selectedValue: _sort,
+      options: [
+        for (final sort in PeopleSort.values)
+          SortMenuOption(value: sort, icon: _iconFor(sort), label: sort.label),
+      ],
     );
     if (selected != null) setState(() => _sort = selected);
+  }
+
+  IconData _iconFor(PeopleSort sort) {
+    switch (sort) {
+      case PeopleSort.name:
+        return Icons.sort_by_alpha_rounded;
+      case PeopleSort.balanceDesc:
+        return Icons.currency_rupee_rounded;
+      case PeopleSort.recentlyAdded:
+        return Icons.schedule_rounded;
+    }
   }
 
   @override
@@ -77,13 +81,15 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     final peopleAsync = ref.watch(peopleStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         title: _searching
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(hintText: 'Search people…', border: InputBorder.none),
+                decoration: const InputDecoration(
+                  hintText: 'Search people…',
+                  border: InputBorder.none,
+                ),
                 onChanged: (value) => setState(() => _query = value),
               )
             : const Text('People'),
@@ -99,29 +105,42 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               }
             }),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'Trash',
-            onPressed: () => Navigator.of(context).push(
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            icon: const Icon(Icons.more_horiz_rounded),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'trash',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline_rounded),
+                  title: Text('Trash'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
+            onSelected: (_) => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const PeopleTrashScreen()),
             ),
           ),
+          const SizedBox(width: AppSizes.xs),
         ],
       ),
-      floatingActionButton: ClayFab(
+      floatingActionButton: FloatingActionButton(
         heroTag: 'people_fab',
-        icon: Icons.add_rounded,
         onPressed: () => PersonFormSheet.show(context),
+        child: const Icon(Icons.add_rounded),
       ),
       body: peopleAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
+        error: (error, _) =>
+            Center(child: Text('Something went wrong: $error')),
         data: (people) {
           if (people.isEmpty) {
             return EmptyState(
               icon: Icons.people_outline_rounded,
               title: 'No people yet',
-              subtitle: 'Add someone to start tracking money given, borrowed, or repaid.',
+              subtitle:
+                  'Add someone to start tracking money given, borrowed, or repaid.',
               action: FilledButton(
                 onPressed: () => PersonFormSheet.show(context),
                 child: const Text('Add your first person'),
@@ -130,29 +149,50 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
           }
 
           final visible = _applyFilters(people);
-          final netBalance = people.fold(0.0, (total, p) => total + p.currentBalance);
+          final netBalance = people.fold(
+            0.0,
+            (total, p) => total + p.currentBalance,
+          );
 
           return ListView(
             // Bottom padding clears the local FAB (fabClearance = FAB height
             // + its margin + breathing room), same convention as the
             // Dashboard's scrollable body.
-            padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
+            padding: const EdgeInsets.fromLTRB(
+              AppSizes.lg,
+              AppSizes.lg,
+              AppSizes.lg,
+              AppSizes.fabClearance,
+            ),
             children: [
               OverallBalanceCard(netBalance: netBalance),
               const SizedBox(height: AppSizes.lg),
-              PeopleFilterChips(selected: _filter, onChanged: (filter) => setState(() => _filter = filter)),
+              PeopleFilterChips(
+                selected: _filter,
+                onChanged: (filter) => setState(() => _filter = filter),
+              ),
               const SizedBox(height: AppSizes.lg),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('People (${visible.length})', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'People (${visible.length})',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   InkWell(
+                    key: _sortFieldKey,
                     onTap: () => _openSortMenu(context),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Sort: ${_sort.label}', style: Theme.of(context).textTheme.bodyMedium),
-                        const Icon(Icons.expand_more_rounded, size: AppSizes.iconSm),
+                        Text(
+                          'Sort: ${_sort.label}',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const Icon(
+                          Icons.expand_more_rounded,
+                          size: AppSizes.iconSm,
+                        ),
                       ],
                     ),
                   ),
@@ -170,19 +210,27 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                 ),
               for (final person in visible)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                  padding: const EdgeInsets.only(bottom: AppSizes.xs),
                   child: Dismissible(
                     key: ValueKey(person.id),
                     direction: DismissDirection.endToStart,
-                    confirmDismiss: (_) => confirmDelete(context, entityName: 'Person'),
+                    confirmDismiss: (_) =>
+                        confirmDelete(context, entityName: 'Person'),
                     background: Container(
                       alignment: Alignment.centerRight,
-                      padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.lg,
+                      ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.error.withValues(alpha: 0.12),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.error.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(AppSizes.radiusLg),
                       ),
-                      child: Icon(Icons.delete_outline_rounded, color: Theme.of(context).colorScheme.error),
+                      child: Icon(
+                        Icons.delete_outline_rounded,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                     onDismissed: (_) async {
                       await repository.softDelete(person);
@@ -199,14 +247,21 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                     },
                     child: PersonTile(
                       person: person,
-                      onTap: () => context.push('${AppRoutes.people}/${person.id}'),
+                      onTap: () =>
+                          context.push('${AppRoutes.people}/${person.id}'),
                     ),
                   ),
                 ),
               OutlinedButton.icon(
                 onPressed: () => PersonFormSheet.show(context),
                 icon: const Icon(Icons.add_rounded),
-                label: const Text('Add New Person'),
+                label: const Text(
+                  'Add New Person',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
               ),
             ],
           );

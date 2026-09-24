@@ -17,19 +17,28 @@ class AboutScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('About')),
       body: SafeArea(
         child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSizes.xl),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(AppStrings.appName, style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: AppSizes.sm),
-              Text(AppStrings.tagline, style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: AppSizes.lg),
-              Text('Version $_version', style: Theme.of(context).textTheme.bodySmall),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(AppSizes.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  AppStrings.appName,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: AppSizes.sm),
+                Text(
+                  AppStrings.tagline,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSizes.lg),
+                Text(
+                  'Version $_version',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );

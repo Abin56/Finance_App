@@ -48,7 +48,10 @@ class _StatementGroupCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${group.statement.periodEnd.monthYear} Statement', style: context.textTheme.titleMedium),
+          Text(
+            '${group.statement.periodEnd.monthYear} Statement',
+            style: context.textTheme.titleMedium,
+          ),
           const SizedBox(height: AppSizes.sm),
           for (final item in group.items)
             Padding(
@@ -56,8 +59,16 @@ class _StatementGroupCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(child: Text(item.expenseDescription, style: context.textTheme.bodyMedium)),
-                  Text(CurrencyFormatter.instance.format(item.share), style: context.textTheme.bodyMedium),
+                  Expanded(
+                    child: Text(
+                      item.expenseDescription,
+                      style: context.textTheme.bodyMedium,
+                    ),
+                  ),
+                  Text(
+                    CurrencyFormatter.instance.format(item.share),
+                    style: context.textTheme.bodyMedium,
+                  ),
                 ],
               ),
             ),
@@ -72,7 +83,11 @@ class _StatementGroupCard extends StatelessWidget {
 }
 
 class _TotalRow extends StatelessWidget {
-  const _TotalRow({required this.label, required this.value, this.emphasize = false});
+  const _TotalRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
 
   final String label;
   final double value;
@@ -82,7 +97,9 @@ class _TotalRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = emphasize
         ? context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)
-        : context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7));
+        : context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.7),
+          );
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),

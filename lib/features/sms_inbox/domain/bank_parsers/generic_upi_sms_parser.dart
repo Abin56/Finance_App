@@ -13,7 +13,8 @@ class GenericUpiSmsParser extends SmsParser {
   const GenericUpiSmsParser();
 
   @override
-  bool canParse(RawSmsMessage message) => RegExp(r'\bupi\b', caseSensitive: false).hasMatch(message.body);
+  bool canParse(RawSmsMessage message) =>
+      RegExp(r'\bupi\b', caseSensitive: false).hasMatch(message.body);
 
   @override
   ParsedSmsTransaction? parse(RawSmsMessage message) {
@@ -26,7 +27,9 @@ class GenericUpiSmsParser extends SmsParser {
       amount: amount,
       direction: direction,
       dateTime: message.date,
-      category: direction.name == 'credit' ? SmsTransactionCategory.upiReceive : SmsTransactionCategory.upiPayment,
+      category: direction.name == 'credit'
+          ? SmsTransactionCategory.upiReceive
+          : SmsTransactionCategory.upiPayment,
       confidence: 0.7,
       rawBody: body,
       merchantOrSender: SmsRegexUtils.extractMerchant(body),

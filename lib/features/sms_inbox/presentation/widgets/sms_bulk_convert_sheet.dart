@@ -6,7 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/bank_avatar.dart';
+import '../../../../shared/widgets/bank_logo.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
@@ -29,7 +29,10 @@ class SmsBulkConvertSheet extends ConsumerStatefulWidget {
 
   final List<SmsInboxItem> items;
 
-  static Future<SmsBulkConvertConfig?> show(BuildContext context, List<SmsInboxItem> items) {
+  static Future<SmsBulkConvertConfig?> show(
+    BuildContext context,
+    List<SmsInboxItem> items,
+  ) {
     return showModalBottomSheet<SmsBulkConvertConfig>(
       context: context,
       isScrollControlled: true,
@@ -39,7 +42,8 @@ class SmsBulkConvertSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SmsBulkConvertSheet> createState() => _SmsBulkConvertSheetState();
+  ConsumerState<SmsBulkConvertSheet> createState() =>
+      _SmsBulkConvertSheetState();
 }
 
 class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
@@ -57,9 +61,13 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
   /// default — the user can flip it.
   TransactionType _dominantType() {
     final credits = widget.items
-        .where((item) => item.parsed?.direction == SmsTransactionDirection.credit)
+        .where(
+          (item) => item.parsed?.direction == SmsTransactionDirection.credit,
+        )
         .length;
-    return credits > widget.items.length / 2 ? TransactionType.income : TransactionType.expense;
+    return credits > widget.items.length / 2
+        ? TransactionType.income
+        : TransactionType.expense;
   }
 
   /// The messages whose direction contradicts the chosen [_type]. Surfaced as
@@ -71,14 +79,19 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
         ? SmsTransactionDirection.credit
         : SmsTransactionDirection.debit;
     return widget.items
-        .where((item) => item.parsed?.direction != null && item.parsed!.direction != expected)
+        .where(
+          (item) =>
+              item.parsed?.direction != null &&
+              item.parsed!.direction != expected,
+        )
         .length;
   }
 
   /// Messages with no parsed amount can't become a transaction — see
   /// [SmsBulkConverter]. Counted up front so the user knows before they
   /// commit, not after.
-  int get _unusableCount => widget.items.where((item) => (item.parsed?.amount ?? 0) <= 0).length;
+  int get _unusableCount =>
+      widget.items.where((item) => (item.parsed?.amount ?? 0) <= 0).length;
 
   double get _totalAmount =>
       widget.items.fold(0.0, (sum, item) => sum + (item.parsed?.amount ?? 0));
@@ -86,14 +99,17 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
   /// How many will actually be created — the count the button promises.
   int get _convertibleCount => widget.items.length - _unusableCount;
 
-  static String _plural(int count, String noun) => '$count $noun${count == 1 ? '' : 's'}';
+  static String _plural(int count, String noun) =>
+      '$count $noun${count == 1 ? '' : 's'}';
 
   /// Suggests a category only when every selected message is from the *same*
   /// merchant — that's the "15 Amazon purchases" case, where one suggestion
   /// is genuinely right for all of them. A mixed selection gets no
   /// suggestion, because any single category would be wrong for most of it.
   String? _suggestedCategoryId() {
-    final keys = widget.items.map((item) => MerchantKey.normalize(item.parsed?.merchantOrSender)).toSet();
+    final keys = widget.items
+        .map((item) => MerchantKey.normalize(item.parsed?.merchantOrSender))
+        .toSet();
     if (keys.length != 1 || keys.first == null) return null;
 
     return ref
@@ -119,9 +135,14 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
     // first build — watching is what makes the suggestion actually land
     // once it resolves, instead of only ever seeing whatever was cached at
     // that first build.
-    final candidates = ref.watch(transactionCandidatesProvider).valueOrNull ?? const [];
+    final candidates =
+        ref.watch(transactionCandidatesProvider).valueOrNull ?? const [];
     final matchedIds = widget.items
-        .map((item) => candidates.firstWhereOrNull((c) => c.smsItemId == item.id)?.matchedAccountId)
+        .map(
+          (item) => candidates
+              .firstWhereOrNull((c) => c.smsItemId == item.id)
+              ?.matchedAccountId,
+        )
         .toSet();
     return matchedIds.length == 1 ? matchedIds.first : null;
   }
@@ -161,7 +182,8 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
       _categoryId = _suggestedCategoryId();
     }
     // A category from the previous type won't exist in this type's list.
-    if (_categoryId != null && !categories.any((category) => category.id == _categoryId)) {
+    if (_categoryId != null &&
+        !categories.any((category) => category.id == _categoryId)) {
       _categoryId = null;
     }
     if (!_accountTouched && _accountId == null) {
@@ -180,18 +202,31 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Convert ${_plural(widget.items.length, 'message')}', style: context.textTheme.titleMedium),
+              Text(
+                'Convert ${_plural(widget.items.length, 'message')}',
+                style: context.textTheme.titleMedium,
+              ),
               const SizedBox(height: AppSizes.xs),
               Text(
                 'Each message becomes its own transaction. Total ${CurrencyFormatter.instance.format(_totalAmount)}.',
-                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: AppSizes.md),
 
               SegmentedButton<TransactionType>(
                 segments: const [
-                  ButtonSegment(value: TransactionType.expense, label: Text('Expense'), icon: Icon(Icons.arrow_upward_rounded)),
-                  ButtonSegment(value: TransactionType.income, label: Text('Income'), icon: Icon(Icons.arrow_downward_rounded)),
+                  ButtonSegment(
+                    value: TransactionType.expense,
+                    label: Text('Expense'),
+                    icon: Icon(Icons.arrow_upward_rounded),
+                  ),
+                  ButtonSegment(
+                    value: TransactionType.income,
+                    label: Text('Income'),
+                    icon: Icon(Icons.arrow_downward_rounded),
+                  ),
                 ],
                 selected: {_type},
                 onSelectionChanged: (selection) => setState(() {
@@ -206,13 +241,19 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
               DropdownButtonFormField<String>(
                 initialValue: _categoryId,
                 isExpanded: true,
-                decoration: InputDecoration(errorText: _categoryError, isDense: true),
+                decoration: InputDecoration(
+                  errorText: _categoryError,
+                  isDense: true,
+                ),
                 hint: const Text('Select a category'),
                 items: [
                   for (final category in categories)
                     DropdownMenuItem(
                       value: category.id,
-                      child: Text(category.name, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        category.name,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                 ],
                 onChanged: (value) => setState(() {
@@ -227,7 +268,10 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
               DropdownButtonFormField<String>(
                 initialValue: _accountId,
                 isExpanded: true,
-                decoration: InputDecoration(errorText: _accountError, isDense: true),
+                decoration: InputDecoration(
+                  errorText: _accountError,
+                  isDense: true,
+                ),
                 hint: const Text('Select a payment method'),
                 items: [
                   for (final account in accounts)
@@ -236,9 +280,18 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          BankAvatar(bankId: account.bankId, fallbackName: account.name, size: 20),
+                          BankLogo(
+                            bankId: account.bankId,
+                            fallbackName: account.name,
+                            size: 20,
+                          ),
                           const SizedBox(width: AppSizes.sm),
-                          Flexible(child: Text(account.name, overflow: TextOverflow.ellipsis)),
+                          Flexible(
+                            child: Text(
+                              account.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -254,19 +307,24 @@ class _SmsBulkConvertSheetState extends ConsumerState<SmsBulkConvertSheet> {
               _Label(text: 'Notes (optional)'),
               TextField(
                 controller: _notesController,
-                decoration: const InputDecoration(isDense: true, hintText: 'Applied to every transaction'),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'Applied to every transaction',
+                ),
                 textInputAction: TextInputAction.done,
               ),
 
               if (_conflictingCount > 0)
                 _Warning(
-                  text: '$_conflictingCount of these look like '
+                  text:
+                      '$_conflictingCount of these look like '
                       '${_type == TransactionType.income ? 'money going out' : 'money coming in'}. '
                       'They will still be created as ${_type.label.toLowerCase()}.',
                 ),
               if (_unusableCount > 0)
                 _Warning(
-                  text: '${_plural(_unusableCount, 'message')} have no readable amount and will be '
+                  text:
+                      '${_plural(_unusableCount, 'message')} have no readable amount and will be '
                       'skipped, staying in your inbox to convert manually.',
                 ),
 
@@ -311,12 +369,18 @@ class _Warning extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: AppColors.pending),
+          const Icon(
+            Icons.info_outline_rounded,
+            size: AppSizes.iconSm,
+            color: AppColors.pending,
+          ),
           const SizedBox(width: AppSizes.xs),
           Expanded(
             child: Text(
               text,
-              style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.colors.onSurfaceVariant,
+              ),
             ),
           ),
         ],

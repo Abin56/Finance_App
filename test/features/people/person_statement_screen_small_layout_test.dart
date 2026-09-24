@@ -42,225 +42,272 @@ void main() {
   final previousCycleDate = previousCycle.start.add(const Duration(days: 1));
   final currentCycleDate = currentCycle.start.add(const Duration(days: 1));
 
-  testWidgets('Previous Cycle Pending + Current Cycle sections fit a small phone without overflow', (tester) async {
-    tester.view.physicalSize = _smallPhone;
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'Previous Cycle Pending + Current Cycle sections fit a small phone without overflow',
+    (tester) async {
+      tester.view.physicalSize = _smallPhone;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    final person = Person(
-      id: 'p1',
-      name: 'A Very Long Test Contact Name',
-      openingBalance: 0,
-      currentBalance: 1234567.89,
-      avatarColorValue: 0xFF000000,
-      createdAt: DateTime(2026, 1, 1),
-    );
+      final person = Person(
+        id: 'p1',
+        name: 'A Very Long Test Contact Name',
+        openingBalance: 0,
+        currentBalance: 1234567.89,
+        avatarColorValue: 0xFF000000,
+        createdAt: DateTime(2026, 1, 1),
+      );
 
-    // Previous-cycle entry, still Pending -> must carry forward.
-    final pendingLedgerEntry = LedgerEntry(
-      id: 'l-pending',
-      personId: 'p1',
-      type: LedgerEntryType.gave,
-      amount: 987654.32,
-      date: previousCycleDate,
-      note: 'Split: A Very Long Restaurant Name For This Expense',
-      transactionRef: 'txn-pending',
-      createdAt: previousCycleDate,
-    );
-    final pendingExpense = Expense(
-      id: 'exp-pending',
-      description: 'A Very Long Restaurant Name For This Expense',
-      totalAmount: 987654.32,
-      date: previousCycleDate,
-      categoryId: 'c1',
-      accountId: 'a1',
-      transactionId: 'txn-pending',
-      splitType: SplitType.custom,
-      participants: [
-        ExpenseParticipant(personId: 'p1', name: person.name, share: 987654.32, installmentId: 'inst-pending'),
-      ],
-      createdAt: previousCycleDate,
-      scheduleId: 'sched-pending',
-    );
-    final pendingInstallment = Installment(
-      id: 'inst-pending',
-      scheduleId: 'sched-pending',
-      ownerType: OwnerType.splitExpense,
-      ownerId: 'exp-pending',
-      sequenceNumber: 1,
-      dueDate: previousCycleDate.add(const Duration(days: 7)),
-      amountDue: 987654.32,
-      createdAt: previousCycleDate,
-    );
+      // Previous-cycle entry, still Pending -> must carry forward.
+      final pendingLedgerEntry = LedgerEntry(
+        id: 'l-pending',
+        personId: 'p1',
+        type: LedgerEntryType.gave,
+        amount: 987654.32,
+        date: previousCycleDate,
+        note: 'Split: A Very Long Restaurant Name For This Expense',
+        transactionRef: 'txn-pending',
+        createdAt: previousCycleDate,
+      );
+      final pendingExpense = Expense(
+        id: 'exp-pending',
+        description: 'A Very Long Restaurant Name For This Expense',
+        totalAmount: 987654.32,
+        date: previousCycleDate,
+        categoryId: 'c1',
+        accountId: 'a1',
+        transactionId: 'txn-pending',
+        splitType: SplitType.custom,
+        participants: [
+          ExpenseParticipant(
+            personId: 'p1',
+            name: person.name,
+            share: 987654.32,
+            installmentId: 'inst-pending',
+          ),
+        ],
+        createdAt: previousCycleDate,
+        scheduleId: 'sched-pending',
+      );
+      final pendingInstallment = Installment(
+        id: 'inst-pending',
+        scheduleId: 'sched-pending',
+        ownerType: OwnerType.splitExpense,
+        ownerId: 'exp-pending',
+        sequenceNumber: 1,
+        dueDate: previousCycleDate.add(const Duration(days: 7)),
+        amountDue: 987654.32,
+        createdAt: previousCycleDate,
+      );
 
-    // Current-cycle entry, fully settled -> still always shown.
-    final settledLedgerEntry = LedgerEntry(
-      id: 'l-settled',
-      personId: 'p1',
-      type: LedgerEntryType.gave,
-      amount: 500,
-      date: currentCycleDate,
-      note: 'Split: Movie tickets',
-      transactionRef: 'txn-settled',
-      createdAt: currentCycleDate,
-    );
-    final settledExpense = Expense(
-      id: 'exp-settled',
-      description: 'Movie tickets',
-      totalAmount: 500,
-      date: currentCycleDate,
-      categoryId: 'c1',
-      accountId: 'a1',
-      transactionId: 'txn-settled',
-      splitType: SplitType.custom,
-      participants: [
-        ExpenseParticipant(personId: 'p1', name: person.name, share: 500, installmentId: 'inst-settled'),
-      ],
-      createdAt: currentCycleDate,
-      scheduleId: 'sched-settled',
-    );
-    final settledInstallment = Installment(
-      id: 'inst-settled',
-      scheduleId: 'sched-settled',
-      ownerType: OwnerType.splitExpense,
-      ownerId: 'exp-settled',
-      sequenceNumber: 1,
-      dueDate: currentCycleDate.add(const Duration(days: 7)),
-      amountDue: 500,
-      amountPaid: 500,
-      createdAt: currentCycleDate,
-    );
+      // Current-cycle entry, fully settled -> still always shown.
+      final settledLedgerEntry = LedgerEntry(
+        id: 'l-settled',
+        personId: 'p1',
+        type: LedgerEntryType.gave,
+        amount: 500,
+        date: currentCycleDate,
+        note: 'Split: Movie tickets',
+        transactionRef: 'txn-settled',
+        createdAt: currentCycleDate,
+      );
+      final settledExpense = Expense(
+        id: 'exp-settled',
+        description: 'Movie tickets',
+        totalAmount: 500,
+        date: currentCycleDate,
+        categoryId: 'c1',
+        accountId: 'a1',
+        transactionId: 'txn-settled',
+        splitType: SplitType.custom,
+        participants: [
+          ExpenseParticipant(
+            personId: 'p1',
+            name: person.name,
+            share: 500,
+            installmentId: 'inst-settled',
+          ),
+        ],
+        createdAt: currentCycleDate,
+        scheduleId: 'sched-settled',
+      );
+      final settledInstallment = Installment(
+        id: 'inst-settled',
+        scheduleId: 'sched-settled',
+        ownerType: OwnerType.splitExpense,
+        ownerId: 'exp-settled',
+        sequenceNumber: 1,
+        dueDate: currentCycleDate.add(const Duration(days: 7)),
+        amountDue: 500,
+        amountPaid: 500,
+        createdAt: currentCycleDate,
+      );
 
-    // A reference-only transaction (person picked, "owes me" left off) — the
-    // "Recharge vi" bug-report scenario: shows its real amount but must never
-    // affect balance/stats, flagged with the reference-only pill.
-    final referenceTransaction = Transaction(
-      id: 'txn-reference',
-      type: TransactionType.expense,
-      amount: 470,
-      dateTime: currentCycleDate,
-      accountId: 'a1',
-      categoryId: 'c1',
-      description: 'A Very Long Recharge Description Here',
-      linkedPersonId: 'p1',
-      createdAt: currentCycleDate,
-    );
+      // A reference-only transaction (person picked, "owes me" left off) — the
+      // "Recharge vi" bug-report scenario: shows its real amount but must never
+      // affect balance/stats, flagged with the reference-only pill.
+      final referenceTransaction = Transaction(
+        id: 'txn-reference',
+        type: TransactionType.expense,
+        amount: 470,
+        dateTime: currentCycleDate,
+        accountId: 'a1',
+        categoryId: 'c1',
+        description: 'A Very Long Recharge Description Here',
+        linkedPersonId: 'p1',
+        createdAt: currentCycleDate,
+      );
 
-    final container = ProviderContainer(
-      overrides: [
-        firebaseAuthProvider.overrideWithValue(MockFirebaseAuth(signedIn: true)),
-        firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
-        peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
-        ledgerStreamProvider('p1').overrideWith((ref) => Stream.value([pendingLedgerEntry, settledLedgerEntry])),
-        ledgerTrashStreamProvider('p1').overrideWith((ref) => Stream.value(const [])),
-        expensesStreamProvider.overrideWith((ref) => Stream.value([pendingExpense, settledExpense])),
-        installmentsStreamProvider('sched-pending').overrideWith((ref) => Stream.value([pendingInstallment])),
-        installmentsStreamProvider('sched-settled').overrideWith((ref) => Stream.value([settledInstallment])),
-        loansForPersonProvider('p1').overrideWithValue(const []),
-        transactionsStreamProvider.overrideWith((ref) => Stream.value([referenceTransaction])),
-      ],
-    );
-    addTearDown(container.dispose);
-    await container.read(authStateProvider.future);
+      final container = ProviderContainer(
+        overrides: [
+          firebaseAuthProvider.overrideWithValue(
+            MockFirebaseAuth(signedIn: true),
+          ),
+          firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
+          peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
+          ledgerStreamProvider('p1').overrideWith(
+            (ref) => Stream.value([pendingLedgerEntry, settledLedgerEntry]),
+          ),
+          ledgerTrashStreamProvider(
+            'p1',
+          ).overrideWith((ref) => Stream.value(const [])),
+          expensesStreamProvider.overrideWith(
+            (ref) => Stream.value([pendingExpense, settledExpense]),
+          ),
+          installmentsStreamProvider(
+            'sched-pending',
+          ).overrideWith((ref) => Stream.value([pendingInstallment])),
+          installmentsStreamProvider(
+            'sched-settled',
+          ).overrideWith((ref) => Stream.value([settledInstallment])),
+          loansForPersonProvider('p1').overrideWithValue(const []),
+          transactionsStreamProvider.overrideWith(
+            (ref) => Stream.value([referenceTransaction]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(authStateProvider.future);
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: PersonStatementScreen(personId: 'p1')),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: PersonStatementScreen(personId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Previous Cycle Pending'), findsOneWidget);
-    expect(find.text('Current Cycle'), findsOneWidget);
-    expect(find.textContaining('CARRIED FORWARD'), findsOneWidget);
+      expect(find.text('Previous Cycle Pending'), findsOneWidget);
+      expect(find.text('Current Cycle'), findsOneWidget);
+      expect(find.textContaining('CARRIED FORWARD'), findsOneWidget);
 
-    // The reference-only entry's pill is further down the current-cycle
-    // list, past the two expense entries above — scroll to bring it into
-    // the sliver's built extent before asserting on it.
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
-    await tester.pumpAndSettle();
-    expect(find.text('Reference only'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      // The reference-only entry's pill is further down the current-cycle
+      // list, past the two expense entries above — scroll to bring it into
+      // the sliver's built extent before asserting on it.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(find.text('Reference only'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('Previous Cycle section is hidden once its only entry is fully settled', (tester) async {
-    tester.view.physicalSize = _smallPhone;
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'Previous Cycle section is hidden once its only entry is fully settled',
+    (tester) async {
+      tester.view.physicalSize = _smallPhone;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    final person = Person(
-      id: 'p1',
-      name: 'Test Contact',
-      openingBalance: 0,
-      currentBalance: 0,
-      avatarColorValue: 0xFF000000,
-      createdAt: DateTime(2026, 1, 1),
-    );
+      final person = Person(
+        id: 'p1',
+        name: 'Test Contact',
+        openingBalance: 0,
+        currentBalance: 0,
+        avatarColorValue: 0xFF000000,
+        createdAt: DateTime(2026, 1, 1),
+      );
 
-    final settledLedgerEntry = LedgerEntry(
-      id: 'l-settled',
-      personId: 'p1',
-      type: LedgerEntryType.gave,
-      amount: 500,
-      date: previousCycleDate,
-      note: 'Split: Lunch',
-      transactionRef: 'txn-settled',
-      createdAt: previousCycleDate,
-    );
-    final settledExpense = Expense(
-      id: 'exp-settled',
-      description: 'Lunch',
-      totalAmount: 500,
-      date: previousCycleDate,
-      categoryId: 'c1',
-      accountId: 'a1',
-      transactionId: 'txn-settled',
-      splitType: SplitType.custom,
-      participants: [
-        ExpenseParticipant(personId: 'p1', name: person.name, share: 500, installmentId: 'inst-settled'),
-      ],
-      createdAt: previousCycleDate,
-      scheduleId: 'sched-settled',
-    );
-    final settledInstallment = Installment(
-      id: 'inst-settled',
-      scheduleId: 'sched-settled',
-      ownerType: OwnerType.splitExpense,
-      ownerId: 'exp-settled',
-      sequenceNumber: 1,
-      dueDate: previousCycleDate.add(const Duration(days: 7)),
-      amountDue: 500,
-      amountPaid: 500,
-      createdAt: previousCycleDate,
-    );
+      final settledLedgerEntry = LedgerEntry(
+        id: 'l-settled',
+        personId: 'p1',
+        type: LedgerEntryType.gave,
+        amount: 500,
+        date: previousCycleDate,
+        note: 'Split: Lunch',
+        transactionRef: 'txn-settled',
+        createdAt: previousCycleDate,
+      );
+      final settledExpense = Expense(
+        id: 'exp-settled',
+        description: 'Lunch',
+        totalAmount: 500,
+        date: previousCycleDate,
+        categoryId: 'c1',
+        accountId: 'a1',
+        transactionId: 'txn-settled',
+        splitType: SplitType.custom,
+        participants: [
+          ExpenseParticipant(
+            personId: 'p1',
+            name: person.name,
+            share: 500,
+            installmentId: 'inst-settled',
+          ),
+        ],
+        createdAt: previousCycleDate,
+        scheduleId: 'sched-settled',
+      );
+      final settledInstallment = Installment(
+        id: 'inst-settled',
+        scheduleId: 'sched-settled',
+        ownerType: OwnerType.splitExpense,
+        ownerId: 'exp-settled',
+        sequenceNumber: 1,
+        dueDate: previousCycleDate.add(const Duration(days: 7)),
+        amountDue: 500,
+        amountPaid: 500,
+        createdAt: previousCycleDate,
+      );
 
-    final container = ProviderContainer(
-      overrides: [
-        firebaseAuthProvider.overrideWithValue(MockFirebaseAuth(signedIn: true)),
-        firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
-        peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
-        ledgerStreamProvider('p1').overrideWith((ref) => Stream.value([settledLedgerEntry])),
-        ledgerTrashStreamProvider('p1').overrideWith((ref) => Stream.value(const [])),
-        expensesStreamProvider.overrideWith((ref) => Stream.value([settledExpense])),
-        installmentsStreamProvider('sched-settled').overrideWith((ref) => Stream.value([settledInstallment])),
-        loansForPersonProvider('p1').overrideWithValue(const []),
-        transactionsStreamProvider.overrideWith((ref) => Stream.value(const <Transaction>[])),
-      ],
-    );
-    addTearDown(container.dispose);
-    await container.read(authStateProvider.future);
+      final container = ProviderContainer(
+        overrides: [
+          firebaseAuthProvider.overrideWithValue(
+            MockFirebaseAuth(signedIn: true),
+          ),
+          firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
+          peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
+          ledgerStreamProvider(
+            'p1',
+          ).overrideWith((ref) => Stream.value([settledLedgerEntry])),
+          ledgerTrashStreamProvider(
+            'p1',
+          ).overrideWith((ref) => Stream.value(const [])),
+          expensesStreamProvider.overrideWith(
+            (ref) => Stream.value([settledExpense]),
+          ),
+          installmentsStreamProvider(
+            'sched-settled',
+          ).overrideWith((ref) => Stream.value([settledInstallment])),
+          loansForPersonProvider('p1').overrideWithValue(const []),
+          transactionsStreamProvider.overrideWith(
+            (ref) => Stream.value(const <Transaction>[]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(authStateProvider.future);
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: PersonStatementScreen(personId: 'p1')),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: PersonStatementScreen(personId: 'p1')),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Previous Cycle Pending'), findsNothing);
-    expect(find.text('Current Cycle'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('Previous Cycle Pending'), findsNothing);
+      expect(find.text('Current Cycle'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

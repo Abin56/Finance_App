@@ -21,7 +21,11 @@ class ContactInfoWidget extends pw.StatelessWidget {
       children: [
         pw.Text(
           model.personName,
-          style: pw.TextStyle(font: fonts.bold, fontSize: PdfTokens.fontHeading, color: PdfTokens.textPrimary),
+          style: pw.TextStyle(
+            font: fonts.bold,
+            fontSize: PdfTokens.fontHeading,
+            color: PdfTokens.textPrimary,
+          ),
         ),
         pw.SizedBox(height: PdfTokens.xs),
         pw.Wrap(
@@ -41,7 +45,11 @@ class ContactInfoWidget extends pw.StatelessWidget {
     if (text == null || text.isEmpty) return null;
     return pw.Text(
       text,
-      style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontCaption, color: PdfTokens.textSecondary),
+      style: pw.TextStyle(
+        font: fonts.regular,
+        fontSize: PdfTokens.fontCaption,
+        color: PdfTokens.textSecondary,
+      ),
     );
   }
 }

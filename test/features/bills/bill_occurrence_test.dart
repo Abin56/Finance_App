@@ -23,19 +23,31 @@ void main() {
 
   group('BillOccurrence.status', () {
     test('is paid once amountPaid reaches amount', () {
-      expect(makeOccurrence(amount: 100, amountPaid: 100).status, BillStatus.paid);
+      expect(
+        makeOccurrence(amount: 100, amountPaid: 100).status,
+        BillStatus.paid,
+      );
     });
 
     test('is paid even if amountPaid exceeds amount (overshoot)', () {
-      expect(makeOccurrence(amount: 100, amountPaid: 120).status, BillStatus.paid);
+      expect(
+        makeOccurrence(amount: 100, amountPaid: 120).status,
+        BillStatus.paid,
+      );
     });
 
     test('is skipped when isSkipped is true and not fully paid', () {
-      expect(makeOccurrence(amount: 100, amountPaid: 0, isSkipped: true).status, BillStatus.skipped);
+      expect(
+        makeOccurrence(amount: 100, amountPaid: 0, isSkipped: true).status,
+        BillStatus.skipped,
+      );
     });
 
     test('is partiallyPaid when 0 < amountPaid < amount', () {
-      expect(makeOccurrence(amount: 100, amountPaid: 40).status, BillStatus.partiallyPaid);
+      expect(
+        makeOccurrence(amount: 100, amountPaid: 40).status,
+        BillStatus.partiallyPaid,
+      );
     });
 
     test('is overdue when due date is before today and nothing paid', () {
@@ -44,7 +56,10 @@ void main() {
     });
 
     test('is dueToday when due date is today', () {
-      expect(makeOccurrence(dueDate: DateTime.now()).status, BillStatus.dueToday);
+      expect(
+        makeOccurrence(dueDate: DateTime.now()).status,
+        BillStatus.dueToday,
+      );
     });
 
     test('is upcoming when due date is after today', () {
@@ -66,7 +81,9 @@ void main() {
   group('BillOccurrence Firestore round-trip', () {
     test('toFirestore/fromFirestore preserves every field', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('occurrences').withConverter<BillOccurrence>(
+      final collection = firestore
+          .collection('occurrences')
+          .withConverter<BillOccurrence>(
             fromFirestore: BillOccurrence.fromFirestore,
             toFirestore: (o, _) => o.toFirestore(),
           );
@@ -94,7 +111,9 @@ void main() {
 
     test('preserves audit trail and soft-delete state', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('occurrences').withConverter<BillOccurrence>(
+      final collection = firestore
+          .collection('occurrences')
+          .withConverter<BillOccurrence>(
             fromFirestore: BillOccurrence.fromFirestore,
             toFirestore: (o, _) => o.toFirestore(),
           );
@@ -106,7 +125,11 @@ void main() {
         amount: 1000,
         createdAt: DateTime(2026, 1, 1),
       );
-      occurrence.recordEdit(field: 'amountPaid', oldValue: '0', newValue: '1000');
+      occurrence.recordEdit(
+        field: 'amountPaid',
+        oldValue: '0',
+        newValue: '1000',
+      );
       occurrence.markDeleted();
 
       await collection.doc('occ-2').set(occurrence);

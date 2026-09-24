@@ -25,9 +25,9 @@ class LoanCategoryBadge extends StatelessWidget {
       child: Text(
         category.formLabel,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.purple,
-              fontWeight: FontWeight.w600,
-            ),
+          color: AppColors.purple,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

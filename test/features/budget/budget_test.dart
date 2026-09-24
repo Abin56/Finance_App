@@ -12,33 +12,40 @@ void main() {
   });
 
   group('Budget Firestore round-trip', () {
-    test('toFirestore/fromFirestore preserves an overall budget (no category)', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('budgets').withConverter<Budget>(
-            fromFirestore: Budget.fromFirestore,
-            toFirestore: (b, _) => b.toFirestore(),
-          );
+    test(
+      'toFirestore/fromFirestore preserves an overall budget (no category)',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('budgets')
+            .withConverter<Budget>(
+              fromFirestore: Budget.fromFirestore,
+              toFirestore: (b, _) => b.toFirestore(),
+            );
 
-      final original = Budget(
-        id: 'ignored',
-        type: BudgetType.daily,
-        amount: 500,
-        createdAt: DateTime(2026, 1, 1),
-      );
+        final original = Budget(
+          id: 'ignored',
+          type: BudgetType.daily,
+          amount: 500,
+          createdAt: DateTime(2026, 1, 1),
+        );
 
-      await collection.doc('b1').set(original);
-      final restored = (await collection.doc('b1').get()).data()!;
+        await collection.doc('b1').set(original);
+        final restored = (await collection.doc('b1').get()).data()!;
 
-      expect(restored.id, 'b1');
-      expect(restored.type, BudgetType.daily);
-      expect(restored.amount, 500);
-      expect(restored.categoryId, isNull);
-      expect(restored.isDeleted, isFalse);
-    });
+        expect(restored.id, 'b1');
+        expect(restored.type, BudgetType.daily);
+        expect(restored.amount, 500);
+        expect(restored.categoryId, isNull);
+        expect(restored.isDeleted, isFalse);
+      },
+    );
 
     test('toFirestore/fromFirestore preserves a category budget', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('budgets').withConverter<Budget>(
+      final collection = firestore
+          .collection('budgets')
+          .withConverter<Budget>(
             fromFirestore: Budget.fromFirestore,
             toFirestore: (b, _) => b.toFirestore(),
           );

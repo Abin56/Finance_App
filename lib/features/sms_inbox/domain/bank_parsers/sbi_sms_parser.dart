@@ -10,7 +10,8 @@ class SbiSmsParser extends SmsParser {
   const SbiSmsParser();
 
   @override
-  bool canParse(RawSmsMessage message) => BankSenderMatcher.bankNameFor(message.address) == 'State Bank of India';
+  bool canParse(RawSmsMessage message) =>
+      BankSenderMatcher.bankNameFor(message.address) == 'State Bank of India';
 
   @override
   ParsedSmsTransaction? parse(RawSmsMessage message) {

@@ -51,7 +51,9 @@ class SettleUpSheet extends ConsumerStatefulWidget {
 class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
   final _formKey = GlobalKey<FormState>();
   _PaymentTarget _target = _PaymentTarget.allPending;
-  late final _amountController = TextEditingController(text: widget.person.currentBalance.abs().toStringAsFixed(2));
+  late final _amountController = TextEditingController(
+    text: widget.person.currentBalance.abs().toStringAsFixed(2),
+  );
   final _noteController = TextEditingController();
   DateTime _date = DateTime.now();
   bool _isSaving = false;
@@ -73,29 +75,45 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
     if (picked != null) setState(() => _date = picked);
   }
 
-  Future<void> _saveAllPendingOrCustom({required double amount, required DateTime date, required String note}) async {
+  Future<void> _saveAllPendingOrCustom({
+    required double amount,
+    required DateTime date,
+    required String note,
+  }) async {
     setState(() => _isSaving = true);
     try {
-      final pending = ref.read(personSplitParticipantsProvider(widget.person.id)).where(
-            (p) => p.installment.remainingAmount > 0,
-          ).toList()
-        ..sort((a, b) => a.installment.dueDate.compareTo(b.installment.dueDate));
+      final pending =
+          ref
+              .read(personSplitParticipantsProvider(widget.person.id))
+              .where((p) => p.installment.remainingAmount > 0)
+              .toList()
+            ..sort(
+              (a, b) => a.installment.dueDate.compareTo(b.installment.dueDate),
+            );
 
-      await ref.read(expenseRepositoryProvider).settleAcrossPending(
+      await ref
+          .read(expenseRepositoryProvider)
+          .settleAcrossPending(
             person: widget.person,
             pending: pending,
             amount: amount,
             date: date,
-            installmentPaymentRepositoryFor: (scheduleId, installmentId) => ref.read(
-              installmentPaymentRepositoryProvider((scheduleId: scheduleId, installmentId: installmentId)),
-            ),
+            installmentPaymentRepositoryFor: (scheduleId, installmentId) =>
+                ref.read(
+                  installmentPaymentRepositoryProvider((
+                    scheduleId: scheduleId,
+                    installmentId: installmentId,
+                  )),
+                ),
             note: note.isEmpty ? 'Payment recorded' : note,
           );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
@@ -134,7 +152,9 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
   @override
   Widget build(BuildContext context) {
     final person = widget.person;
-    final amount = CurrencyFormatter.instance.format(person.currentBalance.abs());
+    final amount = CurrencyFormatter.instance.format(
+      person.currentBalance.abs(),
+    );
     final pendingParticipants = ref
         .watch(personSplitParticipantsProvider(person.id))
         .where((p) => p.installment.remainingAmount > 0)
@@ -146,101 +166,120 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
         title: 'Receive Money from ${person.name}',
         confirmLabel: 'Save Payment',
         isSaving: _isSaving,
-        showConfirm: person.currentBalance != 0 && _target != _PaymentTarget.specificExpense,
+        showConfirm:
+            person.currentBalance != 0 &&
+            _target != _PaymentTarget.specificExpense,
         onConfirm: _save,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              if (person.currentBalance == 0)
-                Text(
-                  'Nothing to receive — you\'re all paid up.',
-                  style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
-                )
-              else ...[
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  ),
-                  child: Text(
-                    'When ${person.name} gives you money, save it here. This automatically reduces the remaining amount.',
-                    style: context.textTheme.bodyMedium,
-                  ),
+            if (person.currentBalance == 0)
+              Text(
+                'Nothing to receive — you\'re all paid up.',
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.6),
                 ),
-                const SizedBox(height: AppSizes.lg),
-                Text('Select which payment is this for?', style: context.textTheme.titleSmall),
-                const SizedBox(height: AppSizes.xs),
-                RadioGroup<_PaymentTarget>(
-                  groupValue: _target,
-                  onChanged: (value) => setState(() => _target = value!),
-                  child: Column(
-                    children: [
-                      RadioListTile<_PaymentTarget>(
-                        contentPadding: EdgeInsets.zero,
-                        value: _PaymentTarget.allPending,
-                        title: Text('All pending amount ($amount)'),
-                      ),
-                      RadioListTile<_PaymentTarget>(
-                        contentPadding: EdgeInsets.zero,
-                        value: _PaymentTarget.specificExpense,
-                        title: const Text('Specific expense'),
-                        enabled: pendingParticipants.isNotEmpty,
-                      ),
-                      RadioListTile<_PaymentTarget>(
-                        contentPadding: EdgeInsets.zero,
-                        value: _PaymentTarget.customAmount,
-                        title: const Text('Custom amount'),
-                      ),
-                    ],
-                  ),
+              )
+            else ...[
+              Container(
+                padding: const EdgeInsets.all(AppSizes.md),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                 ),
-                if (_target == _PaymentTarget.specificExpense) ...[
-                  const SizedBox(height: AppSizes.sm),
-                  if (pendingParticipants.isEmpty)
-                    const Text('No pending expenses for this person.')
-                  else
-                    for (final participant in pendingParticipants)
-                      Card(
-                        margin: const EdgeInsets.only(bottom: AppSizes.xs),
-                        child: ListTile(
-                          title: Text(participant.expense.description),
-                          subtitle: Text(CurrencyFormatter.instance.format(participant.installment.remainingAmount)),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () => _pickSpecificExpense(participant),
+                child: Text(
+                  'When ${person.name} gives you money, save it here. This automatically reduces the remaining amount.',
+                  style: context.textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(height: AppSizes.lg),
+              Text(
+                'Select which payment is this for?',
+                style: context.textTheme.titleSmall,
+              ),
+              const SizedBox(height: AppSizes.xs),
+              RadioGroup<_PaymentTarget>(
+                groupValue: _target,
+                onChanged: (value) => setState(() => _target = value!),
+                child: Column(
+                  children: [
+                    RadioListTile<_PaymentTarget>(
+                      contentPadding: EdgeInsets.zero,
+                      value: _PaymentTarget.allPending,
+                      title: Text('All pending amount ($amount)'),
+                    ),
+                    RadioListTile<_PaymentTarget>(
+                      contentPadding: EdgeInsets.zero,
+                      value: _PaymentTarget.specificExpense,
+                      title: const Text('Specific expense'),
+                      enabled: pendingParticipants.isNotEmpty,
+                    ),
+                    RadioListTile<_PaymentTarget>(
+                      contentPadding: EdgeInsets.zero,
+                      value: _PaymentTarget.customAmount,
+                      title: const Text('Custom amount'),
+                    ),
+                  ],
+                ),
+              ),
+              if (_target == _PaymentTarget.specificExpense) ...[
+                const SizedBox(height: AppSizes.sm),
+                if (pendingParticipants.isEmpty)
+                  const Text('No pending expenses for this person.')
+                else
+                  for (final participant in pendingParticipants)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: AppSizes.xs),
+                      child: ListTile(
+                        title: Text(participant.expense.description),
+                        subtitle: Text(
+                          CurrencyFormatter.instance.format(
+                            participant.installment.remainingAmount,
+                          ),
                         ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _pickSpecificExpense(participant),
                       ),
-                ],
-                if (_target == _PaymentTarget.customAmount) ...[
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _amountController,
-                    decoration: const InputDecoration(labelText: 'Amount Received'),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: Validators.amount,
+                    ),
+              ],
+              if (_target == _PaymentTarget.customAmount) ...[
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _amountController,
+                  decoration: const InputDecoration(
+                    labelText: 'Amount Received',
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Date'),
-                    subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
-                    trailing: const Icon(Icons.calendar_today_outlined),
-                    onTap: _pickDate,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  const SizedBox(height: AppSizes.md),
-                  TextFormField(
-                    controller: _noteController,
-                    decoration: const InputDecoration(labelText: 'Notes (optional)'),
-                    maxLines: 2,
-                    textInputAction: TextInputAction.done,
+                  validator: Validators.amount,
+                ),
+                const SizedBox(height: AppSizes.md),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Date'),
+                  subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
+                  trailing: const Icon(Icons.calendar_today_outlined),
+                  onTap: _pickDate,
+                ),
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (optional)',
                   ),
-                ],
-                const SizedBox(height: AppSizes.lg),
-                Text(
-                  'After saving, ${person.name}\'s pending amount will be updated automatically.',
-                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                  maxLines: 2,
+                  textInputAction: TextInputAction.done,
                 ),
               ],
+              const SizedBox(height: AppSizes.lg),
+              Text(
+                'After saving, ${person.name}\'s pending amount will be updated automatically.',
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
+            ],
           ],
         ),
       ),

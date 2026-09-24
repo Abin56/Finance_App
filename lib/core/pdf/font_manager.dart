@@ -6,7 +6,11 @@ import 'package:pdf/widgets.dart' as pw;
 /// base14 fonts lack. Regular is body text, SemiBold is section headings,
 /// Bold is titles/totals/balances/important amounts.
 class PdfFonts {
-  const PdfFonts({required this.regular, required this.semiBold, required this.bold});
+  const PdfFonts({
+    required this.regular,
+    required this.semiBold,
+    required this.bold,
+  });
 
   final pw.Font regular;
   final pw.Font semiBold;
@@ -27,8 +31,12 @@ abstract class FontManager {
     final cached = _cached;
     if (cached != null) return cached;
 
-    final regularData = await rootBundle.load('assets/fonts/NotoSans-Regular.ttf');
-    final semiBoldData = await rootBundle.load('assets/fonts/NotoSans-SemiBold.ttf');
+    final regularData = await rootBundle.load(
+      'assets/fonts/NotoSans-Regular.ttf',
+    );
+    final semiBoldData = await rootBundle.load(
+      'assets/fonts/NotoSans-SemiBold.ttf',
+    );
     final boldData = await rootBundle.load('assets/fonts/NotoSans-Bold.ttf');
 
     final fonts = PdfFonts(

@@ -26,7 +26,9 @@ class ReminderNotificationService {
     if (kIsWeb || _initialized) return;
     tz_data.initializeTimeZones();
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     // Permission is deliberately NOT requested here (hence the `request*:
     // false` flags): [init] runs during app startup, which would put the OS
     // dialog on screen before the user has been told what the reminders are
@@ -55,14 +57,18 @@ class ReminderNotificationService {
 
     if (Platform.isAndroid) {
       final granted = await _plugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
       return granted ?? false;
     }
 
     if (Platform.isIOS || Platform.isMacOS) {
       final granted = await _plugin
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
       return granted ?? false;
     }
@@ -77,6 +83,13 @@ class ReminderNotificationService {
   /// [bodyBuilder] formats each offset's notification body — the label text
   /// legitimately differs per feature (e.g. "Tomorrow — due 5/3" for a bill
   /// vs "Tomorrow — EMI due 5/3"), so the caller owns that wording.
+  ///
+  /// A negative offset schedules *after* [dueDate] instead of before it
+  /// (e.g. `-1` fires the day after the due date) — how an "overdue"
+  /// reminder is expressed, since this service has no separate concept of
+  /// "before" vs "after": it's all just `dueDate - offset` days. Negative
+  /// offsets must come from [_knownOffsets] (or its negation) for [cancel]
+  /// to reliably clear them later.
   static Future<void> reschedule({
     required String ownerId,
     required String title,
@@ -95,7 +108,12 @@ class ReminderNotificationService {
 
     for (final offset in offsets) {
       final fireDate = dueDate.subtract(Duration(days: offset));
-      final scheduledFor = DateTime(fireDate.year, fireDate.month, fireDate.day, 9);
+      final scheduledFor = DateTime(
+        fireDate.year,
+        fireDate.month,
+        fireDate.day,
+        9,
+      );
       if (scheduledFor.isBefore(DateTime.now())) continue;
 
       await _plugin.zonedSchedule(
@@ -115,7 +133,8 @@ class ReminderNotificationService {
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.dateAndTime,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }
@@ -130,15 +149,17 @@ class ReminderNotificationService {
   }
 
   /// Realistic offset range across every feature using this service
-  /// (Today/Tomorrow/3/7 days, plus a handful of custom values) — custom
+  /// (Today/Tomorrow/3/7 days, plus a handful of custom values), including
+  /// their negations for "after due date" (overdue) reminders — custom
   /// offsets beyond this range won't be reliably cancelled by [cancel],
   /// since ids are derived deterministically from `(ownerId, offset)`
   /// rather than tracked in a registry. Acceptable at this scope; flag if
-  /// any feature needs offsets to exceed 30 days.
-  static const _knownOffsets = [0, 1, 2, 3, 5, 7, 14, 21, 30];
+  /// any feature needs offsets to exceed 30 days in either direction.
+  static const _knownOffsets = [0, 1, 2, 3, 5, 7, 14, 21, 30, -1, -2, -3, -5, -7, -14, -21, -30];
 
   /// Deterministic notification id from an owner id + offset — Dart's
   /// `hashCode` is stable within a single run, which is sufficient since
   /// ids only need to be unique among currently-scheduled notifications.
-  static int _notificationId(String ownerId, int offset) => Object.hash(ownerId, offset) & 0x7fffffff;
+  static int _notificationId(String ownerId, int offset) =>
+      Object.hash(ownerId, offset) & 0x7fffffff;
 }

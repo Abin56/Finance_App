@@ -55,19 +55,19 @@ class Account extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Account(
-      id: snapshot.id,
-      name: data['name'] as String,
-      type: AccountTypeX.fromName(data['type'] as String),
-      openingBalance: (data['openingBalance'] as num).toDouble(),
-      currentBalance: (data['currentBalance'] as num).toDouble(),
-      colorValue: data['colorValue'] as int,
-      isDefault: data['isDefault'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      bankId: data['bankId'] as String?,
-      accountHolderName: data['accountHolderName'] as String?,
-      notes: data['notes'] as String?,
-      accountNumberLast4: data['accountNumberLast4'] as String?,
-    )
+        id: snapshot.id,
+        name: data['name'] as String,
+        type: AccountTypeX.fromName(data['type'] as String),
+        openingBalance: (data['openingBalance'] as num).toDouble(),
+        currentBalance: (data['currentBalance'] as num).toDouble(),
+        colorValue: data['colorValue'] as int,
+        isDefault: data['isDefault'] as bool? ?? false,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+        bankId: data['bankId'] as String?,
+        accountHolderName: data['accountHolderName'] as String?,
+        notes: data['notes'] as String?,
+        accountNumberLast4: data['accountNumberLast4'] as String?,
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -89,7 +89,9 @@ class Account extends SoftDeletableEntity {
       'notes': notes,
       'accountNumberLast4': accountNumberLast4,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

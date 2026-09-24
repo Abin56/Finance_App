@@ -43,7 +43,8 @@ class InstallmentCycleItem extends CycleItem {
 
   @override
   bool get isSettled =>
-      installment.status == InstallmentStatus.paid || installment.status == InstallmentStatus.skipped;
+      installment.status == InstallmentStatus.paid ||
+      installment.status == InstallmentStatus.skipped;
 
   @override
   bool get isOverdue => installment.status == InstallmentStatus.overdue;

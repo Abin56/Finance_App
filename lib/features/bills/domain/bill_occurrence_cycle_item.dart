@@ -39,7 +39,9 @@ class BillOccurrenceCycleItem extends CycleItem {
   double? get paidAmount => occurrence.amountPaid;
 
   @override
-  bool get isSettled => occurrence.status == BillStatus.paid || occurrence.status == BillStatus.skipped;
+  bool get isSettled =>
+      occurrence.status == BillStatus.paid ||
+      occurrence.status == BillStatus.skipped;
 
   @override
   bool get isOverdue => occurrence.status == BillStatus.overdue;

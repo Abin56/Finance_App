@@ -32,7 +32,11 @@ class SmsBulkConvertConfig {
 /// blanket "Done". A partial failure is normal (one bad row shouldn't undo
 /// nine good ones), so these counts are reported, never swallowed.
 class SmsBulkConvertResult {
-  const SmsBulkConvertResult({required this.converted, required this.skipped, required this.failed});
+  const SmsBulkConvertResult({
+    required this.converted,
+    required this.skipped,
+    required this.failed,
+  });
 
   /// Genuinely created a transaction *and* marked its SMS imported.
   final int converted;
@@ -66,7 +70,12 @@ class SmsBulkConvertResult {
 /// Reloading the inbox afterwards is deliberately the caller's job — see
 /// [convert].
 class SmsBulkConverter {
-  const SmsBulkConverter(this._transactions, this._inbox, this._memories, [this._cloudCandidates]);
+  const SmsBulkConverter(
+    this._transactions,
+    this._inbox,
+    this._memories, [
+    this._cloudCandidates,
+  ]);
 
   final TransactionRepository _transactions;
   final SmsInboxRepository _inbox;
@@ -149,7 +158,11 @@ class SmsBulkConverter {
       }
     }
 
-    return SmsBulkConvertResult(converted: converted, skipped: skipped, failed: failed);
+    return SmsBulkConvertResult(
+      converted: converted,
+      skipped: skipped,
+      failed: failed,
+    );
   }
 }
 

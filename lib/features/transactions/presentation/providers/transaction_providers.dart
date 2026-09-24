@@ -22,7 +22,10 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
         fromFirestore: Transaction.fromFirestore,
         toFirestore: (transaction, _) => transaction.toFirestore(),
       );
-  return TransactionRepository(collection, ref.watch(accountRepositoryProvider));
+  return TransactionRepository(
+    collection,
+    ref.watch(accountRepositoryProvider),
+  );
 });
 
 final transactionsStreamProvider = StreamProvider<List<Transaction>>((ref) {
@@ -30,15 +33,25 @@ final transactionsStreamProvider = StreamProvider<List<Transaction>>((ref) {
 });
 
 /// [transactionsStreamProvider] with every `excludeFromCalculations`
-/// transaction removed — the one list every balance/total/report aggregation
-/// must watch instead of the raw stream above. History/Search/Transaction
-/// Detail/Calendar/SMS linking must keep watching the raw stream, since an
-/// excluded transaction still needs to appear there.
+/// transaction and every transfer leg ([Transaction.isTransfer]) removed —
+/// the one list every balance/total/report aggregation must watch instead of
+/// the raw stream above. A transfer leg (currently only ever created by the
+/// web app — see [Transaction.transferId]'s doc comment) moves money between
+/// two of the user's own accounts; it's neither real income nor a real
+/// expense, so counting it here would double-count it as both. Mirrors the
+/// web app's own `isTransfer` exclusion in its Dashboard/Reports hooks.
+/// History/Search/Transaction Detail/Calendar/SMS linking must keep watching
+/// the raw stream, since an excluded transaction still needs to appear
+/// there.
 final calculableTransactionsProvider = Provider<List<Transaction>>((ref) {
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
-  return transactions.where((t) => !t.excludeFromCalculations).toList();
+  return transactions
+      .where((t) => !t.excludeFromCalculations && !t.isTransfer)
+      .toList();
 });
 
-final transactionsTrashStreamProvider = StreamProvider<List<Transaction>>((ref) {
+final transactionsTrashStreamProvider = StreamProvider<List<Transaction>>((
+  ref,
+) {
   return ref.watch(transactionRepositoryProvider).watchTrash();
 });

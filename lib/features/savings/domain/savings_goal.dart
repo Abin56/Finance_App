@@ -40,16 +40,16 @@ class SavingsGoal extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return SavingsGoal(
-      id: snapshot.id,
-      name: data['name'] as String,
-      targetAmount: (data['targetAmount'] as num).toDouble(),
-      currentAmount: (data['currentAmount'] as num?)?.toDouble() ?? 0,
-      dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
-      notes: data['notes'] as String? ?? '',
-      isCompleted: data['isCompleted'] as bool? ?? false,
-      isArchived: data['isArchived'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        name: data['name'] as String,
+        targetAmount: (data['targetAmount'] as num).toDouble(),
+        currentAmount: (data['currentAmount'] as num?)?.toDouble() ?? 0,
+        dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
+        notes: data['notes'] as String? ?? '',
+        isCompleted: data['isCompleted'] as bool? ?? false,
+        isArchived: data['isArchived'] as bool? ?? false,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -68,7 +68,9 @@ class SavingsGoal extends SoftDeletableEntity {
       'isArchived': isArchived,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

@@ -25,7 +25,8 @@ const _kUid = 'gate-uid';
 class _NoSms extends SmsPermissionService {
   const _NoSms();
   @override
-  Future<SmsAvailability> checkStatus() async => SmsAvailability.unsupportedPlatform;
+  Future<SmsAvailability> checkStatus() async =>
+      SmsAvailability.unsupportedPlatform;
 }
 
 /// Drives the real router, the way the app actually reaches the wizard: a
@@ -35,7 +36,10 @@ void main() {
     return ProviderScope(
       overrides: [
         firebaseAuthProvider.overrideWithValue(
-          MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 't@e.com')),
+          MockFirebaseAuth(
+            signedIn: true,
+            mockUser: MockUser(uid: _kUid, email: 't@e.com'),
+          ),
         ),
         firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
         smsPermissionServiceProvider.overrideWithValue(const _NoSms()),
@@ -45,7 +49,9 @@ void main() {
     );
   }
 
-  testWidgets('a first-time account lands on the setup wizard after login', (tester) async {
+  testWidgets('a first-time account lands on the setup wizard after login', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({onboardingCompletedKey: true});
     LocalSettingsService.resetForTest();
     await LocalSettingsService.init();
@@ -57,7 +63,9 @@ void main() {
     expect(find.text('Add your bank account'), findsOneWidget);
   });
 
-  testWidgets('Skip for now dismisses the wizard through to the dashboard', (tester) async {
+  testWidgets('Skip for now dismisses the wizard through to the dashboard', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({onboardingCompletedKey: true});
     LocalSettingsService.resetForTest();
     await LocalSettingsService.init();
@@ -72,20 +80,23 @@ void main() {
     expect(find.text('Total Balance'), findsOneWidget);
   });
 
-  testWidgets('an account that already finished setup boots straight to the dashboard', (tester) async {
-    SharedPreferences.setMockInitialValues({
-      onboardingCompletedKey: true,
-      setupWizardCompletedKey(_kUid): true,
-    });
-    LocalSettingsService.resetForTest();
-    await LocalSettingsService.init();
+  testWidgets(
+    'an account that already finished setup boots straight to the dashboard',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        onboardingCompletedKey: true,
+        setupWizardCompletedKey(_kUid): true,
+      });
+      LocalSettingsService.resetForTest();
+      await LocalSettingsService.init();
 
-    await tester.pumpWidget(app());
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
 
-    expect(find.byType(SetupWizardScreen), findsNothing);
-    expect(find.text('Total Balance'), findsOneWidget);
-  });
+      expect(find.byType(SetupWizardScreen), findsNothing);
+      expect(find.text('Total Balance'), findsOneWidget);
+    },
+  );
 }
 
 /// Mirrors `FinanceApp` minus the lifecycle app-lock observer, as in

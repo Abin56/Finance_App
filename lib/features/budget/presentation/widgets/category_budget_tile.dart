@@ -17,7 +17,11 @@ import 'budget_form_sheet.dart';
 /// [Category], spent/remaining/percentage against it. Swipeable to
 /// soft-delete like every other list row in the app.
 class CategoryBudgetTile extends ConsumerWidget {
-  const CategoryBudgetTile({super.key, required this.budget, required this.category});
+  const CategoryBudgetTile({
+    super.key,
+    required this.budget,
+    required this.category,
+  });
 
   final Budget budget;
   final Category? category;
@@ -25,7 +29,9 @@ class CategoryBudgetTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final insight = ref.watch(categoryBudgetInsightProvider(budget));
-    final color = category != null ? Color(category!.colorValue) : context.colors.primary;
+    final color = category != null
+        ? Color(category!.colorValue)
+        : context.colors.primary;
 
     return Material(
       color: context.colors.surface,
@@ -53,11 +59,18 @@ class CategoryBudgetTile extends ConsumerWidget {
                       color: color.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                     ),
-                    child: Icon(category?.icon ?? Icons.category_outlined, color: color, size: AppSizes.iconSm),
+                    child: Icon(
+                      category?.icon ?? Icons.category_outlined,
+                      color: color,
+                      size: AppSizes.iconSm,
+                    ),
                   ),
                   const SizedBox(width: AppSizes.md),
                   Expanded(
-                    child: Text(category?.name ?? 'Uncategorized', style: context.textTheme.titleMedium),
+                    child: Text(
+                      category?.name ?? 'Uncategorized',
+                      style: context.textTheme.titleMedium,
+                    ),
                   ),
                   Text(
                     '${CurrencyFormatter.instance.format(insight.spent)} / ${CurrencyFormatter.instance.format(budget.amount)}',

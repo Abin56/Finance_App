@@ -18,7 +18,10 @@ void main() {
     test('keeps genuinely different merchants apart', () {
       // Over-merging is worse than not matching: it would confidently suggest
       // the wrong category for a real, different merchant.
-      expect(MerchantKey.normalize('AMAZON'), isNot(MerchantKey.normalize('AMAZON FRESH')));
+      expect(
+        MerchantKey.normalize('AMAZON'),
+        isNot(MerchantKey.normalize('AMAZON FRESH')),
+      );
     });
 
     test('returns null when nothing identifying survives', () {

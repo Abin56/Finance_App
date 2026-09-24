@@ -61,7 +61,14 @@ class EmiPaymentBreakdown extends SoftDeletableEntity {
   final DateTime createdAt;
 
   /// Every charge that isn't principal or interest.
-  double get totalCharges => gst + igst + processingFee + insuranceCharge + serviceCharge + penalty + otherCharges;
+  double get totalCharges =>
+      gst +
+      igst +
+      processingFee +
+      insuranceCharge +
+      serviceCharge +
+      penalty +
+      otherCharges;
 
   double get totalAmountPaid => principalPaid + interestPaid + totalCharges;
 
@@ -71,22 +78,22 @@ class EmiPaymentBreakdown extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return EmiPaymentBreakdown(
-      id: snapshot.id,
-      paymentId: data['paymentId'] as String,
-      scheduleId: data['scheduleId'] as String,
-      installmentId: data['installmentId'] as String,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      principalPaid: (data['principalPaid'] as num?)?.toDouble() ?? 0,
-      interestPaid: (data['interestPaid'] as num?)?.toDouble() ?? 0,
-      gst: (data['gst'] as num?)?.toDouble() ?? 0,
-      igst: (data['igst'] as num?)?.toDouble() ?? 0,
-      processingFee: (data['processingFee'] as num?)?.toDouble() ?? 0,
-      insuranceCharge: (data['insuranceCharge'] as num?)?.toDouble() ?? 0,
-      serviceCharge: (data['serviceCharge'] as num?)?.toDouble() ?? 0,
-      penalty: (data['penalty'] as num?)?.toDouble() ?? 0,
-      otherCharges: (data['otherCharges'] as num?)?.toDouble() ?? 0,
-      notes: data['notes'] as String? ?? '',
-    )
+        id: snapshot.id,
+        paymentId: data['paymentId'] as String,
+        scheduleId: data['scheduleId'] as String,
+        installmentId: data['installmentId'] as String,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+        principalPaid: (data['principalPaid'] as num?)?.toDouble() ?? 0,
+        interestPaid: (data['interestPaid'] as num?)?.toDouble() ?? 0,
+        gst: (data['gst'] as num?)?.toDouble() ?? 0,
+        igst: (data['igst'] as num?)?.toDouble() ?? 0,
+        processingFee: (data['processingFee'] as num?)?.toDouble() ?? 0,
+        insuranceCharge: (data['insuranceCharge'] as num?)?.toDouble() ?? 0,
+        serviceCharge: (data['serviceCharge'] as num?)?.toDouble() ?? 0,
+        penalty: (data['penalty'] as num?)?.toDouble() ?? 0,
+        otherCharges: (data['otherCharges'] as num?)?.toDouble() ?? 0,
+        notes: data['notes'] as String? ?? '',
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -111,7 +118,9 @@ class EmiPaymentBreakdown extends SoftDeletableEntity {
       'otherCharges': otherCharges,
       'notes': notes,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

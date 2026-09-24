@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/filter/sms_date_range_filter.dart';
 import '../../domain/filter/sms_filter_criteria.dart';
 import '../../domain/sms_import_status.dart';
@@ -37,15 +39,22 @@ class SmsFilterSheet extends ConsumerStatefulWidget {
 
 class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
   late SmsFilterCriteria _draft = ref.read(smsFilterCriteriaProvider);
-  late final _minController = TextEditingController(text: _amountText(_draft.minAmount));
-  late final _maxController = TextEditingController(text: _amountText(_draft.maxAmount));
+  late final _minController = TextEditingController(
+    text: _amountText(_draft.minAmount),
+  );
+  late final _maxController = TextEditingController(
+    text: _amountText(_draft.maxAmount),
+  );
 
-  static String _amountText(double? amount) => amount == null ? '' : amount.toStringAsFixed(0);
+  static String _amountText(double? amount) =>
+      amount == null ? '' : amount.toStringAsFixed(0);
 
   /// True when both bounds are set and Min exceeds Max — a range that can
   /// never match anything, with no explanation otherwise.
   bool get _hasInvalidAmountRange =>
-      _draft.minAmount != null && _draft.maxAmount != null && _draft.minAmount! > _draft.maxAmount!;
+      _draft.minAmount != null &&
+      _draft.maxAmount != null &&
+      _draft.minAmount! > _draft.maxAmount!;
 
   @override
   void dispose() {
@@ -79,7 +88,13 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
           : null,
     );
     if (picked == null) return;
-    _update(_draft.copyWith(datePreset: SmsDatePreset.custom, customStart: picked.start, customEnd: picked.end));
+    _update(
+      _draft.copyWith(
+        datePreset: SmsDatePreset.custom,
+        customStart: picked.start,
+        customEnd: picked.end,
+      ),
+    );
   }
 
   @override
@@ -96,7 +111,10 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
       builder: (context, scrollController) {
         return Column(
           children: [
-            _Header(activeCount: _draft.activeCount, onClose: () => Navigator.of(context).pop()),
+            _Header(
+              activeCount: _draft.activeCount,
+              onClose: () => Navigator.of(context).pop(),
+            ),
             const Divider(height: 1),
             Expanded(
               child: ListView(
@@ -106,6 +124,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (categories.isNotEmpty)
                     _Section(
                       title: 'Transaction type',
+                      icon: Icons.category_outlined,
+                      hint: 'Select any that apply',
                       child: _ChipWrap(
                         children: [
                           for (final category in categories)
@@ -116,7 +136,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                 _draft.copyWith(
                                   categories: selected
                                       ? {..._draft.categories, category}
-                                      : _draft.categories.difference({category}),
+                                      : _draft.categories.difference({
+                                          category,
+                                        }),
                                 ),
                               ),
                             ),
@@ -125,34 +147,46 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                     ),
                   _Section(
                     title: 'Money direction',
+                    icon: Icons.swap_vert_rounded,
+                    hint: 'Choose one',
                     child: _ChipWrap(
                       children: [
                         for (final direction in SmsMoneyDirection.values)
-                          _Chip(
+                          _SingleChoiceChip(
                             label: direction.label,
                             icon: _directionIcon(direction),
                             selected: _draft.direction == direction,
-                            onSelected: (_) => _update(_draft.copyWith(direction: direction)),
+                            onSelected: () =>
+                                _update(_draft.copyWith(direction: direction)),
                           ),
                       ],
                     ),
                   ),
                   _Section(
                     title: 'Date & time',
+                    icon: Icons.calendar_month_outlined,
+                    hint: 'Choose one',
                     child: _ChipWrap(
                       children: [
                         for (final preset in SmsDatePreset.values)
-                          _Chip(
-                            label: preset == SmsDatePreset.custom && _draft.customStart != null
+                          _SingleChoiceChip(
+                            label:
+                                preset == SmsDatePreset.custom &&
+                                    _draft.customStart != null
                                 ? _customLabel()
                                 : preset.label,
                             selected: _draft.datePreset == preset,
-                            onSelected: (_) {
+                            onSelected: () {
                               if (preset == SmsDatePreset.custom) {
                                 _pickCustomRange();
                                 return;
                               }
-                              _update(_draft.copyWith(datePreset: preset, clearCustomRange: true));
+                              _update(
+                                _draft.copyWith(
+                                  datePreset: preset,
+                                  clearCustomRange: true,
+                                ),
+                              );
                             },
                           ),
                       ],
@@ -161,6 +195,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (banks.isNotEmpty)
                     _Section(
                       title: 'Bank',
+                      icon: Icons.account_balance_outlined,
+                      hint: 'Select any that apply',
                       child: _ChipWrap(
                         children: [
                           for (final bank in banks)
@@ -169,7 +205,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                               selected: _draft.banks.contains(bank),
                               onSelected: (selected) => _update(
                                 _draft.copyWith(
-                                  banks: selected ? {..._draft.banks, bank} : _draft.banks.difference({bank}),
+                                  banks: selected
+                                      ? {..._draft.banks, bank}
+                                      : _draft.banks.difference({bank}),
                                 ),
                               ),
                             ),
@@ -178,6 +216,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                     ),
                   _Section(
                     title: 'Conversion status',
+                    icon: Icons.fact_check_outlined,
+                    hint: 'Select any that apply',
                     child: _ChipWrap(
                       children: [
                         for (final status in SmsImportStatus.values)
@@ -200,14 +240,20 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (ref.watch(smsDuplicateCountProvider) > 0)
                     _Section(
                       title: 'Duplicates',
+                      icon: Icons.content_copy_rounded,
                       child: _ChipWrap(
                         children: [
                           _Chip(
-                            label: 'Review ${ref.watch(smsDuplicateCountProvider)} duplicates',
-                            selected: _draft.duplicates == SmsDuplicateVisibility.only,
+                            label:
+                                'Review ${ref.watch(smsDuplicateCountProvider)} duplicates',
+                            selected:
+                                _draft.duplicates ==
+                                SmsDuplicateVisibility.only,
                             onSelected: (selected) => _update(
                               _draft.copyWith(
-                                duplicates: selected ? SmsDuplicateVisibility.only : SmsDuplicateVisibility.hidden,
+                                duplicates: selected
+                                    ? SmsDuplicateVisibility.only
+                                    : SmsDuplicateVisibility.hidden,
                               ),
                             ),
                           ),
@@ -216,16 +262,26 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                     ),
                   _Section(
                     title: 'Amount',
+                    icon: Icons.currency_rupee_rounded,
+                    hint: 'Quick pick sets Min below, or enter your own range',
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _ChipWrap(
                           children: [
-                            for (final threshold in const [500.0, 1000.0, 5000.0, 10000.0])
-                              _Chip(
-                                label: 'Above ${CurrencyFormatter.instance.format(threshold)}',
+                            for (final threshold in const [
+                              500.0,
+                              1000.0,
+                              5000.0,
+                              10000.0,
+                            ])
+                              _SingleChoiceChip(
+                                label:
+                                    'Above ${CurrencyFormatter.instance.format(threshold)}',
                                 selected: _draft.minAmount == threshold,
-                                onSelected: (selected) {
+                                onSelected: () {
+                                  final selected =
+                                      _draft.minAmount != threshold;
                                   final next = selected ? threshold : null;
                                   _minController.text = _amountText(next);
                                   _update(
@@ -246,7 +302,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                 label: 'Min',
                                 hasError: _hasInvalidAmountRange,
                                 onChanged: (value) => _update(
-                                  value == null ? _draft.copyWith(clearMinAmount: true) : _draft.copyWith(minAmount: value),
+                                  value == null
+                                      ? _draft.copyWith(clearMinAmount: true)
+                                      : _draft.copyWith(minAmount: value),
                                 ),
                               ),
                             ),
@@ -257,7 +315,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                                 label: 'Max',
                                 hasError: _hasInvalidAmountRange,
                                 onChanged: (value) => _update(
-                                  value == null ? _draft.copyWith(clearMaxAmount: true) : _draft.copyWith(maxAmount: value),
+                                  value == null
+                                      ? _draft.copyWith(clearMaxAmount: true)
+                                      : _draft.copyWith(maxAmount: value),
                                 ),
                               ),
                             ),
@@ -267,7 +327,9 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                           const SizedBox(height: AppSizes.xs),
                           Text(
                             'Min must not be greater than Max.',
-                            style: context.textTheme.bodySmall?.copyWith(color: context.colors.error),
+                            style: context.textTheme.bodySmall?.copyWith(
+                              color: context.colors.error,
+                            ),
                           ),
                         ],
                       ],
@@ -276,6 +338,8 @@ class _SmsFilterSheetState extends ConsumerState<SmsFilterSheet> {
                   if (cardOptions.isNotEmpty)
                     _Section(
                       title: 'Credit card',
+                      icon: Icons.credit_card_outlined,
+                      hint: 'Select any that apply',
                       child: _ChipWrap(
                         children: [
                           for (final option in cardOptions)
@@ -330,33 +394,57 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.sm, AppSizes.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        AppSizes.sm,
+        AppSizes.sm,
+        AppSizes.sm,
+      ),
       child: Row(
         children: [
-          const Icon(Icons.filter_list_rounded, size: AppSizes.iconMd),
+          FlowFiIconChip(
+            icon: Icons.tune_rounded,
+            color: context.colors.primary,
+            size: 36,
+            iconSize: AppSizes.iconSm,
+          ),
           const SizedBox(width: AppSizes.sm),
-          Text('Filter SMS', style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          if (activeCount > 0) ...[
-            const SizedBox(width: AppSizes.sm),
-            // Flexible so a two-digit count can never push the close button
-            // off a 360dp sheet.
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
-                decoration: BoxDecoration(
-                  color: context.colors.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Filter SMS',
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                child: Text(
-                  '$activeCount active',
-                  overflow: TextOverflow.ellipsis,
-                  style: context.textTheme.labelSmall?.copyWith(color: context.colors.onPrimaryContainer),
-                ),
-              ),
+                if (activeCount > 0)
+                  Text(
+                    '$activeCount active',
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.isDarkMode
+                          ? AppColors.primaryDark
+                          : context.colors.onSurface,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                else
+                  Text(
+                    'Narrow down your inbox',
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+              ],
             ),
-          ],
-          const Spacer(),
-          IconButton(icon: const Icon(Icons.close_rounded), tooltip: 'Close', onPressed: onClose),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close_rounded),
+            tooltip: 'Close',
+            onPressed: onClose,
+          ),
         ],
       ),
     );
@@ -386,36 +474,101 @@ class _ActionBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: OutlinedButton(onPressed: onClearAll, child: const Text('Clear All'))),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onClearAll,
+              child: const Text('Clear All'),
+            ),
+          ),
           const SizedBox(width: AppSizes.sm),
-          Expanded(child: FilledButton(onPressed: onApply, child: const Text('Apply Filters'))),
+          Expanded(
+            flex: 2,
+            child: FilledButton(
+              onPressed: onApply,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(AppSizes.buttonHeight),
+              ),
+              child: const Text('Apply Filters'),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
+/// One filter group. [hint] states, in plain words, whether the chips below
+/// behave as a checkbox group ("Select any that apply" — tapping one never
+/// affects another) or a radio group ("Choose one" — tapping one switches
+/// off whatever was picked before). Without this, both groups look and feel
+/// identical (the same pill chip), which is exactly what made it unclear
+/// which behavior to expect from any given section.
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
+  const _Section({
+    required this.title,
+    required this.child,
+    this.icon,
+    this.hint,
+  });
 
   final String title;
+  final IconData? icon;
+  final String? hint;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.sm, AppSizes.lg, AppSizes.sm),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        AppSizes.sm,
+        AppSizes.lg,
+        AppSizes.md,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: context.colors.outline.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: context.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: context.colors.onSurfaceVariant,
-            ),
+          Row(
+            children: [
+              if (icon != null) ...[
+                FlowFiIconChip(
+                  icon: icon!,
+                  color: context.colors.primary,
+                  size: 24,
+                  iconSize: 13,
+                ),
+                const SizedBox(width: AppSizes.xs),
+              ],
+              Text(
+                title,
+                style: context.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: context.colors.onSurfaceVariant,
+                ),
+              ),
+              if (hint != null) ...[
+                const SizedBox(width: AppSizes.xs),
+                Expanded(
+                  child: Text(
+                    hint!,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.45),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: AppSizes.xs),
+          const SizedBox(height: AppSizes.sm),
           child,
         ],
       ),
@@ -432,35 +585,92 @@ class _ChipWrap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(spacing: AppSizes.xs, runSpacing: AppSizes.xs, children: children);
+    return Wrap(
+      spacing: AppSizes.xs,
+      runSpacing: AppSizes.xs,
+      children: children,
+    );
   }
 }
 
+/// A multi-select chip — [FilterChip], which shows a checkmark on selection
+/// per Material convention. Used for every facet backed by a `Set` (tapping
+/// one never touches another): Transaction type, Bank, Conversion status,
+/// Credit card, Duplicates.
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onSelected, this.icon});
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
 
   final String label;
   final bool selected;
   final ValueChanged<bool> onSelected;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return FilterChip(
       label: Text(label),
-      avatar: icon == null ? null : Icon(icon, size: AppSizes.iconSm),
       labelStyle: context.textTheme.labelSmall,
       selected: selected,
       onSelected: onSelected,
+      showCheckmark: true,
       visualDensity: VisualDensity.compact,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
+    );
+  }
+}
+
+/// A single-select chip — [ChoiceChip], which fills solid on selection with
+/// no checkmark, the Material convention for "picking this replaces
+/// whatever else was picked" (radio-button behavior). Used for every facet
+/// backed by a plain enum/value rather than a `Set`: Money direction, Date
+/// & time, and the Amount section's quick-pick thresholds. Deliberately a
+/// distinct widget from [_Chip] rather than a `showCheckmark: false` flag on
+/// the same one — the visual difference is the whole point, so it shouldn't
+/// be one easy-to-miss parameter away from looking identical again.
+class _SingleChoiceChip extends StatelessWidget {
+  const _SingleChoiceChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+    this.icon,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      avatar: icon == null ? null : Icon(icon, size: AppSizes.iconSm),
+      labelStyle: context.textTheme.labelSmall,
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      showCheckmark: false,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+      ),
     );
   }
 }
 
 class _AmountField extends StatelessWidget {
-  const _AmountField({required this.controller, required this.label, required this.onChanged, this.hasError = false});
+  const _AmountField({
+    required this.controller,
+    required this.label,
+    required this.onChanged,
+    this.hasError = false,
+  });
 
   final TextEditingController controller;
   final String label;
@@ -481,8 +691,16 @@ class _AmountField extends StatelessWidget {
         isDense: true,
         labelText: label,
         border: const OutlineInputBorder(),
-        errorBorder: hasError ? OutlineInputBorder(borderSide: BorderSide(color: context.colors.error)) : null,
-        enabledBorder: hasError ? OutlineInputBorder(borderSide: BorderSide(color: context.colors.error)) : null,
+        errorBorder: hasError
+            ? OutlineInputBorder(
+                borderSide: BorderSide(color: context.colors.error),
+              )
+            : null,
+        enabledBorder: hasError
+            ? OutlineInputBorder(
+                borderSide: BorderSide(color: context.colors.error),
+              )
+            : null,
       ),
       // An unparseable or empty field clears the bound rather than pinning it
       // at 0, which would silently hide every row.

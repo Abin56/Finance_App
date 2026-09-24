@@ -34,10 +34,14 @@ class CategoryFormSheet extends ConsumerStatefulWidget {
 
 class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final _nameController = TextEditingController(text: widget.category?.name);
+  late final _nameController = TextEditingController(
+    text: widget.category?.name,
+  );
   late CategoryType _type = widget.category?.type ?? CategoryType.expense;
-  late String _iconKey = widget.category?.iconKey ?? CategoryIcons.catalog.keys.first;
-  late int _colorValue = widget.category?.colorValue ?? AppColors.categoryPalette.first.toARGB32();
+  late String _iconKey =
+      widget.category?.iconKey ?? CategoryIcons.catalog.keys.first;
+  late int _colorValue =
+      widget.category?.colorValue ?? AppColors.categoryPalette.first.toARGB32();
   late bool _isActive = widget.category?.isActive ?? true;
   bool _isSaving = false;
 
@@ -76,9 +80,9 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save category: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save category: $e')));
       }
     }
   }
@@ -106,7 +110,8 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
             const SizedBox(height: AppSizes.md),
             ChipSelector<CategoryType>(
               options: [
-                for (final type in CategoryType.values) ChipOption(value: type, label: type.label),
+                for (final type in CategoryType.values)
+                  ChipOption(value: type, label: type.label),
               ],
               value: _type,
               onChanged: (value) => setState(() => _type = value),
@@ -129,7 +134,9 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
                       decoration: BoxDecoration(
                         color: entry.key == _iconKey
                             ? Color(_colorValue).withValues(alpha: 0.2)
-                            : Theme.of(context).colorScheme.surfaceContainerHighest,
+                            : Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
                         border: entry.key == _iconKey
                             ? Border.all(color: Color(_colorValue), width: 2)
@@ -145,7 +152,8 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
             const SizedBox(height: AppSizes.sm),
             ColorSwatchPicker(
               value: Color(_colorValue),
-              onChanged: (color) => setState(() => _colorValue = color.toARGB32()),
+              onChanged: (color) =>
+                  setState(() => _colorValue = color.toARGB32()),
             ),
             if (_isEditing) ...[
               const SizedBox(height: AppSizes.lg),
@@ -154,7 +162,9 @@ class _CategoryFormSheetState extends ConsumerState<CategoryFormSheet> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Active'),
-                subtitle: const Text('Inactive categories are hidden from new transactions'),
+                subtitle: const Text(
+                  'Inactive categories are hidden from new transactions',
+                ),
                 value: _isActive,
                 onChanged: (value) => setState(() => _isActive = value),
               ),

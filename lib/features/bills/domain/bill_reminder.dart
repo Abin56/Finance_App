@@ -8,7 +8,11 @@ import '../../../core/utils/reminder_offset_label.dart';
 /// bill template's reminder settings) rather than a whole `Bill`, since
 /// "due date" is now occurrence-scoped, not a template concern.
 class BillReminder {
-  BillReminder({required this.dueDate, required this.reminderOffsets, DateTime? now}) : _now = now ?? DateTime.now();
+  BillReminder({
+    required this.dueDate,
+    required this.reminderOffsets,
+    DateTime? now,
+  }) : _now = now ?? DateTime.now();
 
   final DateTime dueDate;
   final List<int> reminderOffsets;
@@ -30,6 +34,8 @@ class BillReminder {
   /// Every offset that is due to fire today, with its label — a bill can
   /// have more than one offset land on the same day only if configured
   /// with duplicate values, which the form sheet prevents.
-  List<String> get dueOffsetLabels =>
-      reminderOffsets.where((offset) => offset == daysUntilDue).map(labelForOffset).toList();
+  List<String> get dueOffsetLabels => reminderOffsets
+      .where((offset) => offset == daysUntilDue)
+      .map(labelForOffset)
+      .toList();
 }

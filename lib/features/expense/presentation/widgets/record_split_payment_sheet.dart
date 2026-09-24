@@ -49,16 +49,22 @@ class RecordSplitPaymentSheet extends ConsumerStatefulWidget {
     return Navigator.of(context).push<bool>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => RecordSplitPaymentSheet(expense: expense, participant: participant, installment: installment),
+        builder: (_) => RecordSplitPaymentSheet(
+          expense: expense,
+          participant: participant,
+          installment: installment,
+        ),
       ),
     );
   }
 
   @override
-  ConsumerState<RecordSplitPaymentSheet> createState() => _RecordSplitPaymentSheetState();
+  ConsumerState<RecordSplitPaymentSheet> createState() =>
+      _RecordSplitPaymentSheetState();
 }
 
-class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentSheet> {
+class _RecordSplitPaymentSheetState
+    extends ConsumerState<RecordSplitPaymentSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _amountController = TextEditingController(
     text: widget.installment.remainingAmount.toStringAsFixed(2),
@@ -89,7 +95,8 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
     setState(() {
       _type = selection.first;
       if (_type == _PaymentType.settle) {
-        _amountController.text = widget.installment.remainingAmount.toStringAsFixed(2);
+        _amountController.text = widget.installment.remainingAmount
+            .toStringAsFixed(2);
       }
     });
   }
@@ -100,14 +107,17 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
 
     try {
       final amount = double.parse(_amountController.text.trim());
-      await ref.read(expenseRepositoryProvider).settleParticipant(
+      await ref
+          .read(expenseRepositoryProvider)
+          .settleParticipant(
             expense: widget.expense,
             participant: widget.participant,
             installment: widget.installment,
             installmentPaymentRepository: ref.read(
-              installmentPaymentRepositoryProvider(
-                (scheduleId: widget.installment.scheduleId, installmentId: widget.installment.id),
-              ),
+              installmentPaymentRepositoryProvider((
+                scheduleId: widget.installment.scheduleId,
+                installmentId: widget.installment.id,
+              )),
             ),
             amount: amount,
             date: _date,
@@ -115,7 +125,10 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
           );
       if (!mounted) return;
 
-      final remaining = (widget.installment.remainingAmount - amount).clamp(0.0, widget.installment.remainingAmount);
+      final remaining = (widget.installment.remainingAmount - amount).clamp(
+        0.0,
+        widget.installment.remainingAmount,
+      );
       if (remaining > 0) {
         // Shown while this modal's own context is still valid — safer than
         // popping first and reusing a context whose route is mid-removal.
@@ -125,9 +138,9 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not record payment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
       }
     }
   }
@@ -136,14 +149,23 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+        leading: TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
         leadingWidth: 80,
         title: const Text('Add Payment'),
         centerTitle: true,
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _save,
-            child: Text('Save', style: TextStyle(color: context.colors.primary, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: context.colors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -155,9 +177,15 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
             AppCard(
               child: Column(
                 children: [
-                  _RecapRow(label: 'Total Amount', value: widget.participant.share),
+                  _RecapRow(
+                    label: 'Total Amount',
+                    value: widget.participant.share,
+                  ),
                   const SizedBox(height: AppSizes.sm),
-                  _RecapRow(label: 'Remaining', value: widget.installment.remainingAmount),
+                  _RecapRow(
+                    label: 'Remaining',
+                    value: widget.installment.remainingAmount,
+                  ),
                 ],
               ),
             ),
@@ -166,8 +194,14 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
             const SizedBox(height: AppSizes.sm),
             SegmentedButton<_PaymentType>(
               segments: const [
-                ButtonSegment(value: _PaymentType.advance, label: Text('Advance')),
-                ButtonSegment(value: _PaymentType.settle, label: Text('Settle')),
+                ButtonSegment(
+                  value: _PaymentType.advance,
+                  label: Text('Advance'),
+                ),
+                ButtonSegment(
+                  value: _PaymentType.settle,
+                  label: Text('Settle'),
+                ),
               ],
               selected: {_type},
               onSelectionChanged: _onTypeChanged,
@@ -177,8 +211,12 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
             const SizedBox(height: AppSizes.xs),
             TextFormField(
               controller: _amountController,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.currency_rupee_rounded)),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.currency_rupee_rounded),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: Validators.amount,
               readOnly: _type == _PaymentType.settle,
             ),
@@ -189,7 +227,9 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
               onTap: _pickDate,
               borderRadius: BorderRadius.circular(AppSizes.radiusMd),
               child: InputDecorator(
-                decoration: const InputDecoration(suffixIcon: Icon(Icons.calendar_today_outlined)),
+                decoration: const InputDecoration(
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
+                ),
                 child: Text(_date.fullDate),
               ),
             ),
@@ -212,12 +252,20 @@ class _RecordSplitPaymentSheetState extends ConsumerState<RecordSplitPaymentShee
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline_rounded, size: AppSizes.iconSm, color: context.colors.primary),
+                    Icon(
+                      Icons.info_outline_rounded,
+                      size: AppSizes.iconSm,
+                      color: context.colors.primary,
+                    ),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
                       child: Text(
                         "This is an advance payment. You will still see the remaining amount until it's settled.",
-                        style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.8)),
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.8,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -242,10 +290,17 @@ class _RecapRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7))),
+        Text(
+          label,
+          style: context.textTheme.bodyMedium?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.7),
+          ),
+        ),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );

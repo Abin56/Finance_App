@@ -30,9 +30,15 @@ class CategorySummaryBlock extends StatelessWidget {
         children: [
           Text('Category Summary', style: context.textTheme.titleSmall),
           const SizedBox(height: AppSizes.md),
-          _SummaryRow(label: 'Total Spending', value: CurrencyFormatter.instance.format(total)),
+          _SummaryRow(
+            label: 'Total Spending',
+            value: CurrencyFormatter.instance.format(total),
+          ),
           const SizedBox(height: AppSizes.sm),
-          _SummaryRow(label: 'Average per day', value: CurrencyFormatter.instance.format(averagePerDay)),
+          _SummaryRow(
+            label: 'Average per day',
+            value: CurrencyFormatter.instance.format(averagePerDay),
+          ),
           const SizedBox(height: AppSizes.sm),
           _SummaryRow(
             label: 'Highest spending day',
@@ -57,8 +63,18 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6))),
-        Text(value, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: context.textTheme.bodyMedium?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        Text(
+          value,
+          style: context.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }

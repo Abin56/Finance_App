@@ -119,18 +119,21 @@ void main() {
       expect(insight.predictedToExceedBudget, isTrue);
     });
 
-    test('clamps daysElapsed to totalDays when now is after the period end', () {
-      final insight = BudgetInsight(
-        limit: 1000,
-        spent: 900,
-        periodStart: DateTime(2026, 1, 1),
-        periodEnd: DateTime(2026, 1, 31),
-        now: DateTime(2026, 2, 15),
-      );
+    test(
+      'clamps daysElapsed to totalDays when now is after the period end',
+      () {
+        final insight = BudgetInsight(
+          limit: 1000,
+          spent: 900,
+          periodStart: DateTime(2026, 1, 1),
+          periodEnd: DateTime(2026, 1, 31),
+          now: DateTime(2026, 2, 15),
+        );
 
-      expect(insight.daysElapsed, 31);
-      expect(insight.daysRemaining, 0);
-      expect(insight.averageDailyBudgetRemaining, 0);
-    });
+        expect(insight.daysElapsed, 31);
+        expect(insight.daysRemaining, 0);
+        expect(insight.averageDailyBudgetRemaining, 0);
+      },
+    );
   });
 }

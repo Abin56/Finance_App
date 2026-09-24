@@ -5,7 +5,8 @@ import '../domain/shared_credit_limit.dart';
 
 /// Persistence for [SharedCreditLimit] — the bank-issued facility that one
 /// or more [CreditCardProfile]s can point at via `sharedLimitId`.
-class SharedCreditLimitRepository extends FirestoreCrudRepository<SharedCreditLimit> {
+class SharedCreditLimitRepository
+    extends FirestoreCrudRepository<SharedCreditLimit> {
   SharedCreditLimitRepository(super.collection);
 
   Future<SharedCreditLimit> createSharedLimit({
@@ -28,7 +29,10 @@ class SharedCreditLimitRepository extends FirestoreCrudRepository<SharedCreditLi
     String? name,
     double? creditLimit,
   }) async {
-    _validate(creditLimit: creditLimit ?? sharedLimit.creditLimit, name: name ?? sharedLimit.name);
+    _validate(
+      creditLimit: creditLimit ?? sharedLimit.creditLimit,
+      name: name ?? sharedLimit.name,
+    );
     sharedLimit.updateField(
       field: 'name',
       oldValue: sharedLimit.name,

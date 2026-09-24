@@ -4,8 +4,10 @@
 enum ScheduleType { oneTime, weekly, monthly, custom }
 
 extension ScheduleTypeX on ScheduleType {
-  static ScheduleType fromName(String name) =>
-      ScheduleType.values.firstWhere((t) => t.name == name, orElse: () => ScheduleType.oneTime);
+  static ScheduleType fromName(String name) => ScheduleType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => ScheduleType.oneTime,
+  );
 
   String get label {
     switch (this) {
@@ -42,7 +44,16 @@ extension ScheduleTypeX on ScheduleType {
     final targetYear = date.year + targetMonthIndex ~/ 12;
     final targetMonth = targetMonthIndex % 12 + 1;
     final lastDayOfTargetMonth = DateTime(targetYear, targetMonth + 1, 0).day;
-    final targetDay = date.day > lastDayOfTargetMonth ? lastDayOfTargetMonth : date.day;
-    return DateTime(targetYear, targetMonth, targetDay, date.hour, date.minute, date.second);
+    final targetDay = date.day > lastDayOfTargetMonth
+        ? lastDayOfTargetMonth
+        : date.day;
+    return DateTime(
+      targetYear,
+      targetMonth,
+      targetDay,
+      date.hour,
+      date.minute,
+      date.second,
+    );
   }
 }

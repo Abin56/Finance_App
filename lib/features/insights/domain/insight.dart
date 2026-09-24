@@ -23,7 +23,11 @@ enum InsightCategory {
 /// ad hoc elsewhere, so every insight in the app traces back to one of
 /// those rules.
 class Insight {
-  const Insight({required this.message, required this.severity, required this.category});
+  const Insight({
+    required this.message,
+    required this.severity,
+    required this.category,
+  });
 
   final String message;
   final InsightSeverity severity;

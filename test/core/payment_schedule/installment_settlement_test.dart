@@ -25,39 +25,62 @@ Installment _installment({
 
 void main() {
   group('InstallmentSettlement.plan', () {
-    test('fans a lump sum across installments oldest-first, exactly covering the total', () {
-      final installments = [
-        _installment(id: 'i1', dueDate: DateTime(2026, 1, 1), amountDue: 1000),
-        _installment(id: 'i2', dueDate: DateTime(2026, 2, 1), amountDue: 500),
-        _installment(id: 'i3', dueDate: DateTime(2026, 3, 1), amountDue: 300),
-      ];
+    test(
+      'fans a lump sum across installments oldest-first, exactly covering the total',
+      () {
+        final installments = [
+          _installment(
+            id: 'i1',
+            dueDate: DateTime(2026, 1, 1),
+            amountDue: 1000,
+          ),
+          _installment(id: 'i2', dueDate: DateTime(2026, 2, 1), amountDue: 500),
+          _installment(id: 'i3', dueDate: DateTime(2026, 3, 1), amountDue: 300),
+        ];
 
-      final plan = InstallmentSettlement.plan(installments, 1800);
+        final plan = InstallmentSettlement.plan(installments, 1800);
 
-      expect(plan.portions.map((p) => p.installment.id), ['i1', 'i2', 'i3']);
-      expect(plan.portions.map((p) => p.portion), [1000, 500, 300]);
-      expect(plan.unallocated, 0);
-      expect(plan.totalApplied, 1800);
-    });
+        expect(plan.portions.map((p) => p.installment.id), ['i1', 'i2', 'i3']);
+        expect(plan.portions.map((p) => p.portion), [1000, 500, 300]);
+        expect(plan.unallocated, 0);
+        expect(plan.totalApplied, 1800);
+      },
+    );
 
-    test('a partial amount covers earlier installments fully and the last one partially', () {
-      final installments = [
-        _installment(id: 'i1', dueDate: DateTime(2026, 1, 1), amountDue: 1000),
-        _installment(id: 'i2', dueDate: DateTime(2026, 2, 1), amountDue: 500),
-        _installment(id: 'i3', dueDate: DateTime(2026, 3, 1), amountDue: 300),
-      ];
+    test(
+      'a partial amount covers earlier installments fully and the last one partially',
+      () {
+        final installments = [
+          _installment(
+            id: 'i1',
+            dueDate: DateTime(2026, 1, 1),
+            amountDue: 1000,
+          ),
+          _installment(id: 'i2', dueDate: DateTime(2026, 2, 1), amountDue: 500),
+          _installment(id: 'i3', dueDate: DateTime(2026, 3, 1), amountDue: 300),
+        ];
 
-      final plan = InstallmentSettlement.plan(installments, 1200);
+        final plan = InstallmentSettlement.plan(installments, 1200);
 
-      expect(plan.portions, hasLength(2));
-      expect(plan.portions[0], (installment: installments[0], portion: 1000));
-      expect(plan.portions[1], (installment: installments[1], portion: 200));
-      expect(plan.unallocated, 0);
-    });
+        expect(plan.portions, hasLength(2));
+        expect(plan.portions[0], (installment: installments[0], portion: 1000));
+        expect(plan.portions[1], (installment: installments[1], portion: 200));
+        expect(plan.unallocated, 0);
+      },
+    );
 
     test('skips already-settled installments entirely', () {
-      final settled = _installment(id: 'i1', dueDate: DateTime(2026, 1, 1), amountDue: 1000, amountPaid: 1000);
-      final unpaid = _installment(id: 'i2', dueDate: DateTime(2026, 2, 1), amountDue: 500);
+      final settled = _installment(
+        id: 'i1',
+        dueDate: DateTime(2026, 1, 1),
+        amountDue: 1000,
+        amountPaid: 1000,
+      );
+      final unpaid = _installment(
+        id: 'i2',
+        dueDate: DateTime(2026, 2, 1),
+        amountDue: 500,
+      );
 
       final plan = InstallmentSettlement.plan([settled, unpaid], 500);
 
@@ -79,7 +102,11 @@ void main() {
     });
 
     test('handles a single installment', () {
-      final installment = _installment(id: 'i1', dueDate: DateTime(2026, 1, 1), amountDue: 400);
+      final installment = _installment(
+        id: 'i1',
+        dueDate: DateTime(2026, 1, 1),
+        amountDue: 400,
+      );
 
       final plan = InstallmentSettlement.plan([installment], 250);
 
@@ -90,17 +117,31 @@ void main() {
     test('throws for a non-positive amount', () {
       final installment = _installment(id: 'i1', dueDate: DateTime(2026, 1, 1));
 
-      expect(() => InstallmentSettlement.plan([installment], 0), throwsA(isA<AppException>()));
-      expect(() => InstallmentSettlement.plan([installment], -10), throwsA(isA<AppException>()));
+      expect(
+        () => InstallmentSettlement.plan([installment], 0),
+        throwsA(isA<AppException>()),
+      );
+      expect(
+        () => InstallmentSettlement.plan([installment], -10),
+        throwsA(isA<AppException>()),
+      );
     });
 
-    test('returns no portions and full unallocated when every installment is already settled', () {
-      final settled = _installment(id: 'i1', dueDate: DateTime(2026, 1, 1), amountDue: 100, amountPaid: 100);
+    test(
+      'returns no portions and full unallocated when every installment is already settled',
+      () {
+        final settled = _installment(
+          id: 'i1',
+          dueDate: DateTime(2026, 1, 1),
+          amountDue: 100,
+          amountPaid: 100,
+        );
 
-      final plan = InstallmentSettlement.plan([settled], 50);
+        final plan = InstallmentSettlement.plan([settled], 50);
 
-      expect(plan.portions, isEmpty);
-      expect(plan.unallocated, 50);
-    });
+        expect(plan.portions, isEmpty);
+        expect(plan.unallocated, 50);
+      },
+    );
   });
 }

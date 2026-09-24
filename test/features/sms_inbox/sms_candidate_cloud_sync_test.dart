@@ -49,13 +49,16 @@ void main() {
 
   final financialSms = RawSmsMessage(
     address: 'VM-HDFCBK',
-    body: 'Rs.1,250.00 debited from a/c XX5623 on 15-07-26 to VPA swiggy@icici. Ref No 123456789012.',
+    body:
+        'Rs.1,250.00 debited from a/c XX5623 on 15-07-26 to VPA swiggy@icici. Ref No 123456789012.',
     date: DateTime(2026, 7, 15, 14, 45),
   );
 
   void setUpCloud() {
     firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('smsTransactionCandidates').withConverter<SmsTransactionCandidateCloud>(
+    final collection = firestore
+        .collection('smsTransactionCandidates')
+        .withConverter<SmsTransactionCandidateCloud>(
           fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
           toFirestore: (c, _) => c.toFirestore(),
         );
@@ -67,7 +70,11 @@ void main() {
   /// messages), so this can't happen once in `setUp`.
   void useReader(_FakeSmsReaderAdapter reader) {
     inboxRepository = SmsInboxRepository(SmsInboxDao(database), reader);
-    sync = SmsCandidateCloudSync(cloudRepository, candidateDao, inboxRepository);
+    sync = SmsCandidateCloudSync(
+      cloudRepository,
+      candidateDao,
+      inboxRepository,
+    );
   }
 
   setUp(() async {
@@ -86,7 +93,10 @@ void main() {
   /// bypassing `AccountCardMatcher`/`TransactionCandidateBuilder` (Phase 1,
   /// already tested on their own) so these tests stay focused on sync
   /// behavior only.
-  Future<SmsInboxItem> seedPendingCandidate(RawSmsMessage message, {String? matchedAccountId}) async {
+  Future<SmsInboxItem> seedPendingCandidate(
+    RawSmsMessage message, {
+    String? matchedAccountId,
+  }) async {
     useReader(_FakeSmsReaderAdapter([message]));
     await inboxRepository.scanInbox();
     final item = (await inboxRepository.getAll()).single;
@@ -102,7 +112,9 @@ void main() {
         merchant: item.parsed!.merchantOrSender,
         bankName: item.parsed!.bankName,
         matchedAccountId: matchedAccountId,
-        confidenceLevel: matchedAccountId == null ? ConfidenceLevel.low : ConfidenceLevel.high,
+        confidenceLevel: matchedAccountId == null
+            ? ConfidenceLevel.low
+            : ConfidenceLevel.high,
         confidenceScore: matchedAccountId == null ? 0.2 : 0.9,
         needsReview: matchedAccountId == null,
         createdAt: DateTime.now(),
@@ -111,65 +123,83 @@ void main() {
     return item;
   }
 
-  test('uploads exactly one cloud document for a pending, non-duplicate candidate', () async {
-    final item = await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+  test(
+    'uploads exactly one cloud document for a pending, non-duplicate candidate',
+    () async {
+      final item = await seedPendingCandidate(
+        financialSms,
+        matchedAccountId: 'acc-1',
+      );
 
-    final result = await sync.sync();
+      final result = await sync.sync();
 
-    expect(result.synced, 1);
-    expect(result.removed, 0);
-    final cloudDocs = await cloudRepository.getAll();
-    expect(cloudDocs, hasLength(1));
-    expect(cloudDocs.single.id, item.id);
-    expect(cloudDocs.single.accountId, 'acc-1');
-  });
+      expect(result.synced, 1);
+      expect(result.removed, 0);
+      final cloudDocs = await cloudRepository.getAll();
+      expect(cloudDocs, hasLength(1));
+      expect(cloudDocs.single.id, item.id);
+      expect(cloudDocs.single.accountId, 'acc-1');
+    },
+  );
 
-  test('the cloud document id is the local SmsInboxItem id, not a random id', () async {
-    final item = await seedPendingCandidate(financialSms);
-    await sync.sync();
+  test(
+    'the cloud document id is the local SmsInboxItem id, not a random id',
+    () async {
+      final item = await seedPendingCandidate(financialSms);
+      await sync.sync();
 
-    final cloudDocs = await cloudRepository.getAll();
-    expect(cloudDocs.single.id, item.id);
-  });
+      final cloudDocs = await cloudRepository.getAll();
+      expect(cloudDocs.single.id, item.id);
+    },
+  );
 
-  test('re-syncing repeatedly never creates duplicate cloud documents (idempotent)', () async {
-    await seedPendingCandidate(financialSms);
+  test(
+    're-syncing repeatedly never creates duplicate cloud documents (idempotent)',
+    () async {
+      await seedPendingCandidate(financialSms);
 
-    await sync.sync();
-    await sync.sync();
-    final secondResult = await sync.sync();
+      await sync.sync();
+      await sync.sync();
+      final secondResult = await sync.sync();
 
-    expect(await cloudRepository.getAll(), hasLength(1));
-    expect(secondResult.synced, 1);
-    expect(secondResult.removed, 0);
-  });
+      expect(await cloudRepository.getAll(), hasLength(1));
+      expect(secondResult.synced, 1);
+      expect(secondResult.removed, 0);
+    },
+  );
 
-  test('a scan-then-sync cycle run twice does not create duplicate cloud candidates', () async {
-    // The exact regression the task calls out: scan -> sync -> scan again ->
-    // sync again must not multiply cloud documents. Re-scanning the same
-    // physical message is already idempotent locally (UNIQUE message_key),
-    // so this mostly proves that idempotency carries through to the cloud
-    // side unchanged.
-    await seedPendingCandidate(financialSms);
-    await sync.sync();
+  test(
+    'a scan-then-sync cycle run twice does not create duplicate cloud candidates',
+    () async {
+      // The exact regression the task calls out: scan -> sync -> scan again ->
+      // sync again must not multiply cloud documents. Re-scanning the same
+      // physical message is already idempotent locally (UNIQUE message_key),
+      // so this mostly proves that idempotency carries through to the cloud
+      // side unchanged.
+      await seedPendingCandidate(financialSms);
+      await sync.sync();
 
-    await inboxRepository.scanInbox(); // re-scan: no new local rows
-    await sync.sync();
+      await inboxRepository.scanInbox(); // re-scan: no new local rows
+      await sync.sync();
 
-    expect(await cloudRepository.getAll(), hasLength(1));
-  });
+      expect(await cloudRepository.getAll(), hasLength(1));
+    },
+  );
 
-  test('removes the cloud document once the SMS is converted (imported)', () async {
-    final item = await seedPendingCandidate(financialSms);
-    await sync.sync();
-    expect(await cloudRepository.getAll(), hasLength(1));
+  test(
+    'removes the cloud document once the SMS is converted (imported)',
+    () async {
+      final item = await seedPendingCandidate(financialSms);
+      await sync.sync();
+      expect(await cloudRepository.getAll(), hasLength(1));
 
-    await inboxRepository.markImported(item.id, linkedEntityId: 'txn-1');
-    final result = await sync.sync();
+      await inboxRepository.markImported(item.id, linkedEntityId: 'txn-1');
+      final result = await sync.sync();
 
-    expect(result.removed, 1);
-    expect(await cloudRepository.getAll(), isEmpty);
-  });
+      expect(result.removed, 1);
+      expect(await cloudRepository.getAll(), isEmpty);
+    },
+  );
 
   test('removes the cloud document once the SMS is ignored', () async {
     final item = await seedPendingCandidate(financialSms);
@@ -181,56 +211,74 @@ void main() {
     expect(await cloudRepository.getAll(), isEmpty);
   });
 
-  test('never syncs a flagged duplicate, even if it has a local candidate', () async {
-    final resent = RawSmsMessage(
-      address: 'AX-HDFCBK',
-      body: '${financialSms.body} Download our app!',
-      date: financialSms.date,
-    );
-    useReader(_FakeSmsReaderAdapter([financialSms, resent]));
-    await inboxRepository.scanInbox();
-
-    final all = await inboxRepository.getAll();
-    final original = all.firstWhere((i) => !i.isDuplicate);
-    final duplicate = all.firstWhere((i) => i.isDuplicate);
-
-    for (final item in [original, duplicate]) {
-      await candidateDao.upsert(
-        TransactionCandidate(
-          id: 'cand-${item.id}',
-          smsItemId: item.id,
-          amount: item.parsed!.amount,
-          direction: item.parsed!.direction,
-          eventType: item.parsed!.category,
-          transactionDate: item.parsed!.dateTime,
-          confidenceLevel: ConfidenceLevel.high,
-          confidenceScore: 0.9,
-          needsReview: false,
-          createdAt: DateTime.now(),
-        ),
+  test(
+    'never syncs a flagged duplicate, even if it has a local candidate',
+    () async {
+      final resent = RawSmsMessage(
+        address: 'AX-HDFCBK',
+        body: '${financialSms.body} Download our app!',
+        date: financialSms.date,
       );
-    }
+      useReader(_FakeSmsReaderAdapter([financialSms, resent]));
+      await inboxRepository.scanInbox();
 
-    await sync.sync();
+      final all = await inboxRepository.getAll();
+      final original = all.firstWhere((i) => !i.isDuplicate);
+      final duplicate = all.firstWhere((i) => i.isDuplicate);
 
-    final cloudDocs = await cloudRepository.getAll();
-    expect(cloudDocs, hasLength(1));
-    expect(cloudDocs.single.id, original.id);
-  });
+      for (final item in [original, duplicate]) {
+        await candidateDao.upsert(
+          TransactionCandidate(
+            id: 'cand-${item.id}',
+            smsItemId: item.id,
+            amount: item.parsed!.amount,
+            direction: item.parsed!.direction,
+            eventType: item.parsed!.category,
+            transactionDate: item.parsed!.dateTime,
+            confidenceLevel: ConfidenceLevel.high,
+            confidenceScore: 0.9,
+            needsReview: false,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
 
-  test('a cloud failure leaves local candidates and SMS items completely untouched', () async {
-    await seedPendingCandidate(financialSms);
-    final localCandidatesBefore = await candidateDao.getAll();
-    final localItemsBefore = await inboxRepository.getAll();
+      await sync.sync();
 
-    final throwingRepo = _ThrowingCandidateRepository(cloudRepository.collection);
-    final throwingSync = SmsCandidateCloudSync(throwingRepo, candidateDao, inboxRepository);
+      final cloudDocs = await cloudRepository.getAll();
+      expect(cloudDocs, hasLength(1));
+      expect(cloudDocs.single.id, original.id);
+    },
+  );
 
-    await expectLater(throwingSync.sync(), throwsException);
+  test(
+    'a cloud failure leaves local candidates and SMS items completely untouched',
+    () async {
+      await seedPendingCandidate(financialSms);
+      final localCandidatesBefore = await candidateDao.getAll();
+      final localItemsBefore = await inboxRepository.getAll();
 
-    final localCandidatesAfter = await candidateDao.getAll();
-    final localItemsAfter = await inboxRepository.getAll();
-    expect(localCandidatesAfter.map((c) => c.id), localCandidatesBefore.map((c) => c.id));
-    expect(localItemsAfter.map((i) => i.id), localItemsBefore.map((i) => i.id));
-  });
+      final throwingRepo = _ThrowingCandidateRepository(
+        cloudRepository.collection,
+      );
+      final throwingSync = SmsCandidateCloudSync(
+        throwingRepo,
+        candidateDao,
+        inboxRepository,
+      );
+
+      await expectLater(throwingSync.sync(), throwsException);
+
+      final localCandidatesAfter = await candidateDao.getAll();
+      final localItemsAfter = await inboxRepository.getAll();
+      expect(
+        localCandidatesAfter.map((c) => c.id),
+        localCandidatesBefore.map((c) => c.id),
+      );
+      expect(
+        localItemsAfter.map((i) => i.id),
+        localItemsBefore.map((i) => i.id),
+      );
+    },
+  );
 }

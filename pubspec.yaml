@@ -26,6 +26,7 @@ dependencies:
   firebase_storage: ^12.3.8
   firebase_crashlytics: ^4.2.0
   firebase_analytics: ^11.3.6
+  cloud_functions: ^5.2.4
   shared_preferences: ^2.3.5
 
   # Models / serialization
@@ -85,6 +86,40 @@ dependencies:
   flutter_sms_inbox: ^1.0.3
   permission_handler: ^11.3.1
 
+  # Smart Import — screenshot-to-transaction scanning (see
+  # lib/features/smart_import). google_mlkit_text_recognition runs OCR fully
+  # on-device (offline, no upload of financial screenshots); image_picker
+  # supplies gallery selection now and camera selection later via the same
+  # API, so no separate camera package is needed yet.
+  image_picker: ^1.1.2
+  google_mlkit_text_recognition: ^0.15.0
+
+  # PDF Statement Import (see lib/features/pdf_import) — syncfusion_flutter_pdf
+  # reads/decrypts PDFs and extracts text with per-line bounds (needed for
+  # column-aware layout reconstruction of bank statement tables); pdfrx
+  # rasterizes pages to images for the OCR fallback on scanned statements,
+  # which then reuses the same google_mlkit_text_recognition recognizer as
+  # Screenshot Import; file_picker lets the user choose an arbitrary PDF from
+  # device storage (image_picker cannot select non-image files).
+  syncfusion_flutter_pdf: ^34.2.6
+  pdfrx: ^2.6.1
+  # Pinned to >=10.3.3 (not the latest 12.x): 10.3.3 fixed Android compileSdk
+  # to use flutter.compileSdkVersion instead of a hardcoded value that
+  # conflicted with flutter_plugin_android_lifecycle's compileSdk 36
+  # requirement (build failure: ":file_picker is currently compiled against
+  # android-34"). 12.x is intentionally avoided — it changes pickFiles()'s
+  # return type and removes the withData parameter this app's
+  # PdfFilePickerService relies on; upgrading past 10.x/11.x would require
+  # rewriting that call site, which is out of scope for this dependency fix.
+  file_picker: ">=10.3.3 <11.0.0"
+
+# google_sign_in_android 7.2.x fails to compile against this project's
+# Kotlin/AGP setup ("cannot find symbol ResultUtilsKt") because the plugin's
+# Kotlin sources aren't compiled before its Java sources reference them.
+# Pin to the last known-good release until upstream fixes it.
+dependency_overrides:
+  google_sign_in_android: 7.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -114,6 +149,7 @@ flutter:
     - assets/lottie/
     - assets/icons/
     - assets/fonts/
+    - assets/banks/logos/
 
   # Loaded once at PDF-generation time via `FontManager`/`pw.Font.ttf` (see
   # lib/core/pdf/font_manager.dart) — not registered as an app-wide Flutter

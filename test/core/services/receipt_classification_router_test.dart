@@ -53,7 +53,10 @@ void main() {
     return InstallmentRepository(collection);
   }
 
-  InstallmentPaymentRepository installmentPaymentRepositoryFor(String scheduleId, String installmentId) {
+  InstallmentPaymentRepository installmentPaymentRepositoryFor(
+    String scheduleId,
+    String installmentId,
+  ) {
     final collection = firestore
         .collection('paymentSchedules')
         .doc(scheduleId)
@@ -64,7 +67,10 @@ void main() {
           fromFirestore: InstallmentPayment.fromFirestore,
           toFirestore: (p, _) => p.toFirestore(),
         );
-    return InstallmentPaymentRepository(collection, installmentRepositoryFor(scheduleId));
+    return InstallmentPaymentRepository(
+      collection,
+      installmentRepositoryFor(scheduleId),
+    );
   }
 
   LedgerRepository ledgerRepositoryFor(String personId) {
@@ -82,31 +88,44 @@ void main() {
   setUp(() async {
     firestore = FakeFirebaseFirestore();
 
-    final personCollection = firestore.collection('people').withConverter<Person>(
+    final personCollection = firestore
+        .collection('people')
+        .withConverter<Person>(
           fromFirestore: Person.fromFirestore,
           toFirestore: (p, _) => p.toFirestore(),
         );
     personRepository = PersonRepository(personCollection);
 
-    final accountCollection = firestore.collection('accounts').withConverter<Account>(
+    final accountCollection = firestore
+        .collection('accounts')
+        .withConverter<Account>(
           fromFirestore: Account.fromFirestore,
           toFirestore: (a, _) => a.toFirestore(),
         );
     accountRepository = AccountRepository(accountCollection);
 
-    final transactionCollection = firestore.collection('transactions').withConverter<Transaction>(
+    final transactionCollection = firestore
+        .collection('transactions')
+        .withConverter<Transaction>(
           fromFirestore: Transaction.fromFirestore,
           toFirestore: (t, _) => t.toFirestore(),
         );
-    final transactionRepository = TransactionRepository(transactionCollection, accountRepository);
+    final transactionRepository = TransactionRepository(
+      transactionCollection,
+      accountRepository,
+    );
 
-    final scheduleCollection = firestore.collection('paymentSchedules').withConverter<PaymentSchedule>(
+    final scheduleCollection = firestore
+        .collection('paymentSchedules')
+        .withConverter<PaymentSchedule>(
           fromFirestore: PaymentSchedule.fromFirestore,
           toFirestore: (s, _) => s.toFirestore(),
         );
     scheduleRepository = PaymentScheduleRepository(scheduleCollection);
 
-    final savingsCollection = firestore.collection('savingsGoals').withConverter<SavingsGoal>(
+    final savingsCollection = firestore
+        .collection('savingsGoals')
+        .withConverter<SavingsGoal>(
           fromFirestore: SavingsGoal.fromFirestore,
           toFirestore: (g, _) => g.toFirestore(),
         );
@@ -203,37 +222,45 @@ void main() {
     });
   });
 
-  group('ReceiptClassificationRouter.classify — every purpose posts a Transaction', () {
-    for (final purpose in [
-      ReceiptPurpose.walletDeposit,
-      ReceiptPurpose.personalLoanReceived,
-      ReceiptPurpose.gift,
-      ReceiptPurpose.salary,
-      ReceiptPurpose.refund,
-      ReceiptPurpose.cashback,
-      ReceiptPurpose.investmentReturn,
-      ReceiptPurpose.interestReceived,
-      ReceiptPurpose.tip,
-      ReceiptPurpose.other,
-    ]) {
-      test('${purpose.name} creates a Transaction for the amount, no other side effects', () async {
-        final account = await accountRepository.getByKey(accountId);
-        final before = account!.currentBalance;
+  group(
+    'ReceiptClassificationRouter.classify — every purpose posts a Transaction',
+    () {
+      for (final purpose in [
+        ReceiptPurpose.walletDeposit,
+        ReceiptPurpose.personalLoanReceived,
+        ReceiptPurpose.gift,
+        ReceiptPurpose.salary,
+        ReceiptPurpose.refund,
+        ReceiptPurpose.cashback,
+        ReceiptPurpose.investmentReturn,
+        ReceiptPurpose.interestReceived,
+        ReceiptPurpose.tip,
+        ReceiptPurpose.other,
+      ]) {
+        test(
+          '${purpose.name} creates a Transaction for the amount, no other side effects',
+          () async {
+            final account = await accountRepository.getByKey(accountId);
+            final before = account!.currentBalance;
 
-        final transaction = await router.classify(
-          purpose: purpose,
-          amount: 250,
-          date: DateTime(2026, 1, 1),
-          accountId: accountId,
-          categoryId: categoryId,
+            final transaction = await router.classify(
+              purpose: purpose,
+              amount: 250,
+              date: DateTime(2026, 1, 1),
+              accountId: accountId,
+              categoryId: categoryId,
+            );
+
+            expect(transaction.amount, 250);
+            final refreshedAccount = await accountRepository.getByKey(
+              accountId,
+            );
+            expect(refreshedAccount!.currentBalance, before + 250);
+          },
         );
-
-        expect(transaction.amount, 250);
-        final refreshedAccount = await accountRepository.getByKey(accountId);
-        expect(refreshedAccount!.currentBalance, before + 250);
-      });
-    }
-  });
+      }
+    },
+  );
 
   group('ReceiptClassificationRouter.classify — source', () {
     test('source defaults to null for a normal (manual) classify', () async {
@@ -248,49 +275,65 @@ void main() {
       expect(transaction.source, isNull);
     });
 
-    test('carries source through to the created Transaction when supplied (SMS conversion)', () async {
-      final transaction = await router.classify(
-        purpose: ReceiptPurpose.gift,
-        amount: 250,
-        date: DateTime(2026, 1, 1),
-        accountId: accountId,
-        categoryId: categoryId,
-        source: 'sms',
-      );
+    test(
+      'carries source through to the created Transaction when supplied (SMS conversion)',
+      () async {
+        final transaction = await router.classify(
+          purpose: ReceiptPurpose.gift,
+          amount: 250,
+          date: DateTime(2026, 1, 1),
+          accountId: accountId,
+          categoryId: categoryId,
+          source: 'sms',
+        );
 
-      expect(transaction.source, 'sms');
-    });
+        expect(transaction.source, 'sms');
+      },
+    );
   });
 
   group('ReceiptClassificationRouter.classify — friendReturnedMoney', () {
-    test('posts a LedgerEntry reducing the person\'s pending balance', () async {
-      final alice = await personRepository.createPerson(
-        name: 'Alice',
-        avatarColorValue: 0xFF5B5FEF,
-        openingBalance: 100,
-      );
+    test(
+      'posts a LedgerEntry reducing the person\'s pending balance',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 100,
+        );
 
-      final transaction = await router.classify(
-        purpose: ReceiptPurpose.friendReturnedMoney,
-        amount: 40,
-        date: DateTime(2026, 1, 1),
-        accountId: accountId,
-        categoryId: categoryId,
-        target: ReceiptClassificationTarget(person: alice),
-      );
+        final transaction = await router.classify(
+          purpose: ReceiptPurpose.friendReturnedMoney,
+          amount: 40,
+          date: DateTime(2026, 1, 1),
+          accountId: accountId,
+          categoryId: categoryId,
+          target: ReceiptClassificationTarget(person: alice),
+        );
 
-      final refreshedAlice = await personRepository.getByKey(alice.id);
-      expect(refreshedAlice!.currentBalance, 60);
+        final refreshedAlice = await personRepository.getByKey(alice.id);
+        expect(refreshedAlice!.currentBalance, 60);
 
-      final ledgerSnapshot = await firestore.collection('people').doc(alice.id).collection('ledger').get();
-      expect(ledgerSnapshot.docs, hasLength(1));
-      expect((ledgerSnapshot.docs.single.data()['transactionRef']), transaction.id);
-    });
+        final ledgerSnapshot = await firestore
+            .collection('people')
+            .doc(alice.id)
+            .collection('ledger')
+            .get();
+        expect(ledgerSnapshot.docs, hasLength(1));
+        expect(
+          (ledgerSnapshot.docs.single.data()['transactionRef']),
+          transaction.id,
+        );
+      },
+    );
   });
 
   group('ReceiptClassificationRouter.classify — savingsDeposit', () {
     test('contributes to the SavingsGoal and posts a Transaction', () async {
-      final goal = await savingsRepository.createGoal(name: 'Laptop', targetAmount: 1000);
+      final goal = await savingsRepository.createGoal(
+        name: 'Laptop',
+        targetAmount: 1000,
+      );
 
       await router.classify(
         purpose: ReceiptPurpose.savingsDeposit,
@@ -298,7 +341,10 @@ void main() {
         date: DateTime(2026, 1, 1),
         accountId: accountId,
         categoryId: categoryId,
-        target: ReceiptClassificationTarget(savingsGoal: goal, savingsRepository: savingsRepository),
+        target: ReceiptClassificationTarget(
+          savingsGoal: goal,
+          savingsRepository: savingsRepository,
+        ),
       );
 
       final refreshedGoal = await savingsRepository.getByKey(goal.id);
@@ -309,186 +355,253 @@ void main() {
     });
   });
 
-  group('ReceiptClassificationRouter.classify — emiPayment / advanceEmiPayment', () {
-    late EmiRepository emiRepository;
-    late Emi emi;
-    late Installment installment;
+  group(
+    'ReceiptClassificationRouter.classify — emiPayment / advanceEmiPayment',
+    () {
+      late EmiRepository emiRepository;
+      late Emi emi;
+      late Installment installment;
 
-    setUp(() async {
-      final emiCollection = firestore.collection('emis').withConverter<Emi>(
-            fromFirestore: Emi.fromFirestore,
-            toFirestore: (e, _) => e.toFirestore(),
+      setUp(() async {
+        final emiCollection = firestore
+            .collection('emis')
+            .withConverter<Emi>(
+              fromFirestore: Emi.fromFirestore,
+              toFirestore: (e, _) => e.toFirestore(),
+            );
+        emiRepository = EmiRepository(
+          emiCollection,
+          scheduleRepository,
+          installmentRepositoryFor,
+        );
+
+        emi = await emiRepository.createEmi(
+          name: 'Phone EMI',
+          principalAmount: 1200,
+          startDate: DateTime(2026, 1, 1),
+          installmentFrequency: ScheduleType.monthly,
+          installmentCount: 12,
+        );
+
+        final installments = await installmentRepositoryFor(
+          emi.scheduleId,
+        ).getAll();
+        installment = installments.first;
+      });
+
+      test(
+        'emiPayment records an InstallmentPayment against the current installment',
+        () async {
+          await router.classify(
+            purpose: ReceiptPurpose.emiPayment,
+            amount: 100,
+            date: DateTime(2026, 1, 1),
+            accountId: accountId,
+            categoryId: categoryId,
+            target: ReceiptClassificationTarget(
+              emi: emi,
+              installment: installment,
+              installmentPaymentRepository: installmentPaymentRepositoryFor(
+                emi.scheduleId,
+                installment.id,
+              ),
+            ),
           );
-      emiRepository = EmiRepository(emiCollection, scheduleRepository, installmentRepositoryFor);
 
-      emi = await emiRepository.createEmi(
-        name: 'Phone EMI',
-        principalAmount: 1200,
-        startDate: DateTime(2026, 1, 1),
-        installmentFrequency: ScheduleType.monthly,
-        installmentCount: 12,
+          final refreshed = await installmentRepositoryFor(
+            emi.scheduleId,
+          ).getByKey(installment.id);
+          expect(refreshed!.amountPaid, 100);
+        },
       );
 
-      final installments = await installmentRepositoryFor(emi.scheduleId).getAll();
-      installment = installments.first;
-    });
+      test(
+        'advanceEmiPayment records a payment against a future installment with no special-casing',
+        () async {
+          final installments = await installmentRepositoryFor(
+            emi.scheduleId,
+          ).getAll();
+          final future = installments.firstWhere((i) => i.sequenceNumber == 3);
 
-    test('emiPayment records an InstallmentPayment against the current installment', () async {
-      await router.classify(
-        purpose: ReceiptPurpose.emiPayment,
-        amount: 100,
-        date: DateTime(2026, 1, 1),
-        accountId: accountId,
-        categoryId: categoryId,
-        target: ReceiptClassificationTarget(
-          emi: emi,
-          installment: installment,
-          installmentPaymentRepository: installmentPaymentRepositoryFor(emi.scheduleId, installment.id),
-        ),
+          await router.classify(
+            purpose: ReceiptPurpose.advanceEmiPayment,
+            amount: 100,
+            date: DateTime(2026, 1, 1),
+            accountId: accountId,
+            categoryId: categoryId,
+            target: ReceiptClassificationTarget(
+              emi: emi,
+              installment: future,
+              installmentPaymentRepository: installmentPaymentRepositoryFor(
+                emi.scheduleId,
+                future.id,
+              ),
+            ),
+          );
+
+          final refreshed = await installmentRepositoryFor(
+            emi.scheduleId,
+          ).getByKey(future.id);
+          expect(refreshed!.amountPaid, 100);
+        },
       );
-
-      final refreshed = await installmentRepositoryFor(emi.scheduleId).getByKey(installment.id);
-      expect(refreshed!.amountPaid, 100);
-    });
-
-    test('advanceEmiPayment records a payment against a future installment with no special-casing', () async {
-      final installments = await installmentRepositoryFor(emi.scheduleId).getAll();
-      final future = installments.firstWhere((i) => i.sequenceNumber == 3);
-
-      await router.classify(
-        purpose: ReceiptPurpose.advanceEmiPayment,
-        amount: 100,
-        date: DateTime(2026, 1, 1),
-        accountId: accountId,
-        categoryId: categoryId,
-        target: ReceiptClassificationTarget(
-          emi: emi,
-          installment: future,
-          installmentPaymentRepository: installmentPaymentRepositoryFor(emi.scheduleId, future.id),
-        ),
-      );
-
-      final refreshed = await installmentRepositoryFor(emi.scheduleId).getByKey(future.id);
-      expect(refreshed!.amountPaid, 100);
-    });
-  });
+    },
+  );
 
   group('ReceiptClassificationRouter.classify — loanRepayment', () {
-    test('records an InstallmentPayment and posts a LedgerEntry for the loan\'s person', () async {
-      final alice = await personRepository.createPerson(
-        name: 'Alice',
-        avatarColorValue: 0xFF5B5FEF,
-        openingBalance: 0,
-      );
+    test(
+      'records an InstallmentPayment and posts a LedgerEntry for the loan\'s person',
+      () async {
+        final alice = await personRepository.createPerson(
+          name: 'Alice',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final loanCollection = firestore.collection('loans').withConverter<Loan>(
-            fromFirestore: Loan.fromFirestore,
-            toFirestore: (l, _) => l.toFirestore(),
-          );
-      final loanRepository = LoanRepository(loanCollection, scheduleRepository, installmentRepositoryFor);
+        final loanCollection = firestore
+            .collection('loans')
+            .withConverter<Loan>(
+              fromFirestore: Loan.fromFirestore,
+              toFirestore: (l, _) => l.toFirestore(),
+            );
+        final loanRepository = LoanRepository(
+          loanCollection,
+          scheduleRepository,
+          installmentRepositoryFor,
+        );
 
-      final loan = await loanRepository.createLoan(
-        personId: alice.id,
-        loanAmount: 500,
-        loanDate: DateTime(2026, 1, 1),
-        repaymentType: LoanRepaymentType.oneTime,
-        dueDate: DateTime(2026, 2, 1),
-      );
+        final loan = await loanRepository.createLoan(
+          personId: alice.id,
+          loanAmount: 500,
+          loanDate: DateTime(2026, 1, 1),
+          repaymentType: LoanRepaymentType.oneTime,
+          dueDate: DateTime(2026, 2, 1),
+        );
 
-      final installments = await installmentRepositoryFor(loan.scheduleId).getAll();
-      final installment = installments.single;
-      expect(installment.ownerType, OwnerType.loan);
+        final installments = await installmentRepositoryFor(
+          loan.scheduleId,
+        ).getAll();
+        final installment = installments.single;
+        expect(installment.ownerType, OwnerType.loan);
 
-      await router.classify(
-        purpose: ReceiptPurpose.loanRepayment,
-        amount: 500,
-        date: DateTime(2026, 1, 15),
-        accountId: accountId,
-        categoryId: categoryId,
-        target: ReceiptClassificationTarget(
-          loan: loan,
-          person: alice,
-          installment: installment,
-          installmentPaymentRepository: installmentPaymentRepositoryFor(loan.scheduleId, installment.id),
-        ),
-      );
+        await router.classify(
+          purpose: ReceiptPurpose.loanRepayment,
+          amount: 500,
+          date: DateTime(2026, 1, 15),
+          accountId: accountId,
+          categoryId: categoryId,
+          target: ReceiptClassificationTarget(
+            loan: loan,
+            person: alice,
+            installment: installment,
+            installmentPaymentRepository: installmentPaymentRepositoryFor(
+              loan.scheduleId,
+              installment.id,
+            ),
+          ),
+        );
 
-      final refreshedInstallment = await installmentRepositoryFor(loan.scheduleId).getByKey(installment.id);
-      expect(refreshedInstallment!.remainingAmount, 0);
+        final refreshedInstallment = await installmentRepositoryFor(
+          loan.scheduleId,
+        ).getByKey(installment.id);
+        expect(refreshedInstallment!.remainingAmount, 0);
 
-      final ledgerSnapshot = await firestore.collection('people').doc(alice.id).collection('ledger').get();
-      expect(ledgerSnapshot.docs, hasLength(1));
-    });
+        final ledgerSnapshot = await firestore
+            .collection('people')
+            .doc(alice.id)
+            .collection('ledger')
+            .get();
+        expect(ledgerSnapshot.docs, hasLength(1));
+      },
+    );
   });
 
   group('ReceiptClassificationRouter.classify — splitExpenseSettlement', () {
-    test('settles a participant: records an InstallmentPayment and reverses their pending ledger balance', () async {
-      final rahul = await personRepository.createPerson(
-        name: 'Rahul',
-        avatarColorValue: 0xFF5B5FEF,
-        openingBalance: 0,
-      );
+    test(
+      'settles a participant: records an InstallmentPayment and reverses their pending ledger balance',
+      () async {
+        final rahul = await personRepository.createPerson(
+          name: 'Rahul',
+          avatarColorValue: 0xFF5B5FEF,
+          openingBalance: 0,
+        );
 
-      final expenseCollection = firestore.collection('expenses').withConverter<Expense>(
-            fromFirestore: Expense.fromFirestore,
-            toFirestore: (e, _) => e.toFirestore(),
-          );
-      final expenseRepository = ExpenseRepository(
-        expenseCollection,
-        TransactionRepository(
-          firestore.collection('transactions').withConverter<Transaction>(
-                fromFirestore: Transaction.fromFirestore,
-                toFirestore: (t, _) => t.toFirestore(),
-              ),
-          accountRepository,
-        ),
-        scheduleRepository,
-        personRepository,
-        installmentRepositoryFor,
-        ledgerRepositoryFor,
-      );
+        final expenseCollection = firestore
+            .collection('expenses')
+            .withConverter<Expense>(
+              fromFirestore: Expense.fromFirestore,
+              toFirestore: (e, _) => e.toFirestore(),
+            );
+        final expenseRepository = ExpenseRepository(
+          expenseCollection,
+          TransactionRepository(
+            firestore
+                .collection('transactions')
+                .withConverter<Transaction>(
+                  fromFirestore: Transaction.fromFirestore,
+                  toFirestore: (t, _) => t.toFirestore(),
+                ),
+            accountRepository,
+          ),
+          scheduleRepository,
+          personRepository,
+          installmentRepositoryFor,
+          ledgerRepositoryFor,
+        );
 
-      final expense = await expenseRepository.createExpense(
-        description: 'Dinner',
-        totalAmount: 800,
-        date: DateTime(2026, 1, 1),
-        categoryId: categoryId,
-        accountId: accountId,
-        splitType: SplitType.equal,
-        participantInputs: [
-          ExpenseParticipantInput(personId: rahul.id, name: 'Rahul'),
-          const ExpenseParticipantInput(name: 'You'),
-        ],
-      );
+        final expense = await expenseRepository.createExpense(
+          description: 'Dinner',
+          totalAmount: 800,
+          date: DateTime(2026, 1, 1),
+          categoryId: categoryId,
+          accountId: accountId,
+          splitType: SplitType.equal,
+          participantInputs: [
+            ExpenseParticipantInput(personId: rahul.id, name: 'Rahul'),
+            const ExpenseParticipantInput(name: 'You'),
+          ],
+        );
 
-      final rahulAfterExpense = await personRepository.getByKey(rahul.id);
-      expect(rahulAfterExpense!.currentBalance, 400);
+        final rahulAfterExpense = await personRepository.getByKey(rahul.id);
+        expect(rahulAfterExpense!.currentBalance, 400);
 
-      final participant = expense.participants.firstWhere((p) => p.personId == rahul.id);
-      final installments = await installmentRepositoryFor(expense.scheduleId!).getAll();
-      final installment = installments.firstWhere((i) => i.id == participant.installmentId);
+        final participant = expense.participants.firstWhere(
+          (p) => p.personId == rahul.id,
+        );
+        final installments = await installmentRepositoryFor(
+          expense.scheduleId!,
+        ).getAll();
+        final installment = installments.firstWhere(
+          (i) => i.id == participant.installmentId,
+        );
 
-      await router.classify(
-        purpose: ReceiptPurpose.splitExpenseSettlement,
-        amount: 400,
-        date: DateTime(2026, 1, 10),
-        accountId: accountId,
-        categoryId: categoryId,
-        target: ReceiptClassificationTarget(
-          expense: expense,
-          expenseParticipant: participant,
-          installment: installment,
-          installmentPaymentRepository: installmentPaymentRepositoryFor(expense.scheduleId!, installment.id),
-          expenseRepository: expenseRepository,
-        ),
-      );
+        await router.classify(
+          purpose: ReceiptPurpose.splitExpenseSettlement,
+          amount: 400,
+          date: DateTime(2026, 1, 10),
+          accountId: accountId,
+          categoryId: categoryId,
+          target: ReceiptClassificationTarget(
+            expense: expense,
+            expenseParticipant: participant,
+            installment: installment,
+            installmentPaymentRepository: installmentPaymentRepositoryFor(
+              expense.scheduleId!,
+              installment.id,
+            ),
+            expenseRepository: expenseRepository,
+          ),
+        );
 
-      final refreshedInstallment = await installmentRepositoryFor(expense.scheduleId!).getByKey(installment.id);
-      expect(refreshedInstallment!.remainingAmount, 0);
+        final refreshedInstallment = await installmentRepositoryFor(
+          expense.scheduleId!,
+        ).getByKey(installment.id);
+        expect(refreshedInstallment!.remainingAmount, 0);
 
-      final rahulAfterSettlement = await personRepository.getByKey(rahul.id);
-      expect(rahulAfterSettlement!.currentBalance, 0);
-    });
+        final rahulAfterSettlement = await personRepository.getByKey(rahul.id);
+        expect(rahulAfterSettlement!.currentBalance, 0);
+      },
+    );
 
     test('without a full target throws', () async {
       await expectLater(

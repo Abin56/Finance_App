@@ -46,10 +46,23 @@ abstract class SmsFinancialFilter {
   static final List<RegExp> _softNonFinancialPatterns = [
     RegExp(r'\brecharge\b', caseSensitive: false),
     RegExp(r'\b\d{1,3}%\s*off\b', caseSensitive: false),
+    // A flat-currency discount ("Rs.500 off", "₹200 off on your next order")
+    // — the same promotional pattern as the percentage-off case above, just
+    // stated as a rupee amount instead. Without this, a promo quoting a
+    // rupee figure would otherwise pass the filter on the strength of that
+    // amount alone once _financialSignals' currency-amount pattern matches,
+    // even though no transaction verb is present.
+    RegExp(r'(rs|inr|₹)\.?\s?[\d,]+\s*off\b', caseSensitive: false),
     RegExp(r'\bcashback offer\b', caseSensitive: false),
     RegExp(r'\bsale\b.{0,20}\b(shop|buy|store)\b', caseSensitive: false),
-    RegExp(r'\bhas been (dispatched|delivered|shipped|out for delivery)\b', caseSensitive: false),
-    RegExp(r'\btrack (your|this) (order|package|shipment)\b', caseSensitive: false),
+    RegExp(
+      r'\bhas been (dispatched|delivered|shipped|out for delivery)\b',
+      caseSensitive: false,
+    ),
+    RegExp(
+      r'\btrack (your|this) (order|package|shipment)\b',
+      caseSensitive: false,
+    ),
     RegExp(r'\bis now live\b', caseSensitive: false),
     RegExp(r'\bunsubscribe\b', caseSensitive: false),
     RegExp(r'\bapply now\b', caseSensitive: false),
@@ -62,7 +75,10 @@ abstract class SmsFinancialFilter {
   /// promotional filter above, since promo messages routinely quote amounts
   /// too.
   static final List<RegExp> _transactionVerbSignals = [
-    RegExp(r'\b(debited|credited|withdrawn|spent|paid|received|deposited)\b', caseSensitive: false),
+    RegExp(
+      r'\b(debited|credited|withdrawn|spent|paid|received|deposited)\b',
+      caseSensitive: false,
+    ),
     RegExp(r'\bupi\b', caseSensitive: false),
     RegExp(r'\b(imps|neft|rtgs)\b', caseSensitive: false),
     RegExp(r'\bemi\b', caseSensitive: false),
@@ -71,7 +87,10 @@ abstract class SmsFinancialFilter {
   static final List<RegExp> _financialSignals = [
     ..._transactionVerbSignals,
     RegExp(r'(rs|inr|₹)\s?\.?\s?[\d,]+(\.\d+)?', caseSensitive: false),
-    RegExp(r'\b(a/c|acct|account|card)\b.{0,10}(x{2,}|\*{2,})?\d{3,4}', caseSensitive: false),
+    RegExp(
+      r'\b(a/c|acct|account|card)\b.{0,10}(x{2,}|\*{2,})?\d{3,4}',
+      caseSensitive: false,
+    ),
   ];
 
   /// True only for messages that look like a real bank/UPI transaction

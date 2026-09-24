@@ -5,8 +5,10 @@
 enum BudgetType { daily, monthly }
 
 extension BudgetTypeX on BudgetType {
-  static BudgetType fromName(String name) =>
-      BudgetType.values.firstWhere((t) => t.name == name, orElse: () => BudgetType.monthly);
+  static BudgetType fromName(String name) => BudgetType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => BudgetType.monthly,
+  );
 
   String get label {
     switch (this) {

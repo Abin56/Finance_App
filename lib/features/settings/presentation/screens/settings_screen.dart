@@ -7,10 +7,10 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/services/fiscal_year_controller.dart';
 import '../../../../core/services/security/app_lock_controller.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/section_label.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../security/presentation/pin_setup_sheet.dart';
 
@@ -26,7 +26,10 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Log out?'),
         content: const Text('You can sign back in anytime.'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Log out'),
@@ -65,215 +68,280 @@ class SettingsScreen extends ConsumerWidget {
     final fiscalYearStartMonth = ref.watch(fiscalYearStartMonthProvider);
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
       appBar: AppBar(title: const Text('Settings')),
-      body: SafeArea(child: ListView(
-        padding: const EdgeInsets.all(AppSizes.lg),
-        children: [
-          if (user != null) ...[
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(AppSizes.lg),
+          children: [
+            if (user != null) ...[
+              _SettingsSection(
+                title: 'Account',
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      radius: 22,
+                      backgroundImage: user.photoUrl != null
+                          ? NetworkImage(user.photoUrl!)
+                          : null,
+                      child: user.photoUrl == null
+                          ? const Icon(Icons.person_outline_rounded)
+                          : null,
+                    ),
+                    title: Text(user.displayName ?? 'Signed in'),
+                    subtitle: user.email != null ? Text(user.email!) : null,
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const FlowFiIconChip(
+                      icon: Icons.logout_rounded,
+                      color: AppColors.error,
+                      size: 40,
+                      iconSize: AppSizes.iconSm,
+                    ),
+                    title: const Text('Log out'),
+                    onTap: () => _confirmLogout(context, ref),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSizes.lg),
+            ],
             _SettingsSection(
-              title: 'Account',
+              title: 'General',
               children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    radius: 22,
-                    backgroundImage: user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
-                    child: user.photoUrl == null ? const Icon(Icons.person_outline_rounded) : null,
+                  leading: const FlowFiIconChip(
+                    icon: Icons.account_balance_wallet_outlined,
+                    color: AppColors.info,
+                    size: 40,
+                    iconSize: AppSizes.iconSm,
                   ),
-                  title: Text(user.displayName ?? 'Signed in'),
-                  subtitle: user.email != null ? Text(user.email!) : null,
+                  title: const Text('Accounts'),
+                  subtitle: const Text('Manage cash, bank, and card accounts'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.accounts),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const ClayIconChip(icon: Icons.logout_rounded, color: AppColors.error, size: 40, iconSize: AppSizes.iconSm),
-                  title: const Text('Log out'),
-                  onTap: () => _confirmLogout(context, ref),
+                  leading: const FlowFiIconChip(
+                    icon: Icons.category_outlined,
+                    color: AppColors.secondary,
+                    size: 40,
+                    iconSize: AppSizes.iconSm,
+                  ),
+                  title: const Text('Categories'),
+                  subtitle: const Text('Manage income and expense categories'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.categories),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const FlowFiIconChip(
+                    icon: Icons.donut_large_rounded,
+                    color: AppColors.purple,
+                    size: 40,
+                    iconSize: AppSizes.iconSm,
+                  ),
+                  title: const Text('Budget'),
+                  subtitle: const Text('Daily, monthly, and category budgets'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.budget),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const FlowFiIconChip(
+                    icon: Icons.savings_outlined,
+                    color: AppColors.savings,
+                    size: 40,
+                    iconSize: AppSizes.iconSm,
+                  ),
+                  title: const Text('Savings'),
+                  subtitle: const Text(
+                    'Track progress toward your savings goals',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.savings),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const FlowFiIconChip(
+                    icon: Icons.people_outline_rounded,
+                    color: AppColors.menuAccentPink,
+                    size: 40,
+                    iconSize: AppSizes.iconSm,
+                  ),
+                  title: const Text('People'),
+                  subtitle: const Text(
+                    'Track money given, borrowed, and repaid',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  // People is also a bottom-nav shell branch (unlike the other
+                  // tiles here, which are standalone routes) — context.push
+                  // would stack a second PeopleScreen page on top of the one
+                  // already alive in that branch, producing a duplicate page
+                  // key crash. context.go switches to the existing branch
+                  // instead, exactly like tapping the bottom-nav tab does.
+                  onTap: () => context.go(AppRoutes.people),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const FlowFiIconChip(
+                    icon: Icons.account_balance_outlined,
+                    color: AppColors.warning,
+                    size: 40,
+                    iconSize: AppSizes.iconSm,
+                  ),
+                  title: const Text('Loans'),
+                  subtitle: const Text(
+                    'Track money you\'ve lent, with or without interest',
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.loans),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const FlowFiIconChip(
+                    icon: Icons.account_balance_wallet_outlined,
+                    color: AppColors.menuAccentBlue,
+                    size: 40,
+                    iconSize: AppSizes.iconSm,
+                  ),
+                  title: const Text('EMIs'),
+                  subtitle: const Text('Track your monthly EMI payments'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => context.push(AppRoutes.emis),
                 ),
               ],
             ),
             const SizedBox(height: AppSizes.lg),
-          ],
-          _SettingsSection(
-            title: 'General',
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const ClayIconChip(icon: Icons.account_balance_wallet_outlined, color: AppColors.info, size: 40, iconSize: AppSizes.iconSm),
-                title: const Text('Accounts'),
-                subtitle: const Text('Manage cash, bank, and card accounts'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.accounts),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const ClayIconChip(icon: Icons.category_outlined, color: AppColors.secondary, size: 40, iconSize: AppSizes.iconSm),
-                title: const Text('Categories'),
-                subtitle: const Text('Manage income and expense categories'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.categories),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const ClayIconChip(icon: Icons.donut_large_rounded, color: AppColors.purple, size: 40, iconSize: AppSizes.iconSm),
-                title: const Text('Budget'),
-                subtitle: const Text('Daily, monthly, and category budgets'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.budget),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const ClayIconChip(icon: Icons.savings_outlined, color: AppColors.savings, size: 40, iconSize: AppSizes.iconSm),
-                title: const Text('Savings'),
-                subtitle: const Text('Track progress toward your savings goals'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.savings),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const ClayIconChip(icon: Icons.people_outline_rounded, color: Color(0xFFE85D9A), size: 40, iconSize: AppSizes.iconSm),
-                title: const Text('People'),
-                subtitle: const Text('Track money given, borrowed, and repaid'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                // People is also a bottom-nav shell branch (unlike the other
-                // tiles here, which are standalone routes) — context.push
-                // would stack a second PeopleScreen page on top of the one
-                // already alive in that branch, producing a duplicate page
-                // key crash. context.go switches to the existing branch
-                // instead, exactly like tapping the bottom-nav tab does.
-                onTap: () => context.go(AppRoutes.people),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const ClayIconChip(icon: Icons.account_balance_outlined, color: AppColors.warning, size: 40, iconSize: AppSizes.iconSm),
-                title: const Text('Loans'),
-                subtitle: const Text('Track money you\'ve lent, with or without interest'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.loans),
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const ClayIconChip(icon: Icons.account_balance_wallet_outlined, color: Color(0xFF40C4FF), size: 40, iconSize: AppSizes.iconSm),
-                title: const Text('EMIs'),
-                subtitle: const Text('Track your monthly EMI payments'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => context.push(AppRoutes.emis),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.lg),
-          _SettingsSection(
-            title: 'Appearance',
-            children: [
-              RadioGroup<ThemeMode>(
-                groupValue: themeMode,
-                onChanged: (mode) => ref.read(themeModeProvider.notifier).setThemeMode(mode!),
-                child: const Column(
-                  children: [
-                    RadioListTile<ThemeMode>(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('Light'),
-                      value: ThemeMode.light,
-                    ),
-                    RadioListTile<ThemeMode>(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('Dark'),
-                      value: ThemeMode.dark,
-                    ),
-                    RadioListTile<ThemeMode>(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('System default'),
-                      value: ThemeMode.system,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.lg),
-          _SettingsSection(
-            title: 'Reports',
-            children: [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Financial Year Starts In'),
-                subtitle: const Text('Used by the "Financial Year" report filter'),
-                trailing: DropdownButton<int>(
-                  value: fiscalYearStartMonth,
-                  underline: const SizedBox.shrink(),
-                  items: [
-                    for (var month = 1; month <= 12; month++)
-                      DropdownMenuItem(value: month, child: Text(_monthName(month))),
-                  ],
-                  onChanged: (month) =>
-                      ref.read(fiscalYearStartMonthProvider.notifier).setStartMonth(month!),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSizes.lg),
-          _SettingsSection(
-            title: 'Security',
-            children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('App Lock'),
-                subtitle: const Text('Require a PIN to open the app'),
-                value: lockState.pinEnabled,
-                onChanged: (enable) async {
-                  final controller = ref.read(appLockProvider.notifier);
-                  if (enable) {
-                    await PinSetupSheet.show(context);
-                  } else {
-                    await controller.disable();
-                  }
-                },
-              ),
-              if (lockState.pinEnabled) ...[
-                FutureBuilder<bool>(
-                  future: ref.read(appLockProvider.notifier).isBiometricAvailable(),
-                  builder: (context, snapshot) {
-                    final available = snapshot.data ?? false;
-                    return SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Use biometric unlock'),
-                      subtitle: Text(
-                        available ? 'Use fingerprint or face unlock' : 'Not available on this device',
+            _SettingsSection(
+              title: 'Appearance',
+              children: [
+                RadioGroup<ThemeMode>(
+                  groupValue: themeMode,
+                  onChanged: (mode) =>
+                      ref.read(themeModeProvider.notifier).setThemeMode(mode!),
+                  child: const Column(
+                    children: [
+                      RadioListTile<ThemeMode>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Light'),
+                        value: ThemeMode.light,
                       ),
-                      value: lockState.biometricEnabled && available,
-                      onChanged: available
-                          ? (value) => ref.read(appLockProvider.notifier).setBiometricEnabled(value)
-                          : null,
-                    );
-                  },
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Auto-lock after'),
-                  trailing: DropdownButton<int>(
-                    value: lockState.autoLockMinutes,
-                    underline: const SizedBox.shrink(),
-                    items: const [
-                      DropdownMenuItem(value: 0, child: Text('Immediately')),
-                      DropdownMenuItem(value: 1, child: Text('1 minute')),
-                      DropdownMenuItem(value: 5, child: Text('5 minutes')),
-                      DropdownMenuItem(value: 15, child: Text('15 minutes')),
+                      RadioListTile<ThemeMode>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('Dark'),
+                        value: ThemeMode.dark,
+                      ),
+                      RadioListTile<ThemeMode>(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('System default'),
+                        value: ThemeMode.system,
+                      ),
                     ],
-                    onChanged: (minutes) =>
-                        ref.read(appLockProvider.notifier).setAutoLockMinutes(minutes!),
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.lg),
+            _SettingsSection(
+              title: 'Reports',
+              children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.password_rounded),
-                  title: const Text('Change PIN'),
-                  onTap: () => PinSetupSheet.show(context),
+                  title: const Text('Financial Year Starts In'),
+                  subtitle: const Text(
+                    'Used by the "Financial Year" report filter',
+                  ),
+                  trailing: DropdownButton<int>(
+                    value: fiscalYearStartMonth,
+                    underline: const SizedBox.shrink(),
+                    items: [
+                      for (var month = 1; month <= 12; month++)
+                        DropdownMenuItem(
+                          value: month,
+                          child: Text(_monthName(month)),
+                        ),
+                    ],
+                    onChanged: (month) => ref
+                        .read(fiscalYearStartMonthProvider.notifier)
+                        .setStartMonth(month!),
+                  ),
                 ),
               ],
-            ],
-          ),
-        ],
-      )),
+            ),
+            const SizedBox(height: AppSizes.lg),
+            _SettingsSection(
+              title: 'Security',
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('App Lock'),
+                  subtitle: const Text('Require a PIN to open the app'),
+                  value: lockState.pinEnabled,
+                  onChanged: (enable) async {
+                    final controller = ref.read(appLockProvider.notifier);
+                    if (enable) {
+                      await PinSetupSheet.show(context);
+                    } else {
+                      await controller.disable();
+                    }
+                  },
+                ),
+                if (lockState.pinEnabled) ...[
+                  FutureBuilder<bool>(
+                    future: ref
+                        .read(appLockProvider.notifier)
+                        .isBiometricAvailable(),
+                    builder: (context, snapshot) {
+                      final available = snapshot.data ?? false;
+                      return SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: const Text('Use biometric unlock'),
+                        subtitle: Text(
+                          available
+                              ? 'Use fingerprint or face unlock'
+                              : 'Not available on this device',
+                        ),
+                        value: lockState.biometricEnabled && available,
+                        onChanged: available
+                            ? (value) => ref
+                                  .read(appLockProvider.notifier)
+                                  .setBiometricEnabled(value)
+                            : null,
+                      );
+                    },
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Auto-lock after'),
+                    trailing: DropdownButton<int>(
+                      value: lockState.autoLockMinutes,
+                      underline: const SizedBox.shrink(),
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('Immediately')),
+                        DropdownMenuItem(value: 1, child: Text('1 minute')),
+                        DropdownMenuItem(value: 5, child: Text('5 minutes')),
+                        DropdownMenuItem(value: 15, child: Text('15 minutes')),
+                      ],
+                      onChanged: (minutes) => ref
+                          .read(appLockProvider.notifier)
+                          .setAutoLockMinutes(minutes!),
+                    ),
+                  ),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.password_rounded),
+                    title: const Text('Change PIN'),
+                    onTap: () => PinSetupSheet.show(context),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -290,11 +358,17 @@ class _SettingsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(bottom: AppSizes.sm, left: AppSizes.xs),
+          padding: const EdgeInsets.only(
+            bottom: AppSizes.sm,
+            left: AppSizes.xs,
+          ),
           child: SectionLabel(title),
         ),
-        ClayCard(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.sm),
+        FlowFiCard.soft(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSizes.lg,
+            vertical: AppSizes.sm,
+          ),
           child: Column(children: children),
         ),
       ],

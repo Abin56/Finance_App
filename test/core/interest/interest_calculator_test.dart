@@ -15,8 +15,14 @@ void main() {
         installmentFrequency: InterestPeriod.monthly,
       );
 
-      final interestPortions = breakdown.periods.map((p) => p.interestPortion).toSet();
-      expect(interestPortions, hasLength(1), reason: 'flat interest should be identical every period');
+      final interestPortions = breakdown.periods
+          .map((p) => p.interestPortion)
+          .toSet();
+      expect(
+        interestPortions,
+        hasLength(1),
+        reason: 'flat interest should be identical every period',
+      );
     });
 
     test('totalInterest equals principal * rate/100 * installmentCount', () {
@@ -42,7 +48,10 @@ void main() {
         installmentFrequency: InterestPeriod.monthly,
       );
 
-      final totalPrincipal = breakdown.periods.fold(0.0, (sum, p) => sum + p.principalPortion);
+      final totalPrincipal = breakdown.periods.fold(
+        0.0,
+        (sum, p) => sum + p.principalPortion,
+      );
       expect(totalPrincipal, closeTo(1000, 0.01));
     });
 
@@ -56,7 +65,10 @@ void main() {
         installmentFrequency: InterestPeriod.monthly,
       );
 
-      final totalPaid = breakdown.periods.fold(0.0, (sum, p) => sum + p.paymentAmount);
+      final totalPaid = breakdown.periods.fold(
+        0.0,
+        (sum, p) => sum + p.paymentAmount,
+      );
       expect(totalPaid, closeTo(breakdown.totalPayable, 0.01));
     });
   });
@@ -73,7 +85,10 @@ void main() {
       );
 
       for (var i = 1; i < breakdown.periods.length; i++) {
-        expect(breakdown.periods[i].interestPortion, lessThan(breakdown.periods[i - 1].interestPortion));
+        expect(
+          breakdown.periods[i].interestPortion,
+          lessThan(breakdown.periods[i - 1].interestPortion),
+        );
       }
     });
 
@@ -88,7 +103,10 @@ void main() {
       );
 
       for (var i = 1; i < breakdown.periods.length; i++) {
-        expect(breakdown.periods[i].principalPortion, greaterThan(breakdown.periods[i - 1].principalPortion));
+        expect(
+          breakdown.periods[i].principalPortion,
+          greaterThan(breakdown.periods[i - 1].principalPortion),
+        );
       }
     });
 
@@ -115,56 +133,74 @@ void main() {
         installmentFrequency: InterestPeriod.monthly,
       );
 
-      final totalPrincipal = breakdown.periods.fold(0.0, (sum, p) => sum + p.principalPortion);
+      final totalPrincipal = breakdown.periods.fold(
+        0.0,
+        (sum, p) => sum + p.principalPortion,
+      );
       expect(totalPrincipal, closeTo(100000, 0.01));
     });
 
-    test('matches known EMI reference value (100000 @ 12%/yr, 12 monthly installments)', () {
-      final breakdown = InterestCalculator.calculate(
-        principal: 100000,
-        type: InterestType.reducingBalance,
-        ratePercent: 12,
-        period: InterestPeriod.yearly,
-        installmentCount: 12,
-        installmentFrequency: InterestPeriod.monthly,
-      );
+    test(
+      'matches known EMI reference value (100000 @ 12%/yr, 12 monthly installments)',
+      () {
+        final breakdown = InterestCalculator.calculate(
+          principal: 100000,
+          type: InterestType.reducingBalance,
+          ratePercent: 12,
+          period: InterestPeriod.yearly,
+          installmentCount: 12,
+          installmentFrequency: InterestPeriod.monthly,
+        );
 
-      expect(breakdown.periods.first.paymentAmount, closeTo(8884.88, 0.5));
-    });
+        expect(breakdown.periods.first.paymentAmount, closeTo(8884.88, 0.5));
+      },
+    );
   });
 
   group('InterestCalculator.calculate — shared / edge cases', () {
-    test('ratePercent = 0 produces zero interest and plain even principal split', () {
-      final breakdown = InterestCalculator.calculate(
-        principal: 900,
-        type: InterestType.flat,
-        ratePercent: 0,
-        period: InterestPeriod.monthly,
-        installmentCount: 3,
-        installmentFrequency: InterestPeriod.monthly,
-      );
+    test(
+      'ratePercent = 0 produces zero interest and plain even principal split',
+      () {
+        final breakdown = InterestCalculator.calculate(
+          principal: 900,
+          type: InterestType.flat,
+          ratePercent: 0,
+          period: InterestPeriod.monthly,
+          installmentCount: 3,
+          installmentFrequency: InterestPeriod.monthly,
+        );
 
-      expect(breakdown.totalInterest, 0);
-      for (final period in breakdown.periods) {
-        expect(period.interestPortion, 0);
-      }
-      expect(breakdown.periods.map((p) => p.principalPortion), everyElement(300));
-    });
+        expect(breakdown.totalInterest, 0);
+        for (final period in breakdown.periods) {
+          expect(period.interestPortion, 0);
+        }
+        expect(
+          breakdown.periods.map((p) => p.principalPortion),
+          everyElement(300),
+        );
+      },
+    );
 
-    test('installmentCount = 1 (one-time repayment) produces a single period', () {
-      final breakdown = InterestCalculator.calculate(
-        principal: 1000,
-        type: InterestType.flat,
-        ratePercent: 5,
-        period: InterestPeriod.monthly,
-        installmentCount: 1,
-        installmentFrequency: InterestPeriod.monthly,
-      );
+    test(
+      'installmentCount = 1 (one-time repayment) produces a single period',
+      () {
+        final breakdown = InterestCalculator.calculate(
+          principal: 1000,
+          type: InterestType.flat,
+          ratePercent: 5,
+          period: InterestPeriod.monthly,
+          installmentCount: 1,
+          installmentFrequency: InterestPeriod.monthly,
+        );
 
-      expect(breakdown.periods, hasLength(1));
-      expect(breakdown.periods.single.paymentAmount, closeTo(breakdown.totalPayable, 0.01));
-      expect(breakdown.periods.single.remainingPrincipal, 0);
-    });
+        expect(breakdown.periods, hasLength(1));
+        expect(
+          breakdown.periods.single.paymentAmount,
+          closeTo(breakdown.totalPayable, 0.01),
+        );
+        expect(breakdown.periods.single.remainingPrincipal, 0);
+      },
+    );
 
     test('rate period conversion is proportionally consistent', () {
       final yearlyOnMonthly = InterestCalculator.calculate(
@@ -204,7 +240,10 @@ void main() {
         installmentFrequency: InterestPeriod.monthly,
       );
 
-      expect(yearlyOnMonthlyMulti.totalInterest, closeTo(monthlyOnMonthlyMulti.totalInterest, 0.01));
+      expect(
+        yearlyOnMonthlyMulti.totalInterest,
+        closeTo(monthlyOnMonthlyMulti.totalInterest, 0.01),
+      );
       expect(yearlyOnMonthly.principal, monthlyOnMonthly.principal);
     });
 
@@ -218,7 +257,10 @@ void main() {
         installmentFrequency: InterestPeriod.monthly,
       );
 
-      final totalPrincipal = breakdown.periods.fold(0.0, (sum, p) => sum + p.principalPortion);
+      final totalPrincipal = breakdown.periods.fold(
+        0.0,
+        (sum, p) => sum + p.principalPortion,
+      );
       expect(totalPrincipal, closeTo(100000.01, 0.01));
     });
 
@@ -250,93 +292,120 @@ void main() {
       );
     });
 
-    test('large installmentCount does not drift and reaches exactly 0 remaining', () {
-      final breakdown = InterestCalculator.calculate(
-        principal: 300000,
-        type: InterestType.reducingBalance,
-        ratePercent: 8,
-        period: InterestPeriod.yearly,
-        installmentCount: 360,
-        installmentFrequency: InterestPeriod.monthly,
-      );
+    test(
+      'large installmentCount does not drift and reaches exactly 0 remaining',
+      () {
+        final breakdown = InterestCalculator.calculate(
+          principal: 300000,
+          type: InterestType.reducingBalance,
+          ratePercent: 8,
+          period: InterestPeriod.yearly,
+          installmentCount: 360,
+          installmentFrequency: InterestPeriod.monthly,
+        );
 
-      expect(breakdown.periods.last.remainingPrincipal, 0);
-      final totalPrincipal = breakdown.periods.fold(0.0, (sum, p) => sum + p.principalPortion);
-      expect(totalPrincipal, closeTo(300000, 0.01));
-    });
+        expect(breakdown.periods.last.remainingPrincipal, 0);
+        final totalPrincipal = breakdown.periods.fold(
+          0.0,
+          (sum, p) => sum + p.principalPortion,
+        );
+        expect(totalPrincipal, closeTo(300000, 0.01));
+      },
+    );
   });
 
   group('InterestCalculator.calculate — installmentsPerYear (weekly cadence)', () {
-    test('a weekly schedule (installmentsPerYear: 52) charges far less interest than forcing it through monthly', () {
-      // Regression for the bug where Loan/EMI repositories passed
-      // installmentFrequency: InterestPeriod.monthly for a weekly-cadence
-      // schedule, applying a monthly-normalized rate once per week —
-      // roughly a 4.3x overstatement (52 weeks/year vs. 12 "months"/year).
-      final weekly = InterestCalculator.calculate(
-        principal: 10000,
-        type: InterestType.flat,
-        ratePercent: 2,
-        period: InterestPeriod.monthly,
-        installmentCount: 10,
-        installmentFrequency: InterestPeriod.monthly,
-        installmentsPerYear: 52,
-      );
-      final forcedMonthly = InterestCalculator.calculate(
-        principal: 10000,
-        type: InterestType.flat,
-        ratePercent: 2,
-        period: InterestPeriod.monthly,
-        installmentCount: 10,
-        installmentFrequency: InterestPeriod.monthly,
-      );
+    test(
+      'a weekly schedule (installmentsPerYear: 52) charges far less interest than forcing it through monthly',
+      () {
+        // Regression for the bug where Loan/EMI repositories passed
+        // installmentFrequency: InterestPeriod.monthly for a weekly-cadence
+        // schedule, applying a monthly-normalized rate once per week —
+        // roughly a 4.3x overstatement (52 weeks/year vs. 12 "months"/year).
+        final weekly = InterestCalculator.calculate(
+          principal: 10000,
+          type: InterestType.flat,
+          ratePercent: 2,
+          period: InterestPeriod.monthly,
+          installmentCount: 10,
+          installmentFrequency: InterestPeriod.monthly,
+          installmentsPerYear: 52,
+        );
+        final forcedMonthly = InterestCalculator.calculate(
+          principal: 10000,
+          type: InterestType.flat,
+          ratePercent: 2,
+          period: InterestPeriod.monthly,
+          installmentCount: 10,
+          installmentFrequency: InterestPeriod.monthly,
+        );
 
-      expect(weekly.totalInterest, lessThan(forcedMonthly.totalInterest));
-      // 52 installments/year vs. 12 "installments/year" (the pre-fix
-      // behavior) is a 52/12 ≈ 4.33x ratio in periodic rate, and since flat
-      // interest is periodicRate * installmentCount, the same ratio holds
-      // for totalInterest at a fixed installmentCount.
-      expect(forcedMonthly.totalInterest / weekly.totalInterest, closeTo(52 / 12, 0.01));
-    });
+        expect(weekly.totalInterest, lessThan(forcedMonthly.totalInterest));
+        // 52 installments/year vs. 12 "installments/year" (the pre-fix
+        // behavior) is a 52/12 ≈ 4.33x ratio in periodic rate, and since flat
+        // interest is periodicRate * installmentCount, the same ratio holds
+        // for totalInterest at a fixed installmentCount.
+        expect(
+          forcedMonthly.totalInterest / weekly.totalInterest,
+          closeTo(52 / 12, 0.01),
+        );
+      },
+    );
 
-    test('installmentsPerYear: 12 matches the plain monthly installmentFrequency path exactly', () {
-      final viaInstallmentsPerYear = InterestCalculator.calculate(
-        principal: 5000,
-        type: InterestType.reducingBalance,
-        ratePercent: 12,
-        period: InterestPeriod.yearly,
-        installmentCount: 6,
-        installmentFrequency: InterestPeriod.monthly,
-        installmentsPerYear: 12,
-      );
-      final viaFrequency = InterestCalculator.calculate(
-        principal: 5000,
-        type: InterestType.reducingBalance,
-        ratePercent: 12,
-        period: InterestPeriod.yearly,
-        installmentCount: 6,
-        installmentFrequency: InterestPeriod.monthly,
-      );
+    test(
+      'installmentsPerYear: 12 matches the plain monthly installmentFrequency path exactly',
+      () {
+        final viaInstallmentsPerYear = InterestCalculator.calculate(
+          principal: 5000,
+          type: InterestType.reducingBalance,
+          ratePercent: 12,
+          period: InterestPeriod.yearly,
+          installmentCount: 6,
+          installmentFrequency: InterestPeriod.monthly,
+          installmentsPerYear: 12,
+        );
+        final viaFrequency = InterestCalculator.calculate(
+          principal: 5000,
+          type: InterestType.reducingBalance,
+          ratePercent: 12,
+          period: InterestPeriod.yearly,
+          installmentCount: 6,
+          installmentFrequency: InterestPeriod.monthly,
+        );
 
-      expect(viaInstallmentsPerYear.totalInterest, viaFrequency.totalInterest);
-      for (var i = 0; i < viaInstallmentsPerYear.periods.length; i++) {
-        expect(viaInstallmentsPerYear.periods[i].paymentAmount, viaFrequency.periods[i].paymentAmount);
-      }
-    });
+        expect(
+          viaInstallmentsPerYear.totalInterest,
+          viaFrequency.totalInterest,
+        );
+        for (var i = 0; i < viaInstallmentsPerYear.periods.length; i++) {
+          expect(
+            viaInstallmentsPerYear.periods[i].paymentAmount,
+            viaFrequency.periods[i].paymentAmount,
+          );
+        }
+      },
+    );
 
-    test('weekly reducing-balance schedule still reconciles to exactly 0 remaining principal', () {
-      final breakdown = InterestCalculator.calculate(
-        principal: 20000,
-        type: InterestType.reducingBalance,
-        ratePercent: 10,
-        period: InterestPeriod.yearly,
-        installmentCount: 26,
-        installmentFrequency: InterestPeriod.monthly,
-        installmentsPerYear: 52,
-      );
+    test(
+      'weekly reducing-balance schedule still reconciles to exactly 0 remaining principal',
+      () {
+        final breakdown = InterestCalculator.calculate(
+          principal: 20000,
+          type: InterestType.reducingBalance,
+          ratePercent: 10,
+          period: InterestPeriod.yearly,
+          installmentCount: 26,
+          installmentFrequency: InterestPeriod.monthly,
+          installmentsPerYear: 52,
+        );
 
-      expect(breakdown.periods.last.remainingPrincipal, 0);
-      final totalPrincipal = breakdown.periods.fold(0.0, (sum, p) => sum + p.principalPortion);
-      expect(totalPrincipal, closeTo(20000, 0.01));
-    });
+        expect(breakdown.periods.last.remainingPrincipal, 0);
+        final totalPrincipal = breakdown.periods.fold(
+          0.0,
+          (sum, p) => sum + p.principalPortion,
+        );
+        expect(totalPrincipal, closeTo(20000, 0.01));
+      },
+    );
   });
 }

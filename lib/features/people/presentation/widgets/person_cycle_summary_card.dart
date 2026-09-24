@@ -22,20 +22,41 @@ class PersonCycleSummaryCard extends StatelessWidget {
           Text('Cycle Summary', style: context.textTheme.titleMedium),
           const SizedBox(height: AppSizes.sm),
           _SectionLabel('Previous Cycle'),
-          _SummaryRow(label: 'Outstanding', amount: summary.previousOutstanding),
-          _SummaryRow(label: 'Carry Forward', amount: summary.previousCarryForward),
+          _SummaryRow(
+            label: 'Outstanding',
+            amount: summary.previousOutstanding,
+          ),
+          _SummaryRow(
+            label: 'Carry Forward',
+            amount: summary.previousCarryForward,
+          ),
           _SummaryRow(label: 'Total Paid', amount: summary.previousTotalPaid),
-          _SummaryRow(label: 'Remaining Balance', amount: summary.previousRemaining, emphasize: true),
+          _SummaryRow(
+            label: 'Remaining Balance',
+            amount: summary.previousRemaining,
+            emphasize: true,
+          ),
           const Divider(height: AppSizes.lg),
           _SectionLabel('Current Cycle'),
-          _SummaryRow(label: 'Total Split Expenses', amount: summary.currentTotalSplitExpenses),
+          _SummaryRow(
+            label: 'Total Split Expenses',
+            amount: summary.currentTotalSplitExpenses,
+          ),
           _SummaryRow(label: 'Total Paid', amount: summary.currentTotalPaid),
-          _SummaryRow(label: 'Remaining Balance', amount: summary.currentRemaining, emphasize: true),
+          _SummaryRow(
+            label: 'Remaining Balance',
+            amount: summary.currentRemaining,
+            emphasize: true,
+          ),
           const Divider(height: AppSizes.lg),
           _SectionLabel('Overall'),
           _SummaryRow(label: 'Total You Owe', amount: summary.totalYouOwe),
           _SummaryRow(label: 'Total They Owe', amount: summary.totalTheyOwe),
-          _SummaryRow(label: 'Net Balance', amount: summary.netBalance, emphasize: true),
+          _SummaryRow(
+            label: 'Net Balance',
+            amount: summary.netBalance,
+            emphasize: true,
+          ),
         ],
       ),
     );
@@ -63,7 +84,11 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.amount, this.emphasize = false});
+  const _SummaryRow({
+    required this.label,
+    required this.amount,
+    this.emphasize = false,
+  });
 
   final String label;
   final double amount;
@@ -73,7 +98,9 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = emphasize
         ? context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)
-        : context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7));
+        : context.textTheme.bodyMedium?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.7),
+          );
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),

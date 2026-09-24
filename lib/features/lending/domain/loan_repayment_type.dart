@@ -4,7 +4,12 @@ enum LoanRepaymentType { oneTime, installment }
 
 extension LoanRepaymentTypeX on LoanRepaymentType {
   static LoanRepaymentType fromName(String name) =>
-      LoanRepaymentType.values.firstWhere((t) => t.name == name, orElse: () => LoanRepaymentType.oneTime);
+      LoanRepaymentType.values.firstWhere(
+        (t) => t.name == name,
+        orElse: () => LoanRepaymentType.oneTime,
+      );
 
-  String get label => this == LoanRepaymentType.oneTime ? 'One-time repayment' : 'Monthly Payments (EMI)';
+  String get label => this == LoanRepaymentType.oneTime
+      ? 'One-time repayment'
+      : 'Monthly Payments (EMI)';
 }

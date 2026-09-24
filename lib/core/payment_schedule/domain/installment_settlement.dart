@@ -3,13 +3,19 @@ import 'installment.dart';
 
 /// One [Installment] and the portion of a lump-sum settlement amount
 /// applied to it — the fan-out result of [InstallmentSettlement.plan].
-typedef InstallmentSettlementPortion = ({Installment installment, double portion});
+typedef InstallmentSettlementPortion = ({
+  Installment installment,
+  double portion,
+});
 
 /// Result of [InstallmentSettlement.plan] — the ordered portions to apply,
 /// plus whatever part of the requested amount couldn't be allocated because
 /// it exceeded every installment's total remaining balance.
 class InstallmentSettlementPlan {
-  const InstallmentSettlementPlan({required this.portions, required this.unallocated});
+  const InstallmentSettlementPlan({
+    required this.portions,
+    required this.unallocated,
+  });
 
   final List<InstallmentSettlementPortion> portions;
   final double unallocated;
@@ -39,7 +45,10 @@ abstract class InstallmentSettlement {
   /// [InstallmentSettlementPlan.unallocated] rather than posted anywhere —
   /// unlike `settleAcrossPending`, EMI/Loan have no ledger-remainder concept
   /// to fall back to.
-  static InstallmentSettlementPlan plan(List<Installment> installments, double amount) {
+  static InstallmentSettlementPlan plan(
+    List<Installment> installments,
+    double amount,
+  ) {
     if (amount <= 0) {
       throw const AppException('Settlement amount must be greater than 0');
     }
@@ -53,6 +62,9 @@ abstract class InstallmentSettlement {
       portions.add((installment: installment, portion: portion));
       remaining -= portion;
     }
-    return InstallmentSettlementPlan(portions: portions, unallocated: remaining);
+    return InstallmentSettlementPlan(
+      portions: portions,
+      unallocated: remaining,
+    );
   }
 }

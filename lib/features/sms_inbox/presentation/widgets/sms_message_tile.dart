@@ -4,6 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
 import '../../domain/sms_transaction_category.dart';
@@ -19,6 +20,7 @@ class SmsMessageTile extends StatelessWidget {
   const SmsMessageTile({
     super.key,
     required this.item,
+    required this.index,
     required this.onTap,
     this.candidate,
     this.selectionMode = false,
@@ -27,6 +29,13 @@ class SmsMessageTile extends StatelessWidget {
   });
 
   final SmsInboxItem item;
+
+  /// This row's 1-based position in the overall (unpaginated) feed —
+  /// counted across item rows only, skipping date headers — shown as a
+  /// small index number so a long inbox stays orientable ("row 214 of
+  /// 1,800") without needing to scroll back to a header.
+  final int index;
+
   final VoidCallback onTap;
 
   /// This SMS's `TransactionCandidate`, if one exists — passed in by the
@@ -49,63 +58,91 @@ class SmsMessageTile extends StatelessWidget {
     // Only meaningful while the message is still awaiting a decision — once
     // converted or ignored, whether the original match needed review is no
     // longer actionable from this row.
-    final needsReview = item.status == SmsImportStatus.pending && (candidate?.needsReview ?? false);
+    final needsReview =
+        item.status == SmsImportStatus.pending &&
+        (candidate?.needsReview ?? false);
 
-    return Material(
-      color: selected ? context.colors.primary.withValues(alpha: 0.08) : context.colors.surface,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg, vertical: AppSizes.md),
-          child: Row(
-            children: [
-              _Leading(
-                item: item,
-                selectionMode: selectionMode,
-                selected: selected,
-                color: amountColor,
-                needsReview: needsReview,
-              ),
-              const SizedBox(width: AppSizes.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _amountLabel(parsed?.amount, direction),
-                      style: context.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: amountColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+    return Container(
+      decoration: BoxDecoration(
+        color: selected
+            ? context.colors.primary.withValues(alpha: 0.08)
+            : context.colors.surface,
+        border: Border(
+          left: BorderSide(color: amountColor.withValues(alpha: 0.5), width: 3),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSizes.md,
+              vertical: AppSizes.sm,
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  child: Text(
+                    '$index',
+                    textAlign: TextAlign.center,
+                    style: context.textTheme.labelSmall?.copyWith(
+                      color: context.colors.onSurface.withValues(alpha: 0.35),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _subtitle(),
-                      style: context.textTheme.bodySmall?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.75),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _dateTimeLabel(item.rawMessage.date),
-                      style: context.textTheme.labelSmall?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.5),
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSizes.sm),
-              _StatusChip(status: item.status),
-            ],
+                const SizedBox(width: AppSizes.xs),
+                _Leading(
+                  item: item,
+                  selectionMode: selectionMode,
+                  selected: selected,
+                  color: amountColor,
+                  needsReview: needsReview,
+                ),
+                const SizedBox(width: AppSizes.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _amountLabel(parsed?.amount, direction),
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: amountColor,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        _subtitle(),
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.75,
+                          ),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        _dateTimeLabel(item.rawMessage.date),
+                        style: context.textTheme.labelSmall?.copyWith(
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSizes.sm),
+                _StatusChip(status: item.status),
+              ],
+            ),
           ),
         ),
       ),
@@ -113,8 +150,12 @@ class SmsMessageTile extends StatelessWidget {
   }
 
   Color _amountColor(BuildContext context, SmsTransactionDirection? direction) {
-    if (direction == null) return context.colors.onSurface.withValues(alpha: 0.55);
-    return direction == SmsTransactionDirection.credit ? AppColors.credit : AppColors.debit;
+    if (direction == null) {
+      return context.colors.onSurface.withValues(alpha: 0.55);
+    }
+    return direction == SmsTransactionDirection.credit
+        ? AppColors.credit
+        : AppColors.debit;
   }
 
   /// Beginner-friendly wording over the raw debit/credit enum — "spent" and
@@ -122,7 +163,9 @@ class SmsMessageTile extends StatelessWidget {
   String _amountLabel(double? amount, SmsTransactionDirection? direction) {
     if (amount == null || direction == null) return 'Amount unclear';
     final formatted = CurrencyFormatter.instance.format(amount);
-    return direction == SmsTransactionDirection.credit ? '$formatted received' : '$formatted spent';
+    return direction == SmsTransactionDirection.credit
+        ? '$formatted received'
+        : '$formatted spent';
   }
 
   String _subtitle() {
@@ -130,7 +173,8 @@ class SmsMessageTile extends StatelessWidget {
     final parts = [
       parsed?.merchantOrSender ?? item.rawMessage.address,
       ?parsed?.bankName,
-      if (parsed?.maskedAccountOrCard != null) 'XX${parsed!.maskedAccountOrCard}',
+      if (parsed?.maskedAccountOrCard != null)
+        'XX${parsed!.maskedAccountOrCard}',
     ];
     return parts.join(' • ');
   }
@@ -178,25 +222,29 @@ class _Leading extends StatelessWidget {
   Widget build(BuildContext context) {
     if (selectionMode) {
       return Container(
-        width: 40,
-        height: 40,
+        width: 34,
+        height: 34,
         decoration: BoxDecoration(
-          color: selected ? context.colors.primary : context.colors.surfaceContainerHighest,
+          color: selected
+              ? context.colors.primary
+              : context.colors.surfaceContainerHighest,
           shape: BoxShape.circle,
         ),
         child: Icon(
           selected ? Icons.check_rounded : Icons.circle_outlined,
-          size: AppSizes.iconMd,
-          color: selected ? context.colors.onPrimary : context.colors.onSurface.withValues(alpha: 0.4),
+          size: AppSizes.iconSm,
+          color: selected
+              ? context.colors.onPrimary
+              : context.colors.onSurface.withValues(alpha: 0.4),
         ),
       );
     }
 
-    final avatar = Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-      child: Icon(_icon(item.parsed?.category), size: AppSizes.iconMd, color: color),
+    final avatar = FlowFiIconChip(
+      icon: _icon(item.parsed?.category),
+      color: color,
+      size: 34,
+      iconSize: AppSizes.iconSm,
     );
 
     if (!needsReview) return avatar;
@@ -255,12 +303,26 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
-      child: Text(
-        _shortLabel(status),
-        style: context.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            _shortLabel(status),
+            style: context.textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

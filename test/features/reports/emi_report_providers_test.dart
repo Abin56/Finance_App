@@ -30,50 +30,58 @@ void main() {
     await container.read(authStateProvider.future);
   });
 
-  test('totalEmisCountProvider counts every non-deleted EMI regardless of status', () async {
-    final emis = container.read(emiRepositoryProvider);
-    await emis.createEmi(
-      name: 'Bike EMI',
-      principalAmount: 1000,
-      startDate: DateTime.now(),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 4,
-    );
-    await emis.createEmi(
-      name: 'Home EMI',
-      principalAmount: 5000,
-      startDate: DateTime.now(),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 12,
-    );
+  test(
+    'totalEmisCountProvider counts every non-deleted EMI regardless of status',
+    () async {
+      final emis = container.read(emiRepositoryProvider);
+      await emis.createEmi(
+        name: 'Bike EMI',
+        principalAmount: 1000,
+        startDate: DateTime.now(),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 4,
+      );
+      await emis.createEmi(
+        name: 'Home EMI',
+        principalAmount: 5000,
+        startDate: DateTime.now(),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 12,
+      );
 
-    await container.read(emisStreamProvider.future);
+      await container.read(emisStreamProvider.future);
 
-    expect(container.read(totalEmisCountProvider), 2);
-  });
+      expect(container.read(totalEmisCountProvider), 2);
+    },
+  );
 
-  test('closedEmisCountProvider counts only EMIs whose derived status is closed', () async {
-    final emis = container.read(emiRepositoryProvider);
-    final active = await emis.createEmi(
-      name: 'Active EMI',
-      principalAmount: 1000,
-      startDate: DateTime.now(),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 4,
-    );
-    final toClose = await emis.createEmi(
-      name: 'Closed EMI',
-      principalAmount: 2000,
-      startDate: DateTime.now(),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 4,
-    );
-    await emis.closeEmi(toClose);
+  test(
+    'closedEmisCountProvider counts only EMIs whose derived status is closed',
+    () async {
+      final emis = container.read(emiRepositoryProvider);
+      final active = await emis.createEmi(
+        name: 'Active EMI',
+        principalAmount: 1000,
+        startDate: DateTime.now(),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 4,
+      );
+      final toClose = await emis.createEmi(
+        name: 'Closed EMI',
+        principalAmount: 2000,
+        startDate: DateTime.now(),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 4,
+      );
+      await emis.closeEmi(toClose);
 
-    await container.read(emisStreamProvider.future);
-    await container.read(installmentsStreamProvider(active.scheduleId).future);
+      await container.read(emisStreamProvider.future);
+      await container.read(
+        installmentsStreamProvider(active.scheduleId).future,
+      );
 
-    expect(container.read(totalEmisCountProvider), 2);
-    expect(container.read(closedEmisCountProvider), 1);
-  });
+      expect(container.read(totalEmisCountProvider), 2);
+      expect(container.read(closedEmisCountProvider), 1);
+    },
+  );
 }

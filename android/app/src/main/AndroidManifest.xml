@@ -8,6 +8,20 @@
          is no background/live SMS listener, only an explicit user-triggered
          scan (see lib/features/sms_inbox/data/sms_inbox_repository.dart). -->
     <uses-permission android:name="android.permission.READ_SMS"/>
+    <!-- SMS Inbox feature: lets the app prompt the user to exempt itself from
+         Doze/App Standby battery restrictions. Needed because OEM background-
+         freezing (e.g. Samsung's "Optimised" battery mode) silently prevents
+         NotificationCaptureListenerService's callback from ever running, even
+         though the listener stays registered — see MainActivity's
+         requestBatteryUnrestricted handler. Removed for the `play` flavor,
+         same rationale as READ_SMS and the notification listener service
+         above. See PLAY_STORE.md > "SMS Inbox and the Play build". -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <!-- Smart Import feature: lets the user scan a transaction screen/
+         document with the camera as an alternative to picking an existing
+         screenshot (see lib/features/smart_import). Requested on demand via
+         permission_handler, never at launch. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="FlowFi"
         android:name="${applicationName}"
@@ -53,6 +67,24 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
+        <!-- SMS Inbox feature: captures notification text from the device's
+             default SMS/RCS app so RCS Business Messaging alerts (which never
+             reach content://sms — see NotificationCaptureListenerService's
+             doc comment) can still be scanned. Removed for the `play` flavor
+             via src/play/AndroidManifest.xml, same rationale as READ_SMS
+             above: Google Play's Restricted Permissions policy treats
+             notification-listener access the same way it treats SMS access
+             for a non-default-handler app. See PLAY_STORE.md > "SMS Inbox
+             and the Play build". -->
+        <service
+            android:name=".NotificationCaptureListenerService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -65,4 +97,8 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+    <!-- Not required: a device with no camera (or a tablet/Chromebook) must
+         still be installable — Smart Import's camera option simply doesn't
+         work there, falling back to the screenshot/gallery flow. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
 </manifest>

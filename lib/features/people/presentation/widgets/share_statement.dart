@@ -15,12 +15,17 @@ import 'share_format.dart';
 abstract class ShareStatement {
   ShareStatement._();
 
-  static String buildText(Person person, List<PersonTimelineEntry> entriesOldestFirst) {
+  static String buildText(
+    Person person,
+    List<PersonTimelineEntry> entriesOldestFirst,
+  ) {
     final buffer = StringBuffer()
       ..writeln(ShareFormat.header('Statement for ${person.name}'))
       ..writeln('Generated ${DateTime.now().fullDate}')
       ..writeln()
-      ..writeln('Starting Amount Left: ${CurrencyFormatter.instance.format(person.openingBalance)}')
+      ..writeln(
+        'Starting Amount Left: ${CurrencyFormatter.instance.format(person.openingBalance)}',
+      )
       ..writeln(ShareFormat.divider);
 
     final balanceAfterById = PersonTimelineBuilder.runningBalances(
@@ -31,26 +36,42 @@ abstract class ShareStatement {
     for (final entry in entriesOldestFirst) {
       final sign = entry.signedAmount >= 0 ? '+' : '-';
       final runningBalance = balanceAfterById[entry.id]!;
-      final dot = entry.status == null ? '' : '${ShareFormat.statusDot(entry.status)} ';
+      final dot = entry.status == null
+          ? ''
+          : '${ShareFormat.statusDot(entry.status)} ';
       buffer.writeln('$dot${entry.date.shortDate}  ${entry.title}');
-      buffer.writeln('  $sign${CurrencyFormatter.instance.format(entry.displayAmount.abs())}'
-          '  →  Amount Left: ${CurrencyFormatter.instance.format(runningBalance)}');
+      buffer.writeln(
+        '  $sign${CurrencyFormatter.instance.format(entry.displayAmount.abs())}'
+        '  →  Amount Left: ${CurrencyFormatter.instance.format(runningBalance)}',
+      );
       if (entry.note.isNotEmpty) buffer.writeln('  Note: ${entry.note}');
       buffer.writeln();
     }
 
     buffer
       ..writeln(ShareFormat.divider)
-      ..writeln('Amount Left: ${CurrencyFormatter.instance.format(person.currentBalance.abs())}'
-          ' (${person.isCreditor ? 'owes you' : person.isDebtor ? 'you owe' : 'all paid up'})')
+      ..writeln(
+        'Amount Left: ${CurrencyFormatter.instance.format(person.currentBalance.abs())}'
+        ' (${person.isCreditor
+            ? 'owes you'
+            : person.isDebtor
+            ? 'you owe'
+            : 'all paid up'})',
+      )
       ..writeln()
       ..writeln(ShareFormat.footer);
 
     return buffer.toString();
   }
 
-  static Future<void> share(BuildContext context, Person person, List<PersonTimelineEntry> entriesOldestFirst) {
+  static Future<void> share(
+    BuildContext context,
+    Person person,
+    List<PersonTimelineEntry> entriesOldestFirst,
+  ) {
     final text = buildText(person, entriesOldestFirst);
-    return SharePlus.instance.share(ShareParams(text: text, subject: 'Statement for ${person.name}'));
+    return SharePlus.instance.share(
+      ShareParams(text: text, subject: 'Statement for ${person.name}'),
+    );
   }
 }

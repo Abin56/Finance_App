@@ -61,10 +61,14 @@ void main() {
         ],
         child: MaterialApp(
           builder: (context, inner) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
             child: inner!,
           ),
-          home: const Scaffold(body: SingleChildScrollView(child: UpcomingPaymentsTimeline())),
+          home: const Scaffold(
+            body: SingleChildScrollView(child: UpcomingPaymentsTimeline()),
+          ),
         ),
       ),
     );
@@ -72,10 +76,13 @@ void main() {
   }
 
   for (final scale in _scales) {
-    testWidgets('renders carried-over and normal rows without overflow @${scale}x', (tester) async {
-      await pumpAt(tester, scale);
-      expect(tester.takeException(), isNull);
-      expect(find.text('Carried Forward'), findsOneWidget);
-    });
+    testWidgets(
+      'renders carried-over and normal rows without overflow @${scale}x',
+      (tester) async {
+        await pumpAt(tester, scale);
+        expect(tester.takeException(), isNull);
+        expect(find.text('Carried Forward'), findsOneWidget);
+      },
+    );
   }
 }

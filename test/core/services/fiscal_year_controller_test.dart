@@ -21,19 +21,24 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
-    await container.read(fiscalYearStartMonthProvider.notifier).setStartMonth(4);
+    await container
+        .read(fiscalYearStartMonthProvider.notifier)
+        .setStartMonth(4);
 
     expect(container.read(fiscalYearStartMonthProvider), 4);
     expect(LocalSettingsService.getInt('fiscal_year_start_month'), 4);
   });
 
-  test('reads back a previously persisted value on a fresh container', () async {
-    final first = ProviderContainer();
-    await first.read(fiscalYearStartMonthProvider.notifier).setStartMonth(7);
-    first.dispose();
+  test(
+    'reads back a previously persisted value on a fresh container',
+    () async {
+      final first = ProviderContainer();
+      await first.read(fiscalYearStartMonthProvider.notifier).setStartMonth(7);
+      first.dispose();
 
-    final second = ProviderContainer();
-    addTearDown(second.dispose);
-    expect(second.read(fiscalYearStartMonthProvider), 7);
-  });
+      final second = ProviderContainer();
+      addTearDown(second.dispose);
+      expect(second.read(fiscalYearStartMonthProvider), 7);
+    },
+  );
 }

@@ -39,13 +39,19 @@ class PeopleWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.go(AppRoutes.people),
                 child: Text(
                   'See all ›',
-                  style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
@@ -54,12 +60,18 @@ class PeopleWidgetCard extends ConsumerWidget {
           if (youOwe == 0 && owedToYou == 0)
             Row(
               children: [
-                Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconMd, color: AppColors.success),
+                Icon(
+                  Icons.check_circle_outline_rounded,
+                  size: AppSizes.iconMd,
+                  color: AppColors.success,
+                ),
                 const SizedBox(width: AppSizes.sm),
                 Expanded(
                   child: Text(
                     'All settled — nothing owed either way.',
-                    style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ],
@@ -71,7 +83,9 @@ class PeopleWidgetCard extends ConsumerWidget {
                   child: _BalanceTile(
                     label: 'You Owe',
                     amount: youOwe,
-                    caption: youOwe == 0 ? 'No one' : 'to $debtorCount ${debtorCount == 1 ? 'person' : 'people'}',
+                    caption: youOwe == 0
+                        ? 'No one'
+                        : 'to $debtorCount ${debtorCount == 1 ? 'person' : 'people'}',
                     color: AppColors.expense,
                     icon: Icons.arrow_upward_rounded,
                     onTap: () => context.push(AppRoutes.debtors),
@@ -118,7 +132,11 @@ class _BalanceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = context.textTheme;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return Material(
       color: color.withValues(alpha: 0.08),
@@ -138,7 +156,10 @@ class _BalanceTile extends StatelessWidget {
                   Expanded(
                     child: Text(
                       label,
-                      style: textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+                      style: textTheme.labelSmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -150,13 +171,17 @@ class _BalanceTile extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   format.format(amount),
-                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 caption,
-                style: textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+                style: textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ],

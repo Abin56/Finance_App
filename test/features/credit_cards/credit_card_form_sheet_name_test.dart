@@ -15,8 +15,12 @@ void main() {
       ProviderScope(
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
+          sharedCreditLimitsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
         ],
         child: const MaterialApp(home: Scaffold(body: CreditCardFormSheet())),
       ),
@@ -31,7 +35,9 @@ void main() {
     expect(find.text('Shown as "Credit Card"'), findsOneWidget);
   });
 
-  testWidgets('picking a bank and network updates the computed name preview', (tester) async {
+  testWidgets('picking a bank and network updates the computed name preview', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.ensureVisible(find.text('Select bank (optional)'));

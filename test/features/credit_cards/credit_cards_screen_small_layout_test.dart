@@ -22,7 +22,9 @@ void main() {
     await LocalSettingsService.init();
   });
 
-  testWidgets('all-cards list tile fits a small phone without overflow', (tester) async {
+  testWidgets('all-cards list tile fits a small phone without overflow', (
+    tester,
+  ) async {
     tester.view.physicalSize = _smallPhone;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -51,12 +53,18 @@ void main() {
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
           creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
-          sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          statementsStreamProvider('card1').overrideWith((ref) => Stream.value(const [])),
-          // Worst case: a long formatted amount under the longest label.
-          creditCardStandingProvider('card1').overrideWithValue(
-            (outstanding: 1234567.89, available: 765432.11, currentCycleSpend: 0),
+          sharedCreditLimitsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
           ),
+          statementsStreamProvider(
+            'card1',
+          ).overrideWith((ref) => Stream.value(const [])),
+          // Worst case: a long formatted amount under the longest label.
+          creditCardStandingProvider('card1').overrideWithValue((
+            outstanding: 1234567.89,
+            available: 765432.11,
+            currentCycleSpend: 0,
+          )),
         ],
         child: const MaterialApp(home: CreditCardsScreen()),
       ),

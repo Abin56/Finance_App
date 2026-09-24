@@ -31,7 +31,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       setState(() => _errorMessage = _messageFor(e));
     } catch (_) {
-      setState(() => _errorMessage = 'Something went wrong. Check your connection and try again.');
+      setState(
+        () => _errorMessage =
+            'Something went wrong. Check your connection and try again.',
+      );
     } finally {
       if (mounted) setState(() => _isSigningIn = false);
     }
@@ -61,9 +64,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.account_balance_wallet_rounded, size: AppSizes.xxxl * 2, color: theme.colorScheme.primary),
+                  Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: AppSizes.xxxl * 2,
+                    color: theme.colorScheme.primary,
+                  ),
                   const SizedBox(height: AppSizes.lg),
-                  Text(AppStrings.appName, style: theme.textTheme.headlineMedium),
+                  Text(
+                    AppStrings.appName,
+                    style: theme.textTheme.headlineMedium,
+                  ),
                   const SizedBox(height: AppSizes.sm),
                   Text(
                     'Welcome — sign in to keep your finances safe and up to date.',
@@ -78,7 +88,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ? const Center(child: CircularProgressIndicator())
                         : FilledButton.icon(
                             onPressed: _handleSignIn,
-                            icon: const Icon(Icons.g_mobiledata_rounded, size: AppSizes.iconLg),
+                            icon: const Icon(
+                              Icons.g_mobiledata_rounded,
+                              size: AppSizes.iconLg,
+                            ),
                             label: const Text('Continue with Google'),
                           ),
                   ),

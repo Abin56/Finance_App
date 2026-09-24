@@ -17,10 +17,11 @@ import '../domain/emi.dart';
 import '../domain/emi_interest.dart';
 import '../domain/emi_loan_type.dart';
 
-/// Fixed reminder offsets for EMI (Due Today, 1/3/7 days before) — no
-/// per-EMI picker in this milestone, unlike Bills' configurable `FilterChip`
-/// offsets.
-const _emiReminderOffsets = [0, 1, 3, 7];
+/// Fixed reminder offsets for EMI (7/3/1 days before, due today, and 1/3
+/// days after i.e. overdue — negative offsets, see
+/// `ReminderNotificationService.reschedule`'s doc comment) — no per-EMI
+/// picker in this milestone, unlike Bills' configurable `FilterChip` offsets.
+const _emiReminderOffsets = [7, 3, 1, 0, -1, -3];
 
 /// Reminder offsets for the "loan ending soon" one-time reminder, scheduled
 /// against the last installment's due date under a distinct owner id so it
@@ -34,14 +35,19 @@ const _emiEndingReminderOffsets = [7, 1];
 /// (interest math) — neither of those core engines knows what an "EMI" is;
 /// this repository is where the two are composed, mirroring `LoanRepository`.
 class EmiRepository extends FirestoreCrudRepository<Emi> {
-  EmiRepository(super.collection, this.paymentScheduleRepository, this._installmentRepositoryFor);
+  EmiRepository(
+    super.collection,
+    this.paymentScheduleRepository,
+    this._installmentRepositoryFor,
+  );
 
   final PaymentScheduleRepository paymentScheduleRepository;
 
   /// Resolves an `InstallmentRepository` scoped to a given schedule id —
   /// supplied by the provider layer, mirrors `LoanRepository`'s dependency
   /// shape exactly.
-  final InstallmentRepository Function(String scheduleId) _installmentRepositoryFor;
+  final InstallmentRepository Function(String scheduleId)
+  _installmentRepositoryFor;
 
   Future<Emi> createEmi({
     required String name,
@@ -97,16 +103,20 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
         installmentsPerYear: _installmentsPerYearFor(installmentFrequency),
       );
       precomputed = breakdown.periods
-          .map((p) => PrecomputedInstallmentAmount(
-                amountDue: p.paymentAmount,
-                principalPortion: p.principalPortion,
-                interestPortion: p.interestPortion,
-              ))
+          .map(
+            (p) => PrecomputedInstallmentAmount(
+              amountDue: p.paymentAmount,
+              principalPortion: p.principalPortion,
+              interestPortion: p.interestPortion,
+            ),
+          )
           .toList();
     }
 
     final emiId = IdGenerator.generate();
-    final totalAmount = precomputed == null ? principalAmount : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
+    final totalAmount = precomputed == null
+        ? principalAmount
+        : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
 
     final schedule = await paymentScheduleRepository.createSchedule(
       ownerType: OwnerType.emi,
@@ -117,11 +127,12 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       installmentCount: installmentCount,
     );
 
-    final installments = await _installmentRepositoryFor(schedule.id).generateInstallments(
-      schedule,
-      precomputedAmounts: precomputed,
-      dueDayOfMonth: dueDayOfMonth,
-    );
+    final installments = await _installmentRepositoryFor(schedule.id)
+        .generateInstallments(
+          schedule,
+          precomputedAmounts: precomputed,
+          dueDayOfMonth: dueDayOfMonth,
+        );
 
     final emi = Emi(
       id: emiId,
@@ -195,11 +206,18 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
         throw const AppException('Principal amount must be greater than 0');
       }
       if (hasPayments) {
-        throw const AppException('Principal amount cannot be changed after a payment has been recorded');
+        throw const AppException(
+          'Principal amount cannot be changed after a payment has been recorded',
+        );
       }
     }
 
-    emi.updateField(field: 'name', oldValue: emi.name, newValue: name, apply: (v) => emi.name = v);
+    emi.updateField(
+      field: 'name',
+      oldValue: emi.name,
+      newValue: name,
+      apply: (v) => emi.name = v,
+    );
     emi.updateField(
       field: 'lenderName',
       oldValue: emi.lenderName,
@@ -218,7 +236,12 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       newValue: principalAmount,
       apply: (v) => emi.principalAmount = v,
     );
-    emi.updateField(field: 'notes', oldValue: emi.notes, newValue: notes, apply: (v) => emi.notes = v);
+    emi.updateField(
+      field: 'notes',
+      oldValue: emi.notes,
+      newValue: notes,
+      apply: (v) => emi.notes = v,
+    );
     emi.updateField(
       field: 'loanNumber',
       oldValue: emi.loanNumber,
@@ -231,7 +254,12 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       newValue: loanType?.name,
       apply: (_) => emi.loanType = loanType!,
     );
-    emi.updateField(field: 'branch', oldValue: emi.branch, newValue: branch, apply: (v) => emi.branch = v);
+    emi.updateField(
+      field: 'branch',
+      oldValue: emi.branch,
+      newValue: branch,
+      apply: (v) => emi.branch = v,
+    );
     emi.updateField(
       field: 'customerId',
       oldValue: emi.customerId,
@@ -341,12 +369,19 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       throw const AppException('Monthly due date must be between 1 and 31');
     }
 
-    final sorted = [...currentInstallments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-    final settled = sorted.where((i) => i.amountPaid > 0 || i.isSkipped).toList();
-    final untouched = sorted.where((i) => i.amountPaid == 0 && !i.isSkipped).toList();
+    final sorted = [...currentInstallments]
+      ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+    final settled = sorted
+        .where((i) => i.amountPaid > 0 || i.isSkipped)
+        .toList();
+    final untouched = sorted
+        .where((i) => i.amountPaid == 0 && !i.isSkipped)
+        .toList();
 
     if (newInstallmentCount < settled.length) {
-      throw const AppException('Number of payments can\'t be less than the payments already made');
+      throw const AppException(
+        'Number of payments can\'t be less than the payments already made',
+      );
     }
 
     // Principal already paid down: for interest-bearing installments, only
@@ -363,7 +398,9 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       if (i.amountPaid >= i.amountDue) return sum + principalShare;
       return sum + principalShare * (i.amountPaid / i.amountDue);
     });
-    final outstandingPrincipal = (emi.principalAmount - principalPaid).clamp(0, emi.principalAmount).toDouble();
+    final outstandingPrincipal = (emi.principalAmount - principalPaid)
+        .clamp(0, emi.principalAmount)
+        .toDouble();
     final remainingCount = newInstallmentCount - settled.length;
 
     final effectiveFrequency = installmentFrequency ?? emi.installmentFrequency;
@@ -382,11 +419,13 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
           installmentsPerYear: _installmentsPerYearFor(effectiveFrequency),
         );
         precomputed = breakdown.periods
-            .map((p) => PrecomputedInstallmentAmount(
-                  amountDue: p.paymentAmount,
-                  principalPortion: p.principalPortion,
-                  interestPortion: p.interestPortion,
-                ))
+            .map(
+              (p) => PrecomputedInstallmentAmount(
+                amountDue: p.paymentAmount,
+                principalPortion: p.principalPortion,
+                interestPortion: p.interestPortion,
+              ),
+            )
             .toList();
       }
 
@@ -405,12 +444,22 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       // installment #1 of the EMI as a whole (still intact among `settled`
       // or, if nothing's settled yet, `emi.startDate` itself) is ever
       // exempt from this snapping.
-      if (effectiveDueDayOfMonth != null && effectiveFrequency == ScheduleType.monthly && lastSettled != null) {
-        final lastDayOfMonth = DateTime(nextDueDate.year, nextDueDate.month + 1, 0).day;
-        final snappedDay = effectiveDueDayOfMonth > lastDayOfMonth ? lastDayOfMonth : effectiveDueDayOfMonth;
+      if (effectiveDueDayOfMonth != null &&
+          effectiveFrequency == ScheduleType.monthly &&
+          lastSettled != null) {
+        final lastDayOfMonth = DateTime(
+          nextDueDate.year,
+          nextDueDate.month + 1,
+          0,
+        ).day;
+        final snappedDay = effectiveDueDayOfMonth > lastDayOfMonth
+            ? lastDayOfMonth
+            : effectiveDueDayOfMonth;
         nextDueDate = DateTime(nextDueDate.year, nextDueDate.month, snappedDay);
       }
-      final tailTotal = precomputed == null ? outstandingPrincipal : precomputed.fold(0.0, (s, p) => s + p.amountDue);
+      final tailTotal = precomputed == null
+          ? outstandingPrincipal
+          : precomputed.fold(0.0, (s, p) => s + p.amountDue);
 
       // In-memory only (never persisted as its own document) — just a
       // parameter object so `generateInstallments` can compute due dates
@@ -435,14 +484,18 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
 
     emi.recordEdit(
       field: 'loanTerms',
-      oldValue: '${emi.interest?.ratePercent}/${emi.installmentFrequency.name}/${emi.installmentCount}',
-      newValue: '${interest?.ratePercent}/${effectiveFrequency.name}/$newInstallmentCount',
+      oldValue:
+          '${emi.interest?.ratePercent}/${emi.installmentFrequency.name}/${emi.installmentCount}',
+      newValue:
+          '${interest?.ratePercent}/${effectiveFrequency.name}/$newInstallmentCount',
     );
     emi.interest = interest;
     emi.installmentFrequency = effectiveFrequency;
     emi.installmentCount = newInstallmentCount;
     emi.dueDayOfMonth = dueDayOfMonth ?? emi.dueDayOfMonth;
-    emi.endDate = newTail.isNotEmpty ? newTail.last.dueDate : (settled.isEmpty ? emi.startDate : settled.last.dueDate);
+    emi.endDate = newTail.isNotEmpty
+        ? newTail.last.dueDate
+        : (settled.isEmpty ? emi.startDate : settled.last.dueDate);
     await update(emi);
 
     final schedule = await paymentScheduleRepository.getByKey(emi.scheduleId);
@@ -478,7 +531,9 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     required List<Installment> currentInstallments,
   }) async {
     if (hasPayments) {
-      throw const AppException('First EMI Date can\'t be changed after a payment has been recorded');
+      throw const AppException(
+        'First EMI Date can\'t be changed after a payment has been recorded',
+      );
     }
 
     final installmentRepository = _installmentRepositoryFor(emi.scheduleId);
@@ -504,17 +559,20 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
         installmentsPerYear: _installmentsPerYearFor(emi.installmentFrequency),
       );
       precomputed = breakdown.periods
-          .map((p) => PrecomputedInstallmentAmount(
-                amountDue: p.paymentAmount,
-                principalPortion: p.principalPortion,
-                interestPortion: p.interestPortion,
-              ))
+          .map(
+            (p) => PrecomputedInstallmentAmount(
+              amountDue: p.paymentAmount,
+              principalPortion: p.principalPortion,
+              interestPortion: p.interestPortion,
+            ),
+          )
           .toList();
     }
 
     final schedule = await paymentScheduleRepository.getByKey(emi.scheduleId);
-    final totalAmount =
-        precomputed == null ? emi.principalAmount : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
+    final totalAmount = precomputed == null
+        ? emi.principalAmount
+        : precomputed.fold(0.0, (sum, p) => sum + p.amountDue);
     if (schedule != null) {
       await paymentScheduleRepository.editSchedule(
         schedule,
@@ -587,7 +645,9 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
   /// remaining balance.
   Future<void> closeEmiEarly(Emi emi, List<Installment> installments) async {
     if (emi.isClosed) return;
-    await _installmentRepositoryFor(emi.scheduleId).closeOutRemaining(installments);
+    await _installmentRepositoryFor(
+      emi.scheduleId,
+    ).closeOutRemaining(installments);
     await closeEmi(emi);
   }
 
@@ -624,8 +684,10 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       await installmentRepository.permanentlyDelete(installment);
     }
 
-    final breakdownsSnapshot =
-        await collection.doc(emi.id).collection(FirestoreCollections.paymentBreakdowns).get();
+    final breakdownsSnapshot = await collection
+        .doc(emi.id)
+        .collection(FirestoreCollections.paymentBreakdowns)
+        .get();
     for (final breakdownDoc in breakdownsSnapshot.docs) {
       await breakdownDoc.reference.delete();
     }
@@ -642,7 +704,8 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
   /// Bills' private `_scheduleReminders`) because EMI's "next due date"
   /// changes on every payment, not just on create/edit, so the payment
   /// recording flow needs to trigger this too.
-  void rescheduleReminders(Emi emi, DateTime nextDueDate) => _scheduleReminders(emi, nextDueDate);
+  void rescheduleReminders(Emi emi, DateTime nextDueDate) =>
+      _scheduleReminders(emi, nextDueDate);
 
   /// Best-effort, fire-and-forget — a notification scheduling failure must
   /// never block or fail a Firestore write.
@@ -657,6 +720,12 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     ).catchError((_) {});
   }
 
+  /// Cancels every reminder scheduled for [emiId] — call once an EMI has
+  /// nothing left to remind about (fully paid off, but not explicitly
+  /// closed). Public so payment-recording UIs can call it directly when a
+  /// payment leaves no unpaid installment behind, same as [rescheduleReminders].
+  void cancelReminders(String emiId) => _cancelReminders(emiId);
+
   void _cancelReminders(String emiId) {
     ReminderNotificationService.cancel(emiId).catchError((_) {});
   }
@@ -670,7 +739,8 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     ReminderNotificationService.reschedule(
       ownerId: '${emi.id}_ending',
       title: emi.name,
-      bodyBuilder: (offset) => '${reminderOffsetLabel(offset)} — loan ending soon',
+      bodyBuilder: (offset) =>
+          '${reminderOffsetLabel(offset)} — loan ending soon',
       dueDate: emi.endDate,
       offsets: _emiEndingReminderOffsets,
     ).catchError((_) {});

@@ -63,7 +63,11 @@ void main() {
     totalCreditCardOutstandingProvider.overrideWithValue(0),
     totalCreditAvailableProvider.overrideWithValue(0),
     categorySpendingBreakdownProvider.overrideWith((ref, args) => const []),
-    cashFlowThisMonthProvider.overrideWithValue((moneyIn: 0, moneyOut: 0, net: 0)),
+    cashFlowThisMonthProvider.overrideWithValue((
+      moneyIn: 0,
+      moneyOut: 0,
+      net: 0,
+    )),
     calendarEventsProvider.overrideWithValue(const []),
     historyEntriesProvider.overrideWithValue(const []),
     calculableTransactionsProvider.overrideWithValue(const []),
@@ -75,16 +79,25 @@ void main() {
     await LocalSettingsService.init();
   });
 
-  Future<void> pumpAt(WidgetTester tester, double scale, Widget child, {List<Override>? extraOverrides}) async {
+  Future<void> pumpAt(
+    WidgetTester tester,
+    double scale,
+    Widget child, {
+    List<Override>? extraOverrides,
+  }) async {
     tester.view.physicalSize = _smallPhone;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: extraOverrides == null ? overrides : [...overrides, ...extraOverrides],
+        overrides: extraOverrides == null
+            ? overrides
+            : [...overrides, ...extraOverrides],
         child: MaterialApp(
           builder: (context, inner) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
             child: inner!,
           ),
           home: Scaffold(body: ListView(children: [child])),
@@ -95,14 +108,17 @@ void main() {
   }
 
   final cards = <String, Widget Function()>{
-    'UpcomingPaymentsWidgetCard': () => UpcomingPaymentsWidgetCard(config: config),
+    'UpcomingPaymentsWidgetCard': () =>
+        UpcomingPaymentsWidgetCard(config: config),
     'BillsWidgetCard': () => BillsWidgetCard(config: config),
     'EmiWidgetCard': () => EmiWidgetCard(config: config),
     'LoansWidgetCard': () => LoansWidgetCard(config: config),
     'SplitExpensesWidgetCard': () => SplitExpensesWidgetCard(config: config),
     'CashFlowWidgetCard': () => CashFlowWidgetCard(config: config),
-    'SpendingCategoriesWidgetCard': () => SpendingCategoriesWidgetCard(config: config),
-    'CreditUtilizationWidgetCard': () => CreditUtilizationWidgetCard(config: config),
+    'SpendingCategoriesWidgetCard': () =>
+        SpendingCategoriesWidgetCard(config: config),
+    'CreditUtilizationWidgetCard': () =>
+        CreditUtilizationWidgetCard(config: config),
     'CalendarWidgetCard': () => CalendarWidgetCard(config: config),
     'RecentActivityWidgetCard': () => RecentActivityWidgetCard(config: config),
     'InsightsWidgetCard': () => InsightsWidgetCard(config: config),
@@ -110,10 +126,13 @@ void main() {
 
   for (final scale in _scales) {
     for (final entry in cards.entries) {
-      testWidgets('${entry.key} renders its empty state without overflow @${scale}x', (tester) async {
-        await pumpAt(tester, scale, entry.value());
-        expect(tester.takeException(), isNull);
-      });
+      testWidgets(
+        '${entry.key} renders its empty state without overflow @${scale}x',
+        (tester) async {
+          await pumpAt(tester, scale, entry.value());
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   }
 
@@ -144,14 +163,19 @@ void main() {
   ];
 
   for (final scale in _scales) {
-    testWidgets('RecentActivityWidgetCard renders populated entries without overflow @${scale}x', (tester) async {
-      await pumpAt(
-        tester,
-        scale,
-        RecentActivityWidgetCard(config: config),
-        extraOverrides: [historyEntriesProvider.overrideWithValue(longHistoryEntries)],
-      );
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'RecentActivityWidgetCard renders populated entries without overflow @${scale}x',
+      (tester) async {
+        await pumpAt(
+          tester,
+          scale,
+          RecentActivityWidgetCard(config: config),
+          extraOverrides: [
+            historyEntriesProvider.overrideWithValue(longHistoryEntries),
+          ],
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }

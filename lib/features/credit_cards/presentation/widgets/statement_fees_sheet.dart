@@ -14,12 +14,20 @@ import '../providers/credit_card_providers.dart';
 /// statement with no fees logged simply omits them from the UI everywhere
 /// else instead of showing a misleading "₹0".
 class StatementFeesSheet extends ConsumerStatefulWidget {
-  const StatementFeesSheet({super.key, required this.cardId, required this.statement});
+  const StatementFeesSheet({
+    super.key,
+    required this.cardId,
+    required this.statement,
+  });
 
   final String cardId;
   final Statement statement;
 
-  static Future<void> show(BuildContext context, {required String cardId, required Statement statement}) {
+  static Future<void> show(
+    BuildContext context, {
+    required String cardId,
+    required Statement statement,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -56,7 +64,9 @@ class _StatementFeesSheetState extends ConsumerState<StatementFeesSheet> {
       final lateFeeText = _lateFeeController.text.trim();
       await repository.editStatement(
         widget.statement,
-        interestCharged: interestText.isEmpty ? null : double.tryParse(interestText),
+        interestCharged: interestText.isEmpty
+            ? null
+            : double.tryParse(interestText),
         clearInterestCharged: interestText.isEmpty,
         lateFee: lateFeeText.isEmpty ? null : double.tryParse(lateFeeText),
         clearLateFee: lateFeeText.isEmpty,
@@ -65,9 +75,9 @@ class _StatementFeesSheetState extends ConsumerState<StatementFeesSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save: $e')));
       }
     }
   }
@@ -76,7 +86,8 @@ class _StatementFeesSheetState extends ConsumerState<StatementFeesSheet> {
   Widget build(BuildContext context) {
     return SectionedFormSheet(
       title: 'Interest & late fees',
-      description: "Log any interest or late fee this statement charged — leave blank if it didn't.",
+      description:
+          "Log any interest or late fee this statement charged — leave blank if it didn't.",
       isSaving: _isSaving,
       onConfirm: _save,
       child: Column(
@@ -84,7 +95,9 @@ class _StatementFeesSheetState extends ConsumerState<StatementFeesSheet> {
         children: [
           TextField(
             controller: _interestController,
-            decoration: const InputDecoration(labelText: 'Interest charged (optional)'),
+            decoration: const InputDecoration(
+              labelText: 'Interest charged (optional)',
+            ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
           const SizedBox(height: AppSizes.md),

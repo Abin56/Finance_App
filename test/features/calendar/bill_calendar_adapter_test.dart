@@ -7,7 +7,11 @@ import 'package:finance_app/features/calendar/presentation/adapters/bill_calenda
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  Bill bill({String id = 'b1', String name = 'Electricity', DateTime? nextDueDate}) {
+  Bill bill({
+    String id = 'b1',
+    String name = 'Electricity',
+    DateTime? nextDueDate,
+  }) {
     return Bill(
       id: id,
       name: name,
@@ -18,7 +22,11 @@ void main() {
     );
   }
 
-  BillOccurrence occurrenceFor(Bill b, {required DateTime dueDate, double amountPaid = 0}) {
+  BillOccurrence occurrenceFor(
+    Bill b, {
+    required DateTime dueDate,
+    double amountPaid = 0,
+  }) {
     return BillOccurrence(
       id: 'occ-${b.id}',
       billId: b.id,
@@ -30,20 +38,23 @@ void main() {
   }
 
   group('billsToCalendarEvents', () {
-    test('produces one CalendarEvent per bill at its current occurrence\'s due date', () {
-      final b1 = bill(id: 'b1');
-      final b2 = bill(id: 'b2', name: 'Internet');
-      final occurrenceByBillId = {
-        'b1': occurrenceFor(b1, dueDate: DateTime(2026, 3, 10)),
-        'b2': occurrenceFor(b2, dueDate: DateTime(2026, 3, 15)),
-      };
+    test(
+      'produces one CalendarEvent per bill at its current occurrence\'s due date',
+      () {
+        final b1 = bill(id: 'b1');
+        final b2 = bill(id: 'b2', name: 'Internet');
+        final occurrenceByBillId = {
+          'b1': occurrenceFor(b1, dueDate: DateTime(2026, 3, 10)),
+          'b2': occurrenceFor(b2, dueDate: DateTime(2026, 3, 15)),
+        };
 
-      final events = billsToCalendarEvents([b1, b2], occurrenceByBillId);
+        final events = billsToCalendarEvents([b1, b2], occurrenceByBillId);
 
-      expect(events, hasLength(2));
-      expect(events[0].date, DateTime(2026, 3, 10));
-      expect(events[1].date, DateTime(2026, 3, 15));
-    });
+        expect(events, hasLength(2));
+        expect(events[0].date, DateTime(2026, 3, 10));
+        expect(events[1].date, DateTime(2026, 3, 15));
+      },
+    );
 
     test('a bill with no materialized occurrence contributes no event', () {
       final b1 = bill(id: 'b1');
@@ -55,7 +66,9 @@ void main() {
 
     test('routePath matches AppRoutes.bills/{id}', () {
       final b = bill(id: 'b1');
-      final occurrenceByBillId = {'b1': occurrenceFor(b, dueDate: DateTime(2026, 3, 10))};
+      final occurrenceByBillId = {
+        'b1': occurrenceFor(b, dueDate: DateTime(2026, 3, 10)),
+      };
 
       final events = billsToCalendarEvents([b], occurrenceByBillId);
 

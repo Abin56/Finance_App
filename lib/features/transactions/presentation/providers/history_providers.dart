@@ -16,15 +16,23 @@ import 'transaction_providers.dart';
 /// fans out over the schedule's installments (payments are stored per
 /// installment, not per schedule), mirrors `person_timeline_providers.dart`'s
 /// `_loanPaymentsProvider`.
-final _installmentPaymentsForScheduleProvider =
-    Provider.autoDispose.family<List<InstallmentPayment>, String>((ref, scheduleId) {
-  final installments = ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
-  return [
-    for (final installment in installments)
-      ...ref.watch(installmentPaymentsStreamProvider((scheduleId: scheduleId, installmentId: installment.id))).value ??
-          const [],
-  ];
-});
+final _installmentPaymentsForScheduleProvider = Provider.autoDispose
+    .family<List<InstallmentPayment>, String>((ref, scheduleId) {
+      final installments =
+          ref.watch(installmentsStreamProvider(scheduleId)).value ?? const [];
+      return [
+        for (final installment in installments)
+          ...ref
+                  .watch(
+                    installmentPaymentsStreamProvider((
+                      scheduleId: scheduleId,
+                      installmentId: installment.id,
+                    )),
+                  )
+                  .value ??
+              const [],
+      ];
+    });
 
 /// The unified History feed — every plain transaction, split expense
 /// (via its account-balance transaction), loan/bill/EMI payment, and money-
@@ -41,20 +49,35 @@ final historyEntriesProvider = Provider<List<HistoryEntry>>((ref) {
 
   final loanData = [
     for (final loan in loans)
-      LoanHistoryData(loan: loan, payments: ref.watch(_installmentPaymentsForScheduleProvider(loan.scheduleId))),
+      LoanHistoryData(
+        loan: loan,
+        payments: ref.watch(
+          _installmentPaymentsForScheduleProvider(loan.scheduleId),
+        ),
+      ),
   ];
   final billData = [
     for (final bill in bills)
-      BillHistoryData(bill: bill, payments: ref.watch(paymentsStreamProvider(bill.id)).value ?? const []),
+      BillHistoryData(
+        bill: bill,
+        payments: ref.watch(paymentsStreamProvider(bill.id)).value ?? const [],
+      ),
   ];
   final emiData = [
     for (final emi in emis)
-      EmiHistoryData(emi: emi, payments: ref.watch(_installmentPaymentsForScheduleProvider(emi.scheduleId))),
+      EmiHistoryData(
+        emi: emi,
+        payments: ref.watch(
+          _installmentPaymentsForScheduleProvider(emi.scheduleId),
+        ),
+      ),
   ];
   final installmentsByScheduleId = {
     for (final expense in expenses)
       if (expense.isSplit && expense.scheduleId != null)
-        expense.scheduleId!: ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ?? const [],
+        expense.scheduleId!:
+            ref.watch(installmentsStreamProvider(expense.scheduleId!)).value ??
+            const [],
   };
 
   final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
@@ -70,7 +93,14 @@ final historyEntriesProvider = Provider<List<HistoryEntry>>((ref) {
         paymentsByStatementId: {
           for (final statement in statements)
             statement.id:
-                ref.watch(statementPaymentsStreamProvider((cardId: card.id, statementId: statement.id))).value ??
+                ref
+                    .watch(
+                      statementPaymentsStreamProvider((
+                        cardId: card.id,
+                        statementId: statement.id,
+                      )),
+                    )
+                    .value ??
                 const [],
         },
       ),

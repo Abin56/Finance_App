@@ -24,51 +24,64 @@ void main() {
     await LocalSettingsService.init();
   });
 
-  testWidgets('credit card tile with bank avatar + network + status chip fits a small phone', (tester) async {
-    tester.view.physicalSize = _smallPhone;
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'credit card tile with bank avatar + network + status chip fits a small phone',
+    (tester) async {
+      tester.view.physicalSize = _smallPhone;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    final account = Account(
-      id: 'acc1',
-      name: 'HDFC Millennia Rewards Platinum',
-      type: AccountType.card,
-      openingBalance: 0,
-      currentBalance: 0,
-      colorValue: 0xFF000000,
-      createdAt: DateTime(2026, 1, 1),
-      bankId: 'hdfc',
-    );
-    final card = CreditCardProfile(
-      id: 'card1',
-      accountId: 'acc1',
-      statementDay: 5,
-      paymentDueDay: 25,
-      creditLimit: 2000000,
-      createdAt: DateTime(2026, 1, 1),
-      cardNetwork: CardNetwork.mastercard,
-      lastFourDigits: '4321',
-      status: CreditCardStatus.blocked,
-    );
+      final account = Account(
+        id: 'acc1',
+        name: 'HDFC Millennia Rewards Platinum',
+        type: AccountType.card,
+        openingBalance: 0,
+        currentBalance: 0,
+        colorValue: 0xFF000000,
+        createdAt: DateTime(2026, 1, 1),
+        bankId: 'hdfc',
+      );
+      final card = CreditCardProfile(
+        id: 'card1',
+        accountId: 'acc1',
+        statementDay: 5,
+        paymentDueDay: 25,
+        creditLimit: 2000000,
+        createdAt: DateTime(2026, 1, 1),
+        cardNetwork: CardNetwork.mastercard,
+        lastFourDigits: '4321',
+        status: CreditCardStatus.blocked,
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
-          sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          statementsStreamProvider('card1').overrideWith((ref) => Stream.value(const [])),
-          creditCardStandingProvider('card1').overrideWithValue(
-            (outstanding: 1234567.89, available: 765432.11, currentCycleSpend: 0),
-          ),
-        ],
-        child: const MaterialApp(home: CreditCardsScreen()),
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            accountsStreamProvider.overrideWith(
+              (ref) => Stream.value([account]),
+            ),
+            creditCardsStreamProvider.overrideWith(
+              (ref) => Stream.value([card]),
+            ),
+            sharedCreditLimitsStreamProvider.overrideWith(
+              (ref) => Stream.value(const []),
+            ),
+            statementsStreamProvider(
+              'card1',
+            ).overrideWith((ref) => Stream.value(const [])),
+            creditCardStandingProvider('card1').overrideWithValue((
+              outstanding: 1234567.89,
+              available: 765432.11,
+              currentCycleSpend: 0,
+            )),
+          ],
+          child: const MaterialApp(home: CreditCardsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.text('HDFC Millennia Rewards Platinum'), findsOneWidget);
-    expect(find.text('••••   ••••   ••••   4321'), findsOneWidget);
-  });
+      expect(tester.takeException(), isNull);
+      expect(find.text('HDFC Millennia Rewards Platinum'), findsOneWidget);
+      expect(find.text('••••   ••••   ••••   4321'), findsOneWidget);
+    },
+  );
 }

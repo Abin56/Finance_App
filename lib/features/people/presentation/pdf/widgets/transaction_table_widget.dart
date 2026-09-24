@@ -43,8 +43,14 @@ class TransactionTableWidget extends pw.StatelessWidget {
         padding: const pw.EdgeInsets.symmetric(vertical: PdfTokens.xxl),
         alignment: pw.Alignment.center,
         child: pw.Text(
-          model.filterDescription.isEmpty ? 'No transactions yet' : 'No transactions match this view',
-          style: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontBody, color: PdfTokens.textSecondary),
+          model.filterDescription.isEmpty
+              ? 'No transactions yet'
+              : 'No transactions match this view',
+          style: pw.TextStyle(
+            font: fonts.regular,
+            fontSize: PdfTokens.fontBody,
+            color: PdfTokens.textSecondary,
+          ),
         ),
       );
     }
@@ -52,7 +58,15 @@ class TransactionTableWidget extends pw.StatelessWidget {
     final fmt = CurrencyFormatter.instance;
 
     return pw.TableHelper.fromTextArray(
-      headers: const ['Date', 'Description', 'Category', 'Paid By', 'Amount', 'Balance', 'Status'],
+      headers: const [
+        'Date',
+        'Description',
+        'Category',
+        'Paid By',
+        'Amount',
+        'Balance',
+        'Status',
+      ],
       data: [
         for (final row in model.rows)
           [
@@ -71,22 +85,37 @@ class TransactionTableWidget extends pw.StatelessWidget {
         if (row.statusLabel == null) return null;
         return pw.Align(
           alignment: pw.Alignment.center,
-          child: PdfStatusPill(label: row.statusLabel!, tone: row.statusTone!, fonts: fonts),
+          child: PdfStatusPill(
+            label: row.statusLabel!,
+            tone: row.statusTone!,
+            fonts: fonts,
+          ),
         );
       },
       columnWidths: _columnWidths,
       border: null,
       headerDecoration: const pw.BoxDecoration(color: PdfTokens.surfaceVariant),
       headerHeight: 28,
-      headerStyle: pw.TextStyle(font: fonts.semiBold, fontSize: PdfTokens.fontBody, color: PdfTokens.textPrimary),
+      headerStyle: pw.TextStyle(
+        font: fonts.semiBold,
+        fontSize: PdfTokens.fontBody,
+        color: PdfTokens.textPrimary,
+      ),
       headerAlignment: pw.Alignment.centerLeft,
       headerAlignments: const {
         4: pw.Alignment.centerRight,
         5: pw.Alignment.centerRight,
         6: pw.Alignment.center,
       },
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: PdfTokens.sm, vertical: PdfTokens.sm),
-      cellStyle: pw.TextStyle(font: fonts.regular, fontSize: PdfTokens.fontBody, color: PdfTokens.textPrimary),
+      cellPadding: const pw.EdgeInsets.symmetric(
+        horizontal: PdfTokens.sm,
+        vertical: PdfTokens.sm,
+      ),
+      cellStyle: pw.TextStyle(
+        font: fonts.regular,
+        fontSize: PdfTokens.fontBody,
+        color: PdfTokens.textPrimary,
+      ),
       cellAlignment: pw.Alignment.centerLeft,
       cellAlignments: const {
         4: pw.Alignment.centerRight,
@@ -95,13 +124,19 @@ class TransactionTableWidget extends pw.StatelessWidget {
       },
       textStyleBuilder: (index, data, rowNum) {
         if (index == 4 || index == 5) {
-          return pw.TextStyle(font: fonts.bold, fontSize: PdfTokens.fontBody, color: PdfTokens.textPrimary);
+          return pw.TextStyle(
+            font: fonts.bold,
+            fontSize: PdfTokens.fontBody,
+            color: PdfTokens.textPrimary,
+          );
         }
         return null;
       },
       cellDecoration: (index, data, rowNum) {
         final isOdd = rowNum.isOdd;
-        return pw.BoxDecoration(color: isOdd ? PdfTokens.surfaceVariant : PdfTokens.surface);
+        return pw.BoxDecoration(
+          color: isOdd ? PdfTokens.surfaceVariant : PdfTokens.surface,
+        );
       },
       oddRowDecoration: const pw.BoxDecoration(color: PdfTokens.surfaceVariant),
     );

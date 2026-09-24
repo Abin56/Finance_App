@@ -28,15 +28,24 @@ class SpendingCategoriesWidgetCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fiscalYearStartMonth = ref.watch(fiscalYearStartMonthProvider);
-    final range = config.dateStrategy.resolve(DateTime.now(), fiscalYearStartMonth: fiscalYearStartMonth);
+    final range = config.dateStrategy.resolve(
+      DateTime.now(),
+      fiscalYearStartMonth: fiscalYearStartMonth,
+    );
     final period = switch (config.dateStrategy) {
       ReportsPeriodStrategy(:final period) => period,
       _ => ReportsPeriod.custom,
     };
-    final entries = ref.watch(categorySpendingBreakdownProvider((range: range, period: period)));
+    final entries = ref.watch(
+      categorySpendingBreakdownProvider((range: range, period: period)),
+    );
     final textTheme = context.textTheme;
     final colors = context.colors;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return DashboardWidgetCard(
       child: Column(
@@ -46,19 +55,38 @@ class SpendingCategoriesWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.push(AppRoutes.reports),
-                child: Text('See all ›', style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+                child: Text(
+                  'See all ›',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSizes.sm),
           if (entries.isEmpty)
-            Text('No spending yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
+            Text(
+              'No spending yet.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            )
           else ...[
-            Center(child: AppPieChart(data: categorySpendingEntriesToPieData(entries), size: 116)),
+            Center(
+              child: AppPieChart(
+                data: categorySpendingEntriesToPieData(entries),
+                size: 116,
+              ),
+            ),
             const SizedBox(height: AppSizes.sm),
             for (final entry in entries.take(5))
               Padding(
@@ -68,7 +96,10 @@ class SpendingCategoriesWidgetCard extends ConsumerWidget {
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(color: Color(entry.category.colorValue), shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: Color(entry.category.colorValue),
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: AppSizes.sm),
                     Expanded(
@@ -79,7 +110,12 @@ class SpendingCategoriesWidgetCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: AppSizes.sm),
-                    Text(format.format(entry.amount), style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      format.format(entry.amount),
+                      style: textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),

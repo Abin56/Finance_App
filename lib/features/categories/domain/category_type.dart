@@ -5,8 +5,10 @@ import '../../transactions/domain/transaction_type.dart';
 enum CategoryType { income, expense, both }
 
 extension CategoryTypeX on CategoryType {
-  static CategoryType fromName(String name) =>
-      CategoryType.values.firstWhere((t) => t.name == name, orElse: () => CategoryType.both);
+  static CategoryType fromName(String name) => CategoryType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => CategoryType.both,
+  );
 
   String get label {
     switch (this) {

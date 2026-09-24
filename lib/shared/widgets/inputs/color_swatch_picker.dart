@@ -5,10 +5,10 @@ import '../../../core/constants/app_sizes.dart';
 
 /// Square gradient color-swatch picker — the flat-design replacement for a
 /// row of plain [CircleAvatar] color dots. Each swatch is a genuine two-stop
-/// gradient derived from its own base color — deliberately NOT
-/// `AppClay.iconChipGradient`, which produces a faint 12–28%-alpha wash meant
-/// to sit *behind* an icon glyph; that reads as washed-out and illegible when
-/// the color itself is the thing being chosen. Mirrors the web app's account
+/// gradient derived from its own base color — deliberately NOT a faint
+/// low-alpha wash (like [FlowFiIconChip]'s tinted-circle fill, meant to sit
+/// *behind* an icon glyph); that reads as washed-out and illegible when the
+/// color itself is the thing being chosen. Mirrors the web app's account
 /// color picker (square swatch, checkmark on the selected one).
 class ColorSwatchPicker extends StatelessWidget {
   const ColorSwatchPicker({
@@ -26,8 +26,14 @@ class ColorSwatchPicker extends StatelessWidget {
   /// toward white, so each swatch reads as one clear hue, not a tint.
   static LinearGradient gradientFor(Color color) {
     final hsl = HSLColor.fromColor(color);
-    final lighter = hsl.withLightness((hsl.lightness + 0.16).clamp(0.0, 1.0)).toColor();
-    return LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [color, lighter]);
+    final lighter = hsl
+        .withLightness((hsl.lightness + 0.16).clamp(0.0, 1.0))
+        .toColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [color, lighter],
+    );
   }
 
   @override
@@ -48,7 +54,11 @@ class ColorSwatchPicker extends StatelessWidget {
 }
 
 class _Swatch extends StatelessWidget {
-  const _Swatch({required this.color, required this.selected, required this.onTap});
+  const _Swatch({
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   final Color color;
   final bool selected;
@@ -58,7 +68,9 @@ class _Swatch extends StatelessWidget {
   Widget build(BuildContext context) {
     // Contrast-aware check color — mirrors the web app's `onGradient` fix: a
     // dark swatch needs a white check, a pale one needs a dark check.
-    final checkColor = HSLColor.fromColor(color).lightness > 0.6 ? Colors.black87 : Colors.white;
+    final checkColor = HSLColor.fromColor(color).lightness > 0.6
+        ? Colors.black87
+        : Colors.white;
 
     return InkWell(
       onTap: onTap,
@@ -69,11 +81,15 @@ class _Swatch extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: ColorSwatchPicker.gradientFor(color),
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
+            color: selected
+                ? Theme.of(context).colorScheme.onSurface
+                : Colors.transparent,
             width: 2,
           ),
         ),
-        child: selected ? Icon(Icons.check, size: AppSizes.iconSm, color: checkColor) : null,
+        child: selected
+            ? Icon(Icons.check, size: AppSizes.iconSm, color: checkColor)
+            : null,
       ),
     );
   }

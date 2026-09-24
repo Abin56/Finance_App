@@ -14,7 +14,15 @@ import '../../../transactions/presentation/providers/transaction_providers.dart'
 /// `Transaction.accountId` + `Transaction.dateTime` at read time.
 typedef StatementExpenseGroup = ({
   Statement statement,
-  List<({String expenseDescription, double share, double collected, double pending})> items,
+  List<
+    ({
+      String expenseDescription,
+      double share,
+      double collected,
+      double pending,
+    })
+  >
+  items,
 });
 
 /// Every [StatementExpenseGroup] for [personId] — one entry per statement
@@ -22,37 +30,57 @@ typedef StatementExpenseGroup = ({
 /// newest statement first. Expenses on a card with no linked
 /// [CreditCardProfile], or on a plain (non-card) account, are simply
 /// excluded — "grouped by statement" only applies to card spending.
-final personStatementGroupsProvider =
-    Provider.autoDispose.family<List<StatementExpenseGroup>, String>((ref, personId) {
-  final pending = ref.watch(pendingSplitParticipantsProvider).where((p) => p.participant.personId == personId);
-  final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
-  final transactionById = {for (final t in transactions) t.id: t};
-  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+final personStatementGroupsProvider = Provider.autoDispose
+    .family<List<StatementExpenseGroup>, String>((ref, personId) {
+      final pending = ref
+          .watch(pendingSplitParticipantsProvider)
+          .where((p) => p.participant.personId == personId);
+      final transactions =
+          ref.watch(transactionsStreamProvider).value ?? const [];
+      final transactionById = {for (final t in transactions) t.id: t};
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
 
-  final itemsByStatementId = <String, List<({String expenseDescription, double share, double collected, double pending})>>{};
-  final statementById = <String, Statement>{};
+      final itemsByStatementId =
+          <
+            String,
+            List<
+              ({
+                String expenseDescription,
+                double share,
+                double collected,
+                double pending,
+              })
+            >
+          >{};
+      final statementById = <String, Statement>{};
 
-  for (final entry in pending) {
-    final transaction = transactionById[entry.expense.transactionId];
-    if (transaction == null) continue;
-    final card = cards.where((c) => c.accountId == transaction.accountId).firstOrNull;
-    if (card == null) continue;
+      for (final entry in pending) {
+        final transaction = transactionById[entry.expense.transactionId];
+        if (transaction == null) continue;
+        final card = cards
+            .where((c) => c.accountId == transaction.accountId)
+            .firstOrNull;
+        if (card == null) continue;
 
-    final statements = ref.watch(statementsStreamProvider(card.id)).value ?? const [];
-    final statement = statements.where((s) => s.contains(transaction.dateTime)).firstOrNull;
-    if (statement == null) continue;
+        final statements =
+            ref.watch(statementsStreamProvider(card.id)).value ?? const [];
+        final statement = statements
+            .where((s) => s.contains(transaction.dateTime))
+            .firstOrNull;
+        if (statement == null) continue;
 
-    statementById[statement.id] = statement;
-    (itemsByStatementId[statement.id] ??= []).add((
-      expenseDescription: entry.expense.description,
-      share: entry.participant.share,
-      collected: entry.installment.amountPaid,
-      pending: entry.installment.remainingAmount,
-    ));
-  }
+        statementById[statement.id] = statement;
+        (itemsByStatementId[statement.id] ??= []).add((
+          expenseDescription: entry.expense.description,
+          share: entry.participant.share,
+          collected: entry.installment.amountPaid,
+          pending: entry.installment.remainingAmount,
+        ));
+      }
 
-  final groups = [
-    for (final id in itemsByStatementId.keys) (statement: statementById[id]!, items: itemsByStatementId[id]!),
-  ]..sort((a, b) => b.statement.periodEnd.compareTo(a.statement.periodEnd));
-  return groups;
-});
+      final groups = [
+        for (final id in itemsByStatementId.keys)
+          (statement: statementById[id]!, items: itemsByStatementId[id]!),
+      ]..sort((a, b) => b.statement.periodEnd.compareTo(a.statement.periodEnd));
+      return groups;
+    });

@@ -19,7 +19,10 @@ final calendarEventsProvider = Provider<List<CalendarEvent>>((ref) {
 
   final emis = ref.watch(emisStreamProvider).value ?? const [];
   final installmentsByScheduleId = <String, List<Installment>>{
-    for (final emi in emis) emi.scheduleId: ref.watch(installmentsStreamProvider(emi.scheduleId)).value ?? const [],
+    for (final emi in emis)
+      emi.scheduleId:
+          ref.watch(installmentsStreamProvider(emi.scheduleId)).value ??
+          const [],
   };
   final emiEvents = emisToCalendarEvents(emis, installmentsByScheduleId);
 
@@ -27,8 +30,9 @@ final calendarEventsProvider = Provider<List<CalendarEvent>>((ref) {
 });
 
 /// Every event due on [date].
-final calendarEventsForDateProvider = Provider.family<List<CalendarEvent>, DateTime>((ref, date) {
-  final events = ref.watch(calendarEventsProvider);
-  final target = date.dateOnly;
-  return events.where((e) => e.date == target).toList();
-});
+final calendarEventsForDateProvider =
+    Provider.family<List<CalendarEvent>, DateTime>((ref, date) {
+      final events = ref.watch(calendarEventsProvider);
+      final target = date.dateOnly;
+      return events.where((e) => e.date == target).toList();
+    });

@@ -17,15 +17,51 @@ class TrashHubScreen extends StatelessWidget {
   const TrashHubScreen({super.key});
 
   static final _items = [
-    _TrashItem(icon: Icons.receipt_long_outlined, label: 'Transactions', builder: (_) => const TransactionsTrashScreen()),
-    _TrashItem(icon: Icons.account_balance_wallet_outlined, label: 'Accounts', builder: (_) => const AccountsTrashScreen()),
-    _TrashItem(icon: Icons.category_outlined, label: 'Categories', builder: (_) => const CategoriesTrashScreen()),
-    _TrashItem(icon: Icons.donut_large_outlined, label: 'Budget', builder: (_) => const BudgetTrashScreen()),
-    _TrashItem(icon: Icons.receipt_outlined, label: 'Bills', builder: (_) => const BillsTrashScreen()),
-    _TrashItem(icon: Icons.calendar_month_outlined, label: 'EMIs', builder: (_) => const EmisTrashScreen()),
-    _TrashItem(icon: Icons.handshake_outlined, label: 'Loans', builder: (_) => const LoansTrashScreen()),
-    _TrashItem(icon: Icons.savings_outlined, label: 'Savings Goals', builder: (_) => const SavingsTrashScreen()),
-    _TrashItem(icon: Icons.people_outline_rounded, label: 'People', builder: (_) => const PeopleTrashScreen()),
+    _TrashItem(
+      icon: Icons.receipt_long_outlined,
+      label: 'Transactions',
+      builder: (_) => const TransactionsTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.account_balance_wallet_outlined,
+      label: 'Accounts',
+      builder: (_) => const AccountsTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.category_outlined,
+      label: 'Categories',
+      builder: (_) => const CategoriesTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.donut_large_outlined,
+      label: 'Budget',
+      builder: (_) => const BudgetTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.receipt_outlined,
+      label: 'Bills',
+      builder: (_) => const BillsTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.calendar_month_outlined,
+      label: 'EMIs',
+      builder: (_) => const EmisTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.handshake_outlined,
+      label: 'Loans',
+      builder: (_) => const LoansTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.savings_outlined,
+      label: 'Savings Goals',
+      builder: (_) => const SavingsTrashScreen(),
+    ),
+    _TrashItem(
+      icon: Icons.people_outline_rounded,
+      label: 'People',
+      builder: (_) => const PeopleTrashScreen(),
+    ),
   ];
 
   @override
@@ -40,7 +76,9 @@ class TrashHubScreen extends StatelessWidget {
                 leading: Icon(item.icon),
                 title: Text(item.label),
                 trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: item.builder)),
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: item.builder)),
               ),
           ],
         ),
@@ -50,7 +88,11 @@ class TrashHubScreen extends StatelessWidget {
 }
 
 class _TrashItem {
-  const _TrashItem({required this.icon, required this.label, required this.builder});
+  const _TrashItem({
+    required this.icon,
+    required this.label,
+    required this.builder,
+  });
 
   final IconData icon;
   final String label;

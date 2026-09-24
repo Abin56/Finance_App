@@ -87,7 +87,9 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
     bool clearSharedLimitId = false,
   }) async {
     final previousSharedLimitId = card.sharedLimitId;
-    final resolvedSharedLimitId = clearSharedLimitId ? null : (sharedLimitId ?? card.sharedLimitId);
+    final resolvedSharedLimitId = clearSharedLimitId
+        ? null
+        : (sharedLimitId ?? card.sharedLimitId);
     _validate(
       statementDay: statementDay ?? card.statementDay,
       paymentDueDay: paymentDueDay ?? card.paymentDueDay,
@@ -129,8 +131,18 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
         apply: (v) => card.minimumDuePercent = v,
       );
     }
-    card.updateField(field: 'autoPay', oldValue: card.autoPay, newValue: autoPay, apply: (v) => card.autoPay = v);
-    card.updateField(field: 'status', oldValue: card.status, newValue: status, apply: (v) => card.status = v);
+    card.updateField(
+      field: 'autoPay',
+      oldValue: card.autoPay,
+      newValue: autoPay,
+      apply: (v) => card.autoPay = v,
+    );
+    card.updateField(
+      field: 'status',
+      oldValue: card.status,
+      newValue: status,
+      apply: (v) => card.status = v,
+    );
     card.updateField(
       field: 'cardNetwork',
       oldValue: card.cardNetwork?.name,
@@ -211,11 +223,15 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
     // as a dead "Existing shared credit limit" option. Runs for every
     // caller (UI, future API/import/sync paths), not just the one screen
     // that happens to remember to check.
-    final sharedLimitLeft = previousSharedLimitId != null && previousSharedLimitId != resolvedSharedLimitId;
+    final sharedLimitLeft =
+        previousSharedLimitId != null &&
+        previousSharedLimitId != resolvedSharedLimitId;
     final sharedLimits = sharedCreditLimitRepository;
     if (sharedLimitLeft && sharedLimits != null) {
       final remaining = await getAll();
-      final hasOtherMembers = remaining.any((c) => c.id != card.id && c.sharedLimitId == previousSharedLimitId);
+      final hasOtherMembers = remaining.any(
+        (c) => c.id != card.id && c.sharedLimitId == previousSharedLimitId,
+      );
       if (!hasOtherMembers) {
         final sharedLimit = await sharedLimits.getByKey(previousSharedLimitId);
         if (sharedLimit != null && sharedLimit.deletedAt == null) {
@@ -241,7 +257,8 @@ class CreditCardRepository extends FirestoreCrudRepository<CreditCardProfile> {
     if (!hasSharedLimit && creditLimit <= 0) {
       throw const AppException('Credit limit must be greater than 0');
     }
-    if (lastFourDigits != null && !RegExp(r'^\d{4}$').hasMatch(lastFourDigits)) {
+    if (lastFourDigits != null &&
+        !RegExp(r'^\d{4}$').hasMatch(lastFourDigits)) {
       throw const AppException('Last 4 digits must be exactly 4 numbers');
     }
   }

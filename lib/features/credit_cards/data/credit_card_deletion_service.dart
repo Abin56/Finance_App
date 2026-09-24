@@ -57,18 +57,29 @@ class _CardExtras {
   final bool sharedLimitWillBeRemoved;
 }
 
-Future<_CardExtras> _gatherCardExtras(CreditCardProfile card, CreditCardDeletionRepositories repos) async {
-  final allEmis = [...await repos.emiRepository.getAll(), ...await repos.emiRepository.getTrash()];
+Future<_CardExtras> _gatherCardExtras(
+  CreditCardProfile card,
+  CreditCardDeletionRepositories repos,
+) async {
+  final allEmis = [
+    ...await repos.emiRepository.getAll(),
+    ...await repos.emiRepository.getTrash(),
+  ];
   final emis = allEmis.where((e) => e.linkedCreditCardId == card.id).toList();
 
   final statementRepository = repos.statementRepositoryFor(card.id);
-  final statements = [...await statementRepository.getAll(), ...await statementRepository.getTrash()];
+  final statements = [
+    ...await statementRepository.getAll(),
+    ...await statementRepository.getTrash(),
+  ];
 
   var sharedLimitWillBeRemoved = false;
   final sharedLimitId = card.sharedLimitId;
   if (sharedLimitId != null) {
     final allCards = await repos.creditCardRepository.getAll();
-    sharedLimitWillBeRemoved = !allCards.any((c) => c.id != card.id && c.sharedLimitId == sharedLimitId);
+    sharedLimitWillBeRemoved = !allCards.any(
+      (c) => c.id != card.id && c.sharedLimitId == sharedLimitId,
+    );
   }
 
   return _CardExtras(
@@ -84,7 +95,10 @@ Future<CreditCardDeletionImpact> previewCreditCardDeletionImpact(
   CreditCardProfile card,
   CreditCardDeletionRepositories repos,
 ) async {
-  final accountImpact = await previewAccountDeletionImpact(card.accountId, repos.accountDeletionRepositories);
+  final accountImpact = await previewAccountDeletionImpact(
+    card.accountId,
+    repos.accountDeletionRepositories,
+  );
   final extras = await _gatherCardExtras(card, repos);
   return CreditCardDeletionImpact(
     accountImpact: accountImpact,
@@ -123,17 +137,25 @@ Future<void> permanentlyDeleteCreditCardAndHistory(
 
   final sharedLimitId = card.sharedLimitId;
   if (extras.sharedLimitWillBeRemoved && sharedLimitId != null) {
-    final sharedLimit = await repos.sharedCreditLimitRepository.getByKey(sharedLimitId);
+    final sharedLimit = await repos.sharedCreditLimitRepository.getByKey(
+      sharedLimitId,
+    );
     if (sharedLimit != null) {
       await repos.sharedCreditLimitRepository.permanentlyDelete(sharedLimit);
     }
   }
 
-  await permanentlyDeleteAccountHistory(card.accountId, repos.accountDeletionRepositories);
+  await permanentlyDeleteAccountHistory(
+    card.accountId,
+    repos.accountDeletionRepositories,
+  );
 
   await repos.creditCardRepository.permanentlyDelete(card);
-  final account = await repos.accountDeletionRepositories.accountRepository.getByKey(card.accountId);
+  final account = await repos.accountDeletionRepositories.accountRepository
+      .getByKey(card.accountId);
   if (account != null) {
-    await repos.accountDeletionRepositories.accountRepository.permanentlyDelete(account);
+    await repos.accountDeletionRepositories.accountRepository.permanentlyDelete(
+      account,
+    );
   }
 }

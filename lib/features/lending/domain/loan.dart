@@ -130,7 +130,9 @@ class Loan extends SoftDeletableEntity {
   /// `Installment` documents, not on the Loan itself.
   LoanStatus statusGiven(List<Installment> installments) {
     if (isClosed) return LoanStatus.closed;
-    final hasOverdue = installments.any((i) => i.status == InstallmentStatus.overdue);
+    final hasOverdue = installments.any(
+      (i) => i.status == InstallmentStatus.overdue,
+    );
     return hasOverdue ? LoanStatus.overdue : LoanStatus.active;
   }
 
@@ -140,31 +142,35 @@ class Loan extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Loan(
-      id: snapshot.id,
-      personId: data['personId'] as String?,
-      direction: LoanDirectionX.fromName(data['direction'] as String?),
-      category: LoanCategoryX.fromName(data['category'] as String?),
-      institutionName: data['institutionName'] as String?,
-      loanType: data['loanType'] as String?,
-      loanNumber: data['loanNumber'] as String?,
-      accountNumber: data['accountNumber'] as String?,
-      branch: data['branch'] as String?,
-      payerPersonId: data['payerPersonId'] as String?,
-      name: data['name'] as String?,
-      loanAmount: (data['loanAmount'] as num).toDouble(),
-      interest: data['interest'] == null ? null : LoanInterest.fromMap(data['interest'] as Map<String, dynamic>),
-      loanDate: (data['loanDate'] as Timestamp).toDate(),
-      repaymentType: LoanRepaymentTypeX.fromName(data['repaymentType'] as String),
-      dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
-      installmentFrequency: data['installmentFrequency'] == null
-          ? null
-          : ScheduleTypeX.fromName(data['installmentFrequency'] as String),
-      installmentCount: (data['installmentCount'] as num?)?.toInt(),
-      notes: data['notes'] as String? ?? '',
-      scheduleId: data['scheduleId'] as String,
-      isClosed: data['isClosed'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        personId: data['personId'] as String?,
+        direction: LoanDirectionX.fromName(data['direction'] as String?),
+        category: LoanCategoryX.fromName(data['category'] as String?),
+        institutionName: data['institutionName'] as String?,
+        loanType: data['loanType'] as String?,
+        loanNumber: data['loanNumber'] as String?,
+        accountNumber: data['accountNumber'] as String?,
+        branch: data['branch'] as String?,
+        payerPersonId: data['payerPersonId'] as String?,
+        name: data['name'] as String?,
+        loanAmount: (data['loanAmount'] as num).toDouble(),
+        interest: data['interest'] == null
+            ? null
+            : LoanInterest.fromMap(data['interest'] as Map<String, dynamic>),
+        loanDate: (data['loanDate'] as Timestamp).toDate(),
+        repaymentType: LoanRepaymentTypeX.fromName(
+          data['repaymentType'] as String,
+        ),
+        dueDate: (data['dueDate'] as Timestamp?)?.toDate(),
+        installmentFrequency: data['installmentFrequency'] == null
+            ? null
+            : ScheduleTypeX.fromName(data['installmentFrequency'] as String),
+        installmentCount: (data['installmentCount'] as num?)?.toInt(),
+        notes: data['notes'] as String? ?? '',
+        scheduleId: data['scheduleId'] as String,
+        isClosed: data['isClosed'] as bool? ?? false,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -196,7 +202,9 @@ class Loan extends SoftDeletableEntity {
       'isClosed': isClosed,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

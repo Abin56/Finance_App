@@ -14,7 +14,8 @@ import '../domain/sms_transaction_candidate_cloud.dart';
 /// so [add]/[permanentlyDelete] already target the right document via
 /// `entity.id` — [deleteById] exists only for the (common) case where the
 /// caller has an id from the cloud side and no in-memory entity to hand back.
-class SmsTransactionCandidateRepository extends FirestoreCrudRepository<SmsTransactionCandidateCloud> {
+class SmsTransactionCandidateRepository
+    extends FirestoreCrudRepository<SmsTransactionCandidateCloud> {
   SmsTransactionCandidateRepository(super.collection);
 
   Future<void> deleteById(String id) => collection.doc(id).delete();

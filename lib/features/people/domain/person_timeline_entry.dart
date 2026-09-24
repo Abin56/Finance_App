@@ -12,7 +12,13 @@ import '../../../shared/domain/transaction_kind.dart';
 /// with `linkedPersonId` set but no owed toggle — no `Expense`/`LedgerEntry`
 /// backs it at all, see `PersonTimelineBuilder`'s `referencedTransactions`
 /// input) all exist.
-enum PersonTimelineCategory { lending, assignedExpense, splitExpense, other, reference }
+enum PersonTimelineCategory {
+  lending,
+  assignedExpense,
+  splitExpense,
+  other,
+  reference,
+}
 
 extension PersonTimelineCategoryX on PersonTimelineCategory {
   String get label {
@@ -84,6 +90,7 @@ class PersonTimelineEntry {
     this.totalAmount,
     this.paidAmount,
     this.otherParticipantNames = const [],
+    this.isSectionHeader = false,
     double? displayAmount,
   }) : displayAmount = displayAmount ?? signedAmount;
 
@@ -121,6 +128,11 @@ class PersonTimelineEntry {
   /// and for a split expense with no other tracked participants.
   final List<String> otherParticipantNames;
 
+  /// True for a loan's name/title marker entry — rendered as a plain section
+  /// heading in the timeline list rather than a full amount/status row. Never
+  /// affects any balance (always paired with `signedAmount: 0`) or totals.
+  final bool isSectionHeader;
+
   /// The backing `Installment.amountDue` for an [PersonTimelineCategory.assignedExpense]/
   /// [PersonTimelineCategory.splitExpense] entry — null for every other
   /// category, and null even for those two if no installment could be
@@ -154,7 +166,11 @@ class PersonTimelineEntry {
   /// or a loan installment payment — as opposed to money that created or
   /// grew one (lending, split/assigned expenses, adjustments). Drives the
   /// person statement's Transactions/Settlements split.
-  static const _settlementTitles = {'Mark as Paid', 'Received Payment', 'Loan payment received'};
+  static const _settlementTitles = {
+    'Mark as Paid',
+    'Received Payment',
+    'Loan payment received',
+  };
 
   bool get isSettlement => _settlementTitles.contains(title);
 

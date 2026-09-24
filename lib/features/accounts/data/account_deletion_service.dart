@@ -40,8 +40,10 @@ class AccountDeletionRepositories {
   final PersonRepository personRepository;
   final LedgerRepository Function(String personId) ledgerRepositoryFor;
   final PaymentScheduleRepository paymentScheduleRepository;
-  final InstallmentRepository Function(String scheduleId) installmentRepositoryFor;
-  final BillOccurrenceRepository Function(String billId) billOccurrenceRepositoryFor;
+  final InstallmentRepository Function(String scheduleId)
+  installmentRepositoryFor;
+  final BillOccurrenceRepository Function(String billId)
+  billOccurrenceRepositoryFor;
   final PaymentRepository Function(String billId) paymentRepositoryFor;
 }
 
@@ -50,7 +52,6 @@ class AccountDeletionRepositories {
 class AccountDeletionImpact {
   const AccountDeletionImpact({
     required this.transactionCount,
-    required this.transferSiblingCount,
     required this.expenseCount,
     required this.affectedPersonCount,
     required this.billCount,
@@ -58,10 +59,6 @@ class AccountDeletionImpact {
 
   /// Active + trashed transactions with `accountId` set to this account.
   final int transactionCount;
-
-  /// Transfer legs on *other* (surviving) accounts that will also be
-  /// removed, since their sibling leg lives on the account being deleted.
-  final int transferSiblingCount;
 
   /// Split/assigned expenses funded from this account.
   final int expenseCount;
@@ -76,14 +73,12 @@ class AccountDeletionImpact {
 class _AccountDeletionPlan {
   const _AccountDeletionPlan({
     required this.transactions,
-    required this.foreignSiblings,
     required this.expenses,
     required this.bills,
     required this.affectedPersonCount,
   });
 
   final List<Transaction> transactions;
-  final List<Transaction> foreignSiblings;
   final List<Expense> expenses;
   final List<Bill> bills;
   final int affectedPersonCount;
@@ -93,38 +88,35 @@ Future<_AccountDeletionPlan> _gatherAccountDeletionPlan(
   String accountId,
   AccountDeletionRepositories repos,
 ) async {
-  final transactions = await repos.transactionRepository.getAllForAccountIncludingTrash(accountId);
+  final transactions = await repos.transactionRepository
+      .getAllForAccountIncludingTrash(accountId);
   final transactionIds = transactions.map((t) => t.id).toSet();
 
-  // Any transfer leg on a *surviving* account whose sibling is being deleted here needs its own
-  // balance reversed (the account being deleted needs no such reversal — it's being destroyed
-  // wholesale). Deduped by id in case two of this account's own legs somehow point at the same
-  // sibling (never happens in practice, but cheap to guard).
-  final foreignSiblingsById = <String, Transaction>{};
-  for (final transaction in transactions) {
-    if (transaction.transferId == null) continue;
-    final sibling = await repos.transactionRepository.findTransferSibling(transaction);
-    if (sibling != null && sibling.accountId != accountId && !transactionIds.contains(sibling.id)) {
-      foreignSiblingsById[sibling.id] = sibling;
-    }
-  }
-
-  final allExpenses = [...await repos.expenseRepository.getAll(), ...await repos.expenseRepository.getTrash()];
-  final expenses = allExpenses.where((e) => transactionIds.contains(e.transactionId)).toList();
+  final allExpenses = [
+    ...await repos.expenseRepository.getAll(),
+    ...await repos.expenseRepository.getTrash(),
+  ];
+  final expenses = allExpenses
+      .where((e) => transactionIds.contains(e.transactionId))
+      .toList();
 
   final affectedPersonIds = <String>{};
   for (final expense in expenses) {
     for (final participant in expense.participants) {
-      if (participant.personId != null) affectedPersonIds.add(participant.personId!);
+      if (participant.personId != null) {
+        affectedPersonIds.add(participant.personId!);
+      }
     }
   }
 
-  final allBills = [...await repos.billRepository.getAll(), ...await repos.billRepository.getTrash()];
+  final allBills = [
+    ...await repos.billRepository.getAll(),
+    ...await repos.billRepository.getTrash(),
+  ];
   final bills = allBills.where((b) => b.accountId == accountId).toList();
 
   return _AccountDeletionPlan(
     transactions: transactions,
-    foreignSiblings: foreignSiblingsById.values.toList(),
     expenses: expenses,
     bills: bills,
     affectedPersonCount: affectedPersonIds.length,
@@ -141,28 +133,32 @@ Future<AccountDeletionImpact> previewAccountDeletionImpact(
   final plan = await _gatherAccountDeletionPlan(accountId, repos);
   return AccountDeletionImpact(
     transactionCount: plan.transactions.length,
-    transferSiblingCount: plan.foreignSiblings.length,
     expenseCount: plan.expenses.length,
     affectedPersonCount: plan.affectedPersonCount,
     billCount: plan.bills.length,
   );
 }
 
-/// Deletes everything *linked to* the account (transactions, transfer
-/// siblings, expenses, ledger entries, bills) but NOT the account document
+/// Deletes everything *linked to* the account (transactions, expenses,
+/// ledger entries, bills) but NOT the account document
 /// itself — callers delete their own root document(s) afterward (a plain
 /// account delete vs. a credit-card delete, which also owns a
 /// `CreditCardProfile`; see `credit_card_deletion_service.dart`). Every step
 /// is a genuine permanent delete, never soft-delete — only ever reached
 /// after the destructive-delete dialog's type-to-confirm gate.
-Future<void> permanentlyDeleteAccountHistory(String accountId, AccountDeletionRepositories repos) async {
+Future<void> permanentlyDeleteAccountHistory(
+  String accountId,
+  AccountDeletionRepositories repos,
+) async {
   final plan = await _gatherAccountDeletionPlan(accountId, repos);
 
   // 1. Split/assigned expenses funded from this account — also permanently
   //    deletes each expense's own linked Transaction, so step 2 below must
   //    skip those transactions to avoid a redundant (harmless, but wasteful)
   //    second delete attempt.
-  final expenseTransactionIds = plan.expenses.map((e) => e.transactionId).toSet();
+  final expenseTransactionIds = plan.expenses
+      .map((e) => e.transactionId)
+      .toSet();
   for (final expense in plan.expenses) {
     await repos.expenseRepository.permanentlyDeleteExpense(expense);
   }
@@ -174,17 +170,7 @@ Future<void> permanentlyDeleteAccountHistory(String accountId, AccountDeletionRe
     await repos.transactionRepository.permanentlyDeleteTransaction(transaction);
   }
 
-  // 3. Transfer legs on *surviving* accounts: reverse that account's balance,
-  //    then delete the sibling transaction itself.
-  for (final sibling in plan.foreignSiblings) {
-    final otherAccount = await repos.accountRepository.getByKey(sibling.accountId);
-    if (otherAccount != null) {
-      await repos.accountRepository.adjustBalance(otherAccount, -sibling.balanceEffect);
-    }
-    await repos.transactionRepository.permanentlyDeleteTransaction(sibling);
-  }
-
-  // 4. Bills paying from this account.
+  // 3. Bills paying from this account.
   for (final bill in plan.bills) {
     await permanentlyDeleteBillAndHistory(
       bill,

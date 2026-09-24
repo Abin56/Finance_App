@@ -22,10 +22,22 @@ class PdfStatusTone {
   /// background anyway (PDFs never render in dark mode here).
   final PdfColor background;
 
-  static const success = PdfStatusTone._(PdfTokens.success, PdfColor.fromInt(0xFFE3F8EE));
-  static const warning = PdfStatusTone._(PdfTokens.warning, PdfColor.fromInt(0xFFFFF2E2));
-  static const error = PdfStatusTone._(PdfTokens.error, PdfColor.fromInt(0xFFFFE7E7));
-  static const neutral = PdfStatusTone._(PdfTokens.neutral, PdfColor.fromInt(0xFFE9E9EC));
+  static const success = PdfStatusTone._(
+    PdfTokens.success,
+    PdfColor.fromInt(0xFFE3F8EE),
+  );
+  static const warning = PdfStatusTone._(
+    PdfTokens.warning,
+    PdfColor.fromInt(0xFFFFF2E2),
+  );
+  static const error = PdfStatusTone._(
+    PdfTokens.error,
+    PdfColor.fromInt(0xFFFFE7E7),
+  );
+  static const neutral = PdfStatusTone._(
+    PdfTokens.neutral,
+    PdfColor.fromInt(0xFFE9E9EC),
+  );
 }
 
 class PdfStatusPill extends pw.StatelessWidget {
@@ -38,7 +50,10 @@ class PdfStatusPill extends pw.StatelessWidget {
   @override
   pw.Widget build(pw.Context context) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: PdfTokens.sm - 1, vertical: 3),
+      padding: const pw.EdgeInsets.symmetric(
+        horizontal: PdfTokens.sm - 1,
+        vertical: 3,
+      ),
       decoration: pw.BoxDecoration(
         color: tone.background,
         borderRadius: pw.BorderRadius.circular(PdfTokens.radiusPill),
@@ -46,7 +61,11 @@ class PdfStatusPill extends pw.StatelessWidget {
       ),
       child: pw.Text(
         label,
-        style: pw.TextStyle(font: fonts.semiBold, fontSize: PdfTokens.fontCaption - 0.5, color: tone.color),
+        style: pw.TextStyle(
+          font: fonts.semiBold,
+          fontSize: PdfTokens.fontCaption - 0.5,
+          color: tone.color,
+        ),
       ),
     );
   }

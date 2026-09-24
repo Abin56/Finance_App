@@ -23,7 +23,10 @@ abstract class ShareExpense {
     };
 
     final collected = installments.fold(0.0, (sum, i) => sum + i.amountPaid);
-    final remaining = installments.fold(0.0, (sum, i) => sum + i.remainingAmount);
+    final remaining = installments.fold(
+      0.0,
+      (sum, i) => sum + i.remainingAmount,
+    );
 
     final buffer = StringBuffer()
       ..writeln(ShareFormat.header('Expense Sharing Summary'))
@@ -31,7 +34,9 @@ abstract class ShareExpense {
       ..writeln('Expense Information')
       ..writeln(expense.description)
       ..writeln('Date: ${expense.date.shortDate}')
-      ..writeln('Total Bill: ${CurrencyFormatter.instance.format(expense.totalAmount)}')
+      ..writeln(
+        'Total Bill: ${CurrencyFormatter.instance.format(expense.totalAmount)}',
+      )
       ..writeln(ShareFormat.divider)
       ..writeln()
       ..writeln('Payment Summary')
@@ -50,9 +55,15 @@ abstract class ShareExpense {
           : ShareFormat.installmentStatusDot(installment.status);
       buffer
         ..writeln('$dot ${participant.name}')
-        ..writeln('  Share      : ${CurrencyFormatter.instance.format(participant.share)}')
-        ..writeln('  Paid       : ${CurrencyFormatter.instance.format(installment?.amountPaid ?? participant.share)}')
-        ..writeln('  Remaining  : ${CurrencyFormatter.instance.format(installment?.remainingAmount ?? 0)}')
+        ..writeln(
+          '  Share      : ${CurrencyFormatter.instance.format(participant.share)}',
+        )
+        ..writeln(
+          '  Paid       : ${CurrencyFormatter.instance.format(installment?.amountPaid ?? participant.share)}',
+        )
+        ..writeln(
+          '  Remaining  : ${CurrencyFormatter.instance.format(installment?.remainingAmount ?? 0)}',
+        )
         ..writeln();
     }
 
@@ -60,7 +71,9 @@ abstract class ShareExpense {
       ..writeln(ShareFormat.divider)
       ..writeln()
       ..writeln('Overall Status')
-      ..writeln('Total Bill  : ${CurrencyFormatter.instance.format(expense.totalAmount)}')
+      ..writeln(
+        'Total Bill  : ${CurrencyFormatter.instance.format(expense.totalAmount)}',
+      )
       ..writeln('Collected   : ${CurrencyFormatter.instance.format(collected)}')
       ..writeln('Remaining   : ${CurrencyFormatter.instance.format(remaining)}')
       ..writeln()
@@ -75,7 +88,11 @@ abstract class ShareExpense {
   /// Opens the receipt-style [ShareExpensePreviewScreen] instead of handing
   /// text straight to the platform share sheet — the preview owns the
   /// image/PDF/text export actions (text still comes from [buildText]).
-  static Future<void> share(BuildContext context, Expense expense, List<Installment> installments) {
+  static Future<void> share(
+    BuildContext context,
+    Expense expense,
+    List<Installment> installments,
+  ) {
     return ShareExpensePreviewScreen.open(context, expense, installments);
   }
 }

@@ -20,7 +20,10 @@ import 'providers/sms_inbox_providers.dart';
 /// retry that creates a second, duplicate record from the same SMS. This is
 /// the one place that failure mode is fixed for every caller: [action]'s
 /// exception is caught and logged, never rethrown.
-Future<void> _swallowLinkingFailure(String smsId, Future<void> Function() action) async {
+Future<void> _swallowLinkingFailure(
+  String smsId,
+  Future<void> Function() action,
+) async {
   try {
     await action();
   } catch (e) {
@@ -45,13 +48,17 @@ Future<void> completeSmsImport(
 }) async {
   if (smsPrefill == null) return;
   await _swallowLinkingFailure(smsPrefill.smsId, () async {
-    await ref.read(smsInboxItemsProvider.notifier).markImported(
+    await ref
+        .read(smsInboxItemsProvider.notifier)
+        .markImported(
           smsPrefill.smsId,
           linkedEntityId: linkedEntityId,
           linkedEntityRoute: linkedEntityRoute,
         );
     if (learnCategoryType != null && learnCategoryId != null) {
-      await ref.read(merchantMemoriesProvider.notifier).record(
+      await ref
+          .read(merchantMemoriesProvider.notifier)
+          .record(
             merchant: smsPrefill.merchantOrSender,
             transactionType: learnCategoryType,
             categoryId: learnCategoryId,
@@ -83,7 +90,11 @@ Future<void> linkSmsImportViaRepositories({
   await _swallowLinkingFailure(smsId, () async {
     await inboxRepository.markImported(smsId, linkedEntityId: linkedEntityId);
     if (learnCategoryType != null && learnCategoryId != null) {
-      await memoryRepository.record(merchant: merchant, transactionType: learnCategoryType, categoryId: learnCategoryId);
+      await memoryRepository.record(
+        merchant: merchant,
+        transactionType: learnCategoryType,
+        categoryId: learnCategoryId,
+      );
     }
     if (cloudCandidateRepository != null) {
       await cloudCandidateRepository.deleteById(smsId);

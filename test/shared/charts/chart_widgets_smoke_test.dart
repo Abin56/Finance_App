@@ -14,19 +14,28 @@ import 'package:flutter_test/flutter_test.dart';
 /// against layout/render crashes, not chart math.
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) async {
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: Center(child: child))));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: Center(child: child)),
+      ),
+    );
   }
 
   group('AppLineChart', () {
     testWidgets('renders with no data', (tester) async {
-      await pump(tester, const AppLineChart(data: AppLineChartData(series: [])));
+      await pump(
+        tester,
+        const AppLineChart(data: AppLineChartData(series: [])),
+      );
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('renders a single point', (tester) async {
       await pump(
         tester,
-        AppLineChart(data: AppLineChartData.trend(points: const [ChartPoint(x: 0, y: 5)])),
+        AppLineChart(
+          data: AppLineChartData.trend(points: const [ChartPoint(x: 0, y: 5)]),
+        ),
       );
       expect(tester.takeException(), isNull);
     });
@@ -37,8 +46,14 @@ void main() {
         const AppLineChart(
           data: AppLineChartData(
             series: [
-              ChartSeries(name: 'Income', points: [ChartPoint(x: 0, y: 10), ChartPoint(x: 1, y: 20)]),
-              ChartSeries(name: 'Expense', points: [ChartPoint(x: 0, y: 5), ChartPoint(x: 1, y: 15)]),
+              ChartSeries(
+                name: 'Income',
+                points: [ChartPoint(x: 0, y: 10), ChartPoint(x: 1, y: 20)],
+              ),
+              ChartSeries(
+                name: 'Expense',
+                points: [ChartPoint(x: 0, y: 5), ChartPoint(x: 1, y: 15)],
+              ),
             ],
           ),
         ),
@@ -49,7 +64,10 @@ void main() {
 
   group('AppBarChart', () {
     testWidgets('renders with no categories', (tester) async {
-      await pump(tester, const AppBarChart(data: AppBarChartData(categories: [])));
+      await pump(
+        tester,
+        const AppBarChart(data: AppBarChartData(categories: [])),
+      );
       expect(tester.takeException(), isNull);
     });
 

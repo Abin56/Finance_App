@@ -36,13 +36,13 @@ class _StubMemoriesNotifier extends MerchantMemoriesNotifier {
 /// to.
 void main() {
   Category category(String id, String name, CategoryType type) => Category(
-        id: id,
-        name: name,
-        type: type,
-        iconKey: 'shopping',
-        colorValue: 0xFF000000,
-        createdAt: DateTime(2026),
-      );
+    id: id,
+    name: name,
+    type: type,
+    iconKey: 'shopping',
+    colorValue: 0xFF000000,
+    createdAt: DateTime(2026),
+  );
 
   final categories = [
     category('cat-food', 'Food & Dining', CategoryType.expense),
@@ -72,7 +72,11 @@ void main() {
     return SmsInboxItem(
       id: id,
       messageKey: 'msg-$id',
-      rawMessage: RawSmsMessage(address: 'VM-HDFCBK', body: 'body $id', date: date),
+      rawMessage: RawSmsMessage(
+        address: 'VM-HDFCBK',
+        body: 'body $id',
+        date: date,
+      ),
       dedupKey: 'dedup-$id',
       status: SmsImportStatus.pending,
       createdAt: date,
@@ -90,7 +94,10 @@ void main() {
     );
   }
 
-  TransactionCandidate candidate({required String smsItemId, String? matchedAccountId}) {
+  TransactionCandidate candidate({
+    required String smsItemId,
+    String? matchedAccountId,
+  }) {
     return TransactionCandidate(
       id: 'cand-$smsItemId',
       smsItemId: smsItemId,
@@ -99,7 +106,9 @@ void main() {
       eventType: SmsTransactionCategory.cardPurchase,
       transactionDate: DateTime(2026, 7, 15, 12),
       matchedAccountId: matchedAccountId,
-      confidenceLevel: matchedAccountId == null ? ConfidenceLevel.low : ConfidenceLevel.high,
+      confidenceLevel: matchedAccountId == null
+          ? ConfidenceLevel.low
+          : ConfidenceLevel.high,
       confidenceScore: matchedAccountId == null ? 0.2 : 0.9,
       needsReview: matchedAccountId == null,
       createdAt: DateTime(2026, 7, 15, 12),
@@ -128,7 +137,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          categoriesStreamProvider.overrideWith((ref) => Stream.value(categories)),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value(categories),
+          ),
           accountsStreamProvider.overrideWith((ref) => Stream.value(accounts)),
           merchantMemoriesProvider.overrideWith(_StubMemoriesNotifier.new),
           transactionCandidatesProvider.overrideWith((ref) async => candidates),
@@ -137,7 +148,8 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) => ElevatedButton(
-                onPressed: () async => config = await SmsBulkConvertSheet.show(context, items),
+                onPressed: () async =>
+                    config = await SmsBulkConvertSheet.show(context, items),
                 child: const Text('open'),
               ),
             ),
@@ -154,13 +166,19 @@ void main() {
     return config;
   }
 
-  testWidgets('says how many messages and that each becomes its own transaction', (tester) async {
-    await pumpSheet(tester, [item(id: 'a'), item(id: 'b')]);
+  testWidgets(
+    'says how many messages and that each becomes its own transaction',
+    (tester) async {
+      await pumpSheet(tester, [item(id: 'a'), item(id: 'b')]);
 
-    expect(find.text('Convert 2 messages'), findsOneWidget);
-    expect(find.textContaining('Each message becomes its own transaction'), findsOneWidget);
-    expect(find.text('Create 2 transactions'), findsOneWidget);
-  });
+      expect(find.text('Convert 2 messages'), findsOneWidget);
+      expect(
+        find.textContaining('Each message becomes its own transaction'),
+        findsOneWidget,
+      );
+      expect(find.text('Create 2 transactions'), findsOneWidget);
+    },
+  );
 
   testWidgets('counts in grammatical singular for one message', (tester) async {
     await pumpSheet(tester, [item(id: 'a')]);
@@ -169,33 +187,48 @@ void main() {
     expect(find.text('Create 1 transaction'), findsOneWidget);
   });
 
-  testWidgets('defaults to Income when most of the selection is money coming in', (tester) async {
-    // The "10 salary SMS" case should open on the right side of the ledger.
-    await pumpSheet(tester, [
-      item(id: 'a', direction: SmsTransactionDirection.credit),
-      item(id: 'b', direction: SmsTransactionDirection.credit),
-    ]);
+  testWidgets(
+    'defaults to Income when most of the selection is money coming in',
+    (tester) async {
+      // The "10 salary SMS" case should open on the right side of the ledger.
+      await pumpSheet(tester, [
+        item(id: 'a', direction: SmsTransactionDirection.credit),
+        item(id: 'b', direction: SmsTransactionDirection.credit),
+      ]);
 
-    final segmented = tester.widget<SegmentedButton<TransactionType>>(find.byType(SegmentedButton<TransactionType>));
-    expect(segmented.selected, {TransactionType.income});
-  });
+      final segmented = tester.widget<SegmentedButton<TransactionType>>(
+        find.byType(SegmentedButton<TransactionType>),
+      );
+      expect(segmented.selected, {TransactionType.income});
+    },
+  );
 
-  testWidgets('suggests a category when every message is from the same merchant', (tester) async {
-    // The "15 Amazon purchases" case — one suggestion is right for all of
-    // them, so it should already be filled in.
-    await pumpSheet(tester, [item(id: 'a'), item(id: 'b')]);
+  testWidgets(
+    'suggests a category when every message is from the same merchant',
+    (tester) async {
+      // The "15 Amazon purchases" case — one suggestion is right for all of
+      // them, so it should already be filled in.
+      await pumpSheet(tester, [item(id: 'a'), item(id: 'b')]);
 
-    expect(find.text('Shopping'), findsOneWidget);
-  });
+      expect(find.text('Shopping'), findsOneWidget);
+    },
+  );
 
-  testWidgets('suggests nothing when the selection spans different merchants', (tester) async {
+  testWidgets('suggests nothing when the selection spans different merchants', (
+    tester,
+  ) async {
     // Any single category would be wrong for most of a mixed selection.
-    await pumpSheet(tester, [item(id: 'a', merchant: 'Amazon'), item(id: 'b', merchant: 'Swiggy')]);
+    await pumpSheet(tester, [
+      item(id: 'a', merchant: 'Amazon'),
+      item(id: 'b', merchant: 'Swiggy'),
+    ]);
 
     expect(find.text('Select a category'), findsOneWidget);
   });
 
-  testWidgets('warns when the chosen type contradicts some of the selection', (tester) async {
+  testWidgets('warns when the chosen type contradicts some of the selection', (
+    tester,
+  ) async {
     await pumpSheet(tester, [
       item(id: 'a', direction: SmsTransactionDirection.debit),
       item(id: 'b', direction: SmsTransactionDirection.debit),
@@ -205,42 +238,55 @@ void main() {
     expect(find.textContaining('look like money coming in'), findsOneWidget);
   });
 
-  testWidgets('warns up front about messages with no readable amount', (tester) async {
+  testWidgets('warns up front about messages with no readable amount', (
+    tester,
+  ) async {
     await pumpSheet(tester, [item(id: 'a'), item(id: 'b', amount: null)]);
 
-    expect(find.textContaining('have no readable amount and will be'), findsOneWidget);
+    expect(
+      find.textContaining('have no readable amount and will be'),
+      findsOneWidget,
+    );
     // The button promises only what can actually be created.
     expect(find.text('Create 1 transaction'), findsOneWidget);
   });
 
-  testWidgets('suggests a payment method when every message matched the same account', (tester) async {
-    final config = await pumpSheet(
-      tester,
-      [item(id: 'a'), item(id: 'b')],
-      candidates: [
-        candidate(smsItemId: 'a', matchedAccountId: 'acc-1'),
-        candidate(smsItemId: 'b', matchedAccountId: 'acc-1'),
-      ],
-      afterOpen: () => tester.tap(find.text('Create 2 transactions')),
-    );
+  testWidgets(
+    'suggests a payment method when every message matched the same account',
+    (tester) async {
+      final config = await pumpSheet(
+        tester,
+        [item(id: 'a'), item(id: 'b')],
+        candidates: [
+          candidate(smsItemId: 'a', matchedAccountId: 'acc-1'),
+          candidate(smsItemId: 'b', matchedAccountId: 'acc-1'),
+        ],
+        afterOpen: () => tester.tap(find.text('Create 2 transactions')),
+      );
 
-    expect(config?.accountId, 'acc-1');
-  });
+      expect(config?.accountId, 'acc-1');
+    },
+  );
 
-  testWidgets('suggests nothing when selected messages matched different accounts', (tester) async {
-    await pumpSheet(
-      tester,
-      [item(id: 'a'), item(id: 'b')],
-      candidates: [
-        candidate(smsItemId: 'a', matchedAccountId: 'acc-1'),
-        candidate(smsItemId: 'b', matchedAccountId: 'acc-2'),
-      ],
-    );
+  testWidgets(
+    'suggests nothing when selected messages matched different accounts',
+    (tester) async {
+      await pumpSheet(
+        tester,
+        [item(id: 'a'), item(id: 'b')],
+        candidates: [
+          candidate(smsItemId: 'a', matchedAccountId: 'acc-1'),
+          candidate(smsItemId: 'b', matchedAccountId: 'acc-2'),
+        ],
+      );
 
-    expect(find.text('Select a payment method'), findsOneWidget);
-  });
+      expect(find.text('Select a payment method'), findsOneWidget);
+    },
+  );
 
-  testWidgets('will not return a config without a payment method chosen', (tester) async {
+  testWidgets('will not return a config without a payment method chosen', (
+    tester,
+  ) async {
     // Category is pre-suggested here, so payment method is the missing one —
     // it must block rather than silently pick an account.
     final config = await pumpSheet(tester, [item(id: 'a'), item(id: 'b')]);
@@ -252,18 +298,24 @@ void main() {
   });
 
   for (final width in [360.0, 390.0]) {
-    testWidgets('does not overflow at ${width.toInt()}dp with both warnings showing', (tester) async {
-      await pumpSheet(
-        tester,
-        [
-          item(id: 'a', merchant: 'A very long merchant name from the bank feed'),
-          item(id: 'b', direction: SmsTransactionDirection.credit, merchant: 'Another long merchant name'),
+    testWidgets(
+      'does not overflow at ${width.toInt()}dp with both warnings showing',
+      (tester) async {
+        await pumpSheet(tester, [
+          item(
+            id: 'a',
+            merchant: 'A very long merchant name from the bank feed',
+          ),
+          item(
+            id: 'b',
+            direction: SmsTransactionDirection.credit,
+            merchant: 'Another long merchant name',
+          ),
           item(id: 'c', amount: null),
-        ],
-        width: width,
-      );
+        ], width: width);
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 }

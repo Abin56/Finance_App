@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../features/transactions/domain/history_entry.dart';
 import '../../../../features/transactions/presentation/providers/history_providers.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/widget_configuration.dart';
-import '../../../theme/clay_theme.dart';
-import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.recentActivity] — a true cross-feature
@@ -40,17 +40,31 @@ class RecentActivityWidgetCard extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               GestureDetector(
                 onTap: () => context.go(AppRoutes.transactions),
-                child: Text('See all ›', style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+                child: Text(
+                  'See all ›',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppSizes.sm),
           if (entries.isEmpty)
-            Text('No activity yet.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
+            Text(
+              'No activity yet.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            )
           else
             for (final entry in entries) _CompactHistoryRow(entry: entry),
         ],
@@ -66,20 +80,25 @@ class _CompactHistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = entry.isCredit ? AppClay.income : AppClay.expense;
+    final color = entry.isCredit ? AppColors.income : AppColors.expense;
     final sign = entry.isCredit ? '+' : '-';
     final textTheme = context.textTheme;
     final colors = context.colors;
     final routePath = entry.routePath;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(AppClay.radiusSm),
+      borderRadius: BorderRadius.circular(AppSizes.radiusSm),
       onTap: routePath == null ? null : () => context.push(routePath),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            ClayIconChip(icon: entry.icon, color: color),
+            FlowFiIconChip(
+              icon: entry.icon,
+              color: color,
+              size: 26,
+              iconSize: 14,
+            ),
             const SizedBox(width: AppSizes.sm),
             Expanded(
               child: Column(
@@ -87,13 +106,17 @@ class _CompactHistoryRow extends StatelessWidget {
                 children: [
                   Text(
                     entry.title,
-                    style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                    style: textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     entry.category.label,
-                    style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -107,7 +130,10 @@ class _CompactHistoryRow extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: Text(
                   '$sign${CurrencyFormatter.instance.formatCompact(entry.amount)}',
-                  style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700, color: color),
+                  style: textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
                 ),
               ),
             ),

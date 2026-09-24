@@ -11,11 +11,15 @@ abstract class RequestPayment {
   RequestPayment._();
 
   static String buildText(Person person) {
-    final amount = CurrencyFormatter.instance.format(person.currentBalance.abs());
+    final amount = CurrencyFormatter.instance.format(
+      person.currentBalance.abs(),
+    );
     return 'Hi ${person.name}, just a reminder that you owe me $amount. Could you send it over when you get a chance?';
   }
 
   static Future<void> send(Person person) {
-    return SharePlus.instance.share(ShareParams(text: buildText(person), subject: 'Payment reminder'));
+    return SharePlus.instance.share(
+      ShareParams(text: buildText(person), subject: 'Payment reminder'),
+    );
   }
 }

@@ -9,19 +9,21 @@ import 'package:finance_app/core/interest/interest_period.dart';
 import 'package:finance_app/core/interest/interest_type.dart';
 
 Map<String, dynamic> breakdownToJson(InterestBreakdown b) => {
-      'principal': b.principal,
-      'totalInterest': b.totalInterest,
-      'totalPayable': b.totalPayable,
-      'periods': b.periods
-          .map((p) => {
-                'periodNumber': p.periodNumber,
-                'paymentAmount': p.paymentAmount,
-                'principalPortion': p.principalPortion,
-                'interestPortion': p.interestPortion,
-                'remainingPrincipal': p.remainingPrincipal,
-              })
-          .toList(),
-    };
+  'principal': b.principal,
+  'totalInterest': b.totalInterest,
+  'totalPayable': b.totalPayable,
+  'periods': b.periods
+      .map(
+        (p) => {
+          'periodNumber': p.periodNumber,
+          'paymentAmount': p.paymentAmount,
+          'principalPortion': p.principalPortion,
+          'interestPortion': p.interestPortion,
+          'remainingPrincipal': p.remainingPrincipal,
+        },
+      )
+      .toList(),
+};
 
 void main() {
   final cases = <String, InterestBreakdown>{

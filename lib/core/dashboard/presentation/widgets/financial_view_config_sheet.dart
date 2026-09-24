@@ -17,7 +17,10 @@ class FinancialViewConfigSheet extends StatefulWidget {
 
   final WidgetConfiguration config;
 
-  static Future<WidgetConfiguration?> show(BuildContext context, WidgetConfiguration config) {
+  static Future<WidgetConfiguration?> show(
+    BuildContext context,
+    WidgetConfiguration config,
+  ) {
     return showModalBottomSheet<WidgetConfiguration>(
       context: context,
       isScrollControlled: true,
@@ -26,13 +29,16 @@ class FinancialViewConfigSheet extends StatefulWidget {
   }
 
   @override
-  State<FinancialViewConfigSheet> createState() => _FinancialViewConfigSheetState();
+  State<FinancialViewConfigSheet> createState() =>
+      _FinancialViewConfigSheetState();
 }
 
 class _FinancialViewConfigSheetState extends State<FinancialViewConfigSheet> {
   late FinancialViewModule _module = widget.config.financialViewModule;
   late DateRangeStrategy _strategy = widget.config.dateStrategy;
-  late final _titleController = TextEditingController(text: widget.config.title);
+  late final _titleController = TextEditingController(
+    text: widget.config.title,
+  );
 
   static const _strategyOptions = <DateRangeStrategy>[
     SalaryCycleToDate(),
@@ -69,7 +75,10 @@ class _FinancialViewConfigSheetState extends State<FinancialViewConfigSheet> {
             const SizedBox(height: AppSizes.lg),
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Widget name', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Widget name',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: AppSizes.lg),
             Text('Show', style: textTheme.labelLarge),
@@ -96,7 +105,8 @@ class _FinancialViewConfigSheetState extends State<FinancialViewConfigSheet> {
                 for (final strategy in _strategyOptions)
                   ChoiceChip(
                     label: Text(strategy.label),
-                    selected: _strategy.runtimeType == strategy.runtimeType &&
+                    selected:
+                        _strategy.runtimeType == strategy.runtimeType &&
                         _strategy.label == strategy.label,
                     onSelected: (_) => setState(() => _strategy = strategy),
                   ),
@@ -109,7 +119,9 @@ class _FinancialViewConfigSheetState extends State<FinancialViewConfigSheet> {
                 onPressed: () {
                   Navigator.of(context).pop(
                     widget.config.copyWith(
-                      title: _titleController.text.trim().isEmpty ? widget.config.title : _titleController.text.trim(),
+                      title: _titleController.text.trim().isEmpty
+                          ? widget.config.title
+                          : _titleController.text.trim(),
                       financialViewModule: _module,
                       dateStrategy: _strategy,
                     ),

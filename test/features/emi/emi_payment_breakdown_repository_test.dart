@@ -9,7 +9,9 @@ void main() {
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('paymentBreakdowns').withConverter<EmiPaymentBreakdown>(
+    final collection = firestore
+        .collection('paymentBreakdowns')
+        .withConverter<EmiPaymentBreakdown>(
           fromFirestore: EmiPaymentBreakdown.fromFirestore,
           toFirestore: (b, _) => b.toFirestore(),
         );

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../../../../core/theme/clay_widgets.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/section_header.dart';
 import '../providers/savings_providers.dart';
@@ -31,7 +29,6 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
     final goalsAsync = ref.watch(savingsGoalsStreamProvider);
 
     return Scaffold(
-      backgroundColor: AppClay.background(context),
       appBar: AppBar(
         title: const Text('Savings'),
         actions: [
@@ -44,60 +41,69 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
           ),
         ],
       ),
-      floatingActionButton: ClayFab(
+      floatingActionButton: FloatingActionButton(
         heroTag: 'savings_fab',
-        icon: Icons.add_rounded,
         onPressed: () => SavingsGoalFormSheet.show(context),
+        child: const Icon(Icons.add_rounded),
       ),
-      body: SafeArea(child: goalsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (goals) {
-          if (goals.isEmpty) {
-            return EmptyState(
-              icon: Icons.savings_outlined,
-              title: 'No savings goals yet',
-              subtitle: 'Create a goal to start tracking your progress.',
-              action: FilledButton(
-                onPressed: () => SavingsGoalFormSheet.show(context),
-                child: const Text('Add your first goal'),
-              ),
-            );
-          }
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
-            children: [
-              if (activeGoals.isEmpty)
-                const EmptyState(
-                  icon: Icons.savings_outlined,
-                  title: 'No active goals',
-                  subtitle: 'All your goals are archived.',
-                )
-              else
-                for (final goal in activeGoals)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                    child: SavingsGoalTile(goal: goal),
-                  ),
-              if (archivedGoals.isNotEmpty) ...[
-                const SizedBox(height: AppSizes.md),
-                SectionHeader(
-                  title: 'Archived (${archivedGoals.length})',
-                  actionLabel: _showArchived ? 'Hide' : 'Show',
-                  onActionTap: () => setState(() => _showArchived = !_showArchived),
+      body: SafeArea(
+        child: goalsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Something went wrong: $error')),
+          data: (goals) {
+            if (goals.isEmpty) {
+              return EmptyState(
+                icon: Icons.savings_outlined,
+                title: 'No savings goals yet',
+                subtitle: 'Create a goal to start tracking your progress.',
+                action: FilledButton(
+                  onPressed: () => SavingsGoalFormSheet.show(context),
+                  child: const Text('Add your first goal'),
                 ),
-                if (_showArchived)
-                  for (final goal in archivedGoals)
+              );
+            }
+
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.lg,
+                AppSizes.fabClearance,
+              ),
+              children: [
+                if (activeGoals.isEmpty)
+                  const EmptyState(
+                    icon: Icons.savings_outlined,
+                    title: 'No active goals',
+                    subtitle: 'All your goals are archived.',
+                  )
+                else
+                  for (final goal in activeGoals)
                     Padding(
                       padding: const EdgeInsets.only(bottom: AppSizes.sm),
                       child: SavingsGoalTile(goal: goal),
                     ),
+                if (archivedGoals.isNotEmpty) ...[
+                  const SizedBox(height: AppSizes.md),
+                  SectionHeader(
+                    title: 'Archived (${archivedGoals.length})',
+                    actionLabel: _showArchived ? 'Hide' : 'Show',
+                    onActionTap: () =>
+                        setState(() => _showArchived = !_showArchived),
+                  ),
+                  if (_showArchived)
+                    for (final goal in archivedGoals)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                        child: SavingsGoalTile(goal: goal),
+                      ),
+                ],
               ],
-            ],
-          );
-        },
-      )),
+            );
+          },
+        ),
+      ),
     );
   }
 }

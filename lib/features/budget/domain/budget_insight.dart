@@ -62,7 +62,8 @@ class BudgetInsight {
 
   /// How much can still be spent per remaining day without exceeding the
   /// budget. 0 on the period's last day (nothing left to average over).
-  double get averageDailyBudgetRemaining => daysRemaining == 0 ? 0 : remaining / daysRemaining;
+  double get averageDailyBudgetRemaining =>
+      daysRemaining == 0 ? 0 : remaining / daysRemaining;
 
   /// Projected total spend for the full period at the current daily pace.
   double get predictedTotalSpend => averageDailySpend * totalDays;

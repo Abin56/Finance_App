@@ -32,64 +32,74 @@ void main() {
     await container.read(authStateProvider.future);
   });
 
-  test('totalAmountToReceiveProvider sums only given loans, totalAmountToPayProvider sums only taken loans', () async {
-    final repository = container.read(loanRepositoryProvider);
-    await repository.createLoan(
-      personId: 'p1',
-      direction: LoanDirection.given,
-      loanAmount: 500,
-      loanDate: DateTime(2026, 1, 1),
-      repaymentType: LoanRepaymentType.oneTime,
-      dueDate: DateTime(2026, 2, 1),
-    );
-    await repository.createLoan(
-      personId: 'p2',
-      direction: LoanDirection.taken,
-      loanAmount: 300,
-      loanDate: DateTime(2026, 1, 1),
-      repaymentType: LoanRepaymentType.oneTime,
-      dueDate: DateTime(2026, 2, 1),
-    );
+  test(
+    'totalAmountToReceiveProvider sums only given loans, totalAmountToPayProvider sums only taken loans',
+    () async {
+      final repository = container.read(loanRepositoryProvider);
+      await repository.createLoan(
+        personId: 'p1',
+        direction: LoanDirection.given,
+        loanAmount: 500,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 2, 1),
+      );
+      await repository.createLoan(
+        personId: 'p2',
+        direction: LoanDirection.taken,
+        loanAmount: 300,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 2, 1),
+      );
 
-    final loans = await container.read(loansStreamProvider.future);
-    for (final loan in loans) {
-      await container.read(installmentsStreamProvider(loan.scheduleId).future);
-    }
+      final loans = await container.read(loansStreamProvider.future);
+      for (final loan in loans) {
+        await container.read(
+          installmentsStreamProvider(loan.scheduleId).future,
+        );
+      }
 
-    expect(container.read(totalAmountToReceiveProvider), 500);
-    expect(container.read(totalAmountToPayProvider), 300);
-  });
+      expect(container.read(totalAmountToReceiveProvider), 500);
+      expect(container.read(totalAmountToPayProvider), 300);
+    },
+  );
 
-  test('a closed loan is excluded from both totals even if it still carries an unpaid balance', () async {
-    final repository = container.read(loanRepositoryProvider);
-    final given = await repository.createLoan(
-      personId: 'p1',
-      direction: LoanDirection.given,
-      loanAmount: 1000,
-      loanDate: DateTime(2026, 1, 1),
-      repaymentType: LoanRepaymentType.oneTime,
-      dueDate: DateTime(2026, 2, 1),
-    );
-    final taken = await repository.createLoan(
-      personId: 'p2',
-      direction: LoanDirection.taken,
-      loanAmount: 800,
-      loanDate: DateTime(2026, 1, 1),
-      repaymentType: LoanRepaymentType.oneTime,
-      dueDate: DateTime(2026, 2, 1),
-    );
-    final createdLoans = await container.read(loansStreamProvider.future);
-    for (final loan in createdLoans) {
-      await container.read(installmentsStreamProvider(loan.scheduleId).future);
-    }
+  test(
+    'a closed loan is excluded from both totals even if it still carries an unpaid balance',
+    () async {
+      final repository = container.read(loanRepositoryProvider);
+      final given = await repository.createLoan(
+        personId: 'p1',
+        direction: LoanDirection.given,
+        loanAmount: 1000,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 2, 1),
+      );
+      final taken = await repository.createLoan(
+        personId: 'p2',
+        direction: LoanDirection.taken,
+        loanAmount: 800,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.oneTime,
+        dueDate: DateTime(2026, 2, 1),
+      );
+      final createdLoans = await container.read(loansStreamProvider.future);
+      for (final loan in createdLoans) {
+        await container.read(
+          installmentsStreamProvider(loan.scheduleId).future,
+        );
+      }
 
-    // Neither loan has had any payment recorded, so closing them (forgiven/
-    // written off) leaves a full unpaid balance behind on their schedules.
-    await repository.closeLoan(given);
-    await repository.closeLoan(taken);
-    await container.read(loansStreamProvider.future);
+      // Neither loan has had any payment recorded, so closing them (forgiven/
+      // written off) leaves a full unpaid balance behind on their schedules.
+      await repository.closeLoan(given);
+      await repository.closeLoan(taken);
+      await container.read(loansStreamProvider.future);
 
-    expect(container.read(totalAmountToReceiveProvider), 0);
-    expect(container.read(totalAmountToPayProvider), 0);
-  });
+      expect(container.read(totalAmountToReceiveProvider), 0);
+      expect(container.read(totalAmountToPayProvider), 0);
+    },
+  );
 }

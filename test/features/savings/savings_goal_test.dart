@@ -52,7 +52,9 @@ void main() {
   group('SavingsGoal Firestore round-trip', () {
     test('toFirestore/fromFirestore preserves every field', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('savingsGoals').withConverter<SavingsGoal>(
+      final collection = firestore
+          .collection('savingsGoals')
+          .withConverter<SavingsGoal>(
             fromFirestore: SavingsGoal.fromFirestore,
             toFirestore: (g, _) => g.toFirestore(),
           );
@@ -82,7 +84,9 @@ void main() {
 
     test('preserves a null due date', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('savingsGoals').withConverter<SavingsGoal>(
+      final collection = firestore
+          .collection('savingsGoals')
+          .withConverter<SavingsGoal>(
             fromFirestore: SavingsGoal.fromFirestore,
             toFirestore: (g, _) => g.toFirestore(),
           );

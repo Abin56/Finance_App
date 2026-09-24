@@ -5,7 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('shows the entity name in the title and the required body copy', (tester) async {
+  testWidgets('shows the entity name in the title and the required body copy', (
+    tester,
+  ) async {
     late BuildContext capturedContext;
 
     await tester.pumpWidget(
@@ -42,7 +44,10 @@ void main() {
             capturedContext = context;
             return ElevatedButton(
               onPressed: () async {
-                result = await confirmDelete(capturedContext, entityName: 'Bill');
+                result = await confirmDelete(
+                  capturedContext,
+                  entityName: 'Bill',
+                );
               },
               child: const Text('trigger'),
             );
@@ -71,7 +76,10 @@ void main() {
             capturedContext = context;
             return ElevatedButton(
               onPressed: () async {
-                result = await confirmDelete(capturedContext, entityName: 'Loan');
+                result = await confirmDelete(
+                  capturedContext,
+                  entityName: 'Loan',
+                );
               },
               child: const Text('trigger'),
             );
@@ -89,33 +97,39 @@ void main() {
     expect(result, isFalse);
   });
 
-  testWidgets('returns false when dismissed without a choice (e.g. tapping the barrier)', (tester) async {
-    late BuildContext capturedContext;
-    bool? result;
+  testWidgets(
+    'returns false when dismissed without a choice (e.g. tapping the barrier)',
+    (tester) async {
+      late BuildContext capturedContext;
+      bool? result;
 
-    await tester.pumpWidget(
-      wrap(
-        Builder(
-          builder: (context) {
-            capturedContext = context;
-            return ElevatedButton(
-              onPressed: () async {
-                result = await confirmDelete(capturedContext, entityName: 'EMI');
-              },
-              child: const Text('trigger'),
-            );
-          },
+      await tester.pumpWidget(
+        wrap(
+          Builder(
+            builder: (context) {
+              capturedContext = context;
+              return ElevatedButton(
+                onPressed: () async {
+                  result = await confirmDelete(
+                    capturedContext,
+                    entityName: 'EMI',
+                  );
+                },
+                child: const Text('trigger'),
+              );
+            },
+          ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.text('trigger'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('trigger'));
+      await tester.pumpAndSettle();
 
-    // Tap the modal barrier outside the dialog to dismiss it without a choice.
-    await tester.tapAt(const Offset(10, 10));
-    await tester.pumpAndSettle();
+      // Tap the modal barrier outside the dialog to dismiss it without a choice.
+      await tester.tapAt(const Offset(10, 10));
+      await tester.pumpAndSettle();
 
-    expect(result, isFalse);
-  });
+      expect(result, isFalse);
+    },
+  );
 }

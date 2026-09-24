@@ -37,7 +37,8 @@ class DestructiveDeleteDialog extends StatefulWidget {
   final Future<void> Function() onConfirm;
 
   @override
-  State<DestructiveDeleteDialog> createState() => _DestructiveDeleteDialogState();
+  State<DestructiveDeleteDialog> createState() =>
+      _DestructiveDeleteDialogState();
 }
 
 class _DestructiveDeleteDialogState extends State<DestructiveDeleteDialog> {
@@ -61,7 +62,10 @@ class _DestructiveDeleteDialogState extends State<DestructiveDeleteDialog> {
     super.dispose();
   }
 
-  bool get _canConfirm => !_confirming && _impact != null && _controller.text.trim() == widget.entityName;
+  bool get _canConfirm =>
+      !_confirming &&
+      _impact != null &&
+      _controller.text.trim() == widget.entityName;
 
   Future<void> _handleConfirm() async {
     setState(() {
@@ -84,12 +88,16 @@ class _DestructiveDeleteDialogState extends State<DestructiveDeleteDialog> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final visibleImpact = (_impact ?? const []).where((row) => row.count > 0).toList();
+    final visibleImpact = (_impact ?? const [])
+        .where((row) => row.count > 0)
+        .toList();
 
     return PopScope(
       canPop: !_confirming,
       child: AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusLg)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusXl),
+        ),
         title: Row(
           children: [
             Icon(Icons.warning_amber_rounded, color: colorScheme.error),
@@ -110,13 +118,18 @@ class _DestructiveDeleteDialogState extends State<DestructiveDeleteDialog> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSizes.md),
-                decoration: BoxDecoration(color: colorScheme.errorContainer.withValues(alpha: 0.35)),
+                decoration: BoxDecoration(
+                  color: colorScheme.errorContainer.withValues(alpha: 0.35),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'This will permanently delete:',
-                      style: TextStyle(fontWeight: FontWeight.w600, color: colorScheme.error),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.error,
+                      ),
                     ),
                     const SizedBox(height: AppSizes.xs),
                     if (_impact == null)
@@ -143,7 +156,10 @@ class _DestructiveDeleteDialogState extends State<DestructiveDeleteDialog> {
                 TextSpan(
                   text: 'Type ',
                   children: [
-                    TextSpan(text: widget.entityName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    TextSpan(
+                      text: widget.entityName,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     const TextSpan(text: ' to confirm'),
                   ],
                 ),
@@ -153,7 +169,10 @@ class _DestructiveDeleteDialogState extends State<DestructiveDeleteDialog> {
                 controller: _controller,
                 enabled: !_confirming,
                 autofocus: true,
-                decoration: InputDecoration(hintText: widget.entityName, border: const OutlineInputBorder()),
+                decoration: InputDecoration(
+                  hintText: widget.entityName,
+                  border: const OutlineInputBorder(),
+                ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: AppSizes.sm),
@@ -164,17 +183,25 @@ class _DestructiveDeleteDialogState extends State<DestructiveDeleteDialog> {
         ),
         actions: [
           TextButton(
-            onPressed: _confirming ? null : () => Navigator.of(context).pop(false),
+            onPressed: _confirming
+                ? null
+                : () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: _canConfirm ? _handleConfirm : null,
-            style: FilledButton.styleFrom(backgroundColor: colorScheme.error, foregroundColor: colorScheme.onError),
+            style: FilledButton.styleFrom(
+              backgroundColor: colorScheme.error,
+              foregroundColor: colorScheme.onError,
+            ),
             child: _confirming
                 ? SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onError),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.onError,
+                    ),
                   )
                 : const Text('Delete Permanently'),
           ),

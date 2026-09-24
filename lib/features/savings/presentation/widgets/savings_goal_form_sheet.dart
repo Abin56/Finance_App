@@ -27,16 +27,21 @@ class SavingsGoalFormSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<SavingsGoalFormSheet> createState() => _SavingsGoalFormSheetState();
+  ConsumerState<SavingsGoalFormSheet> createState() =>
+      _SavingsGoalFormSheetState();
 }
 
 class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.goal?.name);
   late final _targetController = TextEditingController(
-    text: widget.goal == null ? '' : widget.goal!.targetAmount.toStringAsFixed(2),
+    text: widget.goal == null
+        ? ''
+        : widget.goal!.targetAmount.toStringAsFixed(2),
   );
-  late final _notesController = TextEditingController(text: widget.goal?.notes ?? '');
+  late final _notesController = TextEditingController(
+    text: widget.goal?.notes ?? '',
+  );
   final _targetFocusNode = FocusNode();
   DateTime? _dueDate;
   bool _isSaving = false;
@@ -88,15 +93,20 @@ class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
           notes: notes,
         );
       } else {
-        await repository.createGoal(name: name, targetAmount: target, dueDate: _dueDate, notes: notes);
+        await repository.createGoal(
+          name: name,
+          targetAmount: target,
+          dueDate: _dueDate,
+          notes: notes,
+        );
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save goal: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save goal: $e')));
       }
     }
   }
@@ -127,7 +137,9 @@ class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
               controller: _targetController,
               focusNode: _targetFocusNode,
               decoration: const InputDecoration(labelText: 'Target amount'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: Validators.amount,
               textInputAction: TextInputAction.done,
             ),
@@ -137,8 +149,15 @@ class _SavingsGoalFormSheetState extends ConsumerState<SavingsGoalFormSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _pickDueDate,
-                    icon: const Icon(Icons.event_outlined, size: AppSizes.iconSm),
-                    label: Text(_dueDate == null ? 'Due date (optional)' : _dueDate!.fullDate),
+                    icon: const Icon(
+                      Icons.event_outlined,
+                      size: AppSizes.iconSm,
+                    ),
+                    label: Text(
+                      _dueDate == null
+                          ? 'Due date (optional)'
+                          : _dueDate!.fullDate,
+                    ),
                   ),
                 ),
                 if (_dueDate != null)

@@ -30,7 +30,9 @@ void main() {
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
-    final billCollection = firestore.collection('bills').withConverter<Bill>(
+    final billCollection = firestore
+        .collection('bills')
+        .withConverter<Bill>(
           fromFirestore: Bill.fromFirestore,
           toFirestore: (b, _) => b.toFirestore(),
         );
@@ -53,129 +55,191 @@ void main() {
   });
 
   group('BillOccurrenceRepository.ensureCurrentOccurrence — fresh bill', () {
-    test('materializes a fresh occurrence at nextDueDate when none exists and no legacy state', () async {
-      final bill = makeBill(nextDueDate: DateTime(2026, 3, 10), amount: 500);
-      await billRepository.add(bill.id, bill);
+    test(
+      'materializes a fresh occurrence at nextDueDate when none exists and no legacy state',
+      () async {
+        final bill = makeBill(nextDueDate: DateTime(2026, 3, 10), amount: 500);
+        await billRepository.add(bill.id, bill);
 
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+        final occurrence = await repository.ensureCurrentOccurrence(
+          bill,
+          const [],
+        );
 
-      expect(occurrence.dueDate, DateTime(2026, 3, 10));
-      expect(occurrence.amount, 500);
-      expect(occurrence.amountPaid, 0);
-      expect(occurrence.isSkipped, isFalse);
-    });
+        expect(occurrence.dueDate, DateTime(2026, 3, 10));
+        expect(occurrence.amount, 500);
+        expect(occurrence.amountPaid, 0);
+        expect(occurrence.isSkipped, isFalse);
+      },
+    );
 
-    test('is idempotent — a second call for the same bill returns the same occurrence', () async {
-      final bill = makeBill();
-      await billRepository.add(bill.id, bill);
+    test(
+      'is idempotent — a second call for the same bill returns the same occurrence',
+      () async {
+        final bill = makeBill();
+        await billRepository.add(bill.id, bill);
 
-      final first = await repository.ensureCurrentOccurrence(bill, const []);
-      final existing = await repository.getAll();
-      final second = await repository.ensureCurrentOccurrence(bill, existing);
+        final first = await repository.ensureCurrentOccurrence(bill, const []);
+        final existing = await repository.getAll();
+        final second = await repository.ensureCurrentOccurrence(bill, existing);
 
-      expect(second.id, first.id);
-      final all = await repository.getAll();
-      expect(all, hasLength(1), reason: 'a second call must not materialize a duplicate occurrence');
-    });
+        expect(second.id, first.id);
+        final all = await repository.getAll();
+        expect(
+          all,
+          hasLength(1),
+          reason: 'a second call must not materialize a duplicate occurrence',
+        );
+      },
+    );
   });
 
   group('BillOccurrenceRepository.ensureCurrentOccurrence — legacy adoption', () {
-    test('adopts a pre-migration bill\'s in-progress amountPaid/isSkipped into one occurrence', () async {
-      final bill = makeBill(nextDueDate: DateTime(2026, 3, 10), amount: 1000);
-      await billRepository.add(bill.id, bill);
-      // Simulate legacy raw fields still present on the Bill document from
-      // before this migration (amountPaid/isSkipped no longer parsed by
-      // Bill.fromFirestore, but still physically on the document).
-      await firestore.collection('bills').doc('bill1').update({'amountPaid': 400, 'isSkipped': false});
+    test(
+      'adopts a pre-migration bill\'s in-progress amountPaid/isSkipped into one occurrence',
+      () async {
+        final bill = makeBill(nextDueDate: DateTime(2026, 3, 10), amount: 1000);
+        await billRepository.add(bill.id, bill);
+        // Simulate legacy raw fields still present on the Bill document from
+        // before this migration (amountPaid/isSkipped no longer parsed by
+        // Bill.fromFirestore, but still physically on the document).
+        await firestore.collection('bills').doc('bill1').update({
+          'amountPaid': 400,
+          'isSkipped': false,
+        });
 
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+        final occurrence = await repository.ensureCurrentOccurrence(
+          bill,
+          const [],
+        );
 
-      expect(occurrence.dueDate, DateTime(2026, 3, 10));
-      expect(occurrence.amount, 1000);
-      expect(occurrence.amountPaid, 400);
-    });
+        expect(occurrence.dueDate, DateTime(2026, 3, 10));
+        expect(occurrence.amount, 1000);
+        expect(occurrence.amountPaid, 400);
+      },
+    );
 
-    test('adoption backfills every existing PaymentRecord\'s occurrenceId', () async {
-      final bill = makeBill(amount: 1000);
-      await billRepository.add(bill.id, bill);
-      await firestore.collection('bills').doc('bill1').update({'amountPaid': 400});
+    test(
+      'adoption backfills every existing PaymentRecord\'s occurrenceId',
+      () async {
+        final bill = makeBill(amount: 1000);
+        await billRepository.add(bill.id, bill);
+        await firestore.collection('bills').doc('bill1').update({
+          'amountPaid': 400,
+        });
 
-      final payment = PaymentRecord(
-        id: 'p1',
-        billId: 'bill1',
-        amount: 400,
-        date: DateTime(2026, 3, 1),
-        createdAt: DateTime(2026, 3, 1),
-      );
-      final paymentsCollection = firestore.collection('bills').doc('bill1').collection('payments').withConverter<PaymentRecord>(
-            fromFirestore: PaymentRecord.fromFirestore,
-            toFirestore: (p, _) => p.toFirestore(),
-          );
-      await paymentsCollection.doc(payment.id).set(payment);
+        final payment = PaymentRecord(
+          id: 'p1',
+          billId: 'bill1',
+          amount: 400,
+          date: DateTime(2026, 3, 1),
+          createdAt: DateTime(2026, 3, 1),
+        );
+        final paymentsCollection = firestore
+            .collection('bills')
+            .doc('bill1')
+            .collection('payments')
+            .withConverter<PaymentRecord>(
+              fromFirestore: PaymentRecord.fromFirestore,
+              toFirestore: (p, _) => p.toFirestore(),
+            );
+        await paymentsCollection.doc(payment.id).set(payment);
 
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const [], legacyPayments: [payment]);
+        final occurrence = await repository.ensureCurrentOccurrence(
+          bill,
+          const [],
+          legacyPayments: [payment],
+        );
 
-      final backfilled = (await paymentsCollection.doc('p1').get()).data()!;
-      expect(backfilled.occurrenceId, occurrence.id);
-    });
+        final backfilled = (await paymentsCollection.doc('p1').get()).data()!;
+        expect(backfilled.occurrenceId, occurrence.id);
+      },
+    );
 
-    test('adoption never fires twice — a legacy bill only ever gets one adopted occurrence', () async {
-      final bill = makeBill(amount: 1000);
-      await billRepository.add(bill.id, bill);
-      await firestore.collection('bills').doc('bill1').update({'amountPaid': 400});
+    test(
+      'adoption never fires twice — a legacy bill only ever gets one adopted occurrence',
+      () async {
+        final bill = makeBill(amount: 1000);
+        await billRepository.add(bill.id, bill);
+        await firestore.collection('bills').doc('bill1').update({
+          'amountPaid': 400,
+        });
 
-      final first = await repository.ensureCurrentOccurrence(bill, const []);
-      final existing = await repository.getAll();
-      // Legacy state is still physically present on the document (adoption
-      // doesn't strip it), but "existing is non-empty" must still guard a
-      // second adoption from ever happening.
-      final second = await repository.ensureCurrentOccurrence(bill, existing);
+        final first = await repository.ensureCurrentOccurrence(bill, const []);
+        final existing = await repository.getAll();
+        // Legacy state is still physically present on the document (adoption
+        // doesn't strip it), but "existing is non-empty" must still guard a
+        // second adoption from ever happening.
+        final second = await repository.ensureCurrentOccurrence(bill, existing);
 
-      expect(second.id, first.id);
-      final all = await repository.getAll();
-      expect(all, hasLength(1));
-    });
+        expect(second.id, first.id);
+        final all = await repository.getAll();
+        expect(all, hasLength(1));
+      },
+    );
 
-    test('adopts based on existing PaymentRecords even if amountPaid/isSkipped are both absent', () async {
-      final bill = makeBill(amount: 1000);
-      await billRepository.add(bill.id, bill);
-      final payment = PaymentRecord(
-        id: 'p1',
-        billId: 'bill1',
-        amount: 300,
-        date: DateTime(2026, 3, 1),
-        createdAt: DateTime(2026, 3, 1),
-      );
-      final paymentsCollection = firestore.collection('bills').doc('bill1').collection('payments').withConverter<PaymentRecord>(
-            fromFirestore: PaymentRecord.fromFirestore,
-            toFirestore: (p, _) => p.toFirestore(),
-          );
-      await paymentsCollection.doc(payment.id).set(payment);
+    test(
+      'adopts based on existing PaymentRecords even if amountPaid/isSkipped are both absent',
+      () async {
+        final bill = makeBill(amount: 1000);
+        await billRepository.add(bill.id, bill);
+        final payment = PaymentRecord(
+          id: 'p1',
+          billId: 'bill1',
+          amount: 300,
+          date: DateTime(2026, 3, 1),
+          createdAt: DateTime(2026, 3, 1),
+        );
+        final paymentsCollection = firestore
+            .collection('bills')
+            .doc('bill1')
+            .collection('payments')
+            .withConverter<PaymentRecord>(
+              fromFirestore: PaymentRecord.fromFirestore,
+              toFirestore: (p, _) => p.toFirestore(),
+            );
+        await paymentsCollection.doc(payment.id).set(payment);
 
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const [], legacyPayments: [payment]);
+        final occurrence = await repository.ensureCurrentOccurrence(
+          bill,
+          const [],
+          legacyPayments: [payment],
+        );
 
-      expect(occurrence.dueDate, bill.nextDueDate);
-    });
+        expect(occurrence.dueDate, bill.nextDueDate);
+      },
+    );
   });
 
   group('BillOccurrenceRepository.ensureCurrentOccurrence — rollover', () {
-    test('rolls a settled recurring occurrence forward and advances the template\'s nextDueDate', () async {
-      final bill = makeBill(nextDueDate: DateTime(2026, 3, 10), recurrence: BillRecurrence.monthly, amount: 100);
-      await billRepository.add(bill.id, bill);
+    test(
+      'rolls a settled recurring occurrence forward and advances the template\'s nextDueDate',
+      () async {
+        final bill = makeBill(
+          nextDueDate: DateTime(2026, 3, 10),
+          recurrence: BillRecurrence.monthly,
+          amount: 100,
+        );
+        await billRepository.add(bill.id, bill);
 
-      final first = await repository.ensureCurrentOccurrence(bill, const []);
-      await repository.markPaid(first);
+        final first = await repository.ensureCurrentOccurrence(bill, const []);
+        await repository.markPaid(first);
 
-      final existing = await repository.getAll();
-      final next = await repository.ensureCurrentOccurrence(bill, existing);
+        final existing = await repository.getAll();
+        final next = await repository.ensureCurrentOccurrence(bill, existing);
 
-      expect(next.id, isNot(first.id));
-      expect(next.dueDate, DateTime(2026, 4, 10));
-      expect(bill.nextDueDate, DateTime(2026, 4, 10));
-    });
+        expect(next.id, isNot(first.id));
+        expect(next.dueDate, DateTime(2026, 4, 10));
+        expect(bill.nextDueDate, DateTime(2026, 4, 10));
+      },
+    );
 
     test('does not roll a settled one-time occurrence forward', () async {
-      final bill = makeBill(nextDueDate: DateTime(2026, 3, 10), recurrence: BillRecurrence.oneTime, amount: 100);
+      final bill = makeBill(
+        nextDueDate: DateTime(2026, 3, 10),
+        recurrence: BillRecurrence.oneTime,
+        amount: 100,
+      );
       await billRepository.add(bill.id, bill);
 
       final first = await repository.ensureCurrentOccurrence(bill, const []);
@@ -194,27 +258,39 @@ void main() {
     test('accumulates a partial payment', () async {
       final bill = makeBill(amount: 100);
       await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+      final occurrence = await repository.ensureCurrentOccurrence(
+        bill,
+        const [],
+      );
 
       await repository.applyPayment(occurrence, 40);
       expect(occurrence.amountPaid, 40);
     });
 
-    test('clamps at the occurrence amount without touching it again once settled', () async {
-      final bill = makeBill(amount: 100);
-      await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+    test(
+      'clamps at the occurrence amount without touching it again once settled',
+      () async {
+        final bill = makeBill(amount: 100);
+        await billRepository.add(bill.id, bill);
+        final occurrence = await repository.ensureCurrentOccurrence(
+          bill,
+          const [],
+        );
 
-      await repository.applyPayment(occurrence, 40);
-      await repository.applyPayment(occurrence, 90);
+        await repository.applyPayment(occurrence, 40);
+        await repository.applyPayment(occurrence, 90);
 
-      expect(occurrence.amountPaid, 100);
-    });
+        expect(occurrence.amountPaid, 100);
+      },
+    );
 
     test('is a no-op for a zero delta', () async {
       final bill = makeBill();
       await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+      final occurrence = await repository.ensureCurrentOccurrence(
+        bill,
+        const [],
+      );
 
       await repository.applyPayment(occurrence, 0);
       expect(occurrence.editHistory, isEmpty);
@@ -225,7 +301,10 @@ void main() {
     test('sets amountPaid to the full amount', () async {
       final bill = makeBill(recurrence: BillRecurrence.oneTime, amount: 250);
       await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+      final occurrence = await repository.ensureCurrentOccurrence(
+        bill,
+        const [],
+      );
 
       await repository.markPaid(occurrence);
       expect(occurrence.amountPaid, 250);
@@ -234,7 +313,10 @@ void main() {
     test('is a no-op when already fully paid', () async {
       final bill = makeBill(recurrence: BillRecurrence.oneTime, amount: 250);
       await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+      final occurrence = await repository.ensureCurrentOccurrence(
+        bill,
+        const [],
+      );
 
       await repository.markPaid(occurrence);
       final historyLengthAfterFirst = occurrence.editHistory.length;
@@ -248,7 +330,10 @@ void main() {
     test('skipOccurrence marks isSkipped without mutating dueDate', () async {
       final bill = makeBill(nextDueDate: DateTime(2026, 3, 10));
       await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+      final occurrence = await repository.ensureCurrentOccurrence(
+        bill,
+        const [],
+      );
 
       await repository.skipOccurrence(occurrence);
 
@@ -259,7 +344,10 @@ void main() {
     test('unskip reverses isSkipped', () async {
       final bill = makeBill();
       await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+      final occurrence = await repository.ensureCurrentOccurrence(
+        bill,
+        const [],
+      );
 
       await repository.skipOccurrence(occurrence);
       await repository.unskip(occurrence);
@@ -270,7 +358,10 @@ void main() {
     test('unskip is a no-op when not skipped', () async {
       final bill = makeBill();
       await billRepository.add(bill.id, bill);
-      final occurrence = await repository.ensureCurrentOccurrence(bill, const []);
+      final occurrence = await repository.ensureCurrentOccurrence(
+        bill,
+        const [],
+      );
 
       await repository.unskip(occurrence);
       expect(occurrence.editHistory, isEmpty);

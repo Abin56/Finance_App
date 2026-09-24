@@ -6,7 +6,9 @@ void main() {
   group('EmiPaymentBreakdown.fromFirestore / toFirestore', () {
     test('round-trips every field', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('breakdowns').withConverter<EmiPaymentBreakdown>(
+      final collection = firestore
+          .collection('breakdowns')
+          .withConverter<EmiPaymentBreakdown>(
             fromFirestore: EmiPaymentBreakdown.fromFirestore,
             toFirestore: (b, _) => b.toFirestore(),
           );
@@ -48,7 +50,9 @@ void main() {
 
     test('defaults every optional field to 0/empty when absent', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('breakdowns').withConverter<EmiPaymentBreakdown>(
+      final collection = firestore
+          .collection('breakdowns')
+          .withConverter<EmiPaymentBreakdown>(
             fromFirestore: EmiPaymentBreakdown.fromFirestore,
             toFirestore: (b, _) => b.toFirestore(),
           );

@@ -43,27 +43,33 @@ void main() {
       expect(copy.failedAttempts, 3);
     });
 
-    test('clearLockout: true clears lockoutUntil even if a new value is also passed', () {
-      final state = AppLockState.initial.copyWith(
-        lockoutUntil: DateTime.now().add(const Duration(minutes: 1)),
-      );
+    test(
+      'clearLockout: true clears lockoutUntil even if a new value is also passed',
+      () {
+        final state = AppLockState.initial.copyWith(
+          lockoutUntil: DateTime.now().add(const Duration(minutes: 1)),
+        );
 
-      final copy = state.copyWith(
-        lockoutUntil: DateTime.now().add(const Duration(minutes: 5)),
-        clearLockout: true,
-      );
+        final copy = state.copyWith(
+          lockoutUntil: DateTime.now().add(const Duration(minutes: 5)),
+          clearLockout: true,
+        );
 
-      expect(copy.lockoutUntil, isNull);
-    });
+        expect(copy.lockoutUntil, isNull);
+      },
+    );
 
-    test('without clearLockout, an explicit lockoutUntil overrides the previous value', () {
-      final firstLockout = DateTime.now().add(const Duration(minutes: 1));
-      final secondLockout = DateTime.now().add(const Duration(minutes: 5));
-      final state = AppLockState.initial.copyWith(lockoutUntil: firstLockout);
+    test(
+      'without clearLockout, an explicit lockoutUntil overrides the previous value',
+      () {
+        final firstLockout = DateTime.now().add(const Duration(minutes: 1));
+        final secondLockout = DateTime.now().add(const Duration(minutes: 5));
+        final state = AppLockState.initial.copyWith(lockoutUntil: firstLockout);
 
-      final copy = state.copyWith(lockoutUntil: secondLockout);
+        final copy = state.copyWith(lockoutUntil: secondLockout);
 
-      expect(copy.lockoutUntil, secondLockout);
-    });
+        expect(copy.lockoutUntil, secondLockout);
+      },
+    );
   });
 }

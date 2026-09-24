@@ -3,8 +3,8 @@
 enum InterestPeriod { monthly, yearly }
 
 extension InterestPeriodX on InterestPeriod {
-  static InterestPeriod fromName(String name) =>
-      InterestPeriod.values.firstWhere((p) => p.name == name, orElse: () => InterestPeriod.monthly);
+  static InterestPeriod fromName(String name) => InterestPeriod.values
+      .firstWhere((p) => p.name == name, orElse: () => InterestPeriod.monthly);
 
   String get label {
     switch (this) {

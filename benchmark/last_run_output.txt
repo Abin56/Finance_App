@@ -1,0 +1,37 @@
+FLOWFI SMS INTELLIGENCE BENCHMARK
+Generated: 2026-09-01T17:26:31.815254Z
+
+Total cases: 384 (classification corpus: 207, relationship/linking corpus: 100, obligation corpus: 77)
+
+--- Classification corpus (207 cases) ---
+Case pass rate: 100.0% (207/207, 0 known-issue case(s) graded but excluded from pass/fail)
+Event classification (eventType): 100.0% (52/52)
+Money movement / direction: 100.0% (51/51)
+Amount: 100.0% (21/21)
+Merchant: 100.0% (66/66)
+Merchant type: 100.0% (37/37)
+Payment provider: 100.0% (26/26)
+Category: 100.0% (20/20)
+Payment method: 100.0% (3/3)
+Transaction status: 100.0% (47/47)
+Own-account transfer flag: 100.0% (5/5)
+Reference number (never-invented guard): 100.0% (1/1)
+
+--- Relationship / linking corpus (100 cases) ---
+Relationship linking accuracy: 99.0% (99/100, 1 known-issue case(s))
+
+--- Obligation corpus (77 cases) ---
+Obligation detection accuracy: 100.0% (77/77, 1 known-issue case(s))
+
+Dangerous false positives (reminder/failed/pending/refund/reversal/transfer/cashback wrongly treated as a completed inbound/outbound transaction): 0
+Dangerous false negatives (a real completed transaction wrongly suppressed as a reminder/non-event): 0
+Dangerous mismatches in linking/obligation corpora: 0
+Total dangerous cases evaluated across all corpora: 201
+
+Overall safety status: SAFE (0 dangerous misclassifications across all corpora)
+
+=== Known issues (documented gaps, NOT production fixes) ===
+  [linking:refund-vs-new-purchase-not-confused-01] Candidate transactionStatus is null (unresolved) here, so the status-transition switch never fires and the duplicate fallback treats it as matching target's refunded status implicitly via the null-status branch — a genuinely new purchase should ideally classify as NEW_EVENT or a reviewable case, not silently DUPLICATE of a refund. Flagged as a known conservatism gap for a future session to tighten (e.g. require candidate.transactionStatus to be explicitly success, not merely unresolved, before allowing the "duplicate" fallback against a target with a non-success status).
+  [obligation:reminder-with-completion-phrase-known-issue-01] The shared upstream ReminderSignals.looksLikeReminder() (owned by the parallel Phase 2/3 session, not modified here) treats any "was paid/debited/credited" phrase anywhere in the message as a completion marker that overrides reminder detection entirely — so a genuine upcoming due date combined with a mention of a past payment is currently not detected as a reminder at all. Flagging as a known gap for the owning session rather than working around it by touching reminder_signals.dart.
+
+

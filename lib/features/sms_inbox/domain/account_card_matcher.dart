@@ -13,7 +13,13 @@ import 'parsed_sms_transaction.dart';
 /// account's, since the two can legitimately differ or be entered
 /// independently.
 class _MatchTarget {
-  const _MatchTarget({required this.accountId, this.cardId, required this.lastFour, this.bankId, required this.label});
+  const _MatchTarget({
+    required this.accountId,
+    this.cardId,
+    required this.lastFour,
+    this.bankId,
+    required this.label,
+  });
 
   final String accountId;
   final String? cardId;
@@ -37,7 +43,10 @@ class AccountCardMatcher {
 
   final List<_MatchTarget> _targets;
 
-  factory AccountCardMatcher({required Iterable<Account> accounts, required Iterable<CreditCardProfile> cards}) {
+  factory AccountCardMatcher({
+    required Iterable<Account> accounts,
+    required Iterable<CreditCardProfile> cards,
+  }) {
     final accountList = accounts.toList();
     final cardAccountIds = <String>{};
     final targets = <_MatchTarget>[];
@@ -47,14 +56,18 @@ class AccountCardMatcher {
       if (lastFour == null || lastFour.isEmpty) continue;
       cardAccountIds.add(card.accountId);
 
-      final account = accountList.firstWhereOrNull((a) => a.id == card.accountId);
+      final account = accountList.firstWhereOrNull(
+        (a) => a.id == card.accountId,
+      );
       targets.add(
         _MatchTarget(
           accountId: card.accountId,
           cardId: card.id,
           lastFour: lastFour,
           bankId: account?.bankId,
-          label: account == null ? 'Card ••••$lastFour' : '${account.name} ••••$lastFour',
+          label: account == null
+              ? 'Card ••••$lastFour'
+              : '${account.name} ••••$lastFour',
         ),
       );
     }
@@ -67,15 +80,31 @@ class AccountCardMatcher {
       final lastFour = account.accountNumberLast4?.trim();
       if (lastFour == null || lastFour.isEmpty) continue;
       targets.add(
-        _MatchTarget(accountId: account.id, lastFour: lastFour, bankId: account.bankId, label: '${account.name} ••••$lastFour'),
+        _MatchTarget(
+          accountId: account.id,
+          lastFour: lastFour,
+          bankId: account.bankId,
+          label: '${account.name} ••••$lastFour',
+        ),
       );
     }
 
     return AccountCardMatcher._(targets);
   }
 
+  /// Whether [lastFour] belongs to *any* of the user's accounts/cards —
+  /// including ones other than whichever this SMS itself resolved to. Used
+  /// by `FinancialEventExtractor` to detect a transfer between the user's
+  /// own accounts: a "transfer to A/c XX5678" message where XX5678 is
+  /// itself a known account is strong evidence the destination is the
+  /// user's own, not an external payee's.
+  bool isKnownLastFour(String lastFour) =>
+      _targets.any((t) => t.lastFour == lastFour);
+
   AccountMatchResult match(ParsedSmsTransaction parsed) {
-    final smsBankId = parsed.bankName == null ? null : BankRegistry.matchByName(parsed.bankName!)?.id;
+    final smsBankId = parsed.bankName == null
+        ? null
+        : BankRegistry.matchByName(parsed.bankName!)?.id;
     final lastFour = parsed.maskedAccountOrCard?.trim();
 
     if (lastFour != null && lastFour.isNotEmpty) {
@@ -97,9 +126,16 @@ class AccountCardMatcher {
 
       if (byLastFour.length > 1) {
         return AccountMatchResult.unresolved(
-          reason: 'Multiple accounts/cards share the last-4 digits ••••$lastFour — could not confidently pick one.',
+          reason:
+              'Multiple accounts/cards share the last-4 digits ••••$lastFour — could not confidently pick one.',
           alternatives: byLastFour
-              .map((t) => AccountMatchCandidate(accountId: t.accountId, cardId: t.cardId, reason: 'Shares last-4 ••••$lastFour'))
+              .map(
+                (t) => AccountMatchCandidate(
+                  accountId: t.accountId,
+                  cardId: t.cardId,
+                  reason: 'Shares last-4 ••••$lastFour',
+                ),
+              )
               .toList(),
         );
       }
@@ -114,12 +150,21 @@ class AccountCardMatcher {
           reason: sameBank.length == 1
               ? 'Matched ${sameBank.single.label} by bank only — no last-4 in the message to confirm.'
               : 'Matched ${parsed.bankName} but the message has no last-4 to pick between ${sameBank.length} accounts.',
-          alternatives:
-              sameBank.map((t) => AccountMatchCandidate(accountId: t.accountId, cardId: t.cardId, reason: 'Same bank')).toList(),
+          alternatives: sameBank
+              .map(
+                (t) => AccountMatchCandidate(
+                  accountId: t.accountId,
+                  cardId: t.cardId,
+                  reason: 'Same bank',
+                ),
+              )
+              .toList(),
         );
       }
     }
 
-    return const AccountMatchResult.unresolved(reason: 'No matching account or card found for this message.');
+    return const AccountMatchResult.unresolved(
+      reason: 'No matching account or card found for this message.',
+    );
   }
 }

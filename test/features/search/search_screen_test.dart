@@ -37,7 +37,10 @@ void main() {
       ProviderScope(
         overrides: [
           firebaseAuthProvider.overrideWithValue(
-            MockFirebaseAuth(signedIn: true, mockUser: MockUser(uid: _kUid, email: 'test@example.com')),
+            MockFirebaseAuth(
+              signedIn: true,
+              mockUser: MockUser(uid: _kUid, email: 'test@example.com'),
+            ),
           ),
           firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
         ],
@@ -47,7 +50,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('the dashboard search button opens global Search', (tester) async {
+  testWidgets('the dashboard search button opens global Search', (
+    tester,
+  ) async {
     await pumpApp(tester);
 
     await tester.tap(find.byIcon(Icons.search_rounded));
@@ -57,22 +62,27 @@ void main() {
     expect(find.text('Search anything…'), findsOneWidget);
   });
 
-  testWidgets('Search prompts before a query, and reports no matches after one', (tester) async {
-    await pumpApp(tester);
-    await tester.tap(find.byIcon(Icons.search_rounded));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Search prompts before a query, and reports no matches after one',
+    (tester) async {
+      await pumpApp(tester);
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Search everything'), findsOneWidget);
+      expect(find.text('Search everything'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'nonexistent');
-    // Outlast the 200ms query debounce.
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'nonexistent');
+      // Outlast the 200ms query debounce.
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
 
-    expect(find.text('No matches for "nonexistent"'), findsOneWidget);
-  });
+      expect(find.text('No matches for "nonexistent"'), findsOneWidget);
+    },
+  );
 
-  testWidgets('clearing the query returns Search to its prompt state', (tester) async {
+  testWidgets('clearing the query returns Search to its prompt state', (
+    tester,
+  ) async {
     await pumpApp(tester);
     await tester.tap(find.byIcon(Icons.search_rounded));
     await tester.pumpAndSettle();

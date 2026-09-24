@@ -4,7 +4,15 @@ import '../../../../core/constants/app_sizes.dart';
 
 /// The status filters the EMI list supports — distinct from [EmiStatus]
 /// itself since "All" and "Upcoming EMI" aren't derived statuses.
-enum EmiListFilter { all, active, upcoming, overdue, defaulted, completed, closed }
+enum EmiListFilter {
+  all,
+  active,
+  upcoming,
+  overdue,
+  defaulted,
+  completed,
+  closed,
+}
 
 extension EmiListFilterX on EmiListFilter {
   String get label {
@@ -29,7 +37,11 @@ extension EmiListFilterX on EmiListFilter {
 
 /// Horizontal row of single-select filter chips for [EmiListFilter].
 class EmiStatusFilterChips extends StatelessWidget {
-  const EmiStatusFilterChips({super.key, required this.selected, required this.onChanged});
+  const EmiStatusFilterChips({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   final EmiListFilter selected;
   final ValueChanged<EmiListFilter> onChanged;
@@ -47,7 +59,9 @@ class EmiStatusFilterChips extends StatelessWidget {
                 label: Text(filter.label),
                 selected: selected == filter,
                 onSelected: (_) => onChanged(filter),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSizes.radiusPill)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+                ),
               ),
             ),
         ],

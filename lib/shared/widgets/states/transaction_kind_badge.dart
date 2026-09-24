@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/app_sizes.dart';
 import '../../domain/transaction_kind.dart';
 
 /// A small tinted pill combining [TransactionKind.icon]/[TransactionKindX.label]/
@@ -18,7 +19,11 @@ import '../../domain/transaction_kind.dart';
 /// the platform's accessibility text-size setting; nothing here hardcodes
 /// a font size.
 class TransactionKindBadge extends StatelessWidget {
-  const TransactionKindBadge({super.key, required this.kind, this.compact = false});
+  const TransactionKindBadge({
+    super.key,
+    required this.kind,
+    this.compact = false,
+  });
 
   final TransactionKind kind;
 
@@ -30,10 +35,13 @@ class TransactionKindBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = kind.color;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 10, vertical: compact ? 2 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 10,
+        vertical: compact ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.zero,
+        borderRadius: BorderRadius.circular(AppSizes.radiusPill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -43,8 +51,11 @@ class TransactionKindBadge extends StatelessWidget {
           Flexible(
             child: Text(
               kind.label,
-              style: (compact ? Theme.of(context).textTheme.labelSmall : Theme.of(context).textTheme.labelMedium)
-                  ?.copyWith(color: color, fontWeight: FontWeight.w600),
+              style:
+                  (compact
+                          ? Theme.of(context).textTheme.labelSmall
+                          : Theme.of(context).textTheme.labelMedium)
+                      ?.copyWith(color: color, fontWeight: FontWeight.w600),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

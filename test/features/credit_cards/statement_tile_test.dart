@@ -38,7 +38,10 @@ void main() {
     createdAt: DateTime(2026, 1, 1),
   );
 
-  Statement partiallyPaidStatement({required double totalAmount, required double amountPaid}) {
+  Statement partiallyPaidStatement({
+    required double totalAmount,
+    required double amountPaid,
+  }) {
     return Statement(
       id: 'stmt1',
       cardId: cardId,
@@ -52,22 +55,41 @@ void main() {
     );
   }
 
-  Future<void> pumpDetailScreen(WidgetTester tester, Statement statement, {required bool isCarriedForward}) async {
+  Future<void> pumpDetailScreen(
+    WidgetTester tester,
+    Statement statement, {
+    required bool isCarriedForward,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           creditCardsStreamProvider.overrideWith((ref) => Stream.value([card])),
           accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
-          sharedCreditLimitsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          statementsStreamProvider(cardId).overrideWith((ref) => Stream.value([statement])),
-          statementsWithLiveTotalsProvider(cardId).overrideWith((ref) => [statement]),
+          sharedCreditLimitsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
+          statementsStreamProvider(
+            cardId,
+          ).overrideWith((ref) => Stream.value([statement])),
+          statementsWithLiveTotalsProvider(
+            cardId,
+          ).overrideWith((ref) => [statement]),
           materializeStatementProvider(cardId).overrideWith((ref) async {}),
           currentStatementCycleProvider(cardId).overrideWith((ref) => null),
           statementCycleViewProvider(cardId).overrideWith(
-            (ref) => (previousCyclePending: isCarriedForward ? <Statement>[statement] : <Statement>[], current: null),
+            (ref) => (
+              previousCyclePending: isCarriedForward
+                  ? <Statement>[statement]
+                  : <Statement>[],
+              current: null,
+            ),
           ),
           creditCardStandingProvider(cardId).overrideWith(
-            (ref) => (outstanding: statement.remainingAmount, available: 99000, currentCycleSpend: 0),
+            (ref) => (
+              outstanding: statement.remainingAmount,
+              available: 99000,
+              currentCycleSpend: 0,
+            ),
           ),
         ],
         child: const MaterialApp(home: CreditCardDetailScreen(cardId: cardId)),
@@ -76,29 +98,50 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('a partially paid statement tile shows remaining as primary and total as secondary', (tester) async {
-    final statement = partiallyPaidStatement(totalAmount: 5000, amountPaid: 2000);
-    await pumpDetailScreen(tester, statement, isCarriedForward: true);
+  testWidgets(
+    'a partially paid statement tile shows remaining as primary and total as secondary',
+    (tester) async {
+      final statement = partiallyPaidStatement(
+        totalAmount: 5000,
+        amountPaid: 2000,
+      );
+      await pumpDetailScreen(tester, statement, isCarriedForward: true);
 
-    // The statement appears twice (Previous Cycle Pending + Statements
-    // history), so both tiles must show the fixed figures — never falls
-    // back to the old totalAmount-only rendering anywhere on screen.
-    expect(find.text(CurrencyFormatter.instance.format(3000)), findsNWidgets(2));
-    expect(find.text('of ${CurrencyFormatter.instance.format(5000)}'), findsNWidgets(2));
-    expect(find.text(CurrencyFormatter.instance.format(5000)), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      // The statement appears twice (Previous Cycle Pending + Statements
+      // history), so both tiles must show the fixed figures — never falls
+      // back to the old totalAmount-only rendering anywhere on screen.
+      expect(
+        find.text(CurrencyFormatter.instance.format(3000)),
+        findsNWidgets(2),
+      );
+      expect(
+        find.text('of ${CurrencyFormatter.instance.format(5000)}'),
+        findsNWidgets(2),
+      );
+      expect(find.text(CurrencyFormatter.instance.format(5000)), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('a fully paid statement shows a clamped zero remaining, not negative', (tester) async {
-    final statement = partiallyPaidStatement(totalAmount: 5000, amountPaid: 5000);
-    await pumpDetailScreen(tester, statement, isCarriedForward: false);
+  testWidgets(
+    'a fully paid statement shows a clamped zero remaining, not negative',
+    (tester) async {
+      final statement = partiallyPaidStatement(
+        totalAmount: 5000,
+        amountPaid: 5000,
+      );
+      await pumpDetailScreen(tester, statement, isCarriedForward: false);
 
-    // Fully paid -> not carried forward, so this statement only appears
-    // once, in the Statements history section. The zero-amount figure also
-    // coincidentally matches the "This cycle" mini-stat (currentCycleSpend
-    // is 0 in this fixture), so assert on the unambiguous secondary line
-    // instead of the primary amount alone.
-    expect(find.text('of ${CurrencyFormatter.instance.format(5000)}'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      // Fully paid -> not carried forward, so this statement only appears
+      // once, in the Statements history section. The zero-amount figure also
+      // coincidentally matches the "This cycle" mini-stat (currentCycleSpend
+      // is 0 in this fixture), so assert on the unambiguous secondary line
+      // instead of the primary amount alone.
+      expect(
+        find.text('of ${CurrencyFormatter.instance.format(5000)}'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

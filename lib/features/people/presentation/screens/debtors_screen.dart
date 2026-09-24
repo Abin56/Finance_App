@@ -23,51 +23,57 @@ class DebtorsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('People I Need to Pay')),
-      body: SafeArea(child: peopleAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (_) {
-          if (debtors.isEmpty) {
-            return const EmptyState(
-              icon: Icons.arrow_upward_rounded,
-              title: 'You don\'t owe anyone',
-              subtitle: 'People you owe money to will appear here.',
-            );
-          }
+      body: SafeArea(
+        child: peopleAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Something went wrong: $error')),
+          data: (_) {
+            if (debtors.isEmpty) {
+              return const EmptyState(
+                icon: Icons.arrow_upward_rounded,
+                title: 'You don\'t owe anyone',
+                subtitle: 'People you owe money to will appear here.',
+              );
+            }
 
-          return ListView(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSizes.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total money to pay',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                    Text(
-                      CurrencyFormatter.instance.format(totalPayable),
-                      style: context.textTheme.headlineMedium,
-                    ),
-                  ],
-                ),
-              ),
-              for (final person in debtors)
+            return ListView(
+              padding: const EdgeInsets.all(AppSizes.lg),
+              children: [
                 Padding(
-                  padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                  child: PersonTile(
-                    person: person,
-                    onTap: () => context.push('${AppRoutes.people}/${person.id}'),
+                  padding: const EdgeInsets.only(bottom: AppSizes.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total money to pay',
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.6,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        CurrencyFormatter.instance.format(totalPayable),
+                        style: context.textTheme.headlineMedium,
+                      ),
+                    ],
                   ),
                 ),
-            ],
-          );
-        },
-      )),
+                for (final person in debtors)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                    child: PersonTile(
+                      person: person,
+                      onTap: () =>
+                          context.push('${AppRoutes.people}/${person.id}'),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }

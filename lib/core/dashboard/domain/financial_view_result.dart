@@ -27,7 +27,7 @@ class FinancialViewResult {
   /// Sub-totals shown under the headline amount — e.g. for
   /// [FinancialViewModule.combinedExpenses]: My Expenses, Shared, Bills,
   /// EMIs, Loans, Credit Card Payments. Empty for modules with nothing to
-  /// break down further (Income, Transfers, Net Cash Flow).
+  /// break down further (Income, Net Cash Flow).
   final Map<String, double> breakdown;
 
   /// Percent change vs [previousAmount], or null when there's no previous

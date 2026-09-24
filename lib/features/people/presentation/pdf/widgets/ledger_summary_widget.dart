@@ -22,9 +22,13 @@ class LedgerSummaryWidget extends pw.StatelessWidget {
     final balanceColor = model.isCreditor
         ? PdfTokens.success
         : model.isDebtor
-            ? PdfTokens.error
-            : PdfTokens.textPrimary;
-    final balanceSubtitle = model.isCreditor ? 'owes you' : model.isDebtor ? 'you owe' : 'all settled';
+        ? PdfTokens.error
+        : PdfTokens.textPrimary;
+    final balanceSubtitle = model.isCreditor
+        ? 'owes you'
+        : model.isDebtor
+        ? 'you owe'
+        : 'all settled';
 
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,

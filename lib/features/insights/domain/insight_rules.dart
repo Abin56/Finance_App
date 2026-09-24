@@ -59,7 +59,8 @@ Insight? creditUtilizationRule(InsightInputs inputs) {
 
   if (utilization >= 0.75) {
     return Insight(
-      message: 'You\'re using ${(utilization * 100).round()}% of your credit limit — consider paying it down.',
+      message:
+          'You\'re using ${(utilization * 100).round()}% of your credit limit — consider paying it down.',
       severity: InsightSeverity.warning,
       category: InsightCategory.creditUtilization,
     );
@@ -71,7 +72,9 @@ Insight? creditUtilizationRule(InsightInputs inputs) {
   if (delta.abs() < 0.02) return null;
   final decreased = delta < 0;
   return Insight(
-    message: decreased ? 'Your credit utilization decreased.' : 'Your credit utilization increased.',
+    message: decreased
+        ? 'Your credit utilization decreased.'
+        : 'Your credit utilization increased.',
     severity: decreased ? InsightSeverity.positive : InsightSeverity.warning,
     category: InsightCategory.creditUtilization,
   );
@@ -183,7 +186,9 @@ Insight? cashFlowTrendIndicatorRule(InsightInputs inputs) {
   }
   final improved = delta > 0;
   return Insight(
-    message: improved ? 'Cash Flow Trend: Improving' : 'Cash Flow Trend: Declining',
+    message: improved
+        ? 'Cash Flow Trend: Improving'
+        : 'Cash Flow Trend: Declining',
     severity: improved ? InsightSeverity.positive : InsightSeverity.warning,
     category: InsightCategory.cashFlowTrend,
   );
@@ -192,7 +197,10 @@ Insight? cashFlowTrendIndicatorRule(InsightInputs inputs) {
 /// Spending trend indicator — total expenses vs the previous period.
 Insight? spendingTrendIndicatorRule(InsightInputs inputs) {
   if (inputs.previousExpenses == 0) return null;
-  final percentChange = (inputs.expenses - inputs.previousExpenses) / inputs.previousExpenses * 100;
+  final percentChange =
+      (inputs.expenses - inputs.previousExpenses) /
+      inputs.previousExpenses *
+      100;
   if (percentChange.abs() < 1) {
     return const Insight(
       message: 'Spending Trend: Stable',

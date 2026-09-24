@@ -29,23 +29,34 @@ class PersonExpenseStatsCard extends StatelessWidget {
               children: [
                 Text(
                   'You will receive',
-                  style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: context.colors.onSurface.withValues(alpha: 0.6),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   CurrencyFormatter.instance.format(stats.pending),
-                  style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: AppColors.success),
+                  style: context.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.success,
+                  ),
                 ),
                 const SizedBox(height: AppSizes.xs),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSizes.sm,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.success.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(AppSizes.radiusSm),
                   ),
                   child: Text(
                     'To Receive',
-                    style: context.textTheme.labelSmall?.copyWith(color: AppColors.success, fontWeight: FontWeight.w600),
+                    style: context.textTheme.labelSmall?.copyWith(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -81,12 +92,16 @@ class _MiniStat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurface.withValues(alpha: 0.6),
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: context.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ],
     );

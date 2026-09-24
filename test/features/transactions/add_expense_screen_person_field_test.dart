@@ -16,6 +16,10 @@ import 'package:finance_app/features/transactions/presentation/screens/add_expen
 /// Regression test for the optional "Person" field on the plain (non-shared)
 /// Add Expense screen — a pure reference (`Transaction.linkedPersonId`), so
 /// it must be selectable/clearable without ever touching split/ledger code.
+/// On a brand-new expense this field never shows the owed toggle either —
+/// that only applies to editing an already-owed transaction (see
+/// `add_expense_screen.dart`'s `_save` doc comments) — so linking a person
+/// here can never duplicate "Share Expense" -> "This person will pay".
 void main() {
   final account = Account(
     id: 'acc1',
@@ -48,8 +52,12 @@ void main() {
       ProviderScope(
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value([account])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value([category])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value([category]),
+          ),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
           peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
         ],
         child: const MaterialApp(home: AddExpenseScreen()),
@@ -58,14 +66,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Person field starts empty and optional, for an expense-type transaction', (tester) async {
-    await pump(tester);
+  testWidgets(
+    'Person field starts empty and optional, for an expense-type transaction',
+    (tester) async {
+      await pump(tester);
 
-    expect(find.text('Person (optional)'), findsOneWidget);
-    expect(find.text('Add a person (optional)'), findsOneWidget);
-  });
+      expect(find.text('Person (optional)'), findsOneWidget);
+      expect(find.text('Add a person (optional)'), findsOneWidget);
+    },
+  );
 
-  testWidgets('selecting a person shows their name and a clear action', (tester) async {
+  testWidgets('selecting a person shows their name and a clear action', (
+    tester,
+  ) async {
     await pump(tester);
 
     await tester.ensureVisible(find.text('Add a person (optional)'));
@@ -80,21 +93,43 @@ void main() {
     expect(find.byIcon(Icons.cancel), findsWidgets);
   });
 
-  testWidgets('clearing a selected person returns to the empty/optional state', (tester) async {
-    await pump(tester);
+  testWidgets(
+    'clearing a selected person returns to the empty/optional state',
+    (tester) async {
+      await pump(tester);
 
-    await tester.ensureVisible(find.text('Add a person (optional)'));
-    await tester.tap(find.text('Add a person (optional)'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Rahul Sharma').last);
-    await tester.pumpAndSettle();
-    expect(find.text('Rahul Sharma'), findsOneWidget);
+      await tester.ensureVisible(find.text('Add a person (optional)'));
+      await tester.tap(find.text('Add a person (optional)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rahul Sharma').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Rahul Sharma'), findsOneWidget);
 
-    // The clear (x) icon inside the Person row.
-    await tester.ensureVisible(find.widgetWithIcon(IconButton, Icons.cancel).last);
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.cancel).last);
-    await tester.pumpAndSettle();
+      // The clear (x) icon inside the Person row.
+      await tester.ensureVisible(
+        find.widgetWithIcon(IconButton, Icons.cancel).last,
+      );
+      await tester.tap(find.widgetWithIcon(IconButton, Icons.cancel).last);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Add a person (optional)'), findsOneWidget);
-  });
+      expect(find.text('Add a person (optional)'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'the owed toggle never appears for a brand-new expense, even once a '
+    'person is linked',
+    (tester) async {
+      await pump(tester);
+
+      await tester.ensureVisible(find.text('Add a person (optional)'));
+      await tester.tap(find.text('Add a person (optional)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rahul Sharma').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rahul Sharma'), findsOneWidget);
+      expect(find.text('This person owes me this expense'), findsNothing);
+    },
+  );
 }

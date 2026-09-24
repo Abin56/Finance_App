@@ -42,10 +42,15 @@ class _SmsLoanPickerSheetState extends ConsumerState<SmsLoanPickerSheet> {
     final selectedLoan = loans.where((l) => l.id == _loanId).firstOrNull;
     final installments = selectedLoan == null
         ? const <Installment>[]
-        : ref.watch(installmentsStreamProvider(selectedLoan.scheduleId)).value ?? const [];
+        : ref
+                  .watch(installmentsStreamProvider(selectedLoan.scheduleId))
+                  .value ??
+              const [];
     final unpaid = installments.where((i) => i.remainingAmount > 0).toList()
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-    final selectedInstallment = unpaid.where((i) => i.id == _installmentId).firstOrNull;
+    final selectedInstallment = unpaid
+        .where((i) => i.id == _installmentId)
+        .firstOrNull;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -58,7 +63,10 @@ class _SmsLoanPickerSheetState extends ConsumerState<SmsLoanPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Which loan is this for?', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Which loan is this for?',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: AppSizes.lg),
           DropdownButtonFormField<String>(
             initialValue: _loanId,
@@ -67,7 +75,11 @@ class _SmsLoanPickerSheetState extends ConsumerState<SmsLoanPickerSheet> {
               for (final loan in loans)
                 DropdownMenuItem(
                   value: loan.id,
-                  child: Text(loan.name?.isNotEmpty == true ? loan.name! : CurrencyFormatter.instance.format(loan.loanAmount)),
+                  child: Text(
+                    loan.name?.isNotEmpty == true
+                        ? loan.name!
+                        : CurrencyFormatter.instance.format(loan.loanAmount),
+                  ),
                 ),
             ],
             onChanged: (value) => setState(() {
@@ -79,7 +91,9 @@ class _SmsLoanPickerSheetState extends ConsumerState<SmsLoanPickerSheet> {
             const SizedBox(height: AppSizes.md),
             DropdownButtonFormField<String>(
               initialValue: _installmentId,
-              decoration: const InputDecoration(labelText: 'Which payment is this for?'),
+              decoration: const InputDecoration(
+                labelText: 'Which payment is this for?',
+              ),
               items: [
                 for (final installment in unpaid)
                   DropdownMenuItem(
@@ -97,7 +111,9 @@ class _SmsLoanPickerSheetState extends ConsumerState<SmsLoanPickerSheet> {
             label: 'Continue',
             onPressed: selectedLoan == null || selectedInstallment == null
                 ? null
-                : () => Navigator.of(context).pop((selectedLoan, selectedInstallment)),
+                : () => Navigator.of(
+                    context,
+                  ).pop((selectedLoan, selectedInstallment)),
           ),
           const SizedBox(height: AppSizes.sm),
         ],
@@ -132,10 +148,13 @@ class _SmsEmiPickerSheetState extends ConsumerState<SmsEmiPickerSheet> {
     final selectedEmi = emis.where((e) => e.id == _emiId).firstOrNull;
     final installments = selectedEmi == null
         ? const <Installment>[]
-        : ref.watch(installmentsStreamProvider(selectedEmi.scheduleId)).value ?? const [];
+        : ref.watch(installmentsStreamProvider(selectedEmi.scheduleId)).value ??
+              const [];
     final unpaid = installments.where((i) => i.remainingAmount > 0).toList()
       ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
-    final selectedInstallment = unpaid.where((i) => i.id == _installmentId).firstOrNull;
+    final selectedInstallment = unpaid
+        .where((i) => i.id == _installmentId)
+        .firstOrNull;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -148,13 +167,17 @@ class _SmsEmiPickerSheetState extends ConsumerState<SmsEmiPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Which EMI is this for?', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Which EMI is this for?',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: AppSizes.lg),
           DropdownButtonFormField<String>(
             initialValue: _emiId,
             decoration: const InputDecoration(labelText: 'EMI'),
             items: [
-              for (final emi in emis) DropdownMenuItem(value: emi.id, child: Text(emi.name)),
+              for (final emi in emis)
+                DropdownMenuItem(value: emi.id, child: Text(emi.name)),
             ],
             onChanged: (value) => setState(() {
               _emiId = value;
@@ -165,7 +188,9 @@ class _SmsEmiPickerSheetState extends ConsumerState<SmsEmiPickerSheet> {
             const SizedBox(height: AppSizes.md),
             DropdownButtonFormField<String>(
               initialValue: _installmentId,
-              decoration: const InputDecoration(labelText: 'Which payment is this for?'),
+              decoration: const InputDecoration(
+                labelText: 'Which payment is this for?',
+              ),
               items: [
                 for (final installment in unpaid)
                   DropdownMenuItem(
@@ -183,7 +208,9 @@ class _SmsEmiPickerSheetState extends ConsumerState<SmsEmiPickerSheet> {
             label: 'Continue',
             onPressed: selectedEmi == null || selectedInstallment == null
                 ? null
-                : () => Navigator.of(context).pop((selectedEmi, selectedInstallment)),
+                : () => Navigator.of(
+                    context,
+                  ).pop((selectedEmi, selectedInstallment)),
           ),
           const SizedBox(height: AppSizes.sm),
         ],

@@ -2,8 +2,10 @@
 enum SplitType { equal, custom, percentage, none }
 
 extension SplitTypeX on SplitType {
-  static SplitType fromName(String name) =>
-      SplitType.values.firstWhere((t) => t.name == name, orElse: () => SplitType.none);
+  static SplitType fromName(String name) => SplitType.values.firstWhere(
+    (t) => t.name == name,
+    orElse: () => SplitType.none,
+  );
 
   String get label {
     switch (this) {

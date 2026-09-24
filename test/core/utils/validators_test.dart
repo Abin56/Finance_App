@@ -12,11 +12,17 @@ void main() {
     });
 
     test('rejects an amount greater than the remaining balance', () {
-      expect(Validators.amountUpTo(4250)('4251'), 'Payment amount cannot exceed the remaining balance.');
+      expect(
+        Validators.amountUpTo(4250)('4251'),
+        'Payment amount cannot exceed the remaining balance.',
+      );
     });
 
     test('rejects a much larger overpayment', () {
-      expect(Validators.amountUpTo(4250)('10000'), 'Payment amount cannot exceed the remaining balance.');
+      expect(
+        Validators.amountUpTo(4250)('10000'),
+        'Payment amount cannot exceed the remaining balance.',
+      );
     });
 
     test('rejects zero', () {
@@ -41,8 +47,14 @@ void main() {
       expect(Validators.amountUpTo(4250.50)('4250.49'), isNull);
     });
 
-    test('rejects a decimal amount that exceeds the remaining balance by a fraction', () {
-      expect(Validators.amountUpTo(4250)('4250.01'), 'Payment amount cannot exceed the remaining balance.');
-    });
+    test(
+      'rejects a decimal amount that exceeds the remaining balance by a fraction',
+      () {
+        expect(
+          Validators.amountUpTo(4250)('4250.01'),
+          'Payment amount cannot exceed the remaining balance.',
+        );
+      },
+    );
   });
 }

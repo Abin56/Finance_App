@@ -11,7 +11,9 @@ void main() {
 
   setUp(() {
     final firestore = FakeFirebaseFirestore();
-    final collection = firestore.collection('paymentSchedules').withConverter<PaymentSchedule>(
+    final collection = firestore
+        .collection('paymentSchedules')
+        .withConverter<PaymentSchedule>(
           fromFirestore: PaymentSchedule.fromFirestore,
           toFirestore: (s, _) => s.toFirestore(),
         );

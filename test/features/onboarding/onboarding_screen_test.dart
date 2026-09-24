@@ -78,7 +78,10 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp(theme: AppTheme.light, home: const OnboardingScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const OnboardingScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -97,8 +100,9 @@ void main() {
   Future<void> tapSecondary(WidgetTester tester) =>
       tapAndSettle(tester, OnboardingScreen.secondaryActionKey);
 
-  String primaryLabel(WidgetTester tester) =>
-      tester.widget<PrimaryButton>(find.byKey(OnboardingScreen.primaryActionKey)).label;
+  String primaryLabel(WidgetTester tester) => tester
+      .widget<PrimaryButton>(find.byKey(OnboardingScreen.primaryActionKey))
+      .label;
 
   /// Walks from the welcome page to the final page, declining every optional
   /// step — the path a cautious user takes, and the one that reaches the end
@@ -122,43 +126,58 @@ void main() {
     expect(
       target.bottom <= page.bottom && target.top >= page.top,
       isTrue,
-      reason: 'Expected $finder on screen, but it sits at $target outside the page viewport $page',
+      reason:
+          'Expected $finder on screen, but it sits at $target outside the page viewport $page',
     );
   }
 
   group('layout', () {
     for (final width in _widths) {
-      testWidgets('every page lays out at ${width.toInt()}dp without overflow', (tester) async {
-        await pumpTour(tester, width: width, height: _shortHeight);
+      testWidgets(
+        'every page lays out at ${width.toInt()}dp without overflow',
+        (tester) async {
+          await pumpTour(tester, width: width, height: _shortHeight);
 
-        // Walking the whole tour is itself the assertion: a RenderFlex
-        // overflow on any page surfaces as a pumped exception.
-        expectVisibleInPage(tester, find.text('Manage all your money in one place.'));
+          // Walking the whole tour is itself the assertion: a RenderFlex
+          // overflow on any page surfaces as a pumped exception.
+          expectVisibleInPage(
+            tester,
+            find.text('Manage all your money in one place.'),
+          );
 
-        await tapPrimary(tester);
-        expect(find.text('Smart SMS detection'), findsOneWidget);
-        // The privacy promise is the whole reason this page persuades anyone
-        // to grant SMS access — it has to be on screen next to the button
-        // that asks, not reachable by scrolling.
-        expectVisibleInPage(
-          tester,
-          find.text('Your SMS stays on your device until you choose to convert it.'),
-        );
+          await tapPrimary(tester);
+          expect(find.text('Smart SMS detection'), findsOneWidget);
+          // The privacy promise is the whole reason this page persuades anyone
+          // to grant SMS access — it has to be on screen next to the button
+          // that asks, not reachable by scrolling.
+          expectVisibleInPage(
+            tester,
+            find.text(
+              'Your SMS stays on your device until you choose to convert it.',
+            ),
+          );
 
-        await tapSecondary(tester);
-        expectVisibleInPage(tester, find.text('Every payment, tracked'));
+          await tapSecondary(tester);
+          expectVisibleInPage(tester, find.text('Every payment, tracked'));
 
-        await tapPrimary(tester);
-        expectVisibleInPage(tester, find.text('Never miss an important payment.'));
+          await tapPrimary(tester);
+          expectVisibleInPage(
+            tester,
+            find.text('Never miss an important payment.'),
+          );
 
-        await tapSecondary(tester);
-        expectVisibleInPage(tester, find.text('Protect your financial data.'));
+          await tapSecondary(tester);
+          expectVisibleInPage(
+            tester,
+            find.text('Protect your financial data.'),
+          );
 
-        await tapSecondary(tester);
-        expectVisibleInPage(tester, find.text('You\'re all set!'));
+          await tapSecondary(tester);
+          expectVisibleInPage(tester, find.text('You\'re all set!'));
 
-        expect(tester.takeException(), isNull);
-      });
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   });
 
@@ -171,7 +190,9 @@ void main() {
       expect(find.bySemanticsLabel('Step 2 of 6'), findsOneWidget);
     });
 
-    testWidgets('top-bar Skip ends the tour from a middle page', (tester) async {
+    testWidgets('top-bar Skip ends the tour from a middle page', (
+      tester,
+    ) async {
       final container = await pumpTour(tester);
       expect(container.read(onboardingCompletedProvider), isFalse);
 
@@ -186,7 +207,9 @@ void main() {
       await pumpTour(tester);
       await walkToLastPage(tester);
 
-      final skip = tester.widget<TextButton>(find.byKey(OnboardingScreen.skipTourKey));
+      final skip = tester.widget<TextButton>(
+        find.byKey(OnboardingScreen.skipTourKey),
+      );
       expect(skip.onPressed, isNull);
     });
 
@@ -201,7 +224,9 @@ void main() {
       expect(container.read(onboardingCompletedProvider), isTrue);
     });
 
-    testWidgets('the tour never reappears once it has been seen', (tester) async {
+    testWidgets('the tour never reappears once it has been seen', (
+      tester,
+    ) async {
       final container = await pumpTour(tester);
       await container.read(onboardingCompletedProvider.notifier).complete();
 
@@ -211,7 +236,9 @@ void main() {
   });
 
   group('SMS page', () {
-    testWidgets('requesting SMS access asks once, then moves on', (tester) async {
+    testWidgets('requesting SMS access asks once, then moves on', (
+      tester,
+    ) async {
       await pumpTour(tester);
       await tapPrimary(tester);
       expect(primaryLabel(tester), 'Enable SMS Detection');
@@ -232,8 +259,12 @@ void main() {
       expect(find.text('Every payment, tracked'), findsOneWidget);
     });
 
-    testWidgets('offers no ask on a platform that cannot read SMS', (tester) async {
-      smsService = _FakeSmsPermissionService(SmsAvailability.unsupportedPlatform);
+    testWidgets('offers no ask on a platform that cannot read SMS', (
+      tester,
+    ) async {
+      smsService = _FakeSmsPermissionService(
+        SmsAvailability.unsupportedPlatform,
+      );
       await pumpTour(tester);
       await tapPrimary(tester);
 
@@ -241,7 +272,9 @@ void main() {
       expect(find.byKey(OnboardingScreen.secondaryActionKey), findsNothing);
     });
 
-    testWidgets('offers no ask when access was already granted', (tester) async {
+    testWidgets('offers no ask when access was already granted', (
+      tester,
+    ) async {
       smsService = _FakeSmsPermissionService(SmsAvailability.granted);
       await pumpTour(tester);
       await tapPrimary(tester);

@@ -21,7 +21,9 @@ class BudgetRepository extends FirestoreCrudRepository<Budget> {
     }
 
     final existing = await getAll();
-    final duplicate = existing.any((b) => b.type == type && b.categoryId == categoryId);
+    final duplicate = existing.any(
+      (b) => b.type == type && b.categoryId == categoryId,
+    );
     if (duplicate) {
       throw AppException(
         categoryId == null

@@ -5,8 +5,11 @@
 enum LoanCategory { personal, institutional }
 
 extension LoanCategoryX on LoanCategory {
-  static LoanCategory fromName(String? name) =>
-      LoanCategory.values.firstWhere((c) => c.name == name, orElse: () => LoanCategory.personal);
+  static LoanCategory fromName(String? name) => LoanCategory.values.firstWhere(
+    (c) => c.name == name,
+    orElse: () => LoanCategory.personal,
+  );
 
-  String get formLabel => this == LoanCategory.personal ? 'Personal' : 'Institution';
+  String get formLabel =>
+      this == LoanCategory.personal ? 'Personal' : 'Institution';
 }

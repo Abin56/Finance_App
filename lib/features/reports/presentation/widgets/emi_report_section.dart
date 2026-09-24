@@ -42,24 +42,47 @@ class EmiReportSection extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Expanded(child: _ReportStat(label: 'Total EMIs', value: '$totalEmis')),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'Total EMIs',
+                      value: '$totalEmis',
+                    ),
+                  ),
                   const SizedBox(width: AppSizes.sm),
-                  Expanded(child: _ReportStat(label: 'Closed EMIs', value: '$closedEmis')),
-                ],
-              ),
-              const SizedBox(height: AppSizes.sm),
-              Row(
-                children: [
-                  Expanded(child: _ReportStat(label: 'Total paid', value: CurrencyFormatter.instance.format(totalPaid))),
-                  const SizedBox(width: AppSizes.sm),
-                  Expanded(child: _ReportStat(label: 'Amount Left', value: CurrencyFormatter.instance.format(remaining))),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'Closed EMIs',
+                      value: '$closedEmis',
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSizes.sm),
               Row(
                 children: [
                   Expanded(
-                    child: _ReportStat(label: 'Interest paid', value: CurrencyFormatter.instance.format(interestPaid)),
+                    child: _ReportStat(
+                      label: 'Total paid',
+                      value: CurrencyFormatter.instance.format(totalPaid),
+                    ),
+                  ),
+                  const SizedBox(width: AppSizes.sm),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'Amount Left',
+                      value: CurrencyFormatter.instance.format(remaining),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSizes.sm),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'Interest paid',
+                      value: CurrencyFormatter.instance.format(interestPaid),
+                    ),
                   ),
                   const SizedBox(width: AppSizes.sm),
                   Expanded(
@@ -73,13 +96,26 @@ class EmiReportSection extends ConsumerWidget {
               const SizedBox(height: AppSizes.sm),
               Row(
                 children: [
-                  Expanded(child: _ReportStat(label: 'Upcoming Monthly EMI', value: '$upcoming')),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'Upcoming Monthly EMI',
+                      value: '$upcoming',
+                    ),
+                  ),
                   const SizedBox(width: AppSizes.sm),
-                  Expanded(child: _ReportStat(label: 'Missed Payment EMI', value: '$overdue')),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'Missed Payment EMI',
+                      value: '$overdue',
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSizes.sm),
-              _ReportStat(label: 'Amount Left (Missed)', value: CurrencyFormatter.instance.format(overdueAmount)),
+              _ReportStat(
+                label: 'Amount Left (Missed)',
+                value: CurrencyFormatter.instance.format(overdueAmount),
+              ),
             ],
           ),
         ),
@@ -109,22 +145,37 @@ class EmiReportSection extends ConsumerWidget {
               const SizedBox(height: AppSizes.sm),
               Row(
                 children: [
-                  Expanded(child: _ReportStat(label: 'GST Paid', value: CurrencyFormatter.instance.format(gstPaid))),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'GST Paid',
+                      value: CurrencyFormatter.instance.format(gstPaid),
+                    ),
+                  ),
                   const SizedBox(width: AppSizes.sm),
-                  Expanded(child: _ReportStat(label: 'IGST Paid', value: CurrencyFormatter.instance.format(igstPaid))),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'IGST Paid',
+                      value: CurrencyFormatter.instance.format(igstPaid),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSizes.sm),
               Row(
                 children: [
                   Expanded(
-                    child: _ReportStat(label: 'Insurance Paid', value: CurrencyFormatter.instance.format(insurancePaid)),
+                    child: _ReportStat(
+                      label: 'Insurance Paid',
+                      value: CurrencyFormatter.instance.format(insurancePaid),
+                    ),
                   ),
                   const SizedBox(width: AppSizes.sm),
                   Expanded(
                     child: _ReportStat(
                       label: 'Processing Fees',
-                      value: CurrencyFormatter.instance.format(processingFeesPaid),
+                      value: CurrencyFormatter.instance.format(
+                        processingFeesPaid,
+                      ),
                     ),
                   ),
                 ],
@@ -133,19 +184,27 @@ class EmiReportSection extends ConsumerWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _ReportStat(label: 'Penalties', value: CurrencyFormatter.instance.format(penaltiesPaid)),
+                    child: _ReportStat(
+                      label: 'Penalties',
+                      value: CurrencyFormatter.instance.format(penaltiesPaid),
+                    ),
                   ),
                   const SizedBox(width: AppSizes.sm),
                   Expanded(
                     child: _ReportStat(
                       label: 'Other Charges',
-                      value: CurrencyFormatter.instance.format(otherChargesPaid),
+                      value: CurrencyFormatter.instance.format(
+                        otherChargesPaid,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: AppSizes.sm),
-              _ReportStat(label: 'Total EMI Paid', value: CurrencyFormatter.instance.format(overallPaid)),
+              _ReportStat(
+                label: 'Total EMI Paid',
+                value: CurrencyFormatter.instance.format(overallPaid),
+              ),
             ],
           ),
         ),
@@ -171,10 +230,17 @@ class _ReportStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value, style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: context.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           Text(
             label,
-            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
         ],
       ),

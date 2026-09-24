@@ -6,7 +6,12 @@ import 'package:flutter/material.dart';
 /// are plotted left-to-right in the order given; a flat/empty series still
 /// renders (as a flat line) rather than throwing.
 class MiniTrendChart extends StatelessWidget {
-  const MiniTrendChart({super.key, required this.values, required this.color, this.height = 40});
+  const MiniTrendChart({
+    super.key,
+    required this.values,
+    required this.color,
+    this.height = 40,
+  });
 
   final List<double> values;
   final Color color;
@@ -31,10 +36,15 @@ class MiniTrendChart extends StatelessWidget {
           lineTouchData: const LineTouchData(enabled: false),
           lineBarsData: [
             LineChartBarData(
-              spots: [for (var i = 0; i < points.length; i++) FlSpot(i.toDouble(), points[i])],
+              spots: [
+                for (var i = 0; i < points.length; i++)
+                  FlSpot(i.toDouble(), points[i]),
+              ],
               isCurved: true,
               curveSmoothness: 0.3,
-              gradient: LinearGradient(colors: [color.withValues(alpha: 0.6), color]),
+              gradient: LinearGradient(
+                colors: [color.withValues(alpha: 0.6), color],
+              ),
               barWidth: 2.5,
               isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
@@ -43,7 +53,10 @@ class MiniTrendChart extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [color.withValues(alpha: 0.4), color.withValues(alpha: 0)],
+                  colors: [
+                    color.withValues(alpha: 0.4),
+                    color.withValues(alpha: 0),
+                  ],
                 ),
               ),
             ),

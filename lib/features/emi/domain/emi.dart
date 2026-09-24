@@ -151,9 +151,13 @@ class Emi extends SoftDeletableEntity {
   EmiStatus statusGiven(List<Installment> installments) {
     if (isClosed) return EmiStatus.closed;
     if (isDefaulted) return EmiStatus.defaulted;
-    final hasOverdue = installments.any((i) => i.status == InstallmentStatus.overdue);
+    final hasOverdue = installments.any(
+      (i) => i.status == InstallmentStatus.overdue,
+    );
     if (hasOverdue) return EmiStatus.overdue;
-    final isFullyPaid = installments.isNotEmpty && installments.every((i) => i.remainingAmount <= 0);
+    final isFullyPaid =
+        installments.isNotEmpty &&
+        installments.every((i) => i.remainingAmount <= 0);
     return isFullyPaid ? EmiStatus.completed : EmiStatus.active;
   }
 
@@ -163,37 +167,41 @@ class Emi extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Emi(
-      id: snapshot.id,
-      name: data['name'] as String,
-      lenderName: data['lenderName'] as String?,
-      categoryId: data['categoryId'] as String?,
-      principalAmount: (data['principalAmount'] as num).toDouble(),
-      interest: data['interest'] == null ? null : EmiInterest.fromMap(data['interest'] as Map<String, dynamic>),
-      startDate: (data['startDate'] as Timestamp).toDate(),
-      installmentFrequency: ScheduleTypeX.fromName(data['installmentFrequency'] as String),
-      installmentCount: (data['installmentCount'] as num).toInt(),
-      endDate: (data['endDate'] as Timestamp).toDate(),
-      notes: data['notes'] as String? ?? '',
-      scheduleId: data['scheduleId'] as String,
-      isClosed: data['isClosed'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      loanNumber: data['loanNumber'] as String?,
-      loanType: EmiLoanTypeX.fromName(data['loanType'] as String?),
-      branch: data['branch'] as String?,
-      customerId: data['customerId'] as String?,
-      sanctionDate: (data['sanctionDate'] as Timestamp?)?.toDate(),
-      disbursementDate: (data['disbursementDate'] as Timestamp?)?.toDate(),
-      processingFee: (data['processingFee'] as num?)?.toDouble() ?? 0,
-      insuranceAmount: (data['insuranceAmount'] as num?)?.toDouble() ?? 0,
-      extraCharges: (data['extraCharges'] as num?)?.toDouble() ?? 0,
-      foreclosureAmount: (data['foreclosureAmount'] as num?)?.toDouble(),
-      prepaymentCharges: (data['prepaymentCharges'] as num?)?.toDouble(),
-      isAutoDebitEnabled: data['isAutoDebitEnabled'] as bool? ?? false,
-      autoDebitAccount: data['autoDebitAccount'] as String?,
-      isDefaulted: data['isDefaulted'] as bool? ?? false,
-      linkedCreditCardId: data['linkedCreditCardId'] as String?,
-      dueDayOfMonth: (data['dueDayOfMonth'] as num?)?.toInt(),
-    )
+        id: snapshot.id,
+        name: data['name'] as String,
+        lenderName: data['lenderName'] as String?,
+        categoryId: data['categoryId'] as String?,
+        principalAmount: (data['principalAmount'] as num).toDouble(),
+        interest: data['interest'] == null
+            ? null
+            : EmiInterest.fromMap(data['interest'] as Map<String, dynamic>),
+        startDate: (data['startDate'] as Timestamp).toDate(),
+        installmentFrequency: ScheduleTypeX.fromName(
+          data['installmentFrequency'] as String,
+        ),
+        installmentCount: (data['installmentCount'] as num).toInt(),
+        endDate: (data['endDate'] as Timestamp).toDate(),
+        notes: data['notes'] as String? ?? '',
+        scheduleId: data['scheduleId'] as String,
+        isClosed: data['isClosed'] as bool? ?? false,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+        loanNumber: data['loanNumber'] as String?,
+        loanType: EmiLoanTypeX.fromName(data['loanType'] as String?),
+        branch: data['branch'] as String?,
+        customerId: data['customerId'] as String?,
+        sanctionDate: (data['sanctionDate'] as Timestamp?)?.toDate(),
+        disbursementDate: (data['disbursementDate'] as Timestamp?)?.toDate(),
+        processingFee: (data['processingFee'] as num?)?.toDouble() ?? 0,
+        insuranceAmount: (data['insuranceAmount'] as num?)?.toDouble() ?? 0,
+        extraCharges: (data['extraCharges'] as num?)?.toDouble() ?? 0,
+        foreclosureAmount: (data['foreclosureAmount'] as num?)?.toDouble(),
+        prepaymentCharges: (data['prepaymentCharges'] as num?)?.toDouble(),
+        isAutoDebitEnabled: data['isAutoDebitEnabled'] as bool? ?? false,
+        autoDebitAccount: data['autoDebitAccount'] as String?,
+        isDefaulted: data['isDefaulted'] as bool? ?? false,
+        linkedCreditCardId: data['linkedCreditCardId'] as String?,
+        dueDayOfMonth: (data['dueDayOfMonth'] as num?)?.toInt(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -220,8 +228,12 @@ class Emi extends SoftDeletableEntity {
       'loanType': loanType.name,
       'branch': branch,
       'customerId': customerId,
-      'sanctionDate': sanctionDate == null ? null : Timestamp.fromDate(sanctionDate!),
-      'disbursementDate': disbursementDate == null ? null : Timestamp.fromDate(disbursementDate!),
+      'sanctionDate': sanctionDate == null
+          ? null
+          : Timestamp.fromDate(sanctionDate!),
+      'disbursementDate': disbursementDate == null
+          ? null
+          : Timestamp.fromDate(disbursementDate!),
       'processingFee': processingFee,
       'insuranceAmount': insuranceAmount,
       'extraCharges': extraCharges,
@@ -233,7 +245,9 @@ class Emi extends SoftDeletableEntity {
       'linkedCreditCardId': linkedCreditCardId,
       'dueDayOfMonth': dueDayOfMonth,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

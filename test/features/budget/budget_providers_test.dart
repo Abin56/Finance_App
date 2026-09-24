@@ -31,7 +31,9 @@ void main() {
   });
 
   Future<String> seedAccount() async {
-    final account = await container.read(accountRepositoryProvider).createAccount(
+    final account = await container
+        .read(accountRepositoryProvider)
+        .createAccount(
           name: 'Wallet',
           type: AccountType.cash,
           openingBalance: 10000,
@@ -64,57 +66,75 @@ void main() {
 
       await container.read(transactionsStreamProvider.future);
 
-      expect(container.read(monthSpentProvider(now)), 500, reason: 'excluded transaction must not count');
-    });
-
-    test('a transaction assigned to next month via accountingMonth counts toward next month, not this one', () async {
-      final now = DateTime.now();
-      final nextMonth = DateTime(now.year, now.month + 1);
-      final accountId = await seedAccount();
-      final transactions = container.read(transactionRepositoryProvider);
-
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 400,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'advance-payment',
-        accountingMonth: nextMonth,
+      expect(
+        container.read(monthSpentProvider(now)),
+        500,
+        reason: 'excluded transaction must not count',
       );
-
-      await container.read(transactionsStreamProvider.future);
-
-      expect(container.read(monthSpentProvider(now)), 0, reason: 'reassigned away from this month');
-      expect(container.read(monthSpentProvider(nextMonth)), 400, reason: 'must count toward its accounting month');
     });
+
+    test(
+      'a transaction assigned to next month via accountingMonth counts toward next month, not this one',
+      () async {
+        final now = DateTime.now();
+        final nextMonth = DateTime(now.year, now.month + 1);
+        final accountId = await seedAccount();
+        final transactions = container.read(transactionRepositoryProvider);
+
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 400,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'advance-payment',
+          accountingMonth: nextMonth,
+        );
+
+        await container.read(transactionsStreamProvider.future);
+
+        expect(
+          container.read(monthSpentProvider(now)),
+          0,
+          reason: 'reassigned away from this month',
+        );
+        expect(
+          container.read(monthSpentProvider(nextMonth)),
+          400,
+          reason: 'must count toward its accounting month',
+        );
+      },
+    );
   });
 
   group('categorySpentProvider', () {
-    test('excludes a transaction marked excludeFromCalculations from its category total', () async {
-      final now = DateTime.now();
-      final accountId = await seedAccount();
-      final transactions = container.read(transactionRepositoryProvider);
+    test(
+      'excludes a transaction marked excludeFromCalculations from its category total',
+      () async {
+        final now = DateTime.now();
+        final accountId = await seedAccount();
+        final transactions = container.read(transactionRepositoryProvider);
 
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 200,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'groceries',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 150,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'groceries',
-        excludeFromCalculations: true,
-      );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 200,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'groceries',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 150,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'groceries',
+          excludeFromCalculations: true,
+        );
 
-      await container.read(transactionsStreamProvider.future);
+        await container.read(transactionsStreamProvider.future);
 
-      expect(container.read(categorySpentProvider('groceries')), 200);
-    });
+        expect(container.read(categorySpentProvider('groceries')), 200);
+      },
+    );
   });
 
   group('todaySpentProvider', () {

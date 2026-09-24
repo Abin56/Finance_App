@@ -9,8 +9,8 @@ import '../../../../core/router/app_routes.dart';
 import '../../domain/date_range_strategy.dart';
 import '../../domain/widget_configuration.dart';
 import '../providers/upcoming_due_provider.dart';
-import '../../../theme/clay_theme.dart';
-import '../../../theme/clay_widgets.dart';
+import '../../../constants/app_colors.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.previousCycleCarryForward] — everything
@@ -34,23 +34,35 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
       _ => 17,
     };
     final cycle = SalaryCycleFull(anchorDay: anchorDay).resolve(DateTime.now());
-    final items = ref.watch(upcomingDueProvider((start: cycle.start, end: cycle.end)));
+    final items = ref.watch(
+      upcomingDueProvider((start: cycle.start, end: cycle.end)),
+    );
     final carriedOver = items.where((i) => i.isCarriedOver).toList();
     final textTheme = context.textTheme;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     if (carriedOver.isEmpty) {
       return DashboardWidgetCard(
-        backgroundColor: AppClay.success.withValues(alpha: 0.06),
+        backgroundColor: AppColors.success.withValues(alpha: 0.06),
         showHairline: false,
         child: Row(
           children: [
-            Icon(Icons.check_circle_outline_rounded, size: AppSizes.iconSm, color: AppClay.success),
+            Icon(
+              Icons.check_circle_outline_rounded,
+              size: AppSizes.iconSm,
+              color: AppColors.success,
+            ),
             const SizedBox(width: AppSizes.sm),
             Expanded(
               child: Text(
                 'Nothing carried over — previous cycle is fully settled.',
-                style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                style: textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -61,7 +73,7 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
     final total = carriedOver.fold(0.0, (sum, i) => sum + i.remaining);
 
     return DashboardWidgetCard(
-      backgroundColor: AppClay.warning.withValues(alpha: 0.08),
+      backgroundColor: AppColors.warning.withValues(alpha: 0.08),
       showHairline: false,
       onTap: () => context.go(AppRoutes.cashFlow),
       child: Column(
@@ -69,12 +81,11 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              ClayIconChip(
+              FlowFiIconChip(
                 icon: Icons.history_toggle_off_rounded,
-                color: AppClay.warning,
+                color: AppColors.warning,
                 size: 28,
                 iconSize: 15,
-                glow: true,
               ),
               const SizedBox(width: AppSizes.sm),
               Expanded(
@@ -96,7 +107,10 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     format.format(total),
-                    style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: AppClay.warning),
+                    style: textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.warning,
+                    ),
                   ),
                 ),
               ),
@@ -106,7 +120,9 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     '${carriedOver.length} ${carriedOver.length == 1 ? 'item' : 'items'} pending',
-                    style: textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: context.colors.onSurfaceVariant,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -119,7 +135,9 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
               Expanded(
                 child: Text(
                   'Carried forward from your previous pay period',
-                  style: textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+                  style: textTheme.bodySmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -128,7 +146,10 @@ class PreviousCycleWidgetCard extends ConsumerWidget {
               Flexible(
                 child: Text(
                   'View Previous Cycle ›',
-                  style: textTheme.labelSmall?.copyWith(color: AppClay.warning, fontWeight: FontWeight.w700),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w700,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

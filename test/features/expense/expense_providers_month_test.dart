@@ -30,7 +30,9 @@ void main() {
   });
 
   Future<String> seedAccount() async {
-    final account = await container.read(accountRepositoryProvider).createAccount(
+    final account = await container
+        .read(accountRepositoryProvider)
+        .createAccount(
           name: 'Wallet',
           type: AccountType.cash,
           openingBalance: 10000,
@@ -66,25 +68,28 @@ void main() {
       expect(container.read(myThisMonthExpenseProvider), 600);
     });
 
-    test('a transaction reassigned to next month via accountingMonth is excluded from this month\'s total', () async {
-      final now = DateTime.now();
-      final nextMonth = DateTime(now.year, now.month + 1);
-      final accountId = await seedAccount();
-      final transactions = container.read(transactionRepositoryProvider);
+    test(
+      'a transaction reassigned to next month via accountingMonth is excluded from this month\'s total',
+      () async {
+        final now = DateTime.now();
+        final nextMonth = DateTime(now.year, now.month + 1);
+        final accountId = await seedAccount();
+        final transactions = container.read(transactionRepositoryProvider);
 
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 900,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'advance-payment',
-        accountingMonth: nextMonth,
-      );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 900,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'advance-payment',
+          accountingMonth: nextMonth,
+        );
 
-      await container.read(transactionsStreamProvider.future);
+        await container.read(transactionsStreamProvider.future);
 
-      expect(container.read(myThisMonthExpenseProvider), 0);
-    });
+        expect(container.read(myThisMonthExpenseProvider), 0);
+      },
+    );
   });
 
   group('myTodayExpenseProvider', () {
@@ -105,7 +110,11 @@ void main() {
 
       await container.read(transactionsStreamProvider.future);
 
-      expect(container.read(myTodayExpenseProvider), 150, reason: 'daily granularity always uses the real date');
+      expect(
+        container.read(myTodayExpenseProvider),
+        150,
+        reason: 'daily granularity always uses the real date',
+      );
     });
   });
 
@@ -117,88 +126,128 @@ void main() {
     // math on top of it. Regression coverage for the bug where this
     // provider used to filter independently (raw transactionsStreamProvider
     // + raw dateTime), silently disagreeing with the rest of the screen.
-    test('an excluded transaction never reaches the breakdown once Reports pre-filters it', () async {
-      final now = DateTime.now();
-      final accountId = await seedAccount();
-      final transactions = container.read(transactionRepositoryProvider);
+    test(
+      'an excluded transaction never reaches the breakdown once Reports pre-filters it',
+      () async {
+        final now = DateTime.now();
+        final accountId = await seedAccount();
+        final transactions = container.read(transactionRepositoryProvider);
 
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 400,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'groceries',
-      );
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 999,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'reimbursable',
-        excludeFromCalculations: true,
-      );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 400,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'groceries',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 999,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'reimbursable',
+          excludeFromCalculations: true,
+        );
 
-      await container.read(transactionsStreamProvider.future);
-      final calculable = container.read(calculableTransactionsProvider);
+        await container.read(transactionsStreamProvider.future);
+        final calculable = container.read(calculableTransactionsProvider);
 
-      final breakdown = container.read(myExpenseBreakdownForTransactionsProvider(calculable));
-      expect(breakdown.total, 400, reason: 'excludeFromCalculations must never contribute to My Expense');
-    });
+        final breakdown = container.read(
+          myExpenseBreakdownForTransactionsProvider(calculable),
+        );
+        expect(
+          breakdown.total,
+          400,
+          reason: 'excludeFromCalculations must never contribute to My Expense',
+        );
+      },
+    );
 
-    test('an accounting-month-reassigned transaction lands in the period Reports actually filtered for', () async {
-      final now = DateTime.now();
-      final nextMonth = DateTime(now.year, now.month + 1);
-      final accountId = await seedAccount();
-      final transactions = container.read(transactionRepositoryProvider);
+    test(
+      'an accounting-month-reassigned transaction lands in the period Reports actually filtered for',
+      () async {
+        final now = DateTime.now();
+        final nextMonth = DateTime(now.year, now.month + 1);
+        final accountId = await seedAccount();
+        final transactions = container.read(transactionRepositoryProvider);
 
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 700,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'advance-payment',
-        accountingMonth: nextMonth,
-      );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 700,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'advance-payment',
+          accountingMonth: nextMonth,
+        );
 
-      await container.read(transactionsStreamProvider.future);
-      final calculable = container.read(calculableTransactionsProvider);
+        await container.read(transactionsStreamProvider.future);
+        final calculable = container.read(calculableTransactionsProvider);
 
-      // Reports filters via ReportsPeriod.thisMonth.reportDateFor before
-      // calling this provider — the reassigned transaction must NOT appear
-      // in "this month"'s breakdown...
-      final thisMonthFiltered =
-          calculable.where((t) => t.effectiveMonth.year == now.year && t.effectiveMonth.month == now.month).toList();
-      expect(container.read(myExpenseBreakdownForTransactionsProvider(thisMonthFiltered)).total, 0);
+        // Reports filters via ReportsPeriod.thisMonth.reportDateFor before
+        // calling this provider — the reassigned transaction must NOT appear
+        // in "this month"'s breakdown...
+        final thisMonthFiltered = calculable
+            .where(
+              (t) =>
+                  t.effectiveMonth.year == now.year &&
+                  t.effectiveMonth.month == now.month,
+            )
+            .toList();
+        expect(
+          container
+              .read(
+                myExpenseBreakdownForTransactionsProvider(thisMonthFiltered),
+              )
+              .total,
+          0,
+        );
 
-      // ...but must appear once Reports is viewing the month it was
-      // reassigned to.
-      final nextMonthFiltered = calculable
-          .where((t) => t.effectiveMonth.year == nextMonth.year && t.effectiveMonth.month == nextMonth.month)
-          .toList();
-      expect(container.read(myExpenseBreakdownForTransactionsProvider(nextMonthFiltered)).total, 700);
-    });
+        // ...but must appear once Reports is viewing the month it was
+        // reassigned to.
+        final nextMonthFiltered = calculable
+            .where(
+              (t) =>
+                  t.effectiveMonth.year == nextMonth.year &&
+                  t.effectiveMonth.month == nextMonth.month,
+            )
+            .toList();
+        expect(
+          container
+              .read(
+                myExpenseBreakdownForTransactionsProvider(nextMonthFiltered),
+              )
+              .total,
+          700,
+        );
+      },
+    );
 
-    test('splits personal vs split-expense share correctly given a pre-filtered list', () async {
-      final now = DateTime.now();
-      final accountId = await seedAccount();
-      final transactions = container.read(transactionRepositoryProvider);
+    test(
+      'splits personal vs split-expense share correctly given a pre-filtered list',
+      () async {
+        final now = DateTime.now();
+        final accountId = await seedAccount();
+        final transactions = container.read(transactionRepositoryProvider);
 
-      // Plain (non-split) expense — counts as "personal".
-      await transactions.createTransaction(
-        type: TransactionType.expense,
-        amount: 300,
-        dateTime: now,
-        accountId: accountId,
-        categoryId: 'groceries',
-      );
+        // Plain (non-split) expense — counts as "personal".
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 300,
+          dateTime: now,
+          accountId: accountId,
+          categoryId: 'groceries',
+        );
 
-      await container.read(transactionsStreamProvider.future);
-      final calculable = container.read(calculableTransactionsProvider);
+        await container.read(transactionsStreamProvider.future);
+        final calculable = container.read(calculableTransactionsProvider);
 
-      final breakdown = container.read(myExpenseBreakdownForTransactionsProvider(calculable));
-      expect(breakdown.personal, 300);
-      expect(breakdown.split, 0);
-      expect(breakdown.total, 300);
-    });
+        final breakdown = container.read(
+          myExpenseBreakdownForTransactionsProvider(calculable),
+        );
+        expect(breakdown.personal, 300);
+        expect(breakdown.split, 0);
+        expect(breakdown.total, 300);
+      },
+    );
   });
 }

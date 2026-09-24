@@ -13,7 +13,6 @@ import '../../expense/presentation/widgets/split_expense_form_sheet.dart';
 import '../../lending/presentation/widgets/record_loan_payment_sheet.dart';
 import '../../transactions/domain/transaction_type.dart';
 import '../../transactions/presentation/screens/add_expense_screen.dart';
-import '../../transactions/presentation/screens/transfer_screen.dart';
 import '../../transactions/presentation/widgets/money_received_sheet.dart';
 import '../domain/account_card_matcher.dart';
 import '../domain/sms_conversion_target.dart';
@@ -37,7 +36,12 @@ import 'widgets/sms_obligation_picker_sheet.dart';
 class SmsConversionRouter {
   const SmsConversionRouter();
 
-  Future<void> route(BuildContext context, WidgetRef ref, SmsInboxItem item, SmsConversionTarget target) async {
+  Future<void> route(
+    BuildContext context,
+    WidgetRef ref,
+    SmsInboxItem item,
+    SmsConversionTarget target,
+  ) async {
     switch (target) {
       case SmsConversionTarget.ignore:
         await ref.read(smsInboxItemsProvider.notifier).markIgnored(item.id);
@@ -45,40 +49,64 @@ class SmsConversionRouter {
       case SmsConversionTarget.myExpense:
         await AddExpenseScreen.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.expense,
+          ),
           initialType: TransactionType.expense,
         );
         return;
       case SmsConversionTarget.myIncome:
         await AddExpenseScreen.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.income),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.income,
+          ),
           initialType: TransactionType.income,
         );
         return;
       case SmsConversionTarget.creditCardPurchase:
         await AddExpenseScreen.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.expense,
+          ),
           initialType: TransactionType.expense,
         );
         return;
       case SmsConversionTarget.someonePaidMe:
         await MoneyReceivedSheet.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.income),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.income,
+          ),
         );
         return;
       case SmsConversionTarget.splitExpense:
         await SplitExpenseFormSheet.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.expense,
+          ),
         );
         return;
       case SmsConversionTarget.paidForSomeoneElse:
         await AssignExpenseSheet.show(
           context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.expense,
+          ),
         );
         return;
       case SmsConversionTarget.loanPayment:
@@ -88,7 +116,11 @@ class SmsConversionRouter {
         await RecordLoanPaymentSheet.show(
           context,
           installment,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.expense,
+          ),
         );
         return;
       case SmsConversionTarget.emiPayment:
@@ -99,7 +131,11 @@ class SmsConversionRouter {
           context,
           emi,
           installment,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.expense,
+          ),
         );
         return;
       case SmsConversionTarget.billPayment:
@@ -112,17 +148,13 @@ class SmsConversionRouter {
           context,
           bill,
           occurrence,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
+          smsPrefill: _buildPrefill(
+            ref,
+            item,
+            transactionType: TransactionType.expense,
+          ),
         );
         return;
-      case SmsConversionTarget.transferBetweenAccounts:
-        // Source account guessed from the masked number where possible;
-        // destination is always left for the user, since an SMS never states
-        // which of the user's own accounts it moved into.
-        await TransferScreen.show(
-          context,
-          smsPrefill: _buildPrefill(ref, item, transactionType: TransactionType.expense),
-        );
     }
   }
 
@@ -138,7 +170,9 @@ class SmsConversionRouter {
     final parsed = item.parsed;
 
     final categories = ref.read(categoriesForTypeProvider(transactionType));
-    final suggestion = ref.read(merchantCategorySuggesterProvider).suggest(
+    final suggestion = ref
+        .read(merchantCategorySuggesterProvider)
+        .suggest(
           merchant: parsed?.merchantOrSender,
           transactionType: transactionType,
           categories: categories,
@@ -171,8 +205,11 @@ class SmsConversionRouter {
   /// unselected"), an ambiguous or absent match yields null and the user
   /// picks — see [AccountCardMatcher]'s own doc for why.
   String? _matchAccountId(WidgetRef ref, SmsInboxItem item) {
-    final candidates = ref.read(transactionCandidatesProvider).valueOrNull ?? const [];
-    final candidate = candidates.firstWhereOrNull((c) => c.smsItemId == item.id);
+    final candidates =
+        ref.read(transactionCandidatesProvider).valueOrNull ?? const [];
+    final candidate = candidates.firstWhereOrNull(
+      (c) => c.smsItemId == item.id,
+    );
     if (candidate != null) return candidate.matchedAccountId;
 
     final parsed = item.parsed;
@@ -195,7 +232,8 @@ class SmsConversionRouter {
     if (parts.isEmpty) return null;
     return 'SMS: ${parts.join(' • ')}';
   }
-
 }
 
-final smsConversionRouterProvider = Provider<SmsConversionRouter>((ref) => const SmsConversionRouter());
+final smsConversionRouterProvider = Provider<SmsConversionRouter>(
+  (ref) => const SmsConversionRouter(),
+);

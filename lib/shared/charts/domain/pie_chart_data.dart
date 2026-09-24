@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 
 /// One wedge in an [AppPieChartData].
 class ChartSlice {
-  const ChartSlice({required this.label, required this.value, required this.color});
+  const ChartSlice({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final double value;

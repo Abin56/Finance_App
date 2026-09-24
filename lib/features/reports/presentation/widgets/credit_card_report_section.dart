@@ -22,7 +22,11 @@ import '../../../credit_cards/presentation/providers/credit_card_report_provider
 /// simply omitted when empty rather than shown as 0 — mirrors
 /// [EmiReportSection]'s conditional rendering).
 class CreditCardReportSection extends ConsumerWidget {
-  const CreditCardReportSection({super.key, required this.periodStart, required this.periodEnd});
+  const CreditCardReportSection({
+    super.key,
+    required this.periodStart,
+    required this.periodEnd,
+  });
 
   final DateTime periodStart;
   final DateTime periodEnd;
@@ -38,7 +42,9 @@ class CreditCardReportSection extends ConsumerWidget {
     final outstanding = ref.watch(totalCreditCardOutstandingProvider);
     final available = ref.watch(totalCreditAvailableProvider);
     final limit = outstanding + available;
-    final utilization = limit <= 0 ? null : (outstanding / limit).clamp(0.0, 1.0);
+    final utilization = limit <= 0
+        ? null
+        : (outstanding / limit).clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,12 +63,20 @@ class CreditCardReportSection extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: AppSizes.sm),
-                  Expanded(child: _ReportStat(label: 'Statement History', value: '$statementCount')),
+                  Expanded(
+                    child: _ReportStat(
+                      label: 'Statement History',
+                      value: '$statementCount',
+                    ),
+                  ),
                 ],
               ),
               if (utilization != null) ...[
                 const SizedBox(height: AppSizes.sm),
-                _ReportStat(label: 'Credit Utilization', value: '${(utilization * 100).round()}%'),
+                _ReportStat(
+                  label: 'Credit Utilization',
+                  value: '${(utilization * 100).round()}%',
+                ),
               ],
               const SizedBox(height: AppSizes.sm),
               _ReportStat(
@@ -77,13 +91,19 @@ class CreditCardReportSection extends ConsumerWidget {
                       Expanded(
                         child: _ReportStat(
                           label: 'Interest Paid',
-                          value: CurrencyFormatter.instance.format(interestCharged),
+                          value: CurrencyFormatter.instance.format(
+                            interestCharged,
+                          ),
                         ),
                       ),
-                    if (interestCharged > 0 && lateFees > 0) const SizedBox(width: AppSizes.sm),
+                    if (interestCharged > 0 && lateFees > 0)
+                      const SizedBox(width: AppSizes.sm),
                     if (lateFees > 0)
                       Expanded(
-                        child: _ReportStat(label: 'Late Fees', value: CurrencyFormatter.instance.format(lateFees)),
+                        child: _ReportStat(
+                          label: 'Late Fees',
+                          value: CurrencyFormatter.instance.format(lateFees),
+                        ),
                       ),
                   ],
                 ),
@@ -113,10 +133,17 @@ class _ReportStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value, style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: context.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           Text(
             label,
-            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.6),
+            ),
           ),
         ],
       ),

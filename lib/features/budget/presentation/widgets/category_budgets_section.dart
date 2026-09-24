@@ -25,7 +25,9 @@ class CategoryBudgetsSection extends ConsumerWidget {
     final categories = ref.watch(categoriesStreamProvider).value ?? const [];
     final categoriesById = {for (final c in categories) c.id: c};
 
-    final budgetedCategoryIds = categoryBudgets.map((b) => b.categoryId).toSet();
+    final budgetedCategoryIds = categoryBudgets
+        .map((b) => b.categoryId)
+        .toSet();
     final availableCategories = categories
         .where((c) => c.isActive && c.type.appliesTo(TransactionType.expense))
         .where((c) => !budgetedCategoryIds.contains(c.id))
@@ -40,7 +42,8 @@ class CategoryBudgetsSection extends ConsumerWidget {
             Text('Category budgets', style: context.textTheme.titleMedium),
             if (availableCategories.isNotEmpty)
               TextButton.icon(
-                onPressed: () => _showCategoryPicker(context, availableCategories),
+                onPressed: () =>
+                    _showCategoryPicker(context, availableCategories),
                 icon: const Icon(Icons.add_rounded, size: AppSizes.iconSm),
                 label: const Text('Add'),
               ),
@@ -51,19 +54,26 @@ class CategoryBudgetsSection extends ConsumerWidget {
           const EmptyState(
             icon: Icons.pie_chart_outline_rounded,
             title: 'No category budgets',
-            subtitle: 'Set limits like Food or Shopping to track spending by category.',
+            subtitle:
+                'Set limits like Food or Shopping to track spending by category.',
           )
         else
           for (final budget in categoryBudgets)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSizes.sm),
-              child: CategoryBudgetTile(budget: budget, category: categoriesById[budget.categoryId]),
+              child: CategoryBudgetTile(
+                budget: budget,
+                category: categoriesById[budget.categoryId],
+              ),
             ),
       ],
     );
   }
 
-  Future<void> _showCategoryPicker(BuildContext context, List<Category> availableCategories) async {
+  Future<void> _showCategoryPicker(
+    BuildContext context,
+    List<Category> availableCategories,
+  ) async {
     final selected = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(

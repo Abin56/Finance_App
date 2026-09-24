@@ -31,7 +31,12 @@ class PaymentAttributionItem {
   /// already owns that obligation's payment tracking. Any [AppException]
   /// this throws propagates before any Person ledger entry is posted for
   /// items after it in the batch — see [PaymentAttributionService.apply].
-  final Future<void> Function({required double amount, required DateTime date, required String note}) record;
+  final Future<void> Function({
+    required double amount,
+    required DateTime date,
+    required String note,
+  })
+  record;
 }
 
 /// Records one or more payments against your obligations on someone else's
@@ -100,7 +105,10 @@ class PaymentAttributionService {
   /// "Rahul paid ₹5,000 towards your Bike EMI" / "You paid ₹5,000 towards
   /// your Bike EMI" — the plain-language line history/timeline UIs show,
   /// so no feature has to build its own wording for "who paid what".
-  String describe({required PayerSource payer, required PaymentAttributionItem item}) {
+  String describe({
+    required PayerSource payer,
+    required PaymentAttributionItem item,
+  }) {
     final payerName = switch (payer) {
       SelfPayerSource() => 'You',
       PersonPayerSource(:final person) => person.name,

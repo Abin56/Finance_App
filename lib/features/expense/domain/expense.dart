@@ -61,7 +61,8 @@ class Expense extends SoftDeletableEntity {
 
   /// The permanent "Me" participant, if this expense has one — split
   /// expenses created before this field existed have none.
-  ExpenseParticipant? get meParticipant => participants.where((p) => p.isMe).firstOrNull;
+  ExpenseParticipant? get meParticipant =>
+      participants.where((p) => p.isMe).firstOrNull;
 
   /// How much of this expense was actually mine: the full amount for a
   /// plain or single-assignee expense (nobody else fronted any of it), or
@@ -91,7 +92,10 @@ class Expense extends SoftDeletableEntity {
   /// correct, but nothing explained *why* the actions were hidden. Every
   /// caller should pair a `false` result with a visible reason, not a
   /// silently empty AppBar.
-  static bool canReassign({required Expense? expense, required bool isExpenseTransaction}) {
+  static bool canReassign({
+    required Expense? expense,
+    required bool isExpenseTransaction,
+  }) {
     return (expense == null || !expense.isSplit) && isExpenseTransaction;
   }
 
@@ -101,21 +105,21 @@ class Expense extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Expense(
-      id: snapshot.id,
-      description: data['description'] as String,
-      totalAmount: (data['totalAmount'] as num).toDouble(),
-      date: (data['date'] as Timestamp).toDate(),
-      categoryId: data['categoryId'] as String,
-      accountId: data['accountId'] as String,
-      transactionId: data['transactionId'] as String,
-      splitType: SplitTypeX.fromName(data['splitType'] as String),
-      participants: (data['participants'] as List<dynamic>? ?? [])
-          .map((p) => ExpenseParticipant.fromMap(p as Map<String, dynamic>))
-          .toList(),
-      scheduleId: data['scheduleId'] as String?,
-      notes: data['notes'] as String? ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        description: data['description'] as String,
+        totalAmount: (data['totalAmount'] as num).toDouble(),
+        date: (data['date'] as Timestamp).toDate(),
+        categoryId: data['categoryId'] as String,
+        accountId: data['accountId'] as String,
+        transactionId: data['transactionId'] as String,
+        splitType: SplitTypeX.fromName(data['splitType'] as String),
+        participants: (data['participants'] as List<dynamic>? ?? [])
+            .map((p) => ExpenseParticipant.fromMap(p as Map<String, dynamic>))
+            .toList(),
+        scheduleId: data['scheduleId'] as String?,
+        notes: data['notes'] as String? ?? '',
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -137,7 +141,9 @@ class Expense extends SoftDeletableEntity {
       'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

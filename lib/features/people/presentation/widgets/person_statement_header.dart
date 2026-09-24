@@ -5,7 +5,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
+import '../../../../shared/widgets/states/flowfi_amount_text.dart';
 import '../../../../shared/widgets/states/money_direction_indicator.dart';
 import '../../domain/person.dart';
 import '../../domain/person_timeline_entry.dart';
@@ -15,7 +16,11 @@ import 'person_avatar.dart';
 /// the summary stats every person statement page requires, folded once
 /// from the (already-loaded) timeline by the screen and passed in.
 class PersonStatementHeader extends StatelessWidget {
-  const PersonStatementHeader({super.key, required this.person, required this.entries});
+  const PersonStatementHeader({
+    super.key,
+    required this.person,
+    required this.entries,
+  });
 
   final Person person;
   final List<PersonTimelineEntry> entries;
@@ -27,47 +32,68 @@ class PersonStatementHeader extends StatelessWidget {
   /// you more, i.e. you gave/paid them). The overall counterpart to the
   /// category-scoped rows below ("Total lending", etc.) and to the
   /// lending-only [_youLent]/[_youBorrowed] above.
-  double get _totalGiven =>
-      entries.where((e) => e.signedAmount > 0).fold(0.0, (total, e) => total + e.signedAmount);
+  double get _totalGiven => entries
+      .where((e) => e.signedAmount > 0)
+      .fold(0.0, (total, e) => total + e.signedAmount);
 
   /// Money that moved from this person to the user, across every category —
   /// every entry with a negative [PersonTimelineEntry.signedAmount].
-  double get _totalReceived =>
-      entries.where((e) => e.signedAmount < 0).fold(0.0, (total, e) => total + e.signedAmount.abs());
+  double get _totalReceived => entries
+      .where((e) => e.signedAmount < 0)
+      .fold(0.0, (total, e) => total + e.signedAmount.abs());
 
-  double _totalForCategory(PersonTimelineCategory category) =>
-      entries.where((e) => e.category == category).fold(0.0, (total, e) => total + e.signedAmount.abs());
+  double _totalForCategory(PersonTimelineCategory category) => entries
+      .where((e) => e.category == category)
+      .fold(0.0, (total, e) => total + e.signedAmount.abs());
 
-  double get _totalSettled => entries.where((e) => e.isSettlement).fold(0.0, (total, e) => total + e.signedAmount.abs());
+  double get _totalSettled => entries
+      .where((e) => e.isSettlement)
+      .fold(0.0, (total, e) => total + e.signedAmount.abs());
 
   /// Money the user handed to this person and hasn't gotten back — the
   /// "gave"/"Money lent" side of lending, excluding split/assigned expenses
   /// (those are tracked separately in [PersonPendingBreakdown]).
   double get _youLent => entries
-      .where((e) => e.category == PersonTimelineCategory.lending && e.signedAmount > 0)
+      .where(
+        (e) =>
+            e.category == PersonTimelineCategory.lending && e.signedAmount > 0,
+      )
       .fold(0.0, (total, e) => total + e.signedAmount);
 
   /// Money this person handed to the user and hasn't paid back.
   double get _youBorrowed => entries
-      .where((e) => e.category == PersonTimelineCategory.lending && e.signedAmount < 0)
+      .where(
+        (e) =>
+            e.category == PersonTimelineCategory.lending && e.signedAmount < 0,
+      )
       .fold(0.0, (total, e) => total + e.signedAmount.abs());
 
   @override
   Widget build(BuildContext context) {
-    final direction = MoneyDirectionX.forSignedBalance(person.currentBalance) ?? MoneyDirection.completed;
+    final direction =
+        MoneyDirectionX.forSignedBalance(person.currentBalance) ??
+        MoneyDirection.completed;
 
     final lastTransactionDate = entries.isEmpty
         ? null
         : entries.map((e) => e.date).reduce((a, b) => a.isAfter(b) ? a : b);
 
-    return AppCard(
+    return FlowFiCard.hero(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.lg,
+        vertical: AppSizes.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              PersonAvatar(name: person.name, colorValue: person.avatarColorValue, radius: 28),
-              const SizedBox(width: AppSizes.md),
+              PersonAvatar(
+                name: person.name,
+                colorValue: person.avatarColorValue,
+                radius: 22,
+              ),
+              const SizedBox(width: AppSizes.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,18 +103,21 @@ class PersonStatementHeader extends StatelessWidget {
                         Flexible(
                           child: Text(
                             person.name,
-                            style: context.textTheme.titleLarge,
+                            style: context.textTheme.titleMedium,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         const SizedBox(width: AppSizes.xs),
-                        MoneyDirectionBadge(direction: direction, compact: true),
+                        MoneyDirectionBadge(
+                          direction: direction,
+                          compact: true,
+                        ),
                       ],
                     ),
                     Text(
                       'Joined ${person.createdAt.monthYear}',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: context.colors.onSurface.withValues(alpha: 0.6),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: context.flowfi.onHeroSurfaceMuted,
                       ),
                     ),
                   ],
@@ -96,19 +125,20 @@ class PersonStatementHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.lg),
+          const SizedBox(height: AppSizes.md),
           Text(
             'Amount Left',
-            style: context.textTheme.bodyMedium?.copyWith(
-              color: context.colors.onSurface.withValues(alpha: 0.6),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: context.flowfi.onHeroSurfaceMuted,
             ),
           ),
-          const SizedBox(height: AppSizes.xs),
-          Text(
+          const SizedBox(height: 2),
+          FlowFiAmountText(
             CurrencyFormatter.instance.format(person.currentBalance.abs()),
-            style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: direction.color),
+            size: AmountSize.large,
+            color: direction.color,
           ),
-          const SizedBox(height: AppSizes.lg),
+          const SizedBox(height: AppSizes.md),
           Row(
             // From ~1.3x text scale "Total Paid Back" wraps in a third-width
             // column and the other two don't, so that column is taller;
@@ -116,31 +146,60 @@ class PersonStatementHeader extends StatelessWidget {
             // of line.
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _StatColumn(label: 'Total Paid Back', value: _totalSettled, color: AppColors.success)),
-              Expanded(child: _StatColumn(label: 'You Lent', value: _youLent, color: AppColors.success)),
-              Expanded(child: _StatColumn(label: 'You Borrowed', value: _youBorrowed, color: AppColors.error)),
+              Expanded(
+                child: _StatColumn(
+                  label: 'Total Paid Back',
+                  value: _totalSettled,
+                  color: AppColors.success,
+                ),
+              ),
+              Expanded(
+                child: _StatColumn(
+                  label: 'You Lent',
+                  value: _youLent,
+                  color: AppColors.success,
+                ),
+              ),
+              Expanded(
+                child: _StatColumn(
+                  label: 'You Borrowed',
+                  value: _youBorrowed,
+                  color: AppColors.error,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: AppSizes.lg),
+          const SizedBox(height: AppSizes.md),
           _StatRow(label: 'Starting Amount Left', value: person.openingBalance),
           _StatRow(label: 'Total money given', value: _totalGiven),
           _StatRow(label: 'Total money received', value: _totalReceived),
-          _StatRow(label: 'Total lending', value: _totalForCategory(PersonTimelineCategory.lending)),
-          _StatRow(label: 'Total expenses this person will pay', value: _totalForCategory(PersonTimelineCategory.assignedExpense)),
-          _StatRow(label: 'Total shared expenses', value: _totalForCategory(PersonTimelineCategory.splitExpense)),
-          const SizedBox(height: AppSizes.sm),
+          _StatRow(
+            label: 'Total lending',
+            value: _totalForCategory(PersonTimelineCategory.lending),
+          ),
+          _StatRow(
+            label: 'Total expenses this person will pay',
+            value: _totalForCategory(PersonTimelineCategory.assignedExpense),
+          ),
+          _StatRow(
+            label: 'Total shared expenses',
+            value: _totalForCategory(PersonTimelineCategory.splitExpense),
+          ),
+          const SizedBox(height: AppSizes.xs),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Last transaction',
-                style: context.textTheme.bodyMedium?.copyWith(
-                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.flowfi.onHeroSurfaceMuted,
                 ),
               ),
               Text(
-                lastTransactionDate == null ? 'None yet' : lastTransactionDate.shortDate,
-                style: context.textTheme.bodyMedium,
+                lastTransactionDate == null
+                    ? 'None yet'
+                    : lastTransactionDate.shortDate,
+                style: context.textTheme.bodySmall,
               ),
             ],
           ),
@@ -151,7 +210,11 @@ class PersonStatementHeader extends StatelessWidget {
 }
 
 class _StatColumn extends StatelessWidget {
-  const _StatColumn({required this.label, required this.value, required this.color});
+  const _StatColumn({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final double value;
@@ -164,12 +227,17 @@ class _StatColumn extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+          style: context.textTheme.labelSmall?.copyWith(
+            color: context.flowfi.onHeroSurfaceMuted,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           CurrencyFormatter.instance.format(value),
-          style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+          style: context.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
         ),
       ],
     );
@@ -185,7 +253,7 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSizes.xs),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -197,13 +265,16 @@ class _StatRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: context.textTheme.bodyMedium?.copyWith(
-                color: context.colors.onSurface.withValues(alpha: 0.6),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: context.flowfi.onHeroSurfaceMuted,
               ),
             ),
           ),
           const SizedBox(width: AppSizes.md),
-          Text(CurrencyFormatter.instance.format(value), style: context.textTheme.bodyMedium),
+          Text(
+            CurrencyFormatter.instance.format(value),
+            style: context.textTheme.bodySmall,
+          ),
         ],
       ),
     );

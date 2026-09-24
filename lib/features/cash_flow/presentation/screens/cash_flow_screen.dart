@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/theme/clay_theme.dart';
-import '../widgets/cash_flow_range_selector.dart';
+import '../widgets/cash_flow_period_selector.dart';
 import '../widgets/cash_flow_summary_card.dart';
 import '../widgets/credit_card_statement_summary_card.dart';
 import '../widgets/money_to_receive_card.dart';
@@ -21,25 +20,36 @@ class CashFlowScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppClay.background(context),
+      // Low-noise app bar — background blends with the scaffold, no
+      // elevation, no gradient. The screen's net-cash-flow "hero" emphasis
+      // now lives in the body as a `FlowFiCard.hero` (see
+      // `CashFlowSummaryCard`) instead of a gradient flexibleSpace here.
       appBar: AppBar(title: const Text('Cash Flow')),
       body: SafeArea(
         child: ListView(
           // Bottom padding clears the shell's floating "+" button.
-          padding: const EdgeInsets.fromLTRB(AppSizes.lg, AppSizes.lg, AppSizes.lg, AppSizes.fabClearance),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.lg,
+            AppSizes.lg,
+            AppSizes.lg,
+            AppSizes.fabClearance,
+          ),
           children: const [
-            CashFlowRangeSelector(),
-            SizedBox(height: AppSizes.lg),
-            PaymentsDueCard(),
-            SizedBox(height: AppSizes.lg),
-            MoneyToReceiveCard(),
-            SizedBox(height: AppSizes.lg),
-            UpcomingPaymentsTimeline(),
-            SizedBox(height: AppSizes.lg),
-            CreditCardStatementSummaryCard(),
-            SizedBox(height: AppSizes.lg),
             CashFlowSummaryCard(),
-            SizedBox(height: AppSizes.lg),
+            SizedBox(height: AppSizes.md),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: CashFlowPeriodSelector(),
+            ),
+            SizedBox(height: AppSizes.md),
+            PaymentsDueCard(),
+            SizedBox(height: AppSizes.md),
+            MoneyToReceiveCard(),
+            SizedBox(height: AppSizes.md),
+            UpcomingPaymentsTimeline(),
+            SizedBox(height: AppSizes.md),
+            CreditCardStatementSummaryCard(),
+            SizedBox(height: AppSizes.md),
             MyExpensesCard(),
           ],
         ),

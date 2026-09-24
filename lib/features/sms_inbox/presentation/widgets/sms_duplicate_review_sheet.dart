@@ -45,7 +45,10 @@ class SmsDuplicateReviewSheet extends ConsumerWidget {
 
   final SmsInboxItem duplicate;
 
-  static Future<SmsDuplicateAction?> show(BuildContext context, SmsInboxItem duplicate) {
+  static Future<SmsDuplicateAction?> show(
+    BuildContext context,
+    SmsInboxItem duplicate,
+  ) {
     return showModalBottomSheet<SmsDuplicateAction>(
       context: context,
       isScrollControlled: true,
@@ -60,7 +63,12 @@ class SmsDuplicateReviewSheet extends ConsumerWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSizes.lg, 0, AppSizes.lg, AppSizes.lg),
+        padding: const EdgeInsets.fromLTRB(
+          AppSizes.lg,
+          0,
+          AppSizes.lg,
+          AppSizes.lg,
+        ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -69,8 +77,11 @@ class SmsDuplicateReviewSheet extends ConsumerWidget {
               Text('Possible duplicate', style: context.textTheme.titleMedium),
               const SizedBox(height: AppSizes.xs),
               Text(
-                duplicate.duplicateReason?.explanation ?? 'Matches a message already in your inbox.',
-                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+                duplicate.duplicateReason?.explanation ??
+                    'Matches a message already in your inbox.',
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: AppSizes.md),
 
@@ -85,11 +96,17 @@ class SmsDuplicateReviewSheet extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: AppSizes.sm),
                   child: Text(
                     'The original message has since been deleted.',
-                    style: context.textTheme.bodySmall?.copyWith(color: AppColors.pending),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: AppColors.pending,
+                    ),
                   ),
                 ),
 
-              _MessageBlock(label: 'This message', item: duplicate, highlighted: true),
+              _MessageBlock(
+                label: 'This message',
+                item: duplicate,
+                highlighted: true,
+              ),
               const SizedBox(height: AppSizes.lg),
 
               // Delete leads: it's the expected outcome for a real duplicate.
@@ -100,25 +117,30 @@ class SmsDuplicateReviewSheet extends ConsumerWidget {
                 label: 'Delete duplicate',
                 description: 'Remove this message. Your original stays.',
                 color: AppColors.debit,
-                onTap: () => Navigator.of(context).pop(SmsDuplicateAction.delete),
+                onTap: () =>
+                    Navigator.of(context).pop(SmsDuplicateAction.delete),
               ),
               _Action(
                 icon: Icons.move_to_inbox_outlined,
                 label: 'Move to Inbox',
-                description: "It isn't a duplicate — convert it like any other message.",
-                onTap: () => Navigator.of(context).pop(SmsDuplicateAction.moveToInbox),
+                description:
+                    "It isn't a duplicate — convert it like any other message.",
+                onTap: () =>
+                    Navigator.of(context).pop(SmsDuplicateAction.moveToInbox),
               ),
               _Action(
                 icon: Icons.bolt_rounded,
                 label: 'Convert anyway',
                 description: 'Use this if you were genuinely charged twice.',
-                onTap: () => Navigator.of(context).pop(SmsDuplicateAction.convertAnyway),
+                onTap: () =>
+                    Navigator.of(context).pop(SmsDuplicateAction.convertAnyway),
               ),
               _Action(
                 icon: Icons.visibility_off_outlined,
                 label: 'Ignore',
                 description: 'Keep it, but stop showing it as pending.',
-                onTap: () => Navigator.of(context).pop(SmsDuplicateAction.ignore),
+                onTap: () =>
+                    Navigator.of(context).pop(SmsDuplicateAction.ignore),
               ),
             ],
           ),
@@ -133,7 +155,11 @@ class SmsDuplicateReviewSheet extends ConsumerWidget {
 /// it, and that difference is the only thing that lets the user tell a real
 /// double charge from a re-send.
 class _MessageBlock extends StatelessWidget {
-  const _MessageBlock({required this.label, required this.item, this.highlighted = false});
+  const _MessageBlock({
+    required this.label,
+    required this.item,
+    this.highlighted = false,
+  });
 
   final String label;
   final SmsInboxItem item;
@@ -147,9 +173,13 @@ class _MessageBlock extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSizes.sm),
       decoration: BoxDecoration(
-        color: context.colors.surfaceContainerHighest.withValues(alpha: highlighted ? 0.7 : 0.35),
+        color: context.colors.surfaceContainerHighest.withValues(
+          alpha: highlighted ? 0.7 : 0.35,
+        ),
         borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        border: highlighted ? Border.all(color: context.colors.primary.withValues(alpha: 0.5)) : null,
+        border: highlighted
+            ? Border.all(color: context.colors.primary.withValues(alpha: 0.5))
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,20 +189,26 @@ class _MessageBlock extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: context.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               if (amount != null)
                 Text(
                   CurrencyFormatter.instance.format(amount),
-                  style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
             ],
           ),
           const SizedBox(height: AppSizes.xs),
           Text(
             '${item.rawMessage.address} • ${item.rawMessage.date.sectionLabel}',
-            style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant),
+            style: context.textTheme.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSizes.xs),
           Text(item.rawMessage.body, style: context.textTheme.bodySmall),
@@ -204,7 +240,13 @@ class _Action extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: effective),
-      title: Text(label, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: effective)),
+      title: Text(
+        label,
+        style: context.textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: effective,
+        ),
+      ),
       subtitle: Text(description, style: context.textTheme.bodySmall),
       onTap: onTap,
     );

@@ -27,12 +27,21 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
     required this.periodEnd,
     required this.income,
     required this.expenses,
+    this.monthGranular = true,
   });
 
   final DateTime periodStart;
   final DateTime periodEnd;
   final double income;
   final double expenses;
+
+  /// Whether [periodStart]..[periodEnd] is a whole calendar month — passed
+  /// through to [moneyReceivedForRangeProvider] so it buckets by
+  /// `Transaction.effectiveMonth` (respecting `accountingMonth`) only when
+  /// that's a sound bucketing key; a day-precision period must bucket by
+  /// the transaction's real date instead. Defaults to `true` since every
+  /// caller before this field existed only ever passed a full-month range.
+  final bool monthGranular;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,15 +50,33 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
     final billsPaid = ref.watch(billsPaidForRangeProvider(range));
     final emiPaid = ref.watch(emiPaidForRangeProvider(range));
     final loanPaid = ref.watch(loanPaidForRangeProvider(range));
-    final creditCardBillsPaid = ref.watch(creditCardBillsPaidForRangeProvider(range));
+    final creditCardBillsPaid = ref.watch(
+      creditCardBillsPaidForRangeProvider(range),
+    );
     final billOccurrences = ref.watch(currentOccurrenceByBillIdProvider);
     final pendingBills =
-        ref.watch(overdueBillsProvider).fold(0.0, (sum, b) => sum + billOccurrences[b.id]!.remainingAmount) +
-            ref.watch(upcomingBillsProvider).fold(0.0, (sum, b) => sum + billOccurrences[b.id]!.remainingAmount);
+        ref
+            .watch(overdueBillsProvider)
+            .fold(
+              0.0,
+              (sum, b) => sum + billOccurrences[b.id]!.remainingAmount,
+            ) +
+        ref
+            .watch(upcomingBillsProvider)
+            .fold(
+              0.0,
+              (sum, b) => sum + billOccurrences[b.id]!.remainingAmount,
+            );
     final pendingEmi = ref.watch(totalRemainingEmiBalanceProvider);
     final pendingLoans = ref.watch(totalAmountToReceiveProvider);
     final moneyToReceive = ref.watch(totalMoneyToReceiveProvider);
-    final moneyCollected = ref.watch(moneyReceivedForRangeProvider(range));
+    final moneyCollected = ref.watch(
+      moneyReceivedForRangeProvider((
+        start: periodStart,
+        end: periodEnd,
+        monthGranular: monthGranular,
+      )),
+    );
     final ccOutstanding = ref.watch(totalCreditCardOutstandingProvider);
     final utilization = ref.watch(creditUtilizationPercentProvider);
     final interestPaid = ref.watch(interestChargedForRangeProvider(range));
@@ -62,7 +89,10 @@ class MonthlyFinancialReportCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Monthly Financial Report', style: context.textTheme.titleMedium),
+          Text(
+            'Monthly Financial Report',
+            style: context.textTheme.titleMedium,
+          ),
           const SizedBox(height: AppSizes.lg),
           _ReportRow('Total Income', income),
           _ReportRow('Total Expenses', expenses),
@@ -105,8 +135,12 @@ class _ReportRow extends StatelessWidget {
         children: [
           Expanded(child: Text(label, style: context.textTheme.bodyMedium)),
           Text(
-            isPercent ? '${value.toStringAsFixed(1)}%' : CurrencyFormatter.instance.format(value),
-            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            isPercent
+                ? '${value.toStringAsFixed(1)}%'
+                : CurrencyFormatter.instance.format(value),
+            style: context.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -128,7 +162,9 @@ class _NotTrackedRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.5)),
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: context.colors.onSurface.withValues(alpha: 0.5),
+              ),
             ),
           ),
           Text(

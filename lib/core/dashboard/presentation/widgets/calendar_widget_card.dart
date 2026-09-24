@@ -8,8 +8,8 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../features/calendar/domain/calendar_event.dart';
 import '../../../../features/calendar/presentation/providers/calendar_providers.dart';
+import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
 import '../../domain/widget_configuration.dart';
-import '../../../theme/clay_widgets.dart';
 import 'dashboard_widget_shell.dart';
 
 /// Renders [DashboardWidgetType.calendar] — a lightweight "Upcoming Events"
@@ -26,8 +26,12 @@ class CalendarWidgetCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = DateTime.now().dateOnly;
-    final events = ref.watch(calendarEventsProvider).where((e) => !e.date.isBefore(today)).toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final events =
+        ref
+            .watch(calendarEventsProvider)
+            .where((e) => !e.date.isBefore(today))
+            .toList()
+          ..sort((a, b) => a.date.compareTo(b.date));
     final upcoming = events.take(5).toList();
     final textTheme = context.textTheme;
     final colors = context.colors;
@@ -39,7 +43,11 @@ class CalendarWidgetCard extends ConsumerWidget {
           Row(
             children: [
               Expanded(
-                child: Text(config.title, style: textTheme.labelLarge, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const SizedBox(width: AppSizes.sm),
               Flexible(
@@ -47,7 +55,9 @@ class CalendarWidgetCard extends ConsumerWidget {
                   onTap: () => context.push(AppRoutes.calendar),
                   child: Text(
                     'View Calendar ›',
-                    style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -56,7 +66,12 @@ class CalendarWidgetCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSizes.sm),
           if (upcoming.isEmpty)
-            Text('Nothing upcoming.', style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant))
+            Text(
+              'Nothing upcoming.',
+              style: textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            )
           else
             for (final event in upcoming) _EventRow(event: event),
         ],
@@ -76,7 +91,11 @@ class _EventRow extends StatelessWidget {
     final colors = context.colors;
     final today = DateTime.now().dateOnly;
     final days = event.date.difference(today).inDays;
-    final dateLabel = days == 0 ? 'Today' : days == 1 ? 'Tomorrow' : event.date.shortDate;
+    final dateLabel = days == 0
+        ? 'Today'
+        : days == 1
+        ? 'Tomorrow'
+        : event.date.shortDate;
 
     return InkWell(
       borderRadius: BorderRadius.circular(AppSizes.radiusSm),
@@ -85,7 +104,12 @@ class _EventRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            ClayIconChip(icon: event.icon, color: event.color),
+            FlowFiIconChip(
+              icon: event.icon,
+              color: event.color,
+              size: 26,
+              iconSize: 14,
+            ),
             const SizedBox(width: AppSizes.sm),
             Expanded(
               child: Column(
@@ -93,13 +117,17 @@ class _EventRow extends StatelessWidget {
                 children: [
                   Text(
                     event.title,
-                    style: textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                    style: textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     event.subtitle,
-                    style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -107,7 +135,12 @@ class _EventRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSizes.sm),
-            Text(dateLabel, style: textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant)),
+            Text(
+              dateLabel,
+              style: textTheme.labelSmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

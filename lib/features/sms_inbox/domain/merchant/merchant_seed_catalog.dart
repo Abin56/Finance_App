@@ -34,9 +34,18 @@ abstract class MerchantSeedCatalog {
     'blinkit': ['Groceries', 'Food & Dining'],
     'zepto': ['Groceries', 'Food & Dining'],
     'bigbasket': ['Groceries', 'Food & Dining'],
+    // A distinct key from plain 'swiggy' — a grocery order through
+    // Swiggy's Instamart arm is not a food order, and this only fires when
+    // the caller passes the un-collapsed "Swiggy Instamart" text rather
+    // than the catalog's canonical "Swiggy" spelling (see
+    // FinancialEventExtractor._merchantTextForCategoryLookup).
+    'swiggy instamart': ['Groceries', 'Food & Dining'],
 
     // Shopping
     'amazon': ['Shopping'],
+    // A distinct key from plain 'amazon' — a Prime subscription renewal is
+    // not a shopping purchase.
+    'amazon prime': ['Entertainment', 'Subscriptions', 'Shopping'],
     'flipkart': ['Shopping'],
     'myntra': ['Shopping'],
     'ajio': ['Shopping'],

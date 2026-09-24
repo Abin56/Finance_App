@@ -21,7 +21,10 @@ enum LedgerEntryType { gave, borrowed, receivedBack, repaid, adjustment }
 
 extension LedgerEntryTypeX on LedgerEntryType {
   static LedgerEntryType fromName(String name) =>
-      LedgerEntryType.values.firstWhere((t) => t.name == name, orElse: () => LedgerEntryType.adjustment);
+      LedgerEntryType.values.firstWhere(
+        (t) => t.name == name,
+        orElse: () => LedgerEntryType.adjustment,
+      );
 
   String get label {
     switch (this) {

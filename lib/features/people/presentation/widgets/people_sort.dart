@@ -21,9 +21,13 @@ List<Person> applyPeopleSort(List<Person> people, PeopleSort sort) {
   final sorted = [...people];
   switch (sort) {
     case PeopleSort.name:
-      sorted.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      sorted.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
     case PeopleSort.balanceDesc:
-      sorted.sort((a, b) => b.currentBalance.abs().compareTo(a.currentBalance.abs()));
+      sorted.sort(
+        (a, b) => b.currentBalance.abs().compareTo(a.currentBalance.abs()),
+      );
     case PeopleSort.recentlyAdded:
       sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }

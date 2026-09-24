@@ -14,7 +14,14 @@ import '../../features/credit_cards/domain/statement_status.dart';
 /// [completed]/gray only reflects a *skipped* payment under each domain's
 /// existing status semantics — it is not "instrument fully closed"
 /// (that's `EmiStatus.closed`/`LoanStatus.closed`, a different axis).
-enum PaymentUrgency { paid, upcoming, dueSoon, overdue, completed, carriedForward }
+enum PaymentUrgency {
+  paid,
+  upcoming,
+  dueSoon,
+  overdue,
+  completed,
+  carriedForward,
+}
 
 extension PaymentUrgencyX on PaymentUrgency {
   String get label {
@@ -120,7 +127,10 @@ extension PaymentUrgencyX on PaymentUrgency {
   /// (see `statementCycleViewProvider`) is flagged distinctly regardless of
   /// its own paid/overdue/etc. standing, so the UI can show "still pending
   /// from last cycle" rather than its ordinary status.
-  static PaymentUrgency fromCarryForward({required bool isCarriedForward, required StatementStatus statementStatus}) {
+  static PaymentUrgency fromCarryForward({
+    required bool isCarriedForward,
+    required StatementStatus statementStatus,
+  }) {
     if (isCarriedForward) return PaymentUrgency.carriedForward;
     return fromStatementStatus(statementStatus);
   }

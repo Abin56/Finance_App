@@ -14,8 +14,13 @@ import 'statement_repository.dart';
 /// that [PaymentRecord] doesn't need to, since a bill payment's source
 /// account is implicit while a statement payment explicitly moves money out
 /// of a chosen account.
-class StatementPaymentRepository extends FirestoreCrudRepository<StatementPayment> {
-  StatementPaymentRepository(super.collection, this.statementRepository, this.transactionRepository);
+class StatementPaymentRepository
+    extends FirestoreCrudRepository<StatementPayment> {
+  StatementPaymentRepository(
+    super.collection,
+    this.statementRepository,
+    this.transactionRepository,
+  );
 
   final StatementRepository statementRepository;
   final TransactionRepository transactionRepository;
@@ -66,17 +71,24 @@ class StatementPaymentRepository extends FirestoreCrudRepository<StatementPaymen
   /// [Transaction] — trashing a payment record doesn't undo the money
   /// having left the account; that's a separate action on the transaction
   /// itself if the user wants it reversed too.
-  Future<void> softDeletePayment(Statement statement, StatementPayment payment) async {
+  Future<void> softDeletePayment(
+    Statement statement,
+    StatementPayment payment,
+  ) async {
     await statementRepository.applyPayment(statement, -payment.amount);
     await softDelete(payment);
   }
 
   /// Re-applies the payment's effect, then restores it.
-  Future<void> restorePayment(Statement statement, StatementPayment payment) async {
+  Future<void> restorePayment(
+    Statement statement,
+    StatementPayment payment,
+  ) async {
     await statementRepository.applyPayment(statement, payment.amount);
     await restore(payment);
   }
 
   /// No balance change — already reversed at soft-delete time.
-  Future<void> permanentlyDeletePayment(StatementPayment payment) => permanentlyDelete(payment);
+  Future<void> permanentlyDeletePayment(StatementPayment payment) =>
+      permanentlyDelete(payment);
 }

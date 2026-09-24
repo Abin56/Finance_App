@@ -8,7 +8,8 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/states/payment_urgency_badge.dart';
 import '../providers/upcoming_due_breakdown_provider.dart';
 import '../providers/upcoming_due_provider.dart';
-import 'upcoming_payments_widget_card.dart' show iconForUpcomingDueKind, openUpcomingDueItem;
+import 'upcoming_payments_widget_card.dart'
+    show iconForUpcomingDueKind, openUpcomingDueItem;
 
 /// Ownership-summary sheet shown before navigating away from an Upcoming
 /// Due row — "how much of this total is actually mine" for the item the
@@ -36,7 +37,11 @@ class UpcomingDueBreakdownSheet extends ConsumerWidget {
     final breakdown = ref.watch(upcomingDueBreakdownProvider(item));
     final colors = context.colors;
     final textTheme = context.textTheme;
-    final format = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+    final format = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
 
     return SafeArea(
       child: Container(
@@ -46,7 +51,12 @@ class UpcomingDueBreakdownSheet extends ConsumerWidget {
           borderRadius: BorderRadius.circular(AppSizes.radiusXl),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(AppSizes.xl, AppSizes.md, AppSizes.xl, AppSizes.xl),
+          padding: const EdgeInsets.fromLTRB(
+            AppSizes.xl,
+            AppSizes.md,
+            AppSizes.xl,
+            AppSizes.xl,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,7 +81,10 @@ class UpcomingDueBreakdownSheet extends ConsumerWidget {
                       color: colors.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(iconForUpcomingDueKind(item.kind), color: colors.primary),
+                    child: Icon(
+                      iconForUpcomingDueKind(item.kind),
+                      color: colors.primary,
+                    ),
                   ),
                   const SizedBox(width: AppSizes.md),
                   Expanded(
@@ -80,7 +93,9 @@ class UpcomingDueBreakdownSheet extends ConsumerWidget {
                       children: [
                         Text(
                           item.title,
-                          style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -88,7 +103,10 @@ class UpcomingDueBreakdownSheet extends ConsumerWidget {
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
-                          child: PaymentUrgencyBadge(urgency: item.urgency, compact: true),
+                          child: PaymentUrgencyBadge(
+                            urgency: item.urgency,
+                            compact: true,
+                          ),
                         ),
                       ],
                     ),
@@ -99,7 +117,9 @@ class UpcomingDueBreakdownSheet extends ConsumerWidget {
               if (breakdown == null)
                 Text(
                   'This item is no longer available.',
-                  style: textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
                 )
               else
                 _BreakdownBody(breakdown: breakdown, format: format),
@@ -132,60 +152,113 @@ class _BreakdownBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (breakdown) {
       CreditCardBreakdown b => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AmountRow(label: 'Total Due', amount: b.totalAmount, emphasize: true, format: format),
-            const _Divider(),
-            _AmountRow(label: 'My Expenses', amount: b.myShare, format: format),
-            const SizedBox(height: AppSizes.sm),
-            _AmountRow(label: "Other People's Expenses", amount: b.othersShare, format: format),
-            const _Divider(),
-            _AmountRow(label: 'Transactions', value: '${b.transactionCount}', format: format),
-          ],
-        ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AmountRow(
+            label: 'Total Due',
+            amount: b.totalAmount,
+            emphasize: true,
+            format: format,
+          ),
+          const _Divider(),
+          _AmountRow(label: 'My Expenses', amount: b.myShare, format: format),
+          const SizedBox(height: AppSizes.sm),
+          _AmountRow(
+            label: "Other People's Expenses",
+            amount: b.othersShare,
+            format: format,
+          ),
+          const _Divider(),
+          _AmountRow(
+            label: 'Transactions',
+            value: '${b.transactionCount}',
+            format: format,
+          ),
+        ],
+      ),
       BillBreakdown b => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AmountRow(label: 'Total Due', amount: b.amount, emphasize: true, format: format),
-            const _Divider(),
-            _AmountRow(label: 'My Expense', amount: b.amount, format: format),
-            const SizedBox(height: AppSizes.sm),
-            _AmountRow(label: 'Other Expense', amount: 0, format: format),
-          ],
-        ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AmountRow(
+            label: 'Total Due',
+            amount: b.amount,
+            emphasize: true,
+            format: format,
+          ),
+          const _Divider(),
+          _AmountRow(label: 'My Expense', amount: b.amount, format: format),
+          const SizedBox(height: AppSizes.sm),
+          _AmountRow(label: 'Other Expense', amount: 0, format: format),
+        ],
+      ),
       SplitExpenseBreakdown b => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AmountRow(label: 'Total', amount: b.total, emphasize: true, format: format),
-            const _Divider(),
-            _AmountRow(label: 'My Share', amount: b.myShare, format: format),
-            const SizedBox(height: AppSizes.sm),
-            _AmountRow(label: "Others' Share", amount: b.othersShare, format: format),
-          ],
-        ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AmountRow(
+            label: 'Total',
+            amount: b.total,
+            emphasize: true,
+            format: format,
+          ),
+          const _Divider(),
+          _AmountRow(label: 'My Share', amount: b.myShare, format: format),
+          const SizedBox(height: AppSizes.sm),
+          _AmountRow(
+            label: "Others' Share",
+            amount: b.othersShare,
+            format: format,
+          ),
+        ],
+      ),
       EmiBreakdown b => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AmountRow(label: 'Monthly EMI', amount: b.amountDue, emphasize: true, format: format),
-            const _Divider(),
-            if (b.hasInterestSplit) ...[
-              _AmountRow(label: 'Principal', amount: b.principalPortion!, format: format),
-              const SizedBox(height: AppSizes.sm),
-              _AmountRow(label: 'Interest', amount: b.interestPortion!, format: format),
-            ] else
-              _AmountRow(label: 'Interest', value: 'No Interest', format: format),
-          ],
-        ),
-      LoanBreakdown b => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _AmountRow(label: 'Total Outstanding', amount: b.totalOutstanding, emphasize: true, format: format),
-            const _Divider(),
-            _AmountRow(label: 'Outstanding Principal', amount: b.outstandingPrincipal, format: format),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AmountRow(
+            label: 'Monthly EMI',
+            amount: b.amountDue,
+            emphasize: true,
+            format: format,
+          ),
+          const _Divider(),
+          if (b.hasInterestSplit) ...[
+            _AmountRow(
+              label: 'Principal',
+              amount: b.principalPortion!,
+              format: format,
+            ),
             const SizedBox(height: AppSizes.sm),
-            _AmountRow(label: 'Outstanding Interest', amount: b.outstandingInterest, format: format),
-          ],
-        ),
+            _AmountRow(
+              label: 'Interest',
+              amount: b.interestPortion!,
+              format: format,
+            ),
+          ] else
+            _AmountRow(label: 'Interest', value: 'No Interest', format: format),
+        ],
+      ),
+      LoanBreakdown b => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _AmountRow(
+            label: 'Total Outstanding',
+            amount: b.totalOutstanding,
+            emphasize: true,
+            format: format,
+          ),
+          const _Divider(),
+          _AmountRow(
+            label: 'Outstanding Principal',
+            amount: b.outstandingPrincipal,
+            format: format,
+          ),
+          const SizedBox(height: AppSizes.sm),
+          _AmountRow(
+            label: 'Outstanding Interest',
+            amount: b.outstandingInterest,
+            format: format,
+          ),
+        ],
+      ),
     };
   }
 }
@@ -197,13 +270,22 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSizes.md),
-      child: Divider(height: 1, color: context.colors.onSurface.withValues(alpha: 0.08)),
+      child: Divider(
+        height: 1,
+        color: context.colors.onSurface.withValues(alpha: 0.08),
+      ),
     );
   }
 }
 
 class _AmountRow extends StatelessWidget {
-  const _AmountRow({required this.label, this.amount, this.value, this.emphasize = false, required this.format});
+  const _AmountRow({
+    required this.label,
+    this.amount,
+    this.value,
+    this.emphasize = false,
+    required this.format,
+  });
 
   final String label;
   final double? amount;
@@ -224,7 +306,9 @@ class _AmountRow extends StatelessWidget {
             label,
             style: emphasize
                 ? textTheme.titleSmall?.copyWith(color: colors.onSurfaceVariant)
-                : textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+                : textTheme.bodyMedium?.copyWith(
+                    color: colors.onSurfaceVariant,
+                  ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -236,8 +320,13 @@ class _AmountRow extends StatelessWidget {
             child: Text(
               displayValue,
               style: emphasize
-                  ? textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)
-                  : textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: AppColors.expense),
+                  ? textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    )
+                  : textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.expense,
+                    ),
             ),
           ),
         ),

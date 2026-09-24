@@ -36,7 +36,10 @@ class _EmiPaymentHistoryTileState extends State<EmiPaymentHistoryTile> {
     final breakdown = entry.breakdown;
     final subtitleParts = <String>[
       entry.date.shortDate,
-      if (paidBy != null) 'Paid by $paidBy' else if (entry.note.isNotEmpty) entry.note,
+      if (paidBy != null)
+        'Paid by $paidBy'
+      else if (entry.note.isNotEmpty)
+        entry.note,
     ];
 
     return Material(
@@ -44,7 +47,9 @@ class _EmiPaymentHistoryTileState extends State<EmiPaymentHistoryTile> {
       borderRadius: BorderRadius.circular(AppSizes.radiusLg),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: breakdown != null ? () => setState(() => _expanded = !_expanded) : widget.onTap,
+        onTap: breakdown != null
+            ? () => setState(() => _expanded = !_expanded)
+            : widget.onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppSizes.lg),
           child: Column(
@@ -59,18 +64,27 @@ class _EmiPaymentHistoryTileState extends State<EmiPaymentHistoryTile> {
                       color: status.color.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(AppSizes.radiusMd),
                     ),
-                    child: Icon(status.icon, color: status.color, size: AppSizes.iconSm),
+                    child: Icon(
+                      status.icon,
+                      color: status.color,
+                      size: AppSizes.iconSm,
+                    ),
                   ),
                   const SizedBox(width: AppSizes.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Payment ${entry.installmentSequenceNumber}', style: context.textTheme.titleMedium),
+                        Text(
+                          'Payment ${entry.installmentSequenceNumber}',
+                          style: context.textTheme.titleMedium,
+                        ),
                         Text(
                           subtitleParts.join(' · '),
                           style: context.textTheme.bodyMedium?.copyWith(
-                            color: context.colors.onSurface.withValues(alpha: 0.6),
+                            color: context.colors.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -95,14 +109,18 @@ class _EmiPaymentHistoryTileState extends State<EmiPaymentHistoryTile> {
                       Text(
                         'Amount left: ${CurrencyFormatter.instance.format(entry.remainingBalanceAfter)}',
                         style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colors.onSurface.withValues(alpha: 0.5),
+                          color: context.colors.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   if (breakdown != null)
                     Icon(
-                      _expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                      _expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
                       color: context.colors.onSurface.withValues(alpha: 0.4),
                     ),
                 ],
@@ -153,7 +171,10 @@ class _BreakdownGrid extends StatelessWidget {
                     color: context.colors.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
-                Text(CurrencyFormatter.instance.format(row.$2), style: context.textTheme.bodySmall),
+                Text(
+                  CurrencyFormatter.instance.format(row.$2),
+                  style: context.textTheme.bodySmall,
+                ),
               ],
             ),
           ),
@@ -171,10 +192,17 @@ class _BreakdownGrid extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Total amount paid', style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Total amount paid',
+              style: context.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             Text(
               CurrencyFormatter.instance.format(breakdown.totalAmountPaid),
-              style: context.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+              style: context.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),

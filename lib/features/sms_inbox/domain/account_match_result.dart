@@ -2,7 +2,11 @@
 /// the resolved match — surfaced so a future review UI can offer "did you
 /// mean" alternatives instead of forcing the user to search from scratch.
 class AccountMatchCandidate {
-  const AccountMatchCandidate({required this.accountId, this.cardId, required this.reason});
+  const AccountMatchCandidate({
+    required this.accountId,
+    this.cardId,
+    required this.reason,
+  });
 
   final String accountId;
 
@@ -30,8 +34,10 @@ class AccountMatchResult {
   });
 
   /// No signal in the SMS matched anything the user has on file.
-  const AccountMatchResult.unresolved({required String reason, List<AccountMatchCandidate> alternatives = const []})
-      : this(isResolved: false, matchReason: reason, alternatives: alternatives);
+  const AccountMatchResult.unresolved({
+    required String reason,
+    List<AccountMatchCandidate> alternatives = const [],
+  }) : this(isResolved: false, matchReason: reason, alternatives: alternatives);
 
   /// True only when exactly one account/card was confidently identified.
   /// [AccountCardMatcher] never sets this for an ambiguous or absent match —

@@ -6,7 +6,11 @@ import 'credit_card_profile.dart';
 /// persisted on its own (see `Statement`, which stores a materialized
 /// cycle's totals once it's closed).
 class StatementPeriod {
-  const StatementPeriod({required this.periodStart, required this.periodEnd, required this.dueDate});
+  const StatementPeriod({
+    required this.periodStart,
+    required this.periodEnd,
+    required this.dueDate,
+  });
 
   final DateTime periodStart;
   final DateTime periodEnd;
@@ -14,7 +18,11 @@ class StatementPeriod {
 
   bool contains(DateTime date) {
     final day = DateTime(date.year, date.month, date.day);
-    final start = DateTime(periodStart.year, periodStart.month, periodStart.day);
+    final start = DateTime(
+      periodStart.year,
+      periodStart.month,
+      periodStart.day,
+    );
     final end = DateTime(periodEnd.year, periodEnd.month, periodEnd.day);
     return !day.isBefore(start) && !day.isAfter(end);
   }
@@ -51,30 +59,50 @@ abstract class StatementPeriodCalculator {
   /// this calculator and the engine never drift apart on cycle boundaries;
   /// only the due-date math (which falls in the month *after* the statement
   /// closes, unlike a generic cycle) stays card-specific here.
-  static StatementPeriod currentCycleFor(CreditCardProfile card, {DateTime? now}) {
-    final period = CycleAnchor(anchorDay: card.statementDay).currentCycleFor(now: now);
+  static StatementPeriod currentCycleFor(
+    CreditCardProfile card, {
+    DateTime? now,
+  }) {
+    final period = CycleAnchor(
+      anchorDay: card.statementDay,
+    ).currentCycleFor(now: now);
     return _periodEnding(card, period.end);
   }
 
   /// The most recently *closed* cycle as of [now] — the one a `Statement`
   /// should be materialized for once nothing has been generated yet.
-  static StatementPeriod mostRecentClosedCycleFor(CreditCardProfile card, {DateTime? now}) {
+  static StatementPeriod mostRecentClosedCycleFor(
+    CreditCardProfile card, {
+    DateTime? now,
+  }) {
     final current = currentCycleFor(card, now: now);
     final today = DateTime(
       (now ?? DateTime.now()).year,
       (now ?? DateTime.now()).month,
       (now ?? DateTime.now()).day,
     );
-    if (current.periodEnd.isBefore(today) || current.periodEnd.isAtSameMomentAs(today)) {
+    if (current.periodEnd.isBefore(today) ||
+        current.periodEnd.isAtSameMomentAs(today)) {
       return current;
     }
     return _periodEnding(card, _addMonths(current.periodEnd, -1));
   }
 
-  static StatementPeriod _periodEnding(CreditCardProfile card, DateTime periodEnd) {
+  static StatementPeriod _periodEnding(
+    CreditCardProfile card,
+    DateTime periodEnd,
+  ) {
     final periodStart = _addMonths(periodEnd, -1).add(const Duration(days: 1));
     final dueMonth = _addMonths(periodEnd, 1);
-    final dueDate = _dayInMonth(dueMonth.year, dueMonth.month, card.paymentDueDay);
-    return StatementPeriod(periodStart: periodStart, periodEnd: periodEnd, dueDate: dueDate);
+    final dueDate = _dayInMonth(
+      dueMonth.year,
+      dueMonth.month,
+      card.paymentDueDay,
+    );
+    return StatementPeriod(
+      periodStart: periodStart,
+      periodEnd: periodEnd,
+      dueDate: dueDate,
+    );
   }
 }

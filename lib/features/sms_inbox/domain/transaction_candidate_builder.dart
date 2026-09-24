@@ -9,7 +9,10 @@ import 'transaction_candidate.dart';
 /// those two are wired together, so any future caller (a bulk backfill, a
 /// test) never has to re-derive this sequence itself.
 class TransactionCandidateBuilder {
-  const TransactionCandidateBuilder(this._matcher, {this.scorer = const SmsConfidenceScorer()});
+  const TransactionCandidateBuilder(
+    this._matcher, {
+    this.scorer = const SmsConfidenceScorer(),
+  });
 
   final AccountCardMatcher _matcher;
   final SmsConfidenceScorer scorer;
@@ -23,7 +26,11 @@ class TransactionCandidateBuilder {
     if (parsed == null) return null;
 
     final accountMatch = _matcher.match(parsed);
-    final confidence = scorer.score(parsed: parsed, accountMatch: accountMatch, isDuplicate: item.isDuplicate);
+    final confidence = scorer.score(
+      parsed: parsed,
+      accountMatch: accountMatch,
+      isDuplicate: item.isDuplicate,
+    );
 
     return TransactionCandidate(
       id: IdGenerator.generate(),

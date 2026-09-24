@@ -62,6 +62,35 @@ void main() {
     });
   });
 
+  group('Transaction.isTransfer', () {
+    test('is false when transferId is null', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      expect(transaction.isTransfer, isFalse);
+    });
+
+    test('is true when transferId is set', () {
+      final transaction = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 100,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        transferId: 'transfer-1',
+      );
+      expect(transaction.isTransfer, isTrue);
+    });
+  });
+
   group('Transaction.balanceEffect', () {
     test('equals signedAmount when not excluded', () {
       final transaction = Transaction(
@@ -76,36 +105,41 @@ void main() {
       expect(transaction.balanceEffect, transaction.signedAmount);
     });
 
-    test('is zero when excludeFromCalculations is true, regardless of amount/type', () {
-      final expense = Transaction(
-        id: 't1',
-        type: TransactionType.expense,
-        amount: 500,
-        dateTime: DateTime(2026, 1, 1),
-        accountId: 'a1',
-        categoryId: 'c1',
-        createdAt: DateTime(2026, 1, 1),
-        excludeFromCalculations: true,
-      );
-      final income = Transaction(
-        id: 't2',
-        type: TransactionType.income,
-        amount: 500,
-        dateTime: DateTime(2026, 1, 1),
-        accountId: 'a1',
-        categoryId: 'c1',
-        createdAt: DateTime(2026, 1, 1),
-        excludeFromCalculations: true,
-      );
-      expect(expense.balanceEffect, 0);
-      expect(income.balanceEffect, 0);
-    });
+    test(
+      'is zero when excludeFromCalculations is true, regardless of amount/type',
+      () {
+        final expense = Transaction(
+          id: 't1',
+          type: TransactionType.expense,
+          amount: 500,
+          dateTime: DateTime(2026, 1, 1),
+          accountId: 'a1',
+          categoryId: 'c1',
+          createdAt: DateTime(2026, 1, 1),
+          excludeFromCalculations: true,
+        );
+        final income = Transaction(
+          id: 't2',
+          type: TransactionType.income,
+          amount: 500,
+          dateTime: DateTime(2026, 1, 1),
+          accountId: 'a1',
+          categoryId: 'c1',
+          createdAt: DateTime(2026, 1, 1),
+          excludeFromCalculations: true,
+        );
+        expect(expense.balanceEffect, 0);
+        expect(income.balanceEffect, 0);
+      },
+    );
   });
 
   group('Transaction Firestore round-trip', () {
     test('toFirestore/fromFirestore preserves every field', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           );
@@ -138,7 +172,9 @@ void main() {
 
     test('preserves a non-null receiptPurpose', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           );
@@ -160,58 +196,11 @@ void main() {
       expect(restored.receiptPurpose, 'splitExpenseSettlement');
     });
 
-    test('preserves a non-null transferId and reports isTransfer', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
-            fromFirestore: Transaction.fromFirestore,
-            toFirestore: (t, _) => t.toFirestore(),
-          );
-
-      final original = Transaction(
-        id: 't1',
-        type: TransactionType.expense,
-        amount: 300,
-        dateTime: DateTime(2026, 1, 1),
-        accountId: 'a1',
-        categoryId: 'c1',
-        createdAt: DateTime(2026, 1, 1),
-        transferId: 'transfer-1',
-      );
-
-      await collection.doc('t1').set(original);
-      final restored = (await collection.doc('t1').get()).data()!;
-
-      expect(restored.transferId, 'transfer-1');
-      expect(restored.isTransfer, isTrue);
-    });
-
-    test('defaults transferId to null and isTransfer to false for a normal transaction', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
-            fromFirestore: Transaction.fromFirestore,
-            toFirestore: (t, _) => t.toFirestore(),
-          );
-
-      final original = Transaction(
-        id: 't1',
-        type: TransactionType.expense,
-        amount: 300,
-        dateTime: DateTime(2026, 1, 1),
-        accountId: 'a1',
-        categoryId: 'c1',
-        createdAt: DateTime(2026, 1, 1),
-      );
-
-      await collection.doc('t1').set(original);
-      final restored = (await collection.doc('t1').get()).data()!;
-
-      expect(restored.transferId, isNull);
-      expect(restored.isTransfer, isFalse);
-    });
-
     test('preserves excludeFromCalculations and accountingMonth', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           );
@@ -235,33 +224,40 @@ void main() {
       expect(restored.accountingMonth, DateTime(2026, 8));
     });
 
-    test('defaults excludeFromCalculations to false and accountingMonth to null', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
-            fromFirestore: Transaction.fromFirestore,
-            toFirestore: (t, _) => t.toFirestore(),
-          );
+    test(
+      'defaults excludeFromCalculations to false and accountingMonth to null',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('transactions')
+            .withConverter<Transaction>(
+              fromFirestore: Transaction.fromFirestore,
+              toFirestore: (t, _) => t.toFirestore(),
+            );
 
-      final original = Transaction(
-        id: 't1',
-        type: TransactionType.expense,
-        amount: 300,
-        dateTime: DateTime(2026, 1, 1),
-        accountId: 'a1',
-        categoryId: 'c1',
-        createdAt: DateTime(2026, 1, 1),
-      );
+        final original = Transaction(
+          id: 't1',
+          type: TransactionType.expense,
+          amount: 300,
+          dateTime: DateTime(2026, 1, 1),
+          accountId: 'a1',
+          categoryId: 'c1',
+          createdAt: DateTime(2026, 1, 1),
+        );
 
-      await collection.doc('t1').set(original);
-      final restored = (await collection.doc('t1').get()).data()!;
+        await collection.doc('t1').set(original);
+        final restored = (await collection.doc('t1').get()).data()!;
 
-      expect(restored.excludeFromCalculations, isFalse);
-      expect(restored.accountingMonth, isNull);
-    });
+        expect(restored.excludeFromCalculations, isFalse);
+        expect(restored.accountingMonth, isNull);
+      },
+    );
 
     test('preserves linkedPersonId and owesPersonToggle', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           );
@@ -285,33 +281,40 @@ void main() {
       expect(restored.owesPersonToggle, isTrue);
     });
 
-    test('defaults linkedPersonId to null and owesPersonToggle to false', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
-            fromFirestore: Transaction.fromFirestore,
-            toFirestore: (t, _) => t.toFirestore(),
-          );
+    test(
+      'defaults linkedPersonId to null and owesPersonToggle to false',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('transactions')
+            .withConverter<Transaction>(
+              fromFirestore: Transaction.fromFirestore,
+              toFirestore: (t, _) => t.toFirestore(),
+            );
 
-      final original = Transaction(
-        id: 't1',
-        type: TransactionType.expense,
-        amount: 500,
-        dateTime: DateTime(2026, 1, 1),
-        accountId: 'a1',
-        categoryId: 'c1',
-        createdAt: DateTime(2026, 1, 1),
-      );
+        final original = Transaction(
+          id: 't1',
+          type: TransactionType.expense,
+          amount: 500,
+          dateTime: DateTime(2026, 1, 1),
+          accountId: 'a1',
+          categoryId: 'c1',
+          createdAt: DateTime(2026, 1, 1),
+        );
 
-      await collection.doc('t1').set(original);
-      final restored = (await collection.doc('t1').get()).data()!;
+        await collection.doc('t1').set(original);
+        final restored = (await collection.doc('t1').get()).data()!;
 
-      expect(restored.linkedPersonId, isNull);
-      expect(restored.owesPersonToggle, isFalse);
-    });
+        expect(restored.linkedPersonId, isNull);
+        expect(restored.owesPersonToggle, isFalse);
+      },
+    );
 
     test('preserves audit trail and soft-delete state', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           );
@@ -340,7 +343,9 @@ void main() {
 
     test('preserves a non-null source', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           );
@@ -362,9 +367,66 @@ void main() {
       expect(restored.source, 'sms');
     });
 
-    test('defaults source to null for a normal (manually-entered) transaction', () async {
+    test(
+      'defaults source to null for a normal (manually-entered) transaction',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('transactions')
+            .withConverter<Transaction>(
+              fromFirestore: Transaction.fromFirestore,
+              toFirestore: (t, _) => t.toFirestore(),
+            );
+
+        final original = Transaction(
+          id: 't1',
+          type: TransactionType.expense,
+          amount: 300,
+          dateTime: DateTime(2026, 1, 1),
+          accountId: 'a1',
+          categoryId: 'c1',
+          createdAt: DateTime(2026, 1, 1),
+        );
+
+        await collection.doc('t1').set(original);
+        final restored = (await collection.doc('t1').get()).data()!;
+
+        expect(restored.source, isNull);
+      },
+    );
+
+    test('preserves a non-null transferId (a web-created transfer leg)', () async {
       final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
+            fromFirestore: Transaction.fromFirestore,
+            toFirestore: (t, _) => t.toFirestore(),
+          );
+
+      final original = Transaction(
+        id: 't1',
+        type: TransactionType.expense,
+        amount: 2000,
+        dateTime: DateTime(2026, 1, 1),
+        accountId: 'a1',
+        categoryId: 'c1',
+        createdAt: DateTime(2026, 1, 1),
+        transferId: 'transfer-1',
+      );
+
+      await collection.doc('t1').set(original);
+      final restored = (await collection.doc('t1').get()).data()!;
+
+      expect(restored.transferId, 'transfer-1');
+      expect(restored.isTransfer, isTrue);
+    });
+
+    test('defaults transferId to null for a normal transaction', () async {
+      final firestore = FakeFirebaseFirestore();
+      final collection = firestore
+          .collection('transactions')
+          .withConverter<Transaction>(
             fromFirestore: Transaction.fromFirestore,
             toFirestore: (t, _) => t.toFirestore(),
           );
@@ -382,31 +444,80 @@ void main() {
       await collection.doc('t1').set(original);
       final restored = (await collection.doc('t1').get()).data()!;
 
-      expect(restored.source, isNull);
+      expect(restored.transferId, isNull);
+      expect(restored.isTransfer, isFalse);
     });
 
-    test('deserializes an old document that predates the source field', () async {
-      final firestore = FakeFirebaseFirestore();
-      final collection = firestore.collection('transactions').withConverter<Transaction>(
-            fromFirestore: Transaction.fromFirestore,
-            toFirestore: (t, _) => t.toFirestore(),
-          );
+    test(
+      'editing an unrelated field (e.g. via recordEdit + re-save) does not '
+      'wipe transferId — regression for the full-document .set() overwrite '
+      'that would otherwise silently strip web-only fields not in this '
+      "app's own model on every edit/soft-delete/restore",
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('transactions')
+            .withConverter<Transaction>(
+              fromFirestore: Transaction.fromFirestore,
+              toFirestore: (t, _) => t.toFirestore(),
+            );
 
-      // Simulates a pre-existing production document written before `source`
-      // existed: the key is entirely absent, not present-and-null.
-      await firestore.collection('transactions').doc('old-t1').set({
-        'type': 'expense',
-        'amount': 42.0,
-        'dateTime': Timestamp.fromDate(DateTime(2025, 6, 1)),
-        'accountId': 'a1',
-        'categoryId': 'c1',
-        'createdAt': Timestamp.fromDate(DateTime(2025, 6, 1)),
-      });
+        await firestore.collection('transactions').doc('t1').set({
+          'type': 'expense',
+          'amount': 2000.0,
+          'dateTime': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'accountId': 'a1',
+          'categoryId': 'c1',
+          'createdAt': Timestamp.fromDate(DateTime(2026, 1, 1)),
+          'transferId': 'transfer-1',
+        });
 
-      final restored = (await collection.doc('old-t1').get()).data()!;
+        final loaded = (await collection.doc('t1').get()).data()!;
+        loaded.recordEdit(
+          field: 'notes',
+          oldValue: '',
+          newValue: 'Edited on mobile',
+        );
+        loaded.notes = 'Edited on mobile';
 
-      expect(restored.amount, 42.0);
-      expect(restored.source, isNull);
-    });
+        // Mirrors TransactionRepository.editTransaction's full-document
+        // .set() write (via FirestoreCrudRepository.update).
+        await collection.doc('t1').set(loaded);
+        final restored = (await collection.doc('t1').get()).data()!;
+
+        expect(restored.notes, 'Edited on mobile');
+        expect(restored.transferId, 'transfer-1');
+        expect(restored.isTransfer, isTrue);
+      },
+    );
+
+    test(
+      'deserializes an old document that predates the source field',
+      () async {
+        final firestore = FakeFirebaseFirestore();
+        final collection = firestore
+            .collection('transactions')
+            .withConverter<Transaction>(
+              fromFirestore: Transaction.fromFirestore,
+              toFirestore: (t, _) => t.toFirestore(),
+            );
+
+        // Simulates a pre-existing production document written before `source`
+        // existed: the key is entirely absent, not present-and-null.
+        await firestore.collection('transactions').doc('old-t1').set({
+          'type': 'expense',
+          'amount': 42.0,
+          'dateTime': Timestamp.fromDate(DateTime(2025, 6, 1)),
+          'accountId': 'a1',
+          'categoryId': 'c1',
+          'createdAt': Timestamp.fromDate(DateTime(2025, 6, 1)),
+        });
+
+        final restored = (await collection.doc('old-t1').get()).data()!;
+
+        expect(restored.amount, 42.0);
+        expect(restored.source, isNull);
+      },
+    );
   });
 }

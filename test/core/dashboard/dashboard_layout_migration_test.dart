@@ -21,7 +21,11 @@ String _legacyBlob() {
     id: 'personal',
     name: 'Personal',
     widgets: const [
-      DashboardWidget(id: 'w-netWorth', type: DashboardWidgetType.netWorth, configId: 'netWorth'),
+      DashboardWidget(
+        id: 'w-netWorth',
+        type: DashboardWidgetType.netWorth,
+        configId: 'netWorth',
+      ),
     ],
   );
   return jsonEncode({
@@ -33,7 +37,9 @@ String _legacyBlob() {
 void main() {
   setUp(() async {
     LocalSettingsService.resetForTest();
-    SharedPreferences.setMockInitialValues({'dashboard_layouts_v1': _legacyBlob()});
+    SharedPreferences.setMockInitialValues({
+      'dashboard_layouts_v1': _legacyBlob(),
+    });
     await LocalSettingsService.init();
   });
 
@@ -41,35 +47,49 @@ void main() {
     const repository = DashboardLayoutRepository();
     final state = repository.load();
 
-    final quickActions = state.activeLayout.widgets.where((w) => w.type == DashboardWidgetType.quickActions);
+    final quickActions = state.activeLayout.widgets.where(
+      (w) => w.type == DashboardWidgetType.quickActions,
+    );
     expect(quickActions, hasLength(1));
-    expect(state.configs[quickActions.single.configId]?.type, DashboardWidgetType.quickActions);
+    expect(
+      state.configs[quickActions.single.configId]?.type,
+      DashboardWidgetType.quickActions,
+    );
   });
 
-  test('deleting Quick Actions after migration is respected on the next load', () async {
-    const repository = DashboardLayoutRepository();
-    final migrated = repository.load();
-    expect(
-      migrated.activeLayout.widgets.any((w) => w.type == DashboardWidgetType.quickActions),
-      isTrue,
-    );
-
-    // Simulate the user deleting the widget in Edit Mode (controller
-    // persists the layout minus that slot).
-    final layout = migrated.activeLayout;
-    final withoutQuickActions = migrated.copyWith(
-      layouts: [
-        layout.copyWith(
-          widgets: layout.widgets.where((w) => w.type != DashboardWidgetType.quickActions).toList(),
+  test(
+    'deleting Quick Actions after migration is respected on the next load',
+    () async {
+      const repository = DashboardLayoutRepository();
+      final migrated = repository.load();
+      expect(
+        migrated.activeLayout.widgets.any(
+          (w) => w.type == DashboardWidgetType.quickActions,
         ),
-      ],
-    );
-    await repository.save(withoutQuickActions);
+        isTrue,
+      );
 
-    final reloaded = repository.load();
-    expect(
-      reloaded.activeLayout.widgets.any((w) => w.type == DashboardWidgetType.quickActions),
-      isFalse,
-    );
-  });
+      // Simulate the user deleting the widget in Edit Mode (controller
+      // persists the layout minus that slot).
+      final layout = migrated.activeLayout;
+      final withoutQuickActions = migrated.copyWith(
+        layouts: [
+          layout.copyWith(
+            widgets: layout.widgets
+                .where((w) => w.type != DashboardWidgetType.quickActions)
+                .toList(),
+          ),
+        ],
+      );
+      await repository.save(withoutQuickActions);
+
+      final reloaded = repository.load();
+      expect(
+        reloaded.activeLayout.widgets.any(
+          (w) => w.type == DashboardWidgetType.quickActions,
+        ),
+        isFalse,
+      );
+    },
+  );
 }

@@ -29,28 +29,48 @@ void main() {
       ProviderScope(
         overrides: [
           accountsStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          categoriesStreamProvider.overrideWith((ref) => Stream.value(const [])),
-          creditCardsStreamProvider.overrideWith((ref) => Stream.value(const [])),
+          categoriesStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
+          creditCardsStreamProvider.overrideWith(
+            (ref) => Stream.value(const []),
+          ),
           peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
         ],
-        child: MaterialApp(home: Scaffold(body: AssignExpenseSheet(initialPerson: initialPerson))),
+        child: MaterialApp(
+          home: Scaffold(
+            body: AssignExpenseSheet(initialPerson: initialPerson),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('with no initialPerson, shows the Person dropdown asking the user to pick one', (tester) async {
-    await pump(tester);
+  testWidgets(
+    'with no initialPerson, shows the Person dropdown asking the user to pick one',
+    (tester) async {
+      await pump(tester);
 
-    expect(find.text('Say who will pay this expense'), findsOneWidget);
-    expect(find.widgetWithText(DropdownButtonFormField<String>, 'Person'), findsOneWidget);
-  });
+      expect(find.text('Say who will pay this expense'), findsOneWidget);
+      expect(
+        find.widgetWithText(DropdownButtonFormField<String>, 'Person'),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('with initialPerson set, the Person picker is replaced by a locked read-only value', (tester) async {
-    await pump(tester, initialPerson: person);
+  testWidgets(
+    'with initialPerson set, the Person picker is replaced by a locked read-only value',
+    (tester) async {
+      await pump(tester, initialPerson: person);
 
-    expect(find.text('Add expense for Jane Doe'), findsOneWidget);
-    expect(find.widgetWithText(DropdownButtonFormField<String>, 'Person'), findsNothing);
-    expect(find.text('Jane Doe'), findsWidgets);
-  });
+      expect(find.text('Add expense for Jane Doe'), findsOneWidget);
+      expect(
+        find.widgetWithText(DropdownButtonFormField<String>, 'Person'),
+        findsNothing,
+      );
+      expect(find.text('Jane Doe'), findsWidgets);
+    },
+  );
 }

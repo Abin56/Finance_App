@@ -14,7 +14,9 @@ class UserProfileRepository {
   /// bumped; `createdAt` is only written the first time the document is
   /// created, so repeat logins never clobber it.
   Future<void> upsertOnSignIn(AppUser user) async {
-    final docRef = _firestore.collection(FirestoreCollections.users).doc(user.uid);
+    final docRef = _firestore
+        .collection(FirestoreCollections.users)
+        .doc(user.uid);
     final snapshot = await docRef.get();
 
     await docRef.set({

@@ -69,14 +69,14 @@ class BillOccurrence extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return BillOccurrence(
-      id: snapshot.id,
-      billId: data['billId'] as String,
-      dueDate: (data['dueDate'] as Timestamp).toDate(),
-      amount: (data['amount'] as num).toDouble(),
-      amountPaid: (data['amountPaid'] as num?)?.toDouble() ?? 0,
-      isSkipped: data['isSkipped'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        billId: data['billId'] as String,
+        dueDate: (data['dueDate'] as Timestamp).toDate(),
+        amount: (data['amount'] as num).toDouble(),
+        amountPaid: (data['amountPaid'] as num?)?.toDouble() ?? 0,
+        isSkipped: data['isSkipped'] as bool? ?? false,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -93,7 +93,9 @@ class BillOccurrence extends SoftDeletableEntity {
       'isSkipped': isSkipped,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

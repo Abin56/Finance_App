@@ -46,7 +46,12 @@ class EmiTile extends ConsumerWidget {
                       children: [
                         Icon(emi.loanType.icon, size: AppSizes.iconSm),
                         const SizedBox(width: AppSizes.xs),
-                        Expanded(child: Text(emi.name, style: context.textTheme.titleMedium)),
+                        Expanded(
+                          child: Text(
+                            emi.name,
+                            style: context.textTheme.titleMedium,
+                          ),
+                        ),
                       ],
                     ),
                     Text(
@@ -57,9 +62,18 @@ class EmiTile extends ConsumerWidget {
                     ),
                     Row(
                       children: [
-                        Icon(status.icon, size: AppSizes.iconSm, color: status.color),
+                        Icon(
+                          status.icon,
+                          size: AppSizes.iconSm,
+                          color: status.color,
+                        ),
                         const SizedBox(width: AppSizes.xs),
-                        Text(status.label, style: context.textTheme.bodySmall?.copyWith(color: status.color)),
+                        Text(
+                          status.label,
+                          style: context.textTheme.bodySmall?.copyWith(
+                            color: status.color,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -70,7 +84,9 @@ class EmiTile extends ConsumerWidget {
                 children: [
                   Text(
                     CurrencyFormatter.instance.format(remaining),
-                    style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    style: context.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   Text(
                     'left',

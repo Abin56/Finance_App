@@ -28,7 +28,8 @@ class CountUpText extends StatelessWidget {
       tween: Tween(begin: 0, end: value),
       duration: duration,
       curve: Curves.easeOutCubic,
-      builder: (context, animatedValue, _) => Text(formatter(animatedValue), style: tabularStyle),
+      builder: (context, animatedValue, _) =>
+          Text(formatter(animatedValue), style: tabularStyle),
     );
   }
 }

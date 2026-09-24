@@ -106,25 +106,27 @@ class CreditCardProfile extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return CreditCardProfile(
-      id: snapshot.id,
-      accountId: data['accountId'] as String,
-      statementDay: (data['statementDay'] as num).toInt(),
-      paymentDueDay: (data['paymentDueDay'] as num).toInt(),
-      creditLimit: (data['creditLimit'] as num).toDouble(),
-      minimumDuePercent: (data['minimumDuePercent'] as num?)?.toDouble(),
-      autoPay: data['autoPay'] as bool? ?? false,
-      status: CreditCardStatusX.fromName(data['status'] as String? ?? CreditCardStatus.active.name),
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      cardNetwork: CardNetworkX.fromName(data['cardNetwork'] as String?),
-      lastFourDigits: data['lastFourDigits'] as String?,
-      annualFee: (data['annualFee'] as num?)?.toDouble() ?? 0,
-      joiningFee: (data['joiningFee'] as num?)?.toDouble() ?? 0,
-      interestRatePercent: (data['interestRatePercent'] as num?)?.toDouble(),
-      rewardNotes: data['rewardNotes'] as String?,
-      autoDebitAccount: data['autoDebitAccount'] as String?,
-      cardHolderName: data['cardHolderName'] as String?,
-      sharedLimitId: data['sharedLimitId'] as String?,
-    )
+        id: snapshot.id,
+        accountId: data['accountId'] as String,
+        statementDay: (data['statementDay'] as num).toInt(),
+        paymentDueDay: (data['paymentDueDay'] as num).toInt(),
+        creditLimit: (data['creditLimit'] as num).toDouble(),
+        minimumDuePercent: (data['minimumDuePercent'] as num?)?.toDouble(),
+        autoPay: data['autoPay'] as bool? ?? false,
+        status: CreditCardStatusX.fromName(
+          data['status'] as String? ?? CreditCardStatus.active.name,
+        ),
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+        cardNetwork: CardNetworkX.fromName(data['cardNetwork'] as String?),
+        lastFourDigits: data['lastFourDigits'] as String?,
+        annualFee: (data['annualFee'] as num?)?.toDouble() ?? 0,
+        joiningFee: (data['joiningFee'] as num?)?.toDouble() ?? 0,
+        interestRatePercent: (data['interestRatePercent'] as num?)?.toDouble(),
+        rewardNotes: data['rewardNotes'] as String?,
+        autoDebitAccount: data['autoDebitAccount'] as String?,
+        cardHolderName: data['cardHolderName'] as String?,
+        sharedLimitId: data['sharedLimitId'] as String?,
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -152,7 +154,9 @@ class CreditCardProfile extends SoftDeletableEntity {
       'cardHolderName': cardHolderName,
       'sharedLimitId': sharedLimitId,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

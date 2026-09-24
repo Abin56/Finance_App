@@ -112,42 +112,69 @@ void main() {
     await container.read(statementsStreamProvider(cardId).future);
   }
 
-  test('an unpaid closed statement from before the current cycle carries forward as pending', () async {
-    final (:cardId, :accountId) = await createCardWithAccount();
-    await addClosedStatement(cardId, accountId, totalAmount: 1000, amountPaid: 0);
+  test(
+    'an unpaid closed statement from before the current cycle carries forward as pending',
+    () async {
+      final (:cardId, :accountId) = await createCardWithAccount();
+      await addClosedStatement(
+        cardId,
+        accountId,
+        totalAmount: 1000,
+        amountPaid: 0,
+      );
 
-    final view = container.read(statementCycleViewProvider(cardId));
+      final view = container.read(statementCycleViewProvider(cardId));
 
-    expect(view.previousCyclePending.map((s) => s.id), ['stmt-$cardId']);
-  });
+      expect(view.previousCyclePending.map((s) => s.id), ['stmt-$cardId']);
+    },
+  );
 
-  test('a fully paid closed statement from before the current cycle does not carry forward', () async {
-    final (:cardId, :accountId) = await createCardWithAccount();
-    await addClosedStatement(cardId, accountId, totalAmount: 1000, amountPaid: 1000);
+  test(
+    'a fully paid closed statement from before the current cycle does not carry forward',
+    () async {
+      final (:cardId, :accountId) = await createCardWithAccount();
+      await addClosedStatement(
+        cardId,
+        accountId,
+        totalAmount: 1000,
+        amountPaid: 1000,
+      );
 
-    final view = container.read(statementCycleViewProvider(cardId));
+      final view = container.read(statementCycleViewProvider(cardId));
 
-    expect(view.previousCyclePending, isEmpty);
-  });
+      expect(view.previousCyclePending, isEmpty);
+    },
+  );
 
-  test('a partially paid closed statement still carries forward as pending', () async {
-    final (:cardId, :accountId) = await createCardWithAccount();
-    await addClosedStatement(cardId, accountId, totalAmount: 1000, amountPaid: 400);
+  test(
+    'a partially paid closed statement still carries forward as pending',
+    () async {
+      final (:cardId, :accountId) = await createCardWithAccount();
+      await addClosedStatement(
+        cardId,
+        accountId,
+        totalAmount: 1000,
+        amountPaid: 400,
+      );
 
-    final view = container.read(statementCycleViewProvider(cardId));
+      final view = container.read(statementCycleViewProvider(cardId));
 
-    expect(view.previousCyclePending.map((s) => s.id), ['stmt-$cardId']);
-  });
+      expect(view.previousCyclePending.map((s) => s.id), ['stmt-$cardId']);
+    },
+  );
 
-  test('current reflects the live in-progress cycle, not a materialized statement', () async {
-    final (:cardId, :accountId) = await createCardWithAccount();
+  test(
+    'current reflects the live in-progress cycle, not a materialized statement',
+    () async {
+      final (:cardId, :accountId) = await createCardWithAccount();
 
-    final view = container.read(statementCycleViewProvider(cardId));
+      final view = container.read(statementCycleViewProvider(cardId));
 
-    expect(view.current, isNotNull);
-    expect(view.current!.id, 'current');
-    expect(view.current!.periodStart, currentPeriodStart);
-  });
+      expect(view.current, isNotNull);
+      expect(view.current!.id, 'current');
+      expect(view.current!.periodStart, currentPeriodStart);
+    },
+  );
 
   test(
     'creditCardStandingProvider.outstanding does not double count a statement materialized for '
@@ -157,7 +184,12 @@ void main() {
       // A statement materialized for the closed previous cycle must not
       // also be counted again via currentCycleSpend for the (separate,
       // still-open) current cycle.
-      await addClosedStatement(cardId, accountId, totalAmount: 1000, amountPaid: 0);
+      await addClosedStatement(
+        cardId,
+        accountId,
+        totalAmount: 1000,
+        amountPaid: 0,
+      );
 
       final standing = container.read(creditCardStandingProvider(cardId));
 
@@ -167,30 +199,41 @@ void main() {
     },
   );
 
-  test('outstanding sums remaining (not total) amounts for partially paid statements', () async {
-    final (:cardId, :accountId) = await createCardWithAccount();
-    await addClosedStatement(cardId, accountId, totalAmount: 1000, amountPaid: 400);
+  test(
+    'outstanding sums remaining (not total) amounts for partially paid statements',
+    () async {
+      final (:cardId, :accountId) = await createCardWithAccount();
+      await addClosedStatement(
+        cardId,
+        accountId,
+        totalAmount: 1000,
+        amountPaid: 400,
+      );
 
-    final standing = container.read(creditCardStandingProvider(cardId));
+      final standing = container.read(creditCardStandingProvider(cardId));
 
-    expect(standing.outstanding, 600);
-  });
+      expect(standing.outstanding, 600);
+    },
+  );
 
-  test('a transaction posted in the current cycle counts toward currentCycleSpend and outstanding', () async {
-    final (:cardId, :accountId) = await createCardWithAccount();
-    final transactions = container.read(transactionRepositoryProvider);
-    await transactions.createTransaction(
-      type: TransactionType.expense,
-      amount: 250,
-      dateTime: DateTime.now(),
-      accountId: accountId,
-      categoryId: 'cat1',
-    );
-    await container.read(transactionsStreamProvider.future);
+  test(
+    'a transaction posted in the current cycle counts toward currentCycleSpend and outstanding',
+    () async {
+      final (:cardId, :accountId) = await createCardWithAccount();
+      final transactions = container.read(transactionRepositoryProvider);
+      await transactions.createTransaction(
+        type: TransactionType.expense,
+        amount: 250,
+        dateTime: DateTime.now(),
+        accountId: accountId,
+        categoryId: 'cat1',
+      );
+      await container.read(transactionsStreamProvider.future);
 
-    final standing = container.read(creditCardStandingProvider(cardId));
+      final standing = container.read(creditCardStandingProvider(cardId));
 
-    expect(standing.currentCycleSpend, 250);
-    expect(standing.outstanding, 250);
-  });
+      expect(standing.currentCycleSpend, 250);
+      expect(standing.outstanding, 250);
+    },
+  );
 }

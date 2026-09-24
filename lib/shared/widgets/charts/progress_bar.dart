@@ -11,7 +11,12 @@ import '../../../core/extensions/num_extensions.dart';
 /// [AppColors.error] at 100%+, so overspending/over-target is visible at a
 /// glance without reading the numbers.
 class ProgressBar extends StatelessWidget {
-  const ProgressBar({super.key, required this.progress, this.label, this.height = 8});
+  const ProgressBar({
+    super.key,
+    required this.progress,
+    this.label,
+    this.height = 8,
+  });
 
   /// Raw ratio (not required to be pre-clamped — this widget clamps via
   /// [NumX.clampedProgress] itself).

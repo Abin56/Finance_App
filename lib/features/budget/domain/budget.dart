@@ -31,12 +31,12 @@ class Budget extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Budget(
-      id: snapshot.id,
-      type: BudgetTypeX.fromName(data['type'] as String),
-      amount: (data['amount'] as num).toDouble(),
-      categoryId: data['categoryId'] as String?,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    )
+        id: snapshot.id,
+        type: BudgetTypeX.fromName(data['type'] as String),
+        amount: (data['amount'] as num).toDouble(),
+        categoryId: data['categoryId'] as String?,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -51,7 +51,9 @@ class Budget extends SoftDeletableEntity {
       'categoryId': categoryId,
       'createdAt': Timestamp.fromDate(createdAt),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

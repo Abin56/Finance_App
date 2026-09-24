@@ -20,12 +20,18 @@ Future<void> permanentlyDeleteBillAndHistory(
   required BillOccurrenceRepository occurrenceRepository,
   required PaymentRepository paymentRepository,
 }) async {
-  final occurrences = [...await occurrenceRepository.getAll(), ...await occurrenceRepository.getTrash()];
+  final occurrences = [
+    ...await occurrenceRepository.getAll(),
+    ...await occurrenceRepository.getTrash(),
+  ];
   for (final occurrence in occurrences) {
     await occurrenceRepository.permanentlyDelete(occurrence);
   }
 
-  final payments = [...await paymentRepository.getAll(), ...await paymentRepository.getTrash()];
+  final payments = [
+    ...await paymentRepository.getAll(),
+    ...await paymentRepository.getTrash(),
+  ];
   for (final payment in payments) {
     await paymentRepository.permanentlyDelete(payment);
   }

@@ -37,15 +37,27 @@ void main() {
 
   group('BankRegistry.resolve', () {
     test('prefers bankId over fallbackName', () {
-      expect(BankRegistry.resolve(bankId: 'axis', fallbackName: 'HDFC Bank')?.id, 'axis');
+      expect(
+        BankRegistry.resolve(bankId: 'axis', fallbackName: 'HDFC Bank')?.id,
+        'axis',
+      );
     });
 
     test('falls back to name matching when bankId is null', () {
-      expect(BankRegistry.resolve(bankId: null, fallbackName: 'Kotak Mahindra Bank')?.id, 'kotak');
+      expect(
+        BankRegistry.resolve(
+          bankId: null,
+          fallbackName: 'Kotak Mahindra Bank',
+        )?.id,
+        'kotak',
+      );
     });
 
     test('returns null when neither resolves', () {
-      expect(BankRegistry.resolve(bankId: null, fallbackName: 'Some Unknown Bank'), isNull);
+      expect(
+        BankRegistry.resolve(bankId: null, fallbackName: 'Some Unknown Bank'),
+        isNull,
+      );
     });
   });
 
@@ -57,13 +69,20 @@ void main() {
 
     test('every bank has a non-empty shortCode and name', () {
       for (final bank in BankRegistry.all) {
-        expect(bank.shortCode, isNotEmpty, reason: '${bank.id} has an empty shortCode');
+        expect(
+          bank.shortCode,
+          isNotEmpty,
+          reason: '${bank.id} has an empty shortCode',
+        );
         expect(bank.name, isNotEmpty, reason: '${bank.id} has an empty name');
       }
     });
 
     test('generic is not part of the selectable list', () {
-      expect(BankRegistry.all.any((b) => b.id == BankRegistry.generic.id), isFalse);
+      expect(
+        BankRegistry.all.any((b) => b.id == BankRegistry.generic.id),
+        isFalse,
+      );
     });
   });
 
@@ -75,7 +94,10 @@ void main() {
 
     test('groupedByLetter buckets every bank under its first letter', () {
       final grouped = BankRegistry.groupedByLetter;
-      final totalGrouped = grouped.values.fold(0, (sum, list) => sum + list.length);
+      final totalGrouped = grouped.values.fold(
+        0,
+        (sum, list) => sum + list.length,
+      );
       expect(totalGrouped, BankRegistry.all.length);
       for (final entry in grouped.entries) {
         for (final bank in entry.value) {

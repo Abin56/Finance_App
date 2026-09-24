@@ -47,7 +47,10 @@ void main() {
     return account.id;
   }
 
-  Future<String> createCard(String accountId, {double creditLimit = 100000}) async {
+  Future<String> createCard(
+    String accountId, {
+    double creditLimit = 100000,
+  }) async {
     final cards = container.read(creditCardRepositoryProvider);
     final card = await cards.createCard(
       accountId: accountId,
@@ -58,55 +61,68 @@ void main() {
     return card.id;
   }
 
-  test('reserve on create: linking an EMI to a card ties up its principal from available credit', () async {
-    final accountId = await createCardAccount('ICICI Amazon Pay');
-    final cardId = await createCard(accountId, creditLimit: 100000);
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
+  test(
+    'reserve on create: linking an EMI to a card ties up its principal from available credit',
+    () async {
+      final accountId = await createCardAccount('ICICI Amazon Pay');
+      final cardId = await createCard(accountId, creditLimit: 100000);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
 
-    final standingBefore = container.read(creditCardStandingProvider(cardId));
-    expect(standingBefore.available, 100000);
+      final standingBefore = container.read(creditCardStandingProvider(cardId));
+      expect(standingBefore.available, 100000);
 
-    final emiRepository = container.read(emiRepositoryProvider);
-    await emiRepository.createEmi(
-      name: 'Laptop EMI',
-      principalAmount: 25000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 6,
-      linkedCreditCardId: cardId,
-    );
-    await container.read(emisStreamProvider.future);
+      final emiRepository = container.read(emiRepositoryProvider);
+      await emiRepository.createEmi(
+        name: 'Laptop EMI',
+        principalAmount: 25000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 6,
+        linkedCreditCardId: cardId,
+      );
+      await container.read(emisStreamProvider.future);
 
-    expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 25000);
-    final standingAfter = container.read(creditCardStandingProvider(cardId));
-    expect(standingAfter.available, 75000);
-  });
+      expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 25000);
+      final standingAfter = container.read(creditCardStandingProvider(cardId));
+      expect(standingAfter.available, 75000);
+    },
+  );
 
-  test('reserve on edit: changing principal before any payment adjusts the reservation', () async {
-    final accountId = await createCardAccount('HDFC Card');
-    final cardId = await createCard(accountId, creditLimit: 100000);
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
+  test(
+    'reserve on edit: changing principal before any payment adjusts the reservation',
+    () async {
+      final accountId = await createCardAccount('HDFC Card');
+      final cardId = await createCard(accountId, creditLimit: 100000);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
 
-    final emiRepository = container.read(emiRepositoryProvider);
-    final emi = await emiRepository.createEmi(
-      name: 'Phone EMI',
-      principalAmount: 20000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 4,
-      linkedCreditCardId: cardId,
-    );
-    await container.read(emisStreamProvider.future);
-    expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 20000);
+      final emiRepository = container.read(emiRepositoryProvider);
+      final emi = await emiRepository.createEmi(
+        name: 'Phone EMI',
+        principalAmount: 20000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 4,
+        linkedCreditCardId: cardId,
+      );
+      await container.read(emisStreamProvider.future);
+      expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 20000);
 
-    await emiRepository.editEmi(emi, hasPayments: false, principalAmount: 30000);
-    await container.read(emisStreamProvider.future);
+      await emiRepository.editEmi(
+        emi,
+        hasPayments: false,
+        principalAmount: 30000,
+      );
+      await container.read(emisStreamProvider.future);
 
-    expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 30000);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 70000);
-  });
+      expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 30000);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        70000,
+      );
+    },
+  );
 
   test('reserve releases when the linked card is removed via edit', () async {
     final accountId = await createCardAccount('Axis Card');
@@ -126,37 +142,50 @@ void main() {
     await container.read(emisStreamProvider.future);
     expect(container.read(creditCardStandingProvider(cardId)).available, 35000);
 
-    await emiRepository.editEmi(emi, hasPayments: false, clearLinkedCreditCardId: true);
-    await container.read(emisStreamProvider.future);
-
-    expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 50000);
-  });
-
-  test('closing an EMI with no payments yet releases its full reserved principal', () async {
-    final accountId = await createCardAccount('SBI Card');
-    final cardId = await createCard(accountId, creditLimit: 50000);
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
-
-    final emiRepository = container.read(emiRepositoryProvider);
-    final emi = await emiRepository.createEmi(
-      name: 'Furniture EMI',
-      principalAmount: 15000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 3,
-      linkedCreditCardId: cardId,
+    await emiRepository.editEmi(
+      emi,
+      hasPayments: false,
+      clearLinkedCreditCardId: true,
     );
     await container.read(emisStreamProvider.future);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 35000);
-
-    await emiRepository.closeEmi(emi);
-    await container.read(emisStreamProvider.future);
 
     expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
     expect(container.read(creditCardStandingProvider(cardId)).available, 50000);
   });
+
+  test(
+    'closing an EMI with no payments yet releases its full reserved principal',
+    () async {
+      final accountId = await createCardAccount('SBI Card');
+      final cardId = await createCard(accountId, creditLimit: 50000);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
+
+      final emiRepository = container.read(emiRepositoryProvider);
+      final emi = await emiRepository.createEmi(
+        name: 'Furniture EMI',
+        principalAmount: 15000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+        linkedCreditCardId: cardId,
+      );
+      await container.read(emisStreamProvider.future);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        35000,
+      );
+
+      await emiRepository.closeEmi(emi);
+      await container.read(emisStreamProvider.future);
+
+      expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        50000,
+      );
+    },
+  );
 
   test(
     'closing a partially-paid EMI releases the remaining reserve without double-counting its past repayments',
@@ -184,18 +213,38 @@ void main() {
         linkedCreditCardId: cardId,
       );
       await container.read(emisStreamProvider.future);
-      expect(container.read(creditCardStandingProvider(cardId)).available, 38000);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        38000,
+      );
 
-      final installments = await container.read(installmentRepositoryProvider(emi.scheduleId)).getAll();
-      final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-      final paymentKey = (scheduleId: emi.scheduleId, installmentId: sorted.first.id);
-      final paymentRepository = container.read(installmentPaymentRepositoryProvider(paymentKey));
-      await paymentRepository.recordPayment(sorted.first, amount: 4000, date: DateTime(2026, 2, 1));
+      final installments = await container
+          .read(installmentRepositoryProvider(emi.scheduleId))
+          .getAll();
+      final sorted = [...installments]
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      final paymentKey = (
+        scheduleId: emi.scheduleId,
+        installmentId: sorted.first.id,
+      );
+      final paymentRepository = container.read(
+        installmentPaymentRepositoryProvider(paymentKey),
+      );
+      await paymentRepository.recordPayment(
+        sorted.first,
+        amount: 4000,
+        date: DateTime(2026, 2, 1),
+      );
       await container.read(installmentsStreamProvider(emi.scheduleId).future);
-      await container.read(installmentPaymentsStreamProvider(paymentKey).future);
+      await container.read(
+        installmentPaymentsStreamProvider(paymentKey).future,
+      );
 
       expect(container.read(principalRestoredForCardProvider(cardId)), 4000);
-      expect(container.read(creditCardStandingProvider(cardId)).available, 42000);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        42000,
+      );
 
       await emiRepository.closeEmi(emi);
       await container.read(emisStreamProvider.future);
@@ -204,97 +253,141 @@ void main() {
       // out together — available returns to the full 50000, not 54000.
       expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
       expect(container.read(principalRestoredForCardProvider(cardId)), 0);
-      expect(container.read(creditCardStandingProvider(cardId)).available, 50000);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        50000,
+      );
     },
   );
 
-  test('an EMI that reaches Completed by being fully paid off already shows zero remaining reserve', () async {
-    // EmiStatus.completed is auto-derived (see Emi.statusGiven) the moment
-    // every installment is paid — isClosed stays false until the user
-    // explicitly taps "Close". No code change was needed for this
-    // scenario: paying off every installment already drives
-    // principalRestoredForCardProvider up to match linkedEmiPrincipalForCardProvider
-    // exactly, so available is already fully restored before the user ever
-    // closes the EMI.
-    final accountId = await createCardAccount('Yes Bank Card');
-    final cardId = await createCard(accountId, creditLimit: 50000);
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
+  test(
+    'an EMI that reaches Completed by being fully paid off already shows zero remaining reserve',
+    () async {
+      // EmiStatus.completed is auto-derived (see Emi.statusGiven) the moment
+      // every installment is paid — isClosed stays false until the user
+      // explicitly taps "Close". No code change was needed for this
+      // scenario: paying off every installment already drives
+      // principalRestoredForCardProvider up to match linkedEmiPrincipalForCardProvider
+      // exactly, so available is already fully restored before the user ever
+      // closes the EMI.
+      final accountId = await createCardAccount('Yes Bank Card');
+      final cardId = await createCard(accountId, creditLimit: 50000);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
 
-    final emiRepository = container.read(emiRepositoryProvider);
-    final emi = await emiRepository.createEmi(
-      name: 'Headphones EMI',
-      principalAmount: 6000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 2,
-      linkedCreditCardId: cardId,
-    );
-    await container.read(emisStreamProvider.future);
+      final emiRepository = container.read(emiRepositoryProvider);
+      final emi = await emiRepository.createEmi(
+        name: 'Headphones EMI',
+        principalAmount: 6000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 2,
+        linkedCreditCardId: cardId,
+      );
+      await container.read(emisStreamProvider.future);
 
-    final installments = await container.read(installmentRepositoryProvider(emi.scheduleId)).getAll();
-    final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-    for (final installment in sorted) {
-      final paymentKey = (scheduleId: emi.scheduleId, installmentId: installment.id);
-      final paymentRepository = container.read(installmentPaymentRepositoryProvider(paymentKey));
-      await paymentRepository.recordPayment(installment, amount: installment.amountDue, date: DateTime(2026, 1, 15));
-      await container.read(installmentPaymentsStreamProvider(paymentKey).future);
-    }
-    await container.read(installmentsStreamProvider(emi.scheduleId).future);
-    await container.read(emisStreamProvider.future);
+      final installments = await container
+          .read(installmentRepositoryProvider(emi.scheduleId))
+          .getAll();
+      final sorted = [...installments]
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      for (final installment in sorted) {
+        final paymentKey = (
+          scheduleId: emi.scheduleId,
+          installmentId: installment.id,
+        );
+        final paymentRepository = container.read(
+          installmentPaymentRepositoryProvider(paymentKey),
+        );
+        await paymentRepository.recordPayment(
+          installment,
+          amount: installment.amountDue,
+          date: DateTime(2026, 1, 15),
+        );
+        await container.read(
+          installmentPaymentsStreamProvider(paymentKey).future,
+        );
+      }
+      await container.read(installmentsStreamProvider(emi.scheduleId).future);
+      await container.read(emisStreamProvider.future);
 
-    final updatedEmi = container.read(emisStreamProvider).value!.firstWhere((e) => e.id == emi.id);
-    expect(updatedEmi.isClosed, isFalse);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 50000);
-  });
+      final updatedEmi = container
+          .read(emisStreamProvider)
+          .value!
+          .firstWhere((e) => e.id == emi.id);
+      expect(updatedEmi.isClosed, isFalse);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        50000,
+      );
+    },
+  );
 
-  test('soft-deleting (trashing) an EMI releases its reservation, restoring available credit', () async {
-    final accountId = await createCardAccount('Kotak Card');
-    final cardId = await createCard(accountId, creditLimit: 50000);
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
+  test(
+    'soft-deleting (trashing) an EMI releases its reservation, restoring available credit',
+    () async {
+      final accountId = await createCardAccount('Kotak Card');
+      final cardId = await createCard(accountId, creditLimit: 50000);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
 
-    final emiRepository = container.read(emiRepositoryProvider);
-    final emi = await emiRepository.createEmi(
-      name: 'Fridge EMI',
-      principalAmount: 15000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 3,
-      linkedCreditCardId: cardId,
-    );
-    await container.read(emisStreamProvider.future);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 35000);
+      final emiRepository = container.read(emiRepositoryProvider);
+      final emi = await emiRepository.createEmi(
+        name: 'Fridge EMI',
+        principalAmount: 15000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+        linkedCreditCardId: cardId,
+      );
+      await container.read(emisStreamProvider.future);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        35000,
+      );
 
-    await emiRepository.softDelete(emi);
-    await container.read(emisStreamProvider.future);
+      await emiRepository.softDelete(emi);
+      await container.read(emisStreamProvider.future);
 
-    expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 50000);
-  });
+      expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        50000,
+      );
+    },
+  );
 
-  test('permanently deleting an EMI (added by mistake) releases its reservation too', () async {
-    final accountId = await createCardAccount('Standard Chartered Card');
-    final cardId = await createCard(accountId, creditLimit: 50000);
-    await container.read(accountsStreamProvider.future);
-    await container.read(creditCardsStreamProvider.future);
+  test(
+    'permanently deleting an EMI (added by mistake) releases its reservation too',
+    () async {
+      final accountId = await createCardAccount('Standard Chartered Card');
+      final cardId = await createCard(accountId, creditLimit: 50000);
+      await container.read(accountsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
 
-    final emiRepository = container.read(emiRepositoryProvider);
-    final emi = await emiRepository.createEmi(
-      name: 'Mistaken EMI',
-      principalAmount: 15000,
-      startDate: DateTime(2026, 1, 1),
-      installmentFrequency: ScheduleType.monthly,
-      installmentCount: 3,
-      linkedCreditCardId: cardId,
-    );
-    await container.read(emisStreamProvider.future);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 35000);
+      final emiRepository = container.read(emiRepositoryProvider);
+      final emi = await emiRepository.createEmi(
+        name: 'Mistaken EMI',
+        principalAmount: 15000,
+        startDate: DateTime(2026, 1, 1),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 3,
+        linkedCreditCardId: cardId,
+      );
+      await container.read(emisStreamProvider.future);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        35000,
+      );
 
-    await emiRepository.permanentlyDeleteEmi(emi);
-    await container.read(emisStreamProvider.future);
+      await emiRepository.permanentlyDeleteEmi(emi);
+      await container.read(emisStreamProvider.future);
 
-    expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
-    expect(container.read(creditCardStandingProvider(cardId)).available, 50000);
-  });
+      expect(container.read(linkedEmiPrincipalForCardProvider(cardId)), 0);
+      expect(
+        container.read(creditCardStandingProvider(cardId)).available,
+        50000,
+      );
+    },
+  );
 }

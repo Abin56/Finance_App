@@ -11,7 +11,11 @@ class ReportsPeriodChips extends StatelessWidget {
     super.key,
     required this.selected,
     required this.onChanged,
-    this.periods = const [ReportsPeriod.thisMonth, ReportsPeriod.lastMonth, ReportsPeriod.thisYear],
+    this.periods = const [
+      ReportsPeriod.thisMonth,
+      ReportsPeriod.lastMonth,
+      ReportsPeriod.thisYear,
+    ],
   });
 
   final ReportsPeriod selected;

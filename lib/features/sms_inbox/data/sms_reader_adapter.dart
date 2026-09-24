@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 
 import '../domain/raw_sms_message.dart';
+import '../domain/sms_message_source.dart';
 import '../domain/sms_read_exception.dart';
 
 /// Wraps `flutter_sms_inbox` behind the feature's own [RawSmsMessage] type
@@ -21,7 +22,10 @@ class SmsReaderAdapter {
 
     final List<SmsMessage> messages;
     try {
-      messages = await SmsQuery().querySms(count: _maxScanCount, kinds: const [SmsQueryKind.inbox]);
+      messages = await SmsQuery().querySms(
+        count: _maxScanCount,
+        kinds: const [SmsQueryKind.inbox],
+      );
     } on PlatformException catch (e) {
       // The plugin's native side catches SecurityException itself and reports
       // it as this specific error code (see SmsQueryHandler.handle in
@@ -39,7 +43,13 @@ class SmsReaderAdapter {
     return messages
         .where((m) => m.address != null && m.body != null && m.date != null)
         .map(
-          (m) => RawSmsMessage(address: m.address!, body: m.body!, date: m.date!, threadId: m.threadId),
+          (m) => RawSmsMessage(
+            address: m.address!,
+            body: m.body!,
+            date: m.date!,
+            source: SmsMessageSource.deviceSms,
+            threadId: m.threadId,
+          ),
         )
         .toList();
   }

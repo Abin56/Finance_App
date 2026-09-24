@@ -21,9 +21,11 @@ class MonthYearStepper extends StatelessWidget {
   final DateTime min;
   final DateTime max;
 
-  bool get _canGoBack => DateTime(value.year, value.month - 1).isAfter(min) ||
+  bool get _canGoBack =>
+      DateTime(value.year, value.month - 1).isAfter(min) ||
       DateTime(value.year, value.month - 1).isAtSameMomentAs(min);
-  bool get _canGoForward => DateTime(value.year, value.month + 1).isBefore(max) ||
+  bool get _canGoForward =>
+      DateTime(value.year, value.month + 1).isBefore(max) ||
       DateTime(value.year, value.month + 1).isAtSameMomentAs(max);
 
   @override
@@ -34,7 +36,9 @@ class MonthYearStepper extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.chevron_left_rounded),
           tooltip: 'Previous month',
-          onPressed: _canGoBack ? () => onChanged(DateTime(value.year, value.month - 1)) : null,
+          onPressed: _canGoBack
+              ? () => onChanged(DateTime(value.year, value.month - 1))
+              : null,
         ),
         SizedBox(
           width: 140,
@@ -47,7 +51,9 @@ class MonthYearStepper extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.chevron_right_rounded),
           tooltip: 'Next month',
-          onPressed: _canGoForward ? () => onChanged(DateTime(value.year, value.month + 1)) : null,
+          onPressed: _canGoForward
+              ? () => onChanged(DateTime(value.year, value.month + 1))
+              : null,
         ),
       ],
     );

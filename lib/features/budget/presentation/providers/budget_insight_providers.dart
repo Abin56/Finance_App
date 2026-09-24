@@ -24,7 +24,10 @@ final dailyBudgetInsightProvider = Provider<BudgetInsight?>((ref) {
 /// exists. Powers the month-selector history view in [MonthlyBudgetCard]
 /// — each selected month gets its own insight against the same ongoing
 /// budget amount.
-final monthlyBudgetInsightProvider = Provider.family<BudgetInsight?, DateTime>((ref, month) {
+final monthlyBudgetInsightProvider = Provider.family<BudgetInsight?, DateTime>((
+  ref,
+  month,
+) {
   final budget = ref.watch(monthlyBudgetProvider);
   if (budget == null) return null;
 
@@ -37,7 +40,10 @@ final monthlyBudgetInsightProvider = Provider.family<BudgetInsight?, DateTime>((
 });
 
 /// [BudgetInsight] for a single category budget over the current month.
-final categoryBudgetInsightProvider = Provider.family<BudgetInsight, Budget>((ref, budget) {
+final categoryBudgetInsightProvider = Provider.family<BudgetInsight, Budget>((
+  ref,
+  budget,
+) {
   final now = DateTime.now();
   return BudgetInsight(
     limit: budget.amount,

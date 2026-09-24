@@ -40,7 +40,12 @@ class SavingsRepository extends FirestoreCrudRepository<SavingsGoal> {
     if (targetAmount != null && targetAmount <= 0) {
       throw const AppException('Target amount must be greater than 0');
     }
-    goal.updateField(field: 'name', oldValue: goal.name, newValue: name, apply: (v) => goal.name = v);
+    goal.updateField(
+      field: 'name',
+      oldValue: goal.name,
+      newValue: name,
+      apply: (v) => goal.name = v,
+    );
     goal.updateField(
       field: 'targetAmount',
       oldValue: goal.targetAmount,
@@ -48,7 +53,11 @@ class SavingsRepository extends FirestoreCrudRepository<SavingsGoal> {
       apply: (v) => goal.targetAmount = v,
     );
     if (clearDueDate && goal.dueDate != null) {
-      goal.recordEdit(field: 'dueDate', oldValue: goal.dueDate.toString(), newValue: 'none');
+      goal.recordEdit(
+        field: 'dueDate',
+        oldValue: goal.dueDate.toString(),
+        newValue: 'none',
+      );
       goal.dueDate = null;
     } else {
       goal.updateField(
@@ -58,7 +67,12 @@ class SavingsRepository extends FirestoreCrudRepository<SavingsGoal> {
         apply: (v) => goal.dueDate = v,
       );
     }
-    goal.updateField(field: 'notes', oldValue: goal.notes, newValue: notes, apply: (v) => goal.notes = v);
+    goal.updateField(
+      field: 'notes',
+      oldValue: goal.notes,
+      newValue: notes,
+      apply: (v) => goal.notes = v,
+    );
     await update(goal);
   }
 
@@ -79,7 +93,11 @@ class SavingsRepository extends FirestoreCrudRepository<SavingsGoal> {
     goal.currentAmount = newAmount;
 
     if (!goal.isCompleted && newAmount >= goal.targetAmount) {
-      goal.recordEdit(field: 'isCompleted', oldValue: 'false', newValue: 'true');
+      goal.recordEdit(
+        field: 'isCompleted',
+        oldValue: 'false',
+        newValue: 'true',
+      );
       goal.isCompleted = true;
     }
 

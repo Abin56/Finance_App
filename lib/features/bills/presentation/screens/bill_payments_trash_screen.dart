@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/payment_record.dart';
 import '../providers/bill_occurrence_providers.dart';
@@ -20,72 +21,102 @@ class BillPaymentsTrashScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trashAsync = ref.watch(paymentsTrashStreamProvider(billId));
-    final occurrences = ref.watch(billOccurrencesStreamProvider(billId)).value ?? const [];
+    final occurrences =
+        ref.watch(billOccurrencesStreamProvider(billId)).value ?? const [];
     final occurrenceById = {for (final o in occurrences) o.id: o};
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trash')),
-      body: SafeArea(child: trashAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Something went wrong: $error')),
-        data: (trashed) {
-          if (trashed.isEmpty) {
-            return const EmptyState(
-              icon: Icons.delete_outline_rounded,
-              title: 'Trash is empty',
-              subtitle: 'Deleted payments will appear here until you restore or remove them.',
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSizes.lg),
-            itemCount: trashed.length,
-            separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
-            itemBuilder: (context, index) {
-              final payment = trashed[index];
-              final occurrence = occurrenceById[payment.occurrenceId];
-              return ListTile(
-                tileColor: Theme.of(context).colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSizes.radiusLg),
-                ),
-                title: Text(CurrencyFormatter.instance.format(payment.amount)),
-                subtitle: Text(
-                  'Deleted ${payment.deletedAt!.toLocal()}'.split('.').first,
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.restore_rounded),
-                      tooltip: 'Restore',
-                      onPressed: occurrence == null
-                          ? null
-                          : () => ref.read(paymentRepositoryProvider(billId)).restorePayment(occurrence, payment),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete_forever_rounded, color: Theme.of(context).colorScheme.error),
-                      tooltip: 'Delete forever',
-                      onPressed: () => _confirmPermanentDelete(context, ref, payment),
-                    ),
-                  ],
-                ),
+      body: SafeArea(
+        child: trashAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) =>
+              Center(child: Text('Something went wrong: $error')),
+          data: (trashed) {
+            if (trashed.isEmpty) {
+              return const EmptyState(
+                icon: Icons.delete_outline_rounded,
+                title: 'Trash is empty',
+                subtitle:
+                    'Deleted payments will appear here until you restore or remove them.',
               );
-            },
-          );
-        },
-      )),
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(AppSizes.lg),
+              itemCount: trashed.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSizes.sm),
+              itemBuilder: (context, index) {
+                final payment = trashed[index];
+                final occurrence = occurrenceById[payment.occurrenceId];
+                return FlowFiCard(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              CurrencyFormatter.instance.format(payment.amount),
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Deleted ${payment.deletedAt!.toLocal()}'
+                                  .split('.')
+                                  .first,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.restore_rounded),
+                        tooltip: 'Restore',
+                        onPressed: occurrence == null
+                            ? null
+                            : () => ref
+                                  .read(paymentRepositoryProvider(billId))
+                                  .restorePayment(occurrence, payment),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.delete_forever_rounded,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        tooltip: 'Delete forever',
+                        onPressed: () =>
+                            _confirmPermanentDelete(context, ref, payment),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 
-  Future<void> _confirmPermanentDelete(BuildContext context, WidgetRef ref, PaymentRecord payment) async {
+  Future<void> _confirmPermanentDelete(
+    BuildContext context,
+    WidgetRef ref,
+    PaymentRecord payment,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete forever?'),
-        content: const Text('This payment will be permanently removed. This can\'t be undone.'),
+        content: const Text(
+          'This payment will be permanently removed. This can\'t be undone.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
@@ -95,7 +126,9 @@ class BillPaymentsTrashScreen extends ConsumerWidget {
     );
 
     if (confirmed == true) {
-      await ref.read(paymentRepositoryProvider(billId)).permanentlyDeletePayment(payment);
+      await ref
+          .read(paymentRepositoryProvider(billId))
+          .permanentlyDeletePayment(payment);
     }
   }
 }

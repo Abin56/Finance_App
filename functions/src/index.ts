@@ -1,0 +1,1 @@
+export { classifyFinancialSms } from "./classifyFinancialSms";

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/audit_entry.dart';
 import '../../../core/models/soft_deletable_entity.dart';
+import '../../../core/payment_schedule/domain/payment_allocation_type.dart';
 import 'transaction_type.dart';
 
 /// A single income or expense movement against an [Account]. The dashboard,
@@ -18,12 +19,17 @@ class Transaction extends SoftDeletableEntity {
     this.description = '',
     this.notes = '',
     this.receiptPurpose,
-    this.transferId,
     this.excludeFromCalculations = false,
     this.accountingMonth,
     this.linkedPersonId,
     this.owesPersonToggle = false,
     this.source,
+    this.transferId,
+    this.loanId,
+    this.emiId,
+    this.installmentId,
+    this.installmentPaymentId,
+    this.paymentAllocationType,
   });
 
   @override
@@ -43,18 +49,6 @@ class Transaction extends SoftDeletableEntity {
   /// transaction (manual entries, and the account-balance effect of a
   /// split/assigned `Expense`).
   final String? receiptPurpose;
-
-  /// Set on both legs of a transfer between two of the user's own accounts
-  /// (an expense leg on the source account + an income leg on the
-  /// destination account, sharing this id) — see
-  /// `TransactionRepository.createTransferPair`. Null for every other
-  /// transaction. Aggregations that sum income/expense totals (Dashboard,
-  /// Reports, Cash Flow, Budgets, Person balances) must exclude
-  /// [isTransfer] transactions, or a transfer's two legs double-count into
-  /// both totals even though no money actually left the user overall.
-  final String? transferId;
-
-  bool get isTransfer => transferId != null;
 
   /// When true, this transaction still appears in History/Search/Details
   /// but must be excluded from every balance/total/report — a reference-only
@@ -95,6 +89,48 @@ class Transaction extends SoftDeletableEntity {
   /// existed before this field was introduced.
   final String? source;
 
+  /// Set on both legs of a transfer between two of the user's own accounts —
+  /// currently only ever written by the web app (`TransactionRepository.
+  /// createTransferPair`/`linkTransferPair`); this app has no transfer-entry
+  /// UI of its own yet. Round-tripped losslessly (read + written back
+  /// unchanged on every edit/soft-delete/restore, via [toFirestore]) so that
+  /// editing a transfer leg on this app — e.g. renaming its description —
+  /// never silently strips the field a full-document `.set()` would
+  /// otherwise drop, which would desync it from the web app's own
+  /// transfer-pair bookkeeping. Purely a passthrough marker on this app: see
+  /// [isTransfer] for the one place it's actually read.
+  final String? transferId;
+
+  /// Exactly one of [loanId]/[emiId] is set when this transaction backs a
+  /// loan/EMI payment recorded through `LoanAdvancePaymentRepository` (or
+  /// its future EMI counterpart) — never both, since a loan and an EMI are
+  /// always separate obligations. Both null for every pre-existing
+  /// transaction and every non-loan transaction. Purely additive/optional —
+  /// safe to ignore for any code that doesn't care about loan/EMI linkage.
+  final String? loanId;
+  final String? emiId;
+
+  /// The specific `Installment` (and, 1:1, the `InstallmentPayment`) this
+  /// transaction's money movement backs. Null for every non-loan/EMI
+  /// transaction, and for the "sibling" installment-payment docs of a
+  /// multi-installment fan-out that share one [installmentPaymentId]/
+  /// transaction rather than getting their own.
+  final String? installmentId;
+  final String? installmentPaymentId;
+
+  /// Denormalized copy of the backing `InstallmentPayment.allocationType`,
+  /// so transaction-list/report UIs can filter/label "Loan EMI" vs
+  /// "Prepayment" without a join. Null for every non-loan/EMI transaction.
+  final PaymentAllocationType? paymentAllocationType;
+
+  /// Whether this transaction is one leg of a transfer between two of the
+  /// user's own accounts — money moving, not real income or a real expense.
+  /// Mirrors the web app's `isTransfer()` (`lib/models/transaction.ts`); the
+  /// single predicate [calculableTransactionsProvider] additionally excludes
+  /// on, so a transfer created on the web app is never double-counted as
+  /// both income and expense in this app's Dashboard/Reports/Budget totals.
+  bool get isTransfer => transferId != null;
+
   /// The signed delta this transaction applies to its account's balance —
   /// the single source of truth for balance math, so the repository never
   /// has to duplicate "income adds, expense subtracts" logic.
@@ -103,7 +139,8 @@ class Transaction extends SoftDeletableEntity {
   /// The month every monthly aggregation (Dashboard, Reports, Budgets, Cash
   /// Flow) must bucket this transaction under, instead of [dateTime]'s own
   /// month — [accountingMonth] if set, else [dateTime]'s month.
-  DateTime get effectiveMonth => accountingMonth ?? DateTime(dateTime.year, dateTime.month);
+  DateTime get effectiveMonth =>
+      accountingMonth ?? DateTime(dateTime.year, dateTime.month);
 
   /// The signed delta this transaction actually applies to its account's
   /// balance — [signedAmount], or zero when [excludeFromCalculations] is
@@ -117,23 +154,33 @@ class Transaction extends SoftDeletableEntity {
   ) {
     final data = snapshot.data()!;
     return Transaction(
-      id: snapshot.id,
-      type: TransactionTypeX.fromName(data['type'] as String),
-      amount: (data['amount'] as num).toDouble(),
-      dateTime: (data['dateTime'] as Timestamp).toDate(),
-      accountId: data['accountId'] as String,
-      categoryId: data['categoryId'] as String,
-      description: data['description'] as String? ?? '',
-      notes: data['notes'] as String? ?? '',
-      receiptPurpose: data['receiptPurpose'] as String?,
-      transferId: data['transferId'] as String?,
-      excludeFromCalculations: data['excludeFromCalculations'] as bool? ?? false,
-      accountingMonth: (data['accountingMonth'] as Timestamp?)?.toDate(),
-      linkedPersonId: data['linkedPersonId'] as String?,
-      owesPersonToggle: data['owesPersonToggle'] as bool? ?? false,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      source: data['source'] as String?,
-    )
+        id: snapshot.id,
+        type: TransactionTypeX.fromName(data['type'] as String),
+        amount: (data['amount'] as num).toDouble(),
+        dateTime: (data['dateTime'] as Timestamp).toDate(),
+        accountId: data['accountId'] as String,
+        categoryId: data['categoryId'] as String,
+        description: data['description'] as String? ?? '',
+        notes: data['notes'] as String? ?? '',
+        receiptPurpose: data['receiptPurpose'] as String?,
+        excludeFromCalculations:
+            data['excludeFromCalculations'] as bool? ?? false,
+        accountingMonth: (data['accountingMonth'] as Timestamp?)?.toDate(),
+        linkedPersonId: data['linkedPersonId'] as String?,
+        owesPersonToggle: data['owesPersonToggle'] as bool? ?? false,
+        createdAt: (data['createdAt'] as Timestamp).toDate(),
+        source: data['source'] as String?,
+        transferId: data['transferId'] as String?,
+        loanId: data['loanId'] as String?,
+        emiId: data['emiId'] as String?,
+        installmentId: data['installmentId'] as String?,
+        installmentPaymentId: data['installmentPaymentId'] as String?,
+        paymentAllocationType: data['paymentAllocationType'] == null
+            ? null
+            : PaymentAllocationTypeX.fromName(
+                data['paymentAllocationType'] as String?,
+              ),
+      )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
       ..editHistory = (data['editHistory'] as List<dynamic>? ?? [])
@@ -151,15 +198,24 @@ class Transaction extends SoftDeletableEntity {
       'description': description,
       'notes': notes,
       'receiptPurpose': receiptPurpose,
-      'transferId': transferId,
       'excludeFromCalculations': excludeFromCalculations,
-      'accountingMonth': accountingMonth == null ? null : Timestamp.fromDate(accountingMonth!),
+      'accountingMonth': accountingMonth == null
+          ? null
+          : Timestamp.fromDate(accountingMonth!),
       'linkedPersonId': linkedPersonId,
       'owesPersonToggle': owesPersonToggle,
       'createdAt': Timestamp.fromDate(createdAt),
       'source': source,
+      'transferId': transferId,
+      'loanId': loanId,
+      'emiId': emiId,
+      'installmentId': installmentId,
+      'installmentPaymentId': installmentPaymentId,
+      'paymentAllocationType': paymentAllocationType?.name,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
-      'lastEditedAt': lastEditedAt == null ? null : Timestamp.fromDate(lastEditedAt!),
+      'lastEditedAt': lastEditedAt == null
+          ? null
+          : Timestamp.fromDate(lastEditedAt!),
       'editHistory': editHistory.map((e) => e.toMap()).toList(),
     };
   }

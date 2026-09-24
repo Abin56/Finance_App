@@ -32,7 +32,10 @@ class DailyBudgetCard extends ConsumerWidget {
             Icon(Icons.today_outlined, color: context.colors.primary),
             const SizedBox(width: AppSizes.md),
             Expanded(
-              child: Text('Set a daily budget', style: context.textTheme.titleMedium),
+              child: Text(
+                'Set a daily budget',
+                style: context.textTheme.titleMedium,
+              ),
             ),
             const Icon(Icons.chevron_right_rounded),
           ],
@@ -43,7 +46,8 @@ class DailyBudgetCard extends ConsumerWidget {
     final insight = ref.watch(dailyBudgetInsightProvider)!;
 
     return AppCard(
-      onTap: () => BudgetFormSheet.show(context, type: BudgetType.daily, budget: budget),
+      onTap: () =>
+          BudgetFormSheet.show(context, type: BudgetType.daily, budget: budget),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

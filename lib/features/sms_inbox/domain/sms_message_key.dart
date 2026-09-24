@@ -26,7 +26,11 @@ import 'package:crypto/crypto.dart';
 abstract class SmsMessageKey {
   SmsMessageKey._();
 
-  static String compute({required String sender, required DateTime dateTime, required String body}) {
+  static String compute({
+    required String sender,
+    required DateTime dateTime,
+    required String body,
+  }) {
     final raw = '$sender|${dateTime.millisecondsSinceEpoch}|$body';
     return sha256.convert(utf8.encode(raw)).toString();
   }

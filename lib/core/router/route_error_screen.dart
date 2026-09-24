@@ -32,13 +32,19 @@ class RouteErrorScreen extends StatelessWidget {
                   color: context.colors.errorContainer.withValues(alpha: 0.4),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.explore_off_rounded, size: AppSizes.iconXl, color: context.colors.error),
+                child: Icon(
+                  Icons.explore_off_rounded,
+                  size: AppSizes.iconXl,
+                  color: context.colors.error,
+                ),
               ),
               const SizedBox(height: AppSizes.xl),
               Text(
                 'Page Not Found',
                 textAlign: TextAlign.center,
-                style: context.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+                style: context.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: AppSizes.sm),
               Text(

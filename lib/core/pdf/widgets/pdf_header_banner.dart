@@ -9,7 +9,11 @@ import '../pdf_tokens.dart';
 /// wordmark alone, same intent as `ShareFormat.header`'s 💸 banner without
 /// the glyph risk.
 class PdfHeaderBanner extends pw.StatelessWidget {
-  PdfHeaderBanner({required this.title, required this.subtitle, required this.fonts});
+  PdfHeaderBanner({
+    required this.title,
+    required this.subtitle,
+    required this.fonts,
+  });
 
   final String title;
   final String subtitle;
@@ -19,7 +23,10 @@ class PdfHeaderBanner extends pw.StatelessWidget {
   pw.Widget build(pw.Context context) {
     return pw.Container(
       width: double.infinity,
-      padding: const pw.EdgeInsets.symmetric(horizontal: PdfTokens.xl, vertical: PdfTokens.lg),
+      padding: const pw.EdgeInsets.symmetric(
+        horizontal: PdfTokens.xl,
+        vertical: PdfTokens.lg,
+      ),
       decoration: pw.BoxDecoration(
         color: PdfTokens.primary,
         borderRadius: pw.BorderRadius.circular(PdfTokens.radiusLg),
@@ -33,7 +40,11 @@ class PdfHeaderBanner extends pw.StatelessWidget {
             children: [
               pw.Text(
                 title,
-                style: pw.TextStyle(font: fonts.bold, fontSize: PdfTokens.fontTitle, color: PdfTokens.surface),
+                style: pw.TextStyle(
+                  font: fonts.bold,
+                  fontSize: PdfTokens.fontTitle,
+                  color: PdfTokens.surface,
+                ),
               ),
               pw.SizedBox(height: 2),
               pw.Text(

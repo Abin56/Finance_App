@@ -15,7 +15,12 @@ enum ConfidenceLevel { high, medium, low }
 /// the same transparency principle `SmsDuplicateReason.explanation` already
 /// follows for duplicate flags.
 class SmsConfidenceResult {
-  const SmsConfidenceResult({required this.level, required this.score, required this.needsReview, required this.reasons});
+  const SmsConfidenceResult({
+    required this.level,
+    required this.score,
+    required this.needsReview,
+    required this.reasons,
+  });
 
   final ConfidenceLevel level;
 
@@ -61,7 +66,9 @@ class SmsConfidenceScorer {
 
     final parserScore = parsed.confidence.clamp(0.0, 1.0) * _parserWeight;
     if (parsed.confidence < 0.6) {
-      reasons.add('Parsed by a generic, lower-confidence parser rather than a bank-specific one.');
+      reasons.add(
+        'Parsed by a generic, lower-confidence parser rather than a bank-specific one.',
+      );
     }
 
     double accountScore;
@@ -77,7 +84,9 @@ class SmsConfidenceScorer {
     double categoryScore;
     if (parsed.category == SmsTransactionCategory.unknown) {
       categoryScore = 0.0;
-      reasons.add('Could not confidently determine what kind of transaction this is.');
+      reasons.add(
+        'Could not confidently determine what kind of transaction this is.',
+      );
     } else {
       categoryScore = _categoryWeight;
     }
@@ -93,10 +102,20 @@ class SmsConfidenceScorer {
     // everything else scored — "high confidence, unknown account" isn't a
     // state a candidate should ever surface (see the class-level examples
     // this scorer is written to match).
-    final level = accountMatch.isResolved ? _levelFor(total) : ConfidenceLevel.low;
-    final needsReview = level != ConfidenceLevel.high || isDuplicate || !accountMatch.isResolved;
+    final level = accountMatch.isResolved
+        ? _levelFor(total)
+        : ConfidenceLevel.low;
+    final needsReview =
+        level != ConfidenceLevel.high ||
+        isDuplicate ||
+        !accountMatch.isResolved;
 
-    return SmsConfidenceResult(level: level, score: total, needsReview: needsReview, reasons: reasons);
+    return SmsConfidenceResult(
+      level: level,
+      score: total,
+      needsReview: needsReview,
+      reasons: reasons,
+    );
   }
 
   ConfidenceLevel _levelFor(double score) {

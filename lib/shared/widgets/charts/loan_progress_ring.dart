@@ -58,7 +58,9 @@ class LoanProgressRing extends StatelessWidget {
               children: [
                 Text(
                   centerLabel!,
-                  style: context.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  style: context.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 if (centerSubLabel != null)
                   Text(

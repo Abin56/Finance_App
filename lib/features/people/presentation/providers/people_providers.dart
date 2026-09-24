@@ -49,40 +49,47 @@ final debtorsProvider = Provider<List<Person>>((ref) {
 
 /// Sum of every positive balance — total money owed to you.
 final totalReceivableProvider = Provider<double>((ref) {
-  return ref.watch(creditorsProvider).fold(0.0, (total, p) => total + p.currentBalance);
+  return ref
+      .watch(creditorsProvider)
+      .fold(0.0, (total, p) => total + p.currentBalance);
 });
 
 /// Sum of the absolute value of every negative balance — total money you owe.
 final totalPayableProvider = Provider<double>((ref) {
-  return ref.watch(debtorsProvider).fold(0.0, (total, p) => total + p.currentBalance.abs());
+  return ref
+      .watch(debtorsProvider)
+      .fold(0.0, (total, p) => total + p.currentBalance.abs());
 });
 
 /// Ledger repository for a single person's subcollection, scoped by
 /// [personId] — a fresh repository per person, since each addresses a
 /// different Firestore subcollection path.
-final ledgerRepositoryProvider = Provider.autoDispose.family<LedgerRepository, String>((ref, personId) {
-  final firestore = ref.watch(firestoreProvider);
-  final uid = ref.watch(currentUserIdProvider);
-  final collection = firestore
-      .collection(FirestoreCollections.users)
-      .doc(uid)
-      .collection(FirestoreCollections.people)
-      .doc(personId)
-      .collection(FirestoreCollections.ledger)
-      .withConverter<LedgerEntry>(
-        fromFirestore: LedgerEntry.fromFirestore,
-        toFirestore: (entry, _) => entry.toFirestore(),
-      );
-  return LedgerRepository(collection, ref.watch(personRepositoryProvider));
-});
+final ledgerRepositoryProvider = Provider.autoDispose
+    .family<LedgerRepository, String>((ref, personId) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      final collection = firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.people)
+          .doc(personId)
+          .collection(FirestoreCollections.ledger)
+          .withConverter<LedgerEntry>(
+            fromFirestore: LedgerEntry.fromFirestore,
+            toFirestore: (entry, _) => entry.toFirestore(),
+          );
+      return LedgerRepository(collection, ref.watch(personRepositoryProvider));
+    });
 
-final ledgerStreamProvider = StreamProvider.autoDispose.family<List<LedgerEntry>, String>((ref, personId) {
-  return ref.watch(ledgerRepositoryProvider(personId)).watchAll();
-});
+final ledgerStreamProvider = StreamProvider.autoDispose
+    .family<List<LedgerEntry>, String>((ref, personId) {
+      return ref.watch(ledgerRepositoryProvider(personId)).watchAll();
+    });
 
-final ledgerTrashStreamProvider = StreamProvider.autoDispose.family<List<LedgerEntry>, String>((ref, personId) {
-  return ref.watch(ledgerRepositoryProvider(personId)).watchTrash();
-});
+final ledgerTrashStreamProvider = StreamProvider.autoDispose
+    .family<List<LedgerEntry>, String>((ref, personId) {
+      return ref.watch(ledgerRepositoryProvider(personId)).watchTrash();
+    });
 
 /// Plain `Transaction`s linked to [personId] (`Transaction.linkedPersonId`)
 /// with no backing `Expense` — i.e., a pure reference (the "owed" toggle was
@@ -90,11 +97,19 @@ final ledgerTrashStreamProvider = StreamProvider.autoDispose.family<List<LedgerE
 /// a real `Expense`/`LedgerEntry` and surfaces through
 /// [ledgerStreamProvider] instead, so it's excluded here to avoid appearing
 /// twice in [PersonTimelineBuilder.build]'s merged output.
-final personReferencedTransactionsProvider = Provider.autoDispose.family<List<Transaction>, String>((ref, personId) {
-  final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
-  final expenses = ref.watch(expensesStreamProvider).value ?? const [];
-  final transactionIdsWithExpense = {for (final e in expenses) e.transactionId};
-  return transactions
-      .where((t) => t.linkedPersonId == personId && !transactionIdsWithExpense.contains(t.id))
-      .toList();
-});
+final personReferencedTransactionsProvider = Provider.autoDispose
+    .family<List<Transaction>, String>((ref, personId) {
+      final transactions =
+          ref.watch(transactionsStreamProvider).value ?? const [];
+      final expenses = ref.watch(expensesStreamProvider).value ?? const [];
+      final transactionIdsWithExpense = {
+        for (final e in expenses) e.transactionId,
+      };
+      return transactions
+          .where(
+            (t) =>
+                t.linkedPersonId == personId &&
+                !transactionIdsWithExpense.contains(t.id),
+          )
+          .toList();
+    });

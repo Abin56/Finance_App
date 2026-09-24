@@ -19,7 +19,11 @@ abstract class AddExpenseChooser {
   /// when opened from [AddExpenseScreen] instead, carrying over the
   /// in-progress form so the user never re-types what they already entered.
   /// Resolves to `true` only when the chosen sheet actually saved.
-  static Future<bool?> show(BuildContext context, {Person? forPerson, AddExpenseDraftPrefill? draft}) async {
+  static Future<bool?> show(
+    BuildContext context, {
+    Person? forPerson,
+    AddExpenseDraftPrefill? draft,
+  }) async {
     final choice = await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -42,9 +46,17 @@ abstract class AddExpenseChooser {
     );
     if (!context.mounted || choice == null) return null;
     if (choice == 'split') {
-      return SplitExpenseFormSheet.show(context, initialParticipant: forPerson, draft: draft);
+      return SplitExpenseFormSheet.show(
+        context,
+        initialParticipant: forPerson,
+        draft: draft,
+      );
     } else {
-      return AssignExpenseSheet.show(context, initialPerson: forPerson, draft: draft);
+      return AssignExpenseSheet.show(
+        context,
+        initialPerson: forPerson,
+        draft: draft,
+      );
     }
   }
 }

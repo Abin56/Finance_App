@@ -26,7 +26,11 @@ void main() {
       child: MaterialApp(
         home: Scaffold(
           body: Navigator(
-            observers: [FabHidingModalObserver(container.read(modalRouteCountProvider.notifier))],
+            observers: [
+              FabHidingModalObserver(
+                container.read(modalRouteCountProvider.notifier),
+              ),
+            ],
             onGenerateRoute: (_) => MaterialPageRoute<void>(
               builder: (context) => Center(
                 child: Column(
@@ -39,7 +43,8 @@ void main() {
                           onPressed: () => showDialog<void>(
                             context: sheetContext,
                             useRootNavigator: false,
-                            builder: (_) => const AlertDialog(content: Text('dialog')),
+                            builder: (_) =>
+                                const AlertDialog(content: Text('dialog')),
                           ),
                           child: const Text('open dialog'),
                         ),
@@ -48,7 +53,9 @@ void main() {
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(builder: (_) => const Scaffold(body: Text('page'))),
+                        MaterialPageRoute<void>(
+                          builder: (_) => const Scaffold(body: Text('page')),
+                        ),
                       ),
                       child: const Text('open page'),
                     ),
@@ -64,25 +71,42 @@ void main() {
 
   for (final width in _widths) {
     group('at ${width.toInt()}dp', () {
-      testWidgets('a bottom sheet hides the FAB and closing it restores the FAB', (tester) async {
-        tester.view.physicalSize = Size(width, 800);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.reset);
+      testWidgets(
+        'a bottom sheet hides the FAB and closing it restores the FAB',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 800);
+          tester.view.devicePixelRatio = 1.0;
+          addTearDown(tester.view.reset);
 
-        await tester.pumpWidget(harness());
-        expect(fabVisible(), isTrue, reason: 'FAB starts visible with no modal open');
+          await tester.pumpWidget(harness());
+          expect(
+            fabVisible(),
+            isTrue,
+            reason: 'FAB starts visible with no modal open',
+          );
 
-        await tester.tap(find.text('open sheet'));
-        await tester.pumpAndSettle();
-        expect(fabVisible(), isFalse, reason: 'sheet is up, FAB must be out of the way');
+          await tester.tap(find.text('open sheet'));
+          await tester.pumpAndSettle();
+          expect(
+            fabVisible(),
+            isFalse,
+            reason: 'sheet is up, FAB must be out of the way',
+          );
 
-        // Dismiss via the barrier, the way a user taps away from a sheet.
-        await tester.tapAt(const Offset(5, 5));
-        await tester.pumpAndSettle();
-        expect(fabVisible(), isTrue, reason: 'FAB must come back once the sheet closes');
-      });
+          // Dismiss via the barrier, the way a user taps away from a sheet.
+          await tester.tapAt(const Offset(5, 5));
+          await tester.pumpAndSettle();
+          expect(
+            fabVisible(),
+            isTrue,
+            reason: 'FAB must come back once the sheet closes',
+          );
+        },
+      );
 
-      testWidgets('FAB stays hidden until every stacked modal closes', (tester) async {
+      testWidgets('FAB stays hidden until every stacked modal closes', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 800);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.reset);
@@ -98,7 +122,11 @@ void main() {
         // Only the dialog closes; the sheet is still up.
         Navigator.of(tester.element(find.text('dialog'))).pop();
         await tester.pumpAndSettle();
-        expect(fabVisible(), isFalse, reason: 'sheet still open, FAB must stay hidden');
+        expect(
+          fabVisible(),
+          isFalse,
+          reason: 'sheet still open, FAB must stay hidden',
+        );
 
         await tester.tapAt(const Offset(5, 5));
         await tester.pumpAndSettle();
@@ -114,7 +142,11 @@ void main() {
 
         await tester.tap(find.text('open page'));
         await tester.pumpAndSettle();
-        expect(fabVisible(), isTrue, reason: 'only modals hide the FAB, not ordinary navigation');
+        expect(
+          fabVisible(),
+          isTrue,
+          reason: 'only modals hide the FAB, not ordinary navigation',
+        );
       });
     });
   }

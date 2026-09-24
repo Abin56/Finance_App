@@ -46,9 +46,23 @@ void main() {
     test('produces one event per non-paid, non-skipped installment', () {
       final emi = _emi();
       final installments = [
-        _installment(scheduleId: 'schedule-1', sequenceNumber: 1, dueDate: DateTime(2026, 1, 1), amountPaid: 250),
-        _installment(scheduleId: 'schedule-1', sequenceNumber: 2, dueDate: DateTime(2026, 2, 1)),
-        _installment(scheduleId: 'schedule-1', sequenceNumber: 3, dueDate: DateTime(2026, 3, 1), isSkipped: true),
+        _installment(
+          scheduleId: 'schedule-1',
+          sequenceNumber: 1,
+          dueDate: DateTime(2026, 1, 1),
+          amountPaid: 250,
+        ),
+        _installment(
+          scheduleId: 'schedule-1',
+          sequenceNumber: 2,
+          dueDate: DateTime(2026, 2, 1),
+        ),
+        _installment(
+          scheduleId: 'schedule-1',
+          sequenceNumber: 3,
+          dueDate: DateTime(2026, 3, 1),
+          isSkipped: true,
+        ),
       ];
 
       final events = emisToCalendarEvents([emi], {'schedule-1': installments});
@@ -57,23 +71,44 @@ void main() {
       expect(events.single.date, DateTime(2026, 2, 1));
     });
 
-    test('multiple installments across different EMIs on the same date produce distinct events', () {
-      final emiA = _emi(id: 'emi-a', scheduleId: 'schedule-a');
-      final emiB = _emi(id: 'emi-b', scheduleId: 'schedule-b');
-      final installmentsA = [_installment(scheduleId: 'schedule-a', sequenceNumber: 1, dueDate: DateTime(2026, 5, 1))];
-      final installmentsB = [_installment(scheduleId: 'schedule-b', sequenceNumber: 1, dueDate: DateTime(2026, 5, 1))];
+    test(
+      'multiple installments across different EMIs on the same date produce distinct events',
+      () {
+        final emiA = _emi(id: 'emi-a', scheduleId: 'schedule-a');
+        final emiB = _emi(id: 'emi-b', scheduleId: 'schedule-b');
+        final installmentsA = [
+          _installment(
+            scheduleId: 'schedule-a',
+            sequenceNumber: 1,
+            dueDate: DateTime(2026, 5, 1),
+          ),
+        ];
+        final installmentsB = [
+          _installment(
+            scheduleId: 'schedule-b',
+            sequenceNumber: 1,
+            dueDate: DateTime(2026, 5, 1),
+          ),
+        ];
 
-      final events = emisToCalendarEvents(
-        [emiA, emiB],
-        {'schedule-a': installmentsA, 'schedule-b': installmentsB},
-      );
+        final events = emisToCalendarEvents(
+          [emiA, emiB],
+          {'schedule-a': installmentsA, 'schedule-b': installmentsB},
+        );
 
-      expect(events, hasLength(2));
-    });
+        expect(events, hasLength(2));
+      },
+    );
 
     test('routePath matches AppRoutes.emis/{id}', () {
       final emi = _emi();
-      final installments = [_installment(scheduleId: 'schedule-1', sequenceNumber: 1, dueDate: DateTime(2026, 2, 1))];
+      final installments = [
+        _installment(
+          scheduleId: 'schedule-1',
+          sequenceNumber: 1,
+          dueDate: DateTime(2026, 2, 1),
+        ),
+      ];
 
       final events = emisToCalendarEvents([emi], {'schedule-1': installments});
 
