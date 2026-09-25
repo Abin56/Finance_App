@@ -9,12 +9,17 @@ import '../../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/providers/firebase_providers.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../../transactions/presentation/providers/transaction_providers.dart';
 import '../../data/loan_repository.dart';
+import '../../data/loan_advance_payment_repository.dart';
 import '../../domain/loan.dart';
 import '../../domain/loan_dashboard_metrics.dart';
 import '../../domain/loan_direction.dart';
 import '../../domain/loan_financial_summary.dart';
+import '../../domain/loan_financial_history_action.dart';
+import '../../domain/loan_additional_disbursement.dart';
 import '../../domain/loan_payment_history_entry.dart';
+import '../../domain/loan_reamortization_event.dart';
 import '../../domain/loan_status.dart';
 import '../../domain/loan_timeline_entry.dart';
 import '../../domain/person_loan_ledger_summary.dart';
@@ -36,6 +41,14 @@ final loanRepositoryProvider = Provider<LoanRepository>((ref) {
     (scheduleId) => ref.watch(installmentRepositoryProvider(scheduleId)),
   );
 });
+
+final loanAdvancePaymentRepositoryProvider =
+    Provider<LoanAdvancePaymentRepository>((ref) {
+      return LoanAdvancePaymentRepository(
+        firestore: ref.watch(firestoreProvider),
+        uid: ref.watch(currentUserIdProvider),
+      );
+    });
 
 final loansStreamProvider = StreamProvider<List<Loan>>((ref) {
   return ref.watch(loanRepositoryProvider).watchAll();
@@ -75,52 +88,59 @@ final loansPayableByPersonProvider = Provider.autoDispose
 /// [loanRemainingAmountProvider] — no new loan-balance calculation, and the
 /// ledger side is read straight off `Person.currentBalance`, never
 /// recomputed from raw [LedgerEntry]s here.
-final personLoanLedgerSummaryProvider = Provider.autoDispose.family<PersonLoanLedgerSummary, String>((ref, personId) {
-  final people = ref.watch(peopleStreamProvider).value ?? const [];
-  final person = people.where((p) => p.id == personId).firstOrNull;
-  final ledgerBalance = person?.currentBalance ?? 0;
+final personLoanLedgerSummaryProvider = Provider.autoDispose
+    .family<PersonLoanLedgerSummary, String>((ref, personId) {
+      final people = ref.watch(peopleStreamProvider).value ?? const [];
+      final person = people.where((p) => p.id == personId).firstOrNull;
+      final ledgerBalance = person?.currentBalance ?? 0;
 
-  final asLender = ref.watch(loansForPersonProvider(personId));
-  final asPayer = ref.watch(loansPayableByPersonProvider(personId));
-  final loans = <String, Loan>{
-    for (final loan in asLender) loan.id: loan,
-    for (final loan in asPayer) loan.id: loan,
-  }.values;
+      final asLender = ref.watch(loansForPersonProvider(personId));
+      final asPayer = ref.watch(loansPayableByPersonProvider(personId));
+      final loans = <String, Loan>{
+        for (final loan in asLender) loan.id: loan,
+        for (final loan in asPayer) loan.id: loan,
+      }.values;
 
-  var loanGivenTotal = 0.0;
-  var loanGivenOutstanding = 0.0;
-  var loanTakenTotal = 0.0;
-  var loanTakenOutstanding = 0.0;
-  for (final loan in loans) {
-    if (ref.watch(loanStatusProvider(loan)) == LoanStatus.closed) continue;
-    final remaining = ref.watch(loanRemainingAmountProvider(loan));
-    if (loan.direction == LoanDirection.given) {
-      loanGivenTotal += loan.loanAmount;
-      loanGivenOutstanding += remaining;
-    } else {
-      loanTakenTotal += loan.loanAmount;
-      loanTakenOutstanding += remaining;
-    }
-  }
+      var loanGivenTotal = 0.0;
+      var loanGivenOutstanding = 0.0;
+      var loanTakenTotal = 0.0;
+      var loanTakenOutstanding = 0.0;
+      for (final loan in loans) {
+        if (ref.watch(loanStatusProvider(loan)) == LoanStatus.closed) continue;
+        final remaining = ref.watch(loanRemainingAmountProvider(loan));
+        if (loan.direction == LoanDirection.given) {
+          loanGivenTotal += loan.loanAmount;
+          loanGivenOutstanding += remaining;
+        } else {
+          loanTakenTotal += loan.loanAmount;
+          loanTakenOutstanding += remaining;
+        }
+      }
 
-  return PersonLoanLedgerSummary(
-    ledgerBalance: ledgerBalance,
-    loanGivenTotal: loanGivenTotal,
-    loanGivenOutstanding: loanGivenOutstanding,
-    loanTakenTotal: loanTakenTotal,
-    loanTakenOutstanding: loanTakenOutstanding,
-  );
-});
+      return PersonLoanLedgerSummary(
+        ledgerBalance: ledgerBalance,
+        loanGivenTotal: loanGivenTotal,
+        loanGivenOutstanding: loanGivenOutstanding,
+        loanTakenTotal: loanTakenTotal,
+        loanTakenOutstanding: loanTakenOutstanding,
+      );
+    });
 
 /// The single reusable financial summary for one loan — see
 /// [LoanFinancialSummary]. Every screen that needs principal/interest/paid/
 /// outstanding/progress/next-installment/overdue numbers should watch this
 /// (or one of the thin wrappers below) instead of recomputing them from
 /// installments locally.
-final loanFinancialSummaryProvider = Provider.autoDispose.family<LoanFinancialSummary, Loan>((ref, loan) {
-  final installments = ref.watch(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
-  return LoanFinancialSummary.from(installments: installments, originalPrincipal: loan.loanAmount);
-});
+final loanFinancialSummaryProvider = Provider.autoDispose
+    .family<LoanFinancialSummary, Loan>((ref, loan) {
+      final installments =
+          ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+          const [];
+      return LoanFinancialSummary.from(
+        installments: installments,
+        originalPrincipal: loan.loanAmount,
+      );
+    });
 
 /// The next installment still owed on a loan — the earliest (by
 /// sequenceNumber) installment that isn't fully paid or skipped, or `null`
@@ -251,7 +271,13 @@ final loanPaymentHistoryProvider = Provider.autoDispose
       final totalDue = installments.fold(0.0, (sum, i) => sum + i.amountDue);
 
       final rawEntries =
-          <({DateTime date, Installment installment, InstallmentPayment payment})>[];
+          <
+            ({
+              DateTime date,
+              Installment installment,
+              InstallmentPayment payment,
+            })
+          >[];
       for (final installment in sortedInstallments) {
         final payments =
             ref
@@ -290,6 +316,88 @@ final loanPaymentHistoryProvider = Provider.autoDispose
         );
       }
       return entries.reversed.toList();
+    });
+
+final loanReamortizationEventsProvider = StreamProvider.autoDispose
+    .family<List<LoanReamortizationEvent>, String>((ref, loanId) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      return firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.loans)
+          .doc(loanId)
+          .collection(FirestoreCollections.reamortizationEvents)
+          .withConverter<LoanReamortizationEvent>(
+            fromFirestore: LoanReamortizationEvent.fromFirestore,
+            toFirestore: (event, _) => event.toFirestore(),
+          )
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+    });
+
+final loanAdditionalDisbursementsProvider = StreamProvider.autoDispose
+    .family<List<LoanAdditionalDisbursement>, String>((ref, loanId) {
+      final firestore = ref.watch(firestoreProvider);
+      final uid = ref.watch(currentUserIdProvider);
+      return firestore
+          .collection(FirestoreCollections.users)
+          .doc(uid)
+          .collection(FirestoreCollections.loans)
+          .doc(loanId)
+          .collection(FirestoreCollections.additionalDisbursements)
+          .withConverter<LoanAdditionalDisbursement>(
+            fromFirestore: LoanAdditionalDisbursement.fromFirestore,
+            toFirestore: (item, _) => item.toFirestore(),
+          )
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+    });
+
+final loanFinancialHistoryProvider = Provider.autoDispose
+    .family<List<LoanFinancialHistoryAction>, Loan>((ref, loan) {
+      final activeInstallments =
+          ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
+          const <Installment>[];
+      final deletedInstallments =
+          ref.watch(installmentsTrashStreamProvider(loan.scheduleId)).value ??
+          const <Installment>[];
+      final installmentById = <String, Installment>{
+        for (final item in deletedInstallments) item.id: item,
+        for (final item in activeInstallments) item.id: item,
+      };
+      final paymentById = <String, InstallmentPayment>{};
+      for (final installment in installmentById.values) {
+        final key = (
+          scheduleId: loan.scheduleId,
+          installmentId: installment.id,
+        );
+        for (final payment
+            in ref.watch(installmentPaymentsTrashStreamProvider(key)).value ??
+                const <InstallmentPayment>[]) {
+          paymentById[payment.id] = payment;
+        }
+        for (final payment
+            in ref.watch(installmentPaymentsStreamProvider(key)).value ??
+                const <InstallmentPayment>[]) {
+          paymentById[payment.id] = payment;
+        }
+      }
+      final transactions = [
+        ...?ref.watch(transactionsTrashStreamProvider).value,
+        ...?ref.watch(transactionsStreamProvider).value,
+      ].where((transaction) => transaction.loanId == loan.id).toList();
+      return composeLoanFinancialHistory(
+        installments: installmentById.values.toList(),
+        payments: paymentById.values.toList(),
+        transactions: transactions,
+        disbursements:
+            ref.watch(loanAdditionalDisbursementsProvider(loan.id)).value ??
+            const [],
+        reamortizationEvents:
+            ref.watch(loanReamortizationEventsProvider(loan.id)).value ??
+            const [],
+      );
     });
 
 /// Every active loan paired with its [LoanFinancialSummary] — the shared

@@ -54,10 +54,8 @@ class LoanFinancialSummary {
 
   /// Sum of principal actually paid down so far. For a no-interest loan this
   /// equals [totalPaid] (the whole `amountDue` is principal). For an
-  /// interest-bearing loan, each installment's payment is credited to
-  /// principal only once that installment's own `interestPortion` is fully
-  /// covered — the standard "interest first, then principal" convention
-  /// within a single installment.
+  /// interest-bearing loan, partial payments receive the same proportional
+  /// principal share used by the advance-payment repository and Web.
   final double principalPaid;
 
   /// Sum of interest actually paid down so far (complementary to
@@ -119,7 +117,8 @@ class LoanFinancialSummary {
     required List<Installment> installments,
     required double originalPrincipal,
   }) {
-    final sorted = [...installments]..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+    final sorted = [...installments]
+      ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
 
     var totalScheduledInterest = 0.0;
     var totalScheduledPayable = 0.0;
@@ -137,12 +136,18 @@ class LoanFinancialSummary {
       totalScheduledPayable += installment.amountDue;
       totalPaid += installment.amountPaid;
 
-      // Interest-first-then-principal within a single installment — the
-      // standard repayment convention, matching the prior per-screen logic
-      // this replaces (previously duplicated in loan_detail_screen.dart).
-      final paidTowardInterest = installment.amountPaid.clamp(0, interestPortion);
-      interestPaid += paidTowardInterest;
-      principalPaid += installment.amountPaid - paidTowardInterest;
+      // Keep this proportional allocation identical to the re-amortization
+      // repository so displayed and persisted outstanding principal agree.
+      final paid = installment.amountPaid
+          .clamp(0, installment.amountDue)
+          .toDouble();
+      final principalShare =
+          installment.principalPortion ?? installment.amountDue;
+      final paidTowardPrincipal = installment.amountDue <= 0
+          ? 0.0
+          : principalShare * (paid / installment.amountDue);
+      principalPaid += paidTowardPrincipal;
+      interestPaid += paid - paidTowardPrincipal;
 
       switch (installment.status) {
         case InstallmentStatus.paid:
@@ -158,15 +163,25 @@ class LoanFinancialSummary {
       }
     }
 
-    final remainingInstallments = sorted.where((i) => i.remainingAmount > 0).length;
-    final nextInstallment =
-        sorted.where((i) => i.status != InstallmentStatus.paid && !i.isSkipped).firstOrNull;
+    final remainingInstallments = sorted
+        .where((i) => i.remainingAmount > 0)
+        .length;
+    final nextInstallment = sorted
+        .where((i) => i.status != InstallmentStatus.paid && !i.isSkipped)
+        .firstOrNull;
 
-    final outstanding = (totalScheduledPayable - totalPaid).clamp(0, totalScheduledPayable).toDouble();
-    final principalRemaining = (originalPrincipal - principalPaid).clamp(0, originalPrincipal).toDouble();
-    final interestRemaining =
-        (totalScheduledInterest - interestPaid).clamp(0, totalScheduledInterest).toDouble();
-    final progress = totalScheduledPayable <= 0 ? 1.0 : (totalPaid / totalScheduledPayable).clamp(0.0, 1.0);
+    final outstanding = (totalScheduledPayable - totalPaid)
+        .clamp(0, totalScheduledPayable)
+        .toDouble();
+    final principalRemaining = (originalPrincipal - principalPaid)
+        .clamp(0, originalPrincipal)
+        .toDouble();
+    final interestRemaining = (totalScheduledInterest - interestPaid)
+        .clamp(0, totalScheduledInterest)
+        .toDouble();
+    final progress = totalScheduledPayable <= 0
+        ? 1.0
+        : (totalPaid / totalScheduledPayable).clamp(0.0, 1.0);
 
     return LoanFinancialSummary(
       originalPrincipal: originalPrincipal,

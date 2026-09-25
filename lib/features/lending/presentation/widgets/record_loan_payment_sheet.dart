@@ -11,13 +11,18 @@ import '../../../../core/services/payment_attribution_service.dart';
 import '../../../../core/services/providers/payment_attribution_providers.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/utils/id_generator.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/inputs/payer_picker.dart';
 import '../../../../shared/widgets/section_label.dart';
 import '../../../people/presentation/providers/people_providers.dart';
+import '../../../accounts/domain/account.dart';
+import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../sms_inbox/domain/sms_prefill.dart';
 import '../../../sms_inbox/presentation/sms_import_completion.dart';
 import '../../domain/loan.dart';
+import '../../domain/loan_direction.dart';
+import '../../domain/loan_repayment_type.dart';
 import '../providers/loan_providers.dart';
 
 /// Bottom sheet for recording a payment against a loan installment.
@@ -84,6 +89,8 @@ class _RecordLoanPaymentSheetState
   bool _isSaving = false;
   late bool _someoneElsePaid = widget.loan?.payerPersonId != null;
   late String? _selectedPersonId = widget.loan?.payerPersonId;
+  final _idempotencyKey = IdGenerator.generate();
+  String? _accountId;
 
   bool get _isAmountValid =>
       Validators.amountUpTo(widget.installment.remainingAmount)(
@@ -135,47 +142,71 @@ class _RecordLoanPaymentSheetState
     setState(() => _isSaving = true);
 
     try {
-      final repository = ref.read(
-        installmentPaymentRepositoryProvider((
-          scheduleId: widget.installment.scheduleId,
-          installmentId: widget.installment.id,
-        )),
-      );
       final amount = double.parse(_amountController.text.trim());
       final payer = _resolvePayer();
-
-      await ref
-          .read(paymentAttributionServiceProvider)
-          .apply(
-            items: [
-              PaymentAttributionItem(
-                obligationLabel: 'your loan payment',
-                amount: amount,
-                record: ({required amount, required date, required note}) =>
-                    repository.recordPayment(
-                      widget.installment,
-                      amount: amount,
-                      date: date,
-                      note: note,
-                      payerPersonId: switch (payer) {
-                        PersonPayerSource(:final person) => person.id,
-                        SelfPayerSource() => null,
-                      },
-                    ),
-              ),
-            ],
-            payer: payer,
-            date: _date,
-            note: _resolveNote(payer),
-          );
+      if (widget.loan?.repaymentType == LoanRepaymentType.installment) {
+        if (_accountId == null) throw StateError('Choose an account');
+        await ref
+            .read(loanAdvancePaymentRepositoryProvider)
+            .record(
+              loan: widget.loan!,
+              scheduleInstallments: [widget.installment],
+              accountId: _accountId!,
+              amount: amount,
+              date: _date,
+              idempotencyKey: _idempotencyKey,
+              note: _resolveNote(payer),
+            );
+      } else {
+        final repository = ref.read(
+          installmentPaymentRepositoryProvider((
+            scheduleId: widget.installment.scheduleId,
+            installmentId: widget.installment.id,
+          )),
+        );
+        await ref
+            .read(paymentAttributionServiceProvider)
+            .apply(
+              items: [
+                PaymentAttributionItem(
+                  obligationLabel: 'your loan payment',
+                  amount: amount,
+                  record: ({required amount, required date, required note}) =>
+                      repository.recordPayment(
+                        widget.installment,
+                        amount: amount,
+                        date: date,
+                        note: note,
+                        payerPersonId: switch (payer) {
+                          PersonPayerSource(:final person) => person.id,
+                          SelfPayerSource() => null,
+                        },
+                      ),
+                ),
+              ],
+              payer: payer,
+              date: _date,
+              note: _resolveNote(payer),
+            );
+      }
 
       if (widget.loan != null) {
-        final installments = ref.read(installmentsStreamProvider(widget.installment.scheduleId)).value ?? const [];
-        final nextUnpaid = installments.where((i) => i.remainingAmount > 0 && !i.isSkipped).toList()
-          ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+        final installments =
+            ref
+                .read(installmentsStreamProvider(widget.installment.scheduleId))
+                .value ??
+            const [];
+        final nextUnpaid =
+            installments
+                .where((i) => i.remainingAmount > 0 && !i.isSkipped)
+                .toList()
+              ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
         final repository = ref.read(loanRepositoryProvider);
         if (nextUnpaid.isNotEmpty) {
-          repository.rescheduleReminders(widget.loan!, nextUnpaid.first.dueDate);
+          repository.rescheduleReminders(
+            widget.loan!,
+            nextUnpaid.first.dueDate,
+          );
         } else {
           repository.cancelReminders(widget.loan!.id);
         }
@@ -188,18 +219,27 @@ class _RecordLoanPaymentSheetState
             '${widget.installment.scheduleId}:${widget.installment.id}',
       );
       if (mounted) Navigator.of(context).pop();
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not record payment: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not record this payment safely. Refresh the loan and try again.',
+            ),
+          ),
+        );
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final accounts =
+        ref.watch(accountsStreamProvider).value ?? const <Account>[];
+    _accountId ??=
+        accounts.where((a) => a.isDefault).firstOrNull?.id ??
+        accounts.firstOrNull?.id;
     return Form(
       key: _formKey,
       child: SectionedFormSheet(
@@ -213,11 +253,24 @@ class _RecordLoanPaymentSheetState
           children: [
             const SectionLabel('Installment'),
             const SizedBox(height: AppSizes.sm),
-            Text('EMI #${widget.installment.sequenceNumber}', style: context.textTheme.titleMedium),
+            Text(
+              'EMI #${widget.installment.sequenceNumber}',
+              style: context.textTheme.titleMedium,
+            ),
             const SizedBox(height: AppSizes.sm),
-            _SummaryRow(label: 'Amount Due', value: widget.installment.amountDue),
-            _SummaryRow(label: 'Already Paid', value: widget.installment.amountPaid),
-            _SummaryRow(label: 'Remaining', value: widget.installment.remainingAmount, emphasize: true),
+            _SummaryRow(
+              label: 'Amount Due',
+              value: widget.installment.amountDue,
+            ),
+            _SummaryRow(
+              label: 'Already Paid',
+              value: widget.installment.amountPaid,
+            ),
+            _SummaryRow(
+              label: 'Remaining',
+              value: widget.installment.remainingAmount,
+              emphasize: true,
+            ),
             const SizedBox(height: AppSizes.lg),
             const SectionLabel('Payment Details'),
             const SizedBox(height: AppSizes.sm),
@@ -234,6 +287,28 @@ class _RecordLoanPaymentSheetState
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSizes.md),
+            if (widget.loan?.repaymentType ==
+                LoanRepaymentType.installment) ...[
+              DropdownButtonFormField<String>(
+                initialValue: _accountId,
+                decoration: InputDecoration(
+                  labelText: widget.loan!.direction == LoanDirection.taken
+                      ? 'Pay from account'
+                      : 'Receive into account',
+                ),
+                items: accounts
+                    .map(
+                      (a) => DropdownMenuItem(value: a.id, child: Text(a.name)),
+                    )
+                    .toList(),
+                onChanged: _isSaving
+                    ? null
+                    : (value) => setState(() => _accountId = value),
+                validator: (value) =>
+                    value == null ? 'Choose an account' : null,
+              ),
+              const SizedBox(height: AppSizes.md),
+            ],
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Date'),
@@ -252,7 +327,10 @@ class _RecordLoanPaymentSheetState
               const SizedBox(height: AppSizes.lg),
               const SectionLabel('Payment Preview'),
               const SizedBox(height: AppSizes.sm),
-              _PaymentPreview(installment: widget.installment, amount: _enteredAmount!),
+              _PaymentPreview(
+                installment: widget.installment,
+                amount: _enteredAmount!,
+              ),
             ],
             const SizedBox(height: AppSizes.lg),
             const SectionLabel('Who Paid'),
@@ -275,7 +353,11 @@ class _RecordLoanPaymentSheetState
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value, this.emphasize = false});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
 
   final String label;
   final double value;
@@ -311,21 +393,34 @@ class _PaymentPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final remainingBefore = installment.remainingAmount;
-    final remainingAfter = (remainingBefore - amount).clamp(0, installment.amountDue);
-    final statusAfter = remainingAfter <= 0 ? InstallmentStatus.paid : InstallmentStatus.partiallyPaid;
+    final remainingAfter = (remainingBefore - amount).clamp(
+      0,
+      installment.amountDue,
+    );
+    final statusAfter = remainingAfter <= 0
+        ? InstallmentStatus.paid
+        : InstallmentStatus.partiallyPaid;
 
     return Container(
       padding: const EdgeInsets.all(AppSizes.sm),
       decoration: BoxDecoration(
         color: context.colors.surfaceContainerHighest.withValues(alpha: 0.4),
-        border: Border.all(color: context.colors.outlineVariant.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: context.colors.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SummaryRow(label: 'Payment', value: amount, emphasize: true),
-          _SummaryRow(label: 'Installment remaining before', value: remainingBefore),
-          _SummaryRow(label: 'Remaining after', value: remainingAfter.toDouble()),
+          _SummaryRow(
+            label: 'Installment remaining before',
+            value: remainingBefore,
+          ),
+          _SummaryRow(
+            label: 'Remaining after',
+            value: remainingAfter.toDouble(),
+          ),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -333,7 +428,10 @@ class _PaymentPreview extends StatelessWidget {
               Text('Status after payment', style: context.textTheme.bodyMedium),
               Text(
                 statusAfter.label,
-                style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: statusAfter.color),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: statusAfter.color,
+                ),
               ),
             ],
           ),
