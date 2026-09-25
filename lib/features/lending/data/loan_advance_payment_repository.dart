@@ -4,6 +4,7 @@ import '../../../core/constants/firestore_constants.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/interest/interest_calculator.dart';
 import '../../../core/interest/interest_period.dart';
+import '../../../core/payment_schedule/domain/disbursement_reamortization_policy.dart';
 import '../../../core/payment_schedule/domain/installment.dart';
 import '../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../core/payment_schedule/domain/installment_settlement.dart';
@@ -17,6 +18,7 @@ import '../../accounts/domain/account.dart';
 import '../../transactions/domain/transaction.dart' as domain;
 import '../../transactions/domain/transaction_type.dart';
 import '../domain/loan.dart';
+import '../domain/loan_additional_disbursement.dart';
 import '../domain/loan_direction.dart';
 import '../domain/loan_reamortization_event.dart';
 import '../domain/loan_repayment_type.dart';
@@ -102,6 +104,34 @@ class PaymentReversalResult {
   final String? scheduleRestorationSkippedReason;
 }
 
+/// Outcome of [LoanAdvancePaymentRepository.recordAdditionalDisbursement].
+class LoanAdditionalDisbursementResult {
+  const LoanAdditionalDisbursementResult({
+    required this.alreadyRecorded,
+    required this.disbursementId,
+    required this.transactionId,
+    required this.reamortization,
+  });
+
+  /// True when [LoanAdvancePaymentRepository.recordAdditionalDisbursement]'s
+  /// `idempotencyKey` had already been used — every other field still
+  /// describes the original (not re-applied) result.
+  final bool alreadyRecorded;
+
+  /// Id of the `LoanAdditionalDisbursement` audit doc this action wrote —
+  /// required, alongside [transactionId], to later call
+  /// [LoanAdvancePaymentRepository.reversePayment] for this action.
+  final String disbursementId;
+
+  final String transactionId;
+
+  /// Null when the disbursement did not trigger a re-amortization (no
+  /// remaining unsettled installments to reshape). Present — either
+  /// [DisbursementReamortizationSolved] or
+  /// [DisbursementReamortizationUnsolvable] — whenever it did.
+  final DisbursementReamortizationOutcome? reamortization;
+}
+
 /// Atomic, idempotent recording of an advance/regular/prepayment against a
 /// Loan's installment schedule — the safety-critical write path for the new
 /// Advance/Prepayment feature. Deliberately does **not** call
@@ -141,12 +171,14 @@ class LoanAdvancePaymentRepository {
     required FirebaseFirestore firestore,
     required String uid,
     this.policy = const ReduceTenurePolicy(),
+    this.disbursementPolicy = const HoldTenurePolicy(),
   }) : _firestore = firestore,
        _uid = uid;
 
   final FirebaseFirestore _firestore;
   final String _uid;
   final PrepaymentReamortizationPolicy policy;
+  final DisbursementReamortizationPolicy disbursementPolicy;
 
   DocumentReference<Account> _accountRef(String accountId) => _firestore
       .collection(FirestoreCollections.users)
@@ -222,6 +254,15 @@ class LoanAdvancePaymentRepository {
       .withConverter<LoanReamortizationEvent>(
         fromFirestore: LoanReamortizationEvent.fromFirestore,
         toFirestore: (e, _) => e.toFirestore(),
+      );
+
+  CollectionReference<LoanAdditionalDisbursement> _disbursements(
+    String loanId,
+  ) => _loanRef(loanId)
+      .collection(FirestoreCollections.additionalDisbursements)
+      .withConverter<LoanAdditionalDisbursement>(
+        fromFirestore: LoanAdditionalDisbursement.fromFirestore,
+        toFirestore: (d, _) => d.toFirestore(),
       );
 
   /// Records a payment toward [loan] and returns its classification +
@@ -481,6 +522,166 @@ class LoanAdvancePaymentRepository {
     );
   }
 
+  /// Records an increase to [loan]'s principal after origination — e.g. a
+  /// second tranche handed over on a loan already in progress. NOT a
+  /// payment: money moves in the OPPOSITE direction of [record] — for a
+  /// [LoanDirection.given] loan (you lent money), more principal going out
+  /// is an expense from [accountId]; for a [LoanDirection.taken] loan (you
+  /// borrowed), more principal coming in is income into [accountId]. Only
+  /// installment loans are supported — a one-time loan's single due amount
+  /// has no "outstanding tail" to re-amortize.
+  ///
+  /// [scheduleInstallments] must be every active (non-deleted) installment
+  /// on `loan.scheduleId`, with the same "only ids/immutable fields are
+  /// trusted, everything financial is re-read fresh inside the transaction"
+  /// contract as [record]. [idempotencyKey] must be generated once per user
+  /// action and reused verbatim on any retry — a retry with the same key is
+  /// detected via the deterministic `Transaction` document id it produces
+  /// and returns the original result without re-applying any financial
+  /// effect.
+  ///
+  /// Two-unit write shape, identical posture to [record]:
+  ///  1. Fixed-size core — `LoanAdditionalDisbursement` doc, `Transaction`,
+  ///     `Account.currentBalance`, `Loan.loanAmount` — one `runTransaction`.
+  ///  2. Variable-length re-amortization of the untouched tail (via
+  ///     [disbursementPolicy]) — one `writeBatch`, run only after unit 1
+  ///     commits. If it fails or is unsolvable, the disbursement stays
+  ///     correctly recorded; only the automatic schedule reshape is
+  ///     skipped, surfaced as [DisbursementReamortizationUnsolvable].
+  Future<LoanAdditionalDisbursementResult> recordAdditionalDisbursement({
+    required Loan loan,
+    required List<Installment> scheduleInstallments,
+    required String accountId,
+    required double amount,
+    required DateTime date,
+    required String idempotencyKey,
+    String note = '',
+  }) async {
+    if (amount <= 0) {
+      throw const AppException('Disbursement amount must be greater than 0');
+    }
+    if (loan.repaymentType != LoanRepaymentType.installment) {
+      throw const AppException(
+        'One-time loans have a single due amount — there is no additional '
+        'disbursement concept for them',
+      );
+    }
+
+    final knownIds = [...scheduleInstallments]
+      ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+    if (knownIds.isEmpty) {
+      throw const AppException('This loan has no installment schedule');
+    }
+    final transactionId = 'disb_${idempotencyKey}_txn';
+    final disbursementId = 'disb_${idempotencyKey}_d';
+    // Opposite of `record()`'s `isIncome`: more principal OUT (given) is an
+    // expense; more principal IN (taken) is income.
+    final isIncome = loan.direction == LoanDirection.taken;
+
+    final coreResult = await _firestore.runTransaction<_DisbursementCoreResult>((
+      tx,
+    ) async {
+      // --- All reads first (Firestore transaction constraint). ---
+      final sentinelSnap = await tx.get(_transactionRef(transactionId));
+      if (sentinelSnap.exists) {
+        final existingDisbSnap = await tx.get(
+          _disbursements(loan.id).doc(disbursementId),
+        );
+        return _DisbursementCoreResult(
+          alreadyRecorded: true,
+          disbursementId: existingDisbSnap.exists ? disbursementId : '',
+        );
+      }
+
+      final accountSnap = await tx.get(_accountRef(accountId));
+      final account = accountSnap.data();
+      if (account == null) throw const AppException('Account not found');
+
+      final freshLoanSnap = await tx.get(_loanRef(loan.id));
+      final freshLoan = freshLoanSnap.data();
+      if (freshLoan == null) {
+        throw const NotFoundException('Loan not found');
+      }
+
+      // --- Then all writes. ---
+      final disbursement = LoanAdditionalDisbursement(
+        id: disbursementId,
+        loanId: loan.id,
+        amount: amount,
+        date: date,
+        note: note,
+        createdAt: DateTime.now(),
+        transactionId: transactionId,
+      );
+      tx.set(_disbursements(loan.id).doc(disbursementId), disbursement);
+
+      final transactionDoc = domain.Transaction(
+        id: transactionId,
+        type: isIncome ? TransactionType.income : TransactionType.expense,
+        amount: amount,
+        dateTime: date,
+        accountId: accountId,
+        // TODO(Phase 1): point at the real seeded "Loan Disbursement" system
+        // category once that seeding mechanism exists.
+        categoryId: 'loan_payment',
+        description: loan.name?.isNotEmpty == true
+            ? 'Additional disbursement — ${loan.name}'
+            : 'Additional disbursement',
+        createdAt: DateTime.now(),
+        loanId: loan.id,
+        paymentAllocationType: PaymentAllocationType.additionalDisbursement,
+      );
+      tx.set(_transactionRef(transactionId), transactionDoc);
+
+      final delta = isIncome ? amount : -amount;
+      final newBalance = account.currentBalance + delta;
+      account.recordEdit(
+        field: 'currentBalance',
+        oldValue: account.currentBalance.toString(),
+        newValue: newBalance.toString(),
+      );
+      account.currentBalance = newBalance;
+      tx.set(_accountRef(accountId), account);
+
+      final newLoanAmount = freshLoan.loanAmount + amount;
+      freshLoan.recordEdit(
+        field: 'loanAmount (additional disbursement)',
+        oldValue: freshLoan.loanAmount.toString(),
+        newValue: newLoanAmount.toString(),
+      );
+      freshLoan.loanAmount = newLoanAmount;
+      tx.set(_loanRef(loan.id), freshLoan);
+
+      return _DisbursementCoreResult(
+        alreadyRecorded: false,
+        disbursementId: disbursementId,
+      );
+    });
+
+    if (coreResult.alreadyRecorded) {
+      return LoanAdditionalDisbursementResult(
+        alreadyRecorded: true,
+        disbursementId: coreResult.disbursementId,
+        transactionId: transactionId,
+        reamortization: null,
+      );
+    }
+
+    final reamortization = await _reamortizeForDisbursement(
+      loan: loan,
+      triggeringDisbursementId: disbursementId,
+      disbursementAmount: amount,
+      date: date,
+    );
+
+    return LoanAdditionalDisbursementResult(
+      alreadyRecorded: false,
+      disbursementId: disbursementId,
+      transactionId: transactionId,
+      reamortization: reamortization,
+    );
+  }
+
   /// Reverses a payment/prepayment action previously recorded via [record],
   /// restoring the financial state as though it had not occurred. Safe to
   /// retry: once the linked `Transaction` is soft-deleted, a repeated call
@@ -671,15 +872,163 @@ class LoanAdvancePaymentRepository {
     );
   }
 
+  /// Reverses an additional-disbursement action previously recorded via
+  /// [recordAdditionalDisbursement], restoring the financial AND schedule
+  /// state as though it had not occurred. Safe to retry: once the linked
+  /// `Transaction` is soft-deleted, a repeated call with the same
+  /// [transactionId] is a no-op (`alreadyReversed: true`).
+  ///
+  /// [disbursementId] must be exactly what [recordAdditionalDisbursement]
+  /// returned for this action. Same eligibility rule as [reversePayment]:
+  /// this must be the most recent financial mutation on the loan — no later
+  /// active payment/advance/prepayment/disbursement on any of its
+  /// installments, no later re-amortization event, and no payment yet
+  /// recorded against the installments this disbursement's re-amortization
+  /// generated. Throws [PaymentReversalBlockedException] rather than
+  /// silently reconstructing history when that can't be proven safe.
+  Future<PaymentReversalResult> reverseAdditionalDisbursement({
+    required Loan loan,
+    required String transactionId,
+    required String disbursementId,
+    required String reversalIdempotencyKey,
+  }) async {
+    final transactionSnap = await _transactionRef(transactionId).get();
+    final transaction = transactionSnap.data();
+    if (transaction == null) {
+      throw const NotFoundException('Transaction not found');
+    }
+    if (transaction.isDeleted) {
+      return const PaymentReversalResult(
+        alreadyReversed: true,
+        scheduleRestored: false,
+      );
+    }
+
+    final event = await _findTriggeringEvent(
+      loan.id,
+      disbursementId,
+      field: 'triggeredByDisbursementId',
+    );
+    // A disbursement doesn't always trigger a re-amortization (e.g. nothing
+    // left to reshape — see `_reamortizeForDisbursement`'s doc comment), so
+    // — unlike a prepayment's overflow — a missing event is not itself an
+    // error. Only a disbursement's own loanAmount bump needs reversing in
+    // that case; [event] simply stays null and the schedule-restoration
+    // step below is skipped.
+    if (event != null) {
+      if (event.reversed) {
+        return const PaymentReversalResult(
+          alreadyReversed: true,
+          scheduleRestored: false,
+        );
+      }
+      if (event.retiredInstallmentIds.isEmpty &&
+          event.generatedInstallmentIds.isEmpty) {
+        throw const PaymentReversalBlockedException(
+          'This re-amortization predates schedule-restoration tracking and '
+          'cannot be safely reversed automatically — use Edit Loan Terms '
+          'to adjust the schedule manually instead',
+        );
+      }
+      if (event.loanAmountBefore == null) {
+        throw const PaymentReversalBlockedException(
+          'This disbursement predates reversal tracking and cannot be '
+          'safely reversed automatically',
+        );
+      }
+    }
+
+    await _assertReversible(loan: loan, transaction: transaction, event: event);
+
+    final alreadyReversed = await _firestore.runTransaction<bool>((tx) async {
+      // --- All reads first. ---
+      final freshTransactionSnap = await tx.get(_transactionRef(transactionId));
+      final freshTransaction = freshTransactionSnap.data();
+      if (freshTransaction == null) {
+        throw const NotFoundException('Transaction not found');
+      }
+      if (freshTransaction.isDeleted) return true; // idempotent race guard
+
+      final freshAccountSnap = await tx.get(
+        _accountRef(freshTransaction.accountId),
+      );
+      final account = freshAccountSnap.data();
+      if (account == null) throw const AppException('Account not found');
+
+      final freshDisbursementSnap = await tx.get(
+        _disbursements(loan.id).doc(disbursementId),
+      );
+      final freshDisbursement = freshDisbursementSnap.data();
+
+      final freshLoanSnap = await tx.get(_loanRef(loan.id));
+      final freshLoan = freshLoanSnap.data();
+      if (freshLoan == null) throw const NotFoundException('Loan not found');
+
+      // --- Then all writes. ---
+      if (freshDisbursement != null && !freshDisbursement.isDeleted) {
+        freshDisbursement.markDeleted();
+        tx.set(
+          _disbursements(loan.id).doc(disbursementId),
+          freshDisbursement,
+        );
+
+        final newLoanAmount = freshLoan.loanAmount - freshDisbursement.amount;
+        freshLoan.recordEdit(
+          field: 'loanAmount (disbursement reversal)',
+          oldValue: freshLoan.loanAmount.toString(),
+          newValue: newLoanAmount.toString(),
+        );
+        freshLoan.loanAmount = newLoanAmount;
+        tx.set(_loanRef(loan.id), freshLoan);
+      }
+
+      final delta = -freshTransaction.balanceEffect;
+      final newBalance = account.currentBalance + delta;
+      account.recordEdit(
+        field: 'currentBalance',
+        oldValue: account.currentBalance.toString(),
+        newValue: newBalance.toString(),
+      );
+      account.currentBalance = newBalance;
+      tx.set(_accountRef(freshTransaction.accountId), account);
+      freshTransaction.markDeleted();
+      tx.set(_transactionRef(transactionId), freshTransaction);
+
+      return false;
+    });
+
+    if (alreadyReversed) {
+      return const PaymentReversalResult(
+        alreadyReversed: true,
+        scheduleRestored: false,
+      );
+    }
+
+    if (event == null) {
+      return const PaymentReversalResult(
+        alreadyReversed: false,
+        scheduleRestored: false,
+      );
+    }
+
+    return _restoreSchedule(
+      loan: loan,
+      event: event,
+      reversalIdempotencyKey: reversalIdempotencyKey,
+    );
+  }
+
   /// Finds the (at most one) non-reversed [LoanReamortizationEvent] whose
-  /// [LoanReamortizationEvent.triggeredByPaymentId] matches [paymentId].
+  /// [field] (`triggeredByPaymentId` or `triggeredByDisbursementId`) matches
+  /// [triggerId].
   Future<LoanReamortizationEvent?> _findTriggeringEvent(
     String loanId,
-    String paymentId,
-  ) async {
+    String triggerId, {
+    String field = 'triggeredByPaymentId',
+  }) async {
     final snapshot = await _reamortizationEvents(
       loanId,
-    ).where('triggeredByPaymentId', isEqualTo: paymentId).limit(1).get();
+    ).where(field, isEqualTo: triggerId).limit(1).get();
     if (snapshot.docs.isEmpty) return null;
     return snapshot.docs.first.data();
   }
@@ -868,7 +1217,17 @@ class LoanAdvancePaymentRepository {
       );
     }
 
-    final freshSnapshot = await _installments(loan.scheduleId).get();
+    // `deletedAt` must be filtered here: an EARLIER re-amortization on this
+    // same loan (a prior prepayment or disbursement) soft-deletes its own
+    // "untouched" tail when generating a new one — an unfiltered read would
+    // resurrect those already-retired documents into THIS solve's
+    // `untouched` set (they have `amountPaid == 0`/`isSkipped == false`,
+    // same as a genuinely untouched installment), inflating the count and
+    // silently duplicating the schedule. See the disbursement-after-
+    // prepayment regression test for the exact reproduction.
+    final freshSnapshot = await _installments(
+      loan.scheduleId,
+    ).where('deletedAt', isNull: true).get();
     final fresh = freshSnapshot.docs.map((d) => d.data()).toList()
       ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
 
@@ -1050,6 +1409,207 @@ class LoanAdvancePaymentRepository {
     return outcome;
   }
 
+  /// Re-amortizes the untouched tail after an additional disbursement, via
+  /// [disbursementPolicy] — the disbursement counterpart of [_reamortize].
+  /// Holds the remaining installment COUNT constant (the opposite fixed
+  /// point from [_reamortize]'s [ReduceTenurePolicy], which holds the
+  /// amount constant and solves for count) and recalculates the required
+  /// installment amount for the new, larger outstanding principal. Same
+  /// fresh-read discipline as [_reamortize]: never trusts the caller's
+  /// possibly-stale [loan] parameter for financial fields, re-reads Loan and
+  /// every installment fresh, and writes back the freshly-read Loan (not the
+  /// caller's copy) so a concurrently-changed field is never regressed.
+  Future<DisbursementReamortizationOutcome?> _reamortizeForDisbursement({
+    required Loan loan,
+    required String triggeringDisbursementId,
+    required double disbursementAmount,
+    required DateTime date,
+  }) async {
+    final freshLoanSnap = await _loanRef(loan.id).get();
+    final freshLoan = freshLoanSnap.data();
+    if (freshLoan == null) {
+      return const DisbursementReamortizationUnsolvable(
+        'Loan could not be found for re-amortization',
+      );
+    }
+    final loanAmountBeforeDisbursement = freshLoan.loanAmount - disbursementAmount;
+
+    // `deletedAt` must be filtered here — see `_reamortize`'s identical
+    // filtered read for why: an earlier re-amortization on this loan (a
+    // prior prepayment or disbursement) soft-deletes its own "untouched"
+    // tail, and an unfiltered read would resurrect those already-retired
+    // documents into THIS solve's `untouched` set.
+    final freshSnapshot = await _installments(
+      loan.scheduleId,
+    ).where('deletedAt', isNull: true).get();
+    final fresh = freshSnapshot.docs.map((d) => d.data()).toList()
+      ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+
+    final settled = fresh
+        .where((i) => i.amountPaid > 0 || i.isSkipped)
+        .toList();
+    final untouched = fresh
+        .where((i) => i.amountPaid == 0 && !i.isSkipped)
+        .toList();
+
+    if (untouched.isEmpty) {
+      // Nothing left to reshape — every installment is already settled or
+      // skipped. The disbursement is still correctly recorded on the Loan.
+      return null;
+    }
+
+    final principalPaidViaInstallments = settled.fold(0.0, (total, i) {
+      if (i.amountPaid <= 0) return total;
+      final principalShare = i.principalPortion ?? i.amountDue;
+      if (i.amountPaid >= i.amountDue) return total + principalShare;
+      return total + principalShare * (i.amountPaid / i.amountDue);
+    });
+    final outstandingPrincipalAfter =
+        (freshLoan.loanAmount - principalPaidViaInstallments)
+            .clamp(0, freshLoan.loanAmount)
+            .toDouble();
+
+    final interest = freshLoan.interest;
+    final outcome = disbursementPolicy.solve(
+      outstandingPrincipalAfter: outstandingPrincipalAfter,
+      interest: interest == null
+          ? null
+          : ReamortizationInterestConfig(
+              type: interest.type,
+              ratePercent: interest.ratePercent,
+              period: interest.period,
+            ),
+      remainingInstallmentCount: untouched.length,
+      frequency: freshLoan.installmentFrequency!,
+    );
+
+    if (outcome is! DisbursementReamortizationSolved) return outcome;
+
+    final batch = _firestore.batch();
+    for (final installment in untouched) {
+      installment.markDeleted();
+      batch.set(_installments(loan.scheduleId).doc(installment.id), installment);
+    }
+
+    final remainingCount = outcome.remainingInstallmentCount;
+    final lastSettled = settled.isEmpty ? null : settled.last;
+    var dueDate = lastSettled == null
+        ? freshLoan.installmentFrequency!.nextDueDate(freshLoan.loanDate)
+        : freshLoan.installmentFrequency!.nextDueDate(lastSettled.dueDate);
+
+    List<PrecomputedInstallmentAmount>? precomputed;
+    if (interest != null) {
+      final breakdown = InterestCalculator.calculate(
+        principal: outstandingPrincipalAfter,
+        type: interest.type,
+        ratePercent: interest.ratePercent,
+        period: interest.period,
+        installmentCount: remainingCount,
+        installmentFrequency: InterestPeriod.monthly,
+        installmentsPerYear: _installmentsPerYearFor(freshLoan.installmentFrequency!),
+      );
+      precomputed = breakdown.periods
+          .map(
+            (p) => PrecomputedInstallmentAmount(
+              amountDue: p.paymentAmount,
+              principalPortion: p.principalPortion,
+              interestPortion: p.interestPortion,
+            ),
+          )
+          .toList();
+    }
+    final amounts =
+        precomputed ??
+        _evenSplit(outstandingPrincipalAfter, remainingCount)
+            .map((a) => PrecomputedInstallmentAmount(amountDue: a))
+            .toList();
+
+    var newTailTotal = 0.0;
+    final generatedInstallmentIds = <String>[];
+    for (var i = 0; i < remainingCount; i++) {
+      if (i > 0) dueDate = freshLoan.installmentFrequency!.nextDueDate(dueDate);
+      final newInstallment = Installment(
+        id: IdGenerator.generate(),
+        scheduleId: loan.scheduleId,
+        ownerType: untouched.first.ownerType,
+        ownerId: loan.id,
+        sequenceNumber: settled.length + i + 1,
+        dueDate: dueDate,
+        amountDue: amounts[i].amountDue,
+        principalPortion: amounts[i].principalPortion,
+        interestPortion: amounts[i].interestPortion,
+        createdAt: DateTime.now(),
+      );
+      newTailTotal += amounts[i].amountDue;
+      generatedInstallmentIds.add(newInstallment.id);
+      batch.set(
+        _installments(loan.scheduleId).doc(newInstallment.id),
+        newInstallment,
+      );
+    }
+
+    // remainingCount is held constant by definition (HoldTenurePolicy), so
+    // the total installment count never changes here — unlike
+    // `_reamortize`'s prepayment path, where it can shrink.
+    final newInstallmentCount = settled.length + remainingCount;
+    final installmentCountBefore = freshLoan.installmentCount ?? fresh.length;
+    if (newInstallmentCount != installmentCountBefore) {
+      freshLoan.recordEdit(
+        field: 'installmentCount (disbursement reamortized)',
+        oldValue: freshLoan.installmentCount.toString(),
+        newValue: newInstallmentCount.toString(),
+      );
+      freshLoan.installmentCount = newInstallmentCount;
+    }
+    // Writes back freshLoan (already carries the disbursement's loanAmount
+    // bump from the atomic core, re-read fresh here) so a concurrently
+    // changed field is never silently regressed by this batch.
+    batch.set(_loanRef(loan.id), freshLoan);
+
+    final settledTotal = settled.fold(0.0, (total, i) => total + i.amountDue);
+    final scheduleSnap = await _scheduleRef(loan.scheduleId).get();
+    final schedule = scheduleSnap.data();
+    final scheduleTotalAmountBefore = schedule?.totalAmount;
+    if (schedule != null) {
+      schedule.installmentCount = newInstallmentCount;
+      schedule.totalAmount = settledTotal + newTailTotal;
+      batch.set(_scheduleRef(loan.scheduleId), schedule);
+    }
+
+    final eventId = IdGenerator.generate();
+    final event = LoanReamortizationEvent(
+      id: eventId,
+      loanId: loan.id,
+      triggerType: ReamortizationTriggerType.additionalDisbursement,
+      triggeredByDisbursementId: triggeringDisbursementId,
+      principalBefore: outstandingPrincipalAfter - disbursementAmount,
+      principalAfter: outstandingPrincipalAfter,
+      installmentCountBefore: installmentCountBefore,
+      installmentCountAfter: newInstallmentCount,
+      date: date,
+      createdAt: DateTime.now(),
+      retiredInstallmentIds: untouched.map((i) => i.id).toList(),
+      generatedInstallmentIds: generatedInstallmentIds,
+      scheduleTotalAmountBefore: scheduleTotalAmountBefore,
+      loanAmountBefore: loanAmountBeforeDisbursement,
+    );
+    batch.set(_reamortizationEvents(loan.id).doc(eventId), event);
+
+    await batch.commit();
+
+    // Best-effort metadata annotation — not balance-affecting.
+    try {
+      await _disbursements(loan.id).doc(triggeringDisbursementId).update({
+        'reamortizationEventId': eventId,
+      });
+    } catch (_) {
+      // Non-fatal — the disbursement and re-amortization are already
+      // correctly recorded; only this cross-reference annotation is missing.
+    }
+
+    return outcome;
+  }
+
   List<double> _evenSplit(double total, int count) {
     final share = _round2(total / count);
     final shares = List.filled(count, share);
@@ -1092,4 +1652,14 @@ class _CoreResult {
   final String? overflowInstallmentId;
   final PaymentAllocationType overallType;
   final double? prepaymentPrincipalAmount;
+}
+
+class _DisbursementCoreResult {
+  const _DisbursementCoreResult({
+    required this.alreadyRecorded,
+    required this.disbursementId,
+  });
+
+  final bool alreadyRecorded;
+  final String disbursementId;
 }

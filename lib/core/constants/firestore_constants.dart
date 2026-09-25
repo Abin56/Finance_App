@@ -20,6 +20,8 @@ abstract class FirestoreCollections {
   static const String emis = 'emis';
   static const String reamortizationEvents =
       'reamortizationEvents'; // subcollection under loans/{loanId} and emis/{emiId}
+  static const String additionalDisbursements =
+      'additionalDisbursements'; // subcollection under loans/{loanId}
   static const String expenses = 'expenses';
   static const String paymentSchedules = 'paymentSchedules';
   static const String installments =

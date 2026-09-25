@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// What caused a [LoanReamortizationEvent] — a principal prepayment
-/// triggering the automatic solve, or a manual "Edit Loan Terms" action.
-/// Additional disbursement is reserved for a future trigger value.
-enum ReamortizationTriggerType { prepayment, manualEditTerms }
+/// What caused a [LoanReamortizationEvent] — a principal prepayment or an
+/// additional disbursement triggering the automatic solve, or a manual
+/// "Edit Loan Terms" action.
+enum ReamortizationTriggerType {
+  prepayment,
+  manualEditTerms,
+  additionalDisbursement,
+}
 
 extension ReamortizationTriggerTypeX on ReamortizationTriggerType {
   static ReamortizationTriggerType fromName(String name) =>
@@ -32,10 +36,12 @@ class LoanReamortizationEvent {
     required this.date,
     required this.createdAt,
     this.triggeredByPaymentId,
+    this.triggeredByDisbursementId,
     this.reversed = false,
     this.retiredInstallmentIds = const [],
     this.generatedInstallmentIds = const [],
     this.scheduleTotalAmountBefore,
+    this.loanAmountBefore,
     this.reversedAt,
     this.reversalId,
   });
@@ -45,8 +51,15 @@ class LoanReamortizationEvent {
   final ReamortizationTriggerType triggerType;
 
   /// FK to the `InstallmentPayment` with `allocationType == principalPrepayment`
-  /// that caused this event — null for a manual edit-terms-triggered event.
+  /// that caused this event — null for a manual edit-terms-triggered event or
+  /// a [ReamortizationTriggerType.additionalDisbursement] one (see
+  /// [triggeredByDisbursementId] instead).
   final String? triggeredByPaymentId;
+
+  /// FK to the `LoanAdditionalDisbursement` that caused this event — set only
+  /// when [triggerType] is [ReamortizationTriggerType.additionalDisbursement].
+  /// Null for every other trigger type.
+  final String? triggeredByDisbursementId;
 
   final double principalBefore;
   final double principalAfter;
@@ -77,6 +90,17 @@ class LoanReamortizationEvent {
   /// events.
   final double? scheduleTotalAmountBefore;
 
+  /// `Loan.loanAmount` immediately before this event — only set when
+  /// [triggerType] is [ReamortizationTriggerType.additionalDisbursement],
+  /// needed to reverse the principal bump exactly (`loanAmountBefore` is
+  /// restored, undoing the caller-specified disbursement amount rather than
+  /// re-deriving it, since `Loan.loanAmount` may have been edited again by
+  /// something else in the meantime — reversal must restore this event's own
+  /// delta, not just subtract an amount). Null for every other trigger type
+  /// and for legacy disbursement events predating this field (which are
+  /// consequently not safely reversible).
+  final double? loanAmountBefore;
+
   /// When [reversed] was set — null until then.
   DateTime? reversedAt;
 
@@ -98,6 +122,7 @@ class LoanReamortizationEvent {
         data['triggerType'] as String,
       ),
       triggeredByPaymentId: data['triggeredByPaymentId'] as String?,
+      triggeredByDisbursementId: data['triggeredByDisbursementId'] as String?,
       principalBefore: (data['principalBefore'] as num).toDouble(),
       principalAfter: (data['principalAfter'] as num).toDouble(),
       installmentCountBefore: (data['installmentCountBefore'] as num).toInt(),
@@ -113,6 +138,7 @@ class LoanReamortizationEvent {
               .cast<String>(),
       scheduleTotalAmountBefore:
           (data['scheduleTotalAmountBefore'] as num?)?.toDouble(),
+      loanAmountBefore: (data['loanAmountBefore'] as num?)?.toDouble(),
       reversedAt: (data['reversedAt'] as Timestamp?)?.toDate(),
       reversalId: data['reversalId'] as String?,
     );
@@ -123,6 +149,7 @@ class LoanReamortizationEvent {
       'loanId': loanId,
       'triggerType': triggerType.name,
       'triggeredByPaymentId': triggeredByPaymentId,
+      'triggeredByDisbursementId': triggeredByDisbursementId,
       'principalBefore': principalBefore,
       'principalAfter': principalAfter,
       'installmentCountBefore': installmentCountBefore,
@@ -133,6 +160,7 @@ class LoanReamortizationEvent {
       'retiredInstallmentIds': retiredInstallmentIds,
       'generatedInstallmentIds': generatedInstallmentIds,
       'scheduleTotalAmountBefore': scheduleTotalAmountBefore,
+      'loanAmountBefore': loanAmountBefore,
       'reversedAt': reversedAt == null ? null : Timestamp.fromDate(reversedAt!),
       'reversalId': reversalId,
     };

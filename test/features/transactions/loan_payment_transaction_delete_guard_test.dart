@@ -259,4 +259,51 @@ void main() {
     final account2 = await accountRepository.getByKey(account.id);
     expect(account2!.currentBalance, 1000);
   });
+
+  test(
+    'softDeleteTransaction throws LoanPaymentTransactionRestrictedError for an additional-disbursement '
+    'transaction too, and does NOT reverse the account balance or loanAmount (no partial effect)',
+    () async {
+      final account = await accountRepository.createAccount(
+        name: 'Wallet',
+        type: AccountType.bank,
+        openingBalance: 100000,
+        colorValue: 0,
+      );
+      final loan = await loanRepository.createLoan(
+        loanAmount: 12000,
+        loanDate: DateTime(2026, 1, 1),
+        repaymentType: LoanRepaymentType.installment,
+        direction: LoanDirection.taken,
+        institutionName: 'Bank',
+        category: LoanCategory.institutional,
+        interest: const LoanInterest(type: InterestType.reducingBalance, ratePercent: 12, period: InterestPeriod.yearly),
+        installmentFrequency: ScheduleType.monthly,
+        installmentCount: 12,
+      );
+      final installments = await installmentsFor(loan);
+
+      final result = await advanceRepository.recordAdditionalDisbursement(
+        loan: loan,
+        scheduleInstallments: installments,
+        accountId: account.id,
+        amount: 2000,
+        date: DateTime(2026, 1, 10),
+        idempotencyKey: 'guard-disb-1',
+      );
+
+      final txn = (await transactionRepository.getByKey(result.transactionId))!;
+
+      await expectLater(
+        transactionRepository.softDeleteTransaction(txn),
+        throwsA(isA<LoanPaymentTransactionRestrictedError>()),
+      );
+
+      // No partial effect.
+      final account2 = await accountRepository.getByKey(account.id);
+      expect(account2!.currentBalance, 102000);
+      final refreshedLoan = await loanRepository.getByKey(loan.id);
+      expect(refreshedLoan!.loanAmount, 14000);
+    },
+  );
 }
