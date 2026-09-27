@@ -21,6 +21,7 @@ class LoanFinancialSummary {
     required this.principalPaid,
     required this.interestPaid,
     required this.principalRemaining,
+    this.principalPrepaid = 0,
     required this.interestRemaining,
     required this.paidInstallments,
     required this.partialInstallments,
@@ -64,6 +65,11 @@ class LoanFinancialSummary {
 
   /// `originalPrincipal - principalPaid`, clamped to zero.
   final double principalRemaining;
+
+  /// Active extra principal paid on this loan, derived from its persisted
+  /// payment records (`principalPrepaidFor`) — already subtracted from
+  /// [principalRemaining].
+  final double principalPrepaid;
 
   /// `totalScheduledInterest - interestPaid`, clamped to zero.
   final double interestRemaining;
@@ -116,6 +122,7 @@ class LoanFinancialSummary {
   static LoanFinancialSummary from({
     required List<Installment> installments,
     required double originalPrincipal,
+    double principalPrepaid = 0,
   }) {
     final sorted = [...installments]
       ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
@@ -173,9 +180,14 @@ class LoanFinancialSummary {
     final outstanding = (totalScheduledPayable - totalPaid)
         .clamp(0, totalScheduledPayable)
         .toDouble();
-    final principalRemaining = (originalPrincipal - principalPaid)
-        .clamp(0, originalPrincipal)
-        .toDouble();
+    // Extra principal is subtracted too (derived from payment records, see
+    // `principalPrepaidFor`) — without it the remaining principal never went
+    // down after an extra-principal payment. Mirrors Web's
+    // `outstandingPrincipalAfterPrepaymentsFor`.
+    final principalRemaining =
+        (originalPrincipal - principalPaid - principalPrepaid)
+            .clamp(0, originalPrincipal)
+            .toDouble();
     final interestRemaining = (totalScheduledInterest - interestPaid)
         .clamp(0, totalScheduledInterest)
         .toDouble();
@@ -192,6 +204,7 @@ class LoanFinancialSummary {
       principalPaid: principalPaid,
       interestPaid: interestPaid,
       principalRemaining: principalRemaining,
+      principalPrepaid: principalPrepaid,
       interestRemaining: interestRemaining,
       paidInstallments: paidInstallments,
       partialInstallments: partialInstallments,

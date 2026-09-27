@@ -73,10 +73,16 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     bool isAutoDebitEnabled = false,
     String? autoDebitAccount,
     String? linkedCreditCardId,
+    String? purchaseTransactionId,
     int? dueDayOfMonth,
   }) async {
     if (name.trim().isEmpty) {
       throw const AppException('EMI name is required');
+    }
+    if (purchaseTransactionId != null && linkedCreditCardId == null) {
+      throw const AppException(
+        'A card purchase can only be linked to an EMI on that credit card',
+      );
     }
     if (principalAmount <= 0) {
       throw const AppException('Principal amount must be greater than 0');
@@ -162,6 +168,7 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
       isAutoDebitEnabled: isAutoDebitEnabled,
       autoDebitAccount: autoDebitAccount,
       linkedCreditCardId: linkedCreditCardId,
+      purchaseTransactionId: purchaseTransactionId,
       dueDayOfMonth: dueDayOfMonth,
     );
     await add(emi.id, emi);
@@ -200,6 +207,8 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
     String? autoDebitAccount,
     String? linkedCreditCardId,
     bool clearLinkedCreditCardId = false,
+    String? purchaseTransactionId,
+    bool clearPurchaseTransactionId = false,
   }) async {
     if (principalAmount != null) {
       if (principalAmount <= 0) {
@@ -333,6 +342,26 @@ class EmiRepository extends FirestoreCrudRepository<Emi> {
         oldValue: emi.linkedCreditCardId,
         newValue: linkedCreditCardId,
         apply: (v) => emi.linkedCreditCardId = v,
+      );
+    }
+    // A purchase link only means anything on a card-linked EMI: unlinking the
+    // card (or explicitly clearing) drops it, so a stale link can never keep
+    // excluding this EMI's principal from a card it no longer belongs to.
+    if (clearPurchaseTransactionId || emi.linkedCreditCardId == null) {
+      if (emi.purchaseTransactionId != null) {
+        emi.recordEdit(
+          field: 'purchaseTransactionId',
+          oldValue: emi.purchaseTransactionId!,
+          newValue: 'none',
+        );
+        emi.purchaseTransactionId = null;
+      }
+    } else {
+      emi.updateField(
+        field: 'purchaseTransactionId',
+        oldValue: emi.purchaseTransactionId,
+        newValue: purchaseTransactionId,
+        apply: (v) => emi.purchaseTransactionId = v,
       );
     }
     await update(emi);

@@ -19,6 +19,7 @@ import '../../domain/ledger_entry.dart';
 import '../../domain/person.dart';
 import '../../domain/person_timeline_entry.dart';
 import '../providers/people_providers.dart';
+import '../providers/person_position_providers.dart';
 import '../providers/person_expense_stats_provider.dart';
 import '../providers/person_pending_participants_providers.dart';
 import '../providers/person_statement_grouping_providers.dart';
@@ -658,16 +659,26 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
     WidgetRef ref,
     Person person,
   ) async {
-    if (person.currentBalance == 0) return;
-    final amount = CurrencyFormatter.instance.format(
-      person.currentBalance.abs(),
-    );
+    // Settles the DIRECT balance only — Loans are settled from the Loan.
+    final position = ref.read(personPositionProvider(person.id));
+    final direct = position.directBalance;
+    if (direct == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Nothing to settle here — Loan balances are settled from the Loan.',
+          ),
+        ),
+      );
+      return;
+    }
+    final amount = CurrencyFormatter.instance.format(direct.abs());
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Settle All?'),
         content: Text(
-          person.isCreditor
+          direct > 0
               ? 'Mark $amount from ${person.name} as fully paid? This clears their whole pending balance.'
               : 'Mark $amount to ${person.name} as fully paid? This clears your whole pending balance.',
         ),
@@ -700,7 +711,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
           .settleAcrossPending(
             person: person,
             pending: pending,
-            amount: person.currentBalance.abs(),
+            amount: direct.abs(),
             date: DateTime.now(),
             installmentPaymentRepositoryFor: (scheduleId, installmentId) =>
                 ref.read(
@@ -710,6 +721,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                   )),
                 ),
             note: 'Settled all',
+            legacyLoanLedger: position.legacyLoanLedger,
           );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

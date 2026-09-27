@@ -16,27 +16,37 @@ import 'person_avatar.dart';
 /// that owns the Dismissible key. Built on [FlowFiListTile] — the same row
 /// primitive [LoanTile] uses, so both read as one consistent shape.
 class PersonTile extends StatelessWidget {
-  const PersonTile({super.key, required this.person, required this.onTap});
+  const PersonTile({
+    super.key,
+    required this.person,
+    required this.onTap,
+    this.balance,
+  });
 
   final Person person;
   final VoidCallback onTap;
 
+  /// Net position (direct ledger + Loans — [personPositionProvider]).
+  /// Defaults to the ledger balance for callers that don't pass one.
+  final double? balance;
+
   @override
   Widget build(BuildContext context) {
+    final balance = this.balance ?? person.currentBalance;
     final direction =
-        MoneyDirectionX.forSignedBalance(person.currentBalance) ??
+        MoneyDirectionX.forSignedBalance(balance) ??
         MoneyDirection.completed;
     final amount = CurrencyFormatter.instance.format(
-      person.currentBalance.abs(),
+      balance.abs(),
     );
-    final subtitle = person.currentBalance == 0
+    final subtitle = balance == 0
         ? 'nothing to pay'
-        : person.isCreditor
+        : balance > 0
         ? 'you lent $amount'
         : 'you need to pay $amount';
-    final pillLabel = person.currentBalance == 0
+    final pillLabel = balance == 0
         ? 'Nothing to Pay'
-        : person.isCreditor
+        : balance > 0
         ? 'Needs to Pay Me'
         : 'I Need to Pay';
 

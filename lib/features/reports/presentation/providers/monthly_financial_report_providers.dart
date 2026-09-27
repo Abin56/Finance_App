@@ -106,7 +106,13 @@ final creditUtilizationPercentProvider = Provider<double>((ref) {
   if (cards.isEmpty) return 0;
   final totalLimit = ref.watch(totalCreditLimitProvider);
   if (totalLimit == 0) return 0;
-  final outstanding = ref.watch(totalCreditCardOutstandingProvider);
+  // Exposure = statement/cycle outstanding + card-linked EMI principal still
+  // locked (Case B/C) — the same exposure available credit subtracts, so
+  // utilization and available always add up to the limit. A Case A EMI's
+  // purchase is already inside `outstanding`.
+  final outstanding =
+      ref.watch(totalCreditCardOutstandingProvider) +
+      ref.watch(totalCardLockedEmiPrincipalProvider);
   return (outstanding / totalLimit) * 100;
 });
 

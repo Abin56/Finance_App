@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/loan.dart';
 import '../providers/loan_providers.dart';
+import '../widgets/reverse_origination_dialog.dart';
 
 /// Soft-deleted loans awaiting restore or permanent deletion.
 class LoansTrashScreen extends ConsumerWidget {
@@ -54,8 +56,18 @@ class LoansTrashScreen extends ConsumerWidget {
                       IconButton(
                         icon: const Icon(Icons.restore_rounded),
                         tooltip: 'Restore',
-                        onPressed: () =>
-                            ref.read(loanRepositoryProvider).restore(loan),
+                        onPressed: () async {
+                          try {
+                            await ref
+                                .read(loanRepositoryProvider)
+                                .restore(loan);
+                          } on AppException catch (error) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(error.message)),
+                            );
+                          }
+                        },
                       ),
                       IconButton(
                         icon: Icon(
@@ -82,6 +94,11 @@ class LoansTrashScreen extends ConsumerWidget {
     WidgetRef ref,
     Loan loan,
   ) async {
+    // Trashed (e.g. by an older app) while its origination money was still
+    // active: reverse it instead — never hard-delete it out from under its
+    // Transaction.
+    if (await reverseOriginationIfMoneyActive(context, ref, loan)) return;
+    if (!context.mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

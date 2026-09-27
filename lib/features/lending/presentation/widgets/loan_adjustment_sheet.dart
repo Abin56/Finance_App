@@ -83,6 +83,8 @@ class _LoanAdjustmentSheetState extends ConsumerState<LoanAdjustmentSheet> {
             installments: widget.installments,
             principalAmount: amount,
             date: _date,
+            principalPrepaid:
+                ref.read(loanPrincipalPrepaidProvider(widget.loan)).value ?? 0,
           )
         : null;
     if (prepayment != null &&
@@ -156,6 +158,8 @@ class _LoanAdjustmentSheetState extends ConsumerState<LoanAdjustmentSheet> {
         accounts.where((a) => a.isDefault).firstOrNull?.id ??
         accounts.firstOrNull?.id;
     final amount = _value;
+    final principalPrepaid =
+        ref.watch(loanPrincipalPrepaidProvider(widget.loan)).value ?? 0;
     final account = accounts.where((a) => a.id == _accountId).firstOrNull;
     final preview = amount != null && amount > 0
         ? (_prepay
@@ -164,11 +168,13 @@ class _LoanAdjustmentSheetState extends ConsumerState<LoanAdjustmentSheet> {
                   installments: widget.installments,
                   principalAmount: amount,
                   date: _date,
+                  principalPrepaid: principalPrepaid,
                 )
               : previewAdditionalDisbursement(
                   loan: widget.loan,
                   installments: widget.installments,
                   amount: amount,
+                  principalPrepaid: principalPrepaid,
                 ))
         : null;
     final physicalAmount = preview is PrincipalPrepaymentPreview
@@ -184,7 +190,11 @@ class _LoanAdjustmentSheetState extends ConsumerState<LoanAdjustmentSheet> {
     return Form(
       key: _formKey,
       child: SectionedFormSheet(
-        title: _prepay ? 'Prepay Principal' : 'Additional Disbursement',
+        title: _prepay
+            ? 'Pay Extra Principal'
+            : widget.loan.direction == LoanDirection.taken
+            ? 'Borrow More'
+            : 'Lend More',
         description: _prepay
             ? 'Settle the current due amount and intentionally reduce principal.'
             : widget.loan.direction == LoanDirection.taken

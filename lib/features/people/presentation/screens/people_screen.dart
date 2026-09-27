@@ -9,6 +9,7 @@ import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../domain/person.dart';
 import '../providers/people_providers.dart';
+import '../providers/person_position_providers.dart';
 import '../widgets/overall_balance_card.dart';
 import '../widgets/people_filter_chips.dart';
 import '../widgets/people_sort.dart';
@@ -40,15 +41,20 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     super.dispose();
   }
 
-  List<Person> _applyFilters(List<Person> people) {
+  List<Person> _applyFilters(
+    List<Person> people,
+    Map<String, double> balances,
+  ) {
     final query = _query.trim().toLowerCase();
-    final filtered = people.where(_filter.matches).where((p) {
+    final filtered = people
+        .where((p) => _filter.matches(p, balances[p.id]))
+        .where((p) {
       if (query.isEmpty) return true;
       return p.name.toLowerCase().contains(query) ||
           (p.phone?.toLowerCase().contains(query) ?? false) ||
           (p.email?.toLowerCase().contains(query) ?? false);
     }).toList();
-    return applyPeopleSort(filtered, _sort);
+    return applyPeopleSort(filtered, _sort, balances);
   }
 
   Future<void> _openSortMenu(BuildContext context) async {
@@ -148,10 +154,12 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
             );
           }
 
-          final visible = _applyFilters(people);
+          // Net positions: direct ledger + Loans (personPositionProvider).
+          final balances = ref.watch(personNetBalancesProvider);
+          final visible = _applyFilters(people, balances);
           final netBalance = people.fold(
             0.0,
-            (total, p) => total + p.currentBalance,
+            (total, p) => total + (balances[p.id] ?? p.currentBalance),
           );
 
           return ListView(
@@ -247,6 +255,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
                     },
                     child: PersonTile(
                       person: person,
+                      balance: balances[person.id],
                       onTap: () =>
                           context.push('${AppRoutes.people}/${person.id}'),
                     ),

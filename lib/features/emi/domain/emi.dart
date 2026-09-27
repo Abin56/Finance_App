@@ -46,6 +46,8 @@ class Emi extends SoftDeletableEntity {
     this.autoDebitAccount,
     this.isDefaulted = false,
     this.linkedCreditCardId,
+    this.purchaseTransactionId,
+    this.beneficiaryPersonId,
     this.dueDayOfMonth,
   });
 
@@ -88,6 +90,24 @@ class Emi extends SoftDeletableEntity {
   /// credit as this EMI's principal is paid down (see
   /// `principalRestoredForCardProvider`).
   String? linkedCreditCardId;
+
+  /// The tracked Credit Card purchase `Transaction` this EMI was converted
+  /// from (only meaningful with [linkedCreditCardId]). While that purchase is
+  /// still an active, calculable Transaction on the linked card's account,
+  /// the card's own liability already contains it, so this EMI must NOT also
+  /// lock its principal against the card (see `emiPurchaseRepresentedOnCard`).
+  /// Null — the legacy default, and the "issuer converted it, no purchase
+  /// recorded" case — means the EMI's remaining principal is the card
+  /// exposure. Never inferred from amount/date. Same key/semantics as Web.
+  String? purchaseTransactionId;
+
+  /// "Who is this for?" — the Person this borrowing was taken for, when that
+  /// isn't the account owner. Written by Web (`beneficiaryPersonId`); Flutter
+  /// has no UI for it yet but must carry it through, because every
+  /// repository edit here is a whole-document `set` — without this field a
+  /// Flutter close/edit/trash silently erased the Web user's association.
+  /// Pure association: no schedule, liability, card or Person-ledger effect.
+  String? beneficiaryPersonId;
 
   /// Locked once any payment has been recorded — see `EmiRepository.editEmi`.
   double principalAmount;
@@ -200,6 +220,8 @@ class Emi extends SoftDeletableEntity {
         autoDebitAccount: data['autoDebitAccount'] as String?,
         isDefaulted: data['isDefaulted'] as bool? ?? false,
         linkedCreditCardId: data['linkedCreditCardId'] as String?,
+        purchaseTransactionId: data['purchaseTransactionId'] as String?,
+        beneficiaryPersonId: data['beneficiaryPersonId'] as String?,
         dueDayOfMonth: (data['dueDayOfMonth'] as num?)?.toInt(),
       )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
@@ -243,6 +265,8 @@ class Emi extends SoftDeletableEntity {
       'autoDebitAccount': autoDebitAccount,
       'isDefaulted': isDefaulted,
       'linkedCreditCardId': linkedCreditCardId,
+      'purchaseTransactionId': purchaseTransactionId,
+      'beneficiaryPersonId': beneficiaryPersonId,
       'dueDayOfMonth': dueDayOfMonth,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null

@@ -45,6 +45,30 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
     int startingSequenceNumber = 0,
     int? dueDayOfMonth,
   }) async {
+    final installments = buildInstallments(
+      schedule,
+      precomputedAmounts: precomputedAmounts,
+      startingSequenceNumber: startingSequenceNumber,
+      dueDayOfMonth: dueDayOfMonth,
+    );
+    for (final installment in installments) {
+      await add(installment.id, installment);
+    }
+    return installments;
+  }
+
+  /// Pure — exactly the installments [generateInstallments] writes, without
+  /// writing them. [idFor] defaults to a random id;
+  /// `LoanRepository.createAgreementWithOrigination` passes deterministic ids
+  /// so the whole origination is one atomic, idempotent Firestore
+  /// transaction.
+  static List<Installment> buildInstallments(
+    PaymentSchedule schedule, {
+    List<PrecomputedInstallmentAmount>? precomputedAmounts,
+    int startingSequenceNumber = 0,
+    int? dueDayOfMonth,
+    String Function(int sequenceNumber)? idFor,
+  }) {
     final count = schedule.installmentCount;
     if (count == null || count < 1) {
       throw const AppException(
@@ -73,20 +97,21 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
                 customDays: schedule.customIntervalDays,
               );
       }
-      final installment = Installment(
-        id: IdGenerator.generate(),
-        scheduleId: schedule.id,
-        ownerType: schedule.ownerType,
-        ownerId: schedule.ownerId,
-        sequenceNumber: startingSequenceNumber + i + 1,
-        dueDate: dueDate,
-        amountDue: amounts[i].amountDue,
-        principalPortion: amounts[i].principalPortion,
-        interestPortion: amounts[i].interestPortion,
-        createdAt: DateTime.now(),
+      final sequenceNumber = startingSequenceNumber + i + 1;
+      installments.add(
+        Installment(
+          id: idFor?.call(sequenceNumber) ?? IdGenerator.generate(),
+          scheduleId: schedule.id,
+          ownerType: schedule.ownerType,
+          ownerId: schedule.ownerId,
+          sequenceNumber: sequenceNumber,
+          dueDate: dueDate,
+          amountDue: amounts[i].amountDue,
+          principalPortion: amounts[i].principalPortion,
+          interestPortion: amounts[i].interestPortion,
+          createdAt: DateTime.now(),
+        ),
       );
-      await add(installment.id, installment);
-      installments.add(installment);
     }
     return installments;
   }
@@ -120,7 +145,10 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
     );
   }
 
-  List<PrecomputedInstallmentAmount> _evenSplit(double total, int count) {
+  static List<PrecomputedInstallmentAmount> _evenSplit(
+    double total,
+    int count,
+  ) {
     final share = _round2(total / count);
     final shares = List.filled(count, share);
     final remainder = _round2(total - share * count);
@@ -130,7 +158,7 @@ class InstallmentRepository extends FirestoreCrudRepository<Installment> {
         .toList();
   }
 
-  double _round2(double v) => (v * 100).round() / 100;
+  static double _round2(double v) => (v * 100).round() / 100;
 
   /// Applies a payment delta toward this installment, clamped so
   /// [Installment.amountPaid] never exceeds [Installment.amountDue] —

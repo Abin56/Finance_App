@@ -17,7 +17,14 @@ extension PeopleSortX on PeopleSort {
   }
 }
 
-List<Person> applyPeopleSort(List<Person> people, PeopleSort sort) {
+/// [balances] maps person id → net position (direct ledger + Loans);
+/// missing ids fall back to the ledger balance.
+List<Person> applyPeopleSort(
+  List<Person> people,
+  PeopleSort sort, [
+  Map<String, double> balances = const {},
+]) {
+  double balanceOf(Person p) => balances[p.id] ?? p.currentBalance;
   final sorted = [...people];
   switch (sort) {
     case PeopleSort.name:
@@ -26,7 +33,7 @@ List<Person> applyPeopleSort(List<Person> people, PeopleSort sort) {
       );
     case PeopleSort.balanceDesc:
       sorted.sort(
-        (a, b) => b.currentBalance.abs().compareTo(a.currentBalance.abs()),
+        (a, b) => balanceOf(b).abs().compareTo(balanceOf(a).abs()),
       );
     case PeopleSort.recentlyAdded:
       sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));

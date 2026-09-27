@@ -7,10 +7,14 @@ import '../../../../core/interest/interest_period.dart';
 import '../../../../core/interest/interest_type.dart';
 import '../../../../core/payment_schedule/domain/schedule_type.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/utils/id_generator.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
 import '../../../../shared/widgets/section_label.dart';
+import '../../../accounts/domain/account_type.dart';
+import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../people/domain/person.dart';
 import '../../../people/presentation/providers/people_providers.dart';
 import '../../../people/presentation/widgets/person_form_sheet.dart';
@@ -20,8 +24,10 @@ import '../../domain/loan_direction.dart';
 import '../../domain/loan_interest.dart';
 import '../../domain/loan_repayment_type.dart';
 import '../providers/loan_providers.dart';
+import 'add_elsewhere_link.dart';
 import 'loan_category_badge.dart';
 import 'loan_direction_badge.dart';
+import 'loan_emi_ui.dart';
 
 /// Bottom sheet for creating or editing a loan. Repayment type (one-time
 /// vs. installments) and interest terms are chosen once at creation and
@@ -35,17 +41,23 @@ import 'loan_direction_badge.dart';
 const _addNewPersonValue = '__add_new_person__';
 
 class LoanFormSheet extends ConsumerStatefulWidget {
-  const LoanFormSheet({super.key, this.loan});
+  const LoanFormSheet({super.key, this.loan, this.initialDirection});
 
   final Loan? loan;
+  final LoanDirection? initialDirection;
 
-  static Future<void> show(BuildContext context, {Loan? loan}) {
+  static Future<void> show(
+    BuildContext context, {
+    Loan? loan,
+    LoanDirection? initialDirection,
+  }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
       useSafeArea: true,
-      builder: (_) => LoanFormSheet(loan: loan),
+      builder: (_) =>
+          LoanFormSheet(loan: loan, initialDirection: initialDirection),
     );
   }
 
@@ -88,8 +100,10 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
 
   late String? _personId = widget.loan?.personId;
   late String? _payerPersonId = widget.loan?.payerPersonId;
-  late LoanCategory _category = widget.loan?.category ?? LoanCategory.personal;
-  late LoanDirection _direction = widget.loan?.direction ?? LoanDirection.given;
+  late LoanCategory _category =
+      widget.loan?.category ?? LoanCategory.institutional;
+  late LoanDirection _direction =
+      widget.loan?.direction ?? widget.initialDirection ?? LoanDirection.taken;
   late DateTime _loanDate = widget.loan?.loanDate ?? DateTime.now();
   late DateTime? _dueDate = widget.loan?.dueDate;
   late LoanRepaymentType _repaymentType =
@@ -101,6 +115,16 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
       widget.loan?.interest?.type ?? InterestType.flat;
   late InterestPeriod _interestPeriod =
       widget.loan?.interest?.period ?? InterestPeriod.monthly;
+
+  /// Create-only: whether the principal really moved through one of the
+  /// user's Accounts. Off by default — then no Transaction and no balance
+  /// change are recorded, same as before.
+  bool _recordMovement = false;
+  String? _movementAccountId;
+
+  /// Create-only: one per Add action, so a retried save can't post the
+  /// movement twice (see `LoanRepository.createAgreementWithOrigination`).
+  final _idempotencyKey = IdGenerator.generate();
   bool _isSaving = false;
 
   bool get _isEditing => widget.loan != null;
@@ -292,6 +316,16 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
       ).showSnackBar(const SnackBar(content: Text('Choose a due date')));
       return;
     }
+    if (!_isEditing && _recordMovement && _movementAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Pick the account the money moved through, or turn the option off',
+          ),
+        ),
+      );
+      return;
+    }
 
     if (_isEditing && _loanDateChanged) {
       final confirmed = await _confirmLoanDateChange();
@@ -369,48 +403,81 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
           );
         }
       } else {
-        await repository.createLoan(
-          personId: _category == LoanCategory.personal ? _personId : null,
-          category: _category,
-          institutionName: _category == LoanCategory.institutional
-              ? _institutionNameController.text.trim()
-              : null,
-          loanType: _category == LoanCategory.institutional
-              ? _loanTypeController.text.trim()
-              : null,
-          loanNumber: null,
-          accountNumber: _category == LoanCategory.institutional
-              ? _accountNumberController.text.trim()
-              : null,
-          branch: _category == LoanCategory.institutional
-              ? _branchController.text.trim()
-              : null,
-          payerPersonId: _payerPersonId,
-          loanAmount: double.parse(_amountController.text.trim()),
-          loanDate: _loanDate,
-          repaymentType: _repaymentType,
-          direction: _direction,
-          name: _nameController.text.trim().isEmpty
-              ? null
-              : _nameController.text.trim(),
-          interest: _hasInterest
-              ? LoanInterest(
-                  type: _interestType,
-                  ratePercent: double.parse(_rateController.text.trim()),
-                  period: _interestPeriod,
-                )
-              : null,
-          dueDate: _repaymentType == LoanRepaymentType.oneTime
-              ? _dueDate
-              : null,
-          installmentFrequency: _repaymentType == LoanRepaymentType.installment
-              ? _installmentFrequency
-              : null,
-          installmentCount: _repaymentType == LoanRepaymentType.installment
-              ? int.parse(_installmentCountController.text.trim())
-              : null,
-          notes: _notesController.text.trim(),
-        );
+        final institutional = _category == LoanCategory.institutional;
+        final installment = _repaymentType == LoanRepaymentType.installment;
+        final personId = _category == LoanCategory.personal ? _personId : null;
+        final institutionName = institutional
+            ? _institutionNameController.text.trim()
+            : null;
+        final loanType = institutional ? _loanTypeController.text.trim() : null;
+        final accountNumber = institutional
+            ? _accountNumberController.text.trim()
+            : null;
+        final branch = institutional ? _branchController.text.trim() : null;
+        final loanAmount = double.parse(_amountController.text.trim());
+        final name = _nameController.text.trim().isEmpty
+            ? null
+            : _nameController.text.trim();
+        final interest = _hasInterest
+            ? LoanInterest(
+                type: _interestType,
+                ratePercent: double.parse(_rateController.text.trim()),
+                period: _interestPeriod,
+              )
+            : null;
+        final dueDate = installment ? null : _dueDate;
+        final installmentFrequency = installment ? _installmentFrequency : null;
+        final installmentCount = installment
+            ? int.parse(_installmentCountController.text.trim())
+            : null;
+        final notes = _notesController.text.trim();
+        if (_recordMovement) {
+          // The origination Transaction is tagged as a Loan principal
+          // disbursement — it moves the Account balance but never counts as
+          // income or spending. Mirrors the web Loan form.
+          await repository.createAgreementWithOrigination(
+            idempotencyKey: _idempotencyKey,
+            movementAccountId: _movementAccountId,
+            personId: personId,
+            category: _category,
+            institutionName: institutionName,
+            loanType: loanType,
+            accountNumber: accountNumber,
+            branch: branch,
+            payerPersonId: _payerPersonId,
+            loanAmount: loanAmount,
+            loanDate: _loanDate,
+            repaymentType: _repaymentType,
+            direction: _direction,
+            name: name,
+            interest: interest,
+            dueDate: dueDate,
+            installmentFrequency: installmentFrequency,
+            installmentCount: installmentCount,
+            notes: notes,
+          );
+        } else {
+          await repository.createLoan(
+            personId: personId,
+            category: _category,
+            institutionName: institutionName,
+            loanType: loanType,
+            loanNumber: null,
+            accountNumber: accountNumber,
+            branch: branch,
+            payerPersonId: _payerPersonId,
+            loanAmount: loanAmount,
+            loanDate: _loanDate,
+            repaymentType: _repaymentType,
+            direction: _direction,
+            name: name,
+            interest: interest,
+            dueDate: dueDate,
+            installmentFrequency: installmentFrequency,
+            installmentCount: installmentCount,
+            notes: notes,
+          );
+        }
       }
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -423,6 +490,70 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
     }
   }
 
+  /// Create-only "did the money pass through one of my Accounts?" content,
+  /// revealed by its switch. Only lists existing Accounts — new ones are
+  /// added in Accounts, never inline here.
+  List<Widget> _accountFields(BuildContext context) {
+    final received = _direction == LoanDirection.taken;
+    final accounts = [
+      ...?ref.watch(accountsStreamProvider).value,
+    ].where((a) => a.type != AccountType.card && !a.isDeleted).toList();
+    final hint = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: loanEmiSecondaryText(context));
+    return [
+      if (accounts.isEmpty)
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'No accounts yet — add one in Accounts, then come back.',
+                style: hint,
+              ),
+            ),
+            const AddElsewhereLink(
+              route: AppRoutes.accounts,
+              label: 'Go to Accounts',
+            ),
+          ],
+        )
+      else ...[
+        DropdownButtonFormField<String>(
+          initialValue: accounts.any((a) => a.id == _movementAccountId)
+              ? _movementAccountId
+              : null,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: received ? 'Received into' : 'Paid from',
+          ),
+          hint: const Text('Choose account'),
+          items: [
+            for (final account in accounts)
+              DropdownMenuItem(
+                value: account.id,
+                child: Text(account.name, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+          onChanged: (value) => setState(() => _movementAccountId = value),
+        ),
+        const Align(
+          alignment: Alignment.centerRight,
+          child: AddElsewhereLink(
+            route: AppRoutes.accounts,
+            label: 'Add Account',
+          ),
+        ),
+      ],
+      Text(
+        "Updates this account's balance. It isn't counted as income or "
+        'spending — the amount stays tracked as a loan.',
+        style: hint,
+      ),
+    ];
+  }
+
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+
   @override
   Widget build(BuildContext context) {
     final people = ref.watch(peopleStreamProvider).value ?? const <Person>[];
@@ -430,203 +561,124 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
     final hasPayments = _isEditing
         ? ref.watch(loanTotalReceivedProvider(widget.loan!)) > 0
         : false;
+    final received = _direction == LoanDirection.taken;
+    final lenderLabel = received ? 'Borrowed from' : 'Lent to';
+    final isInstallment = _repaymentType == LoanRepaymentType.installment;
+    final canEditLoanDate = !_isEditing || (isInstallment && !hasPayments);
+    final secondary = loanEmiSecondaryText(context);
 
     return Form(
       key: _formKey,
       child: SectionedFormSheet(
-        title: _isEditing ? 'Edit loan' : 'Add loan',
-        confirmLabel: _isEditing ? 'Save changes' : 'Add loan',
+        title: _isEditing ? 'Edit loan' : 'Add a Loan',
+        confirmLabel: _isEditing ? 'Save changes' : 'Add Loan',
         isSaving: _isSaving,
         onConfirm: _save,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SectionLabel('Loan Details'),
-            const SizedBox(height: AppSizes.sm),
+            // 1 — what kind of loan. Decides the wording of everything below.
             if (!_isEditing) ...[
-              SegmentedButton<LoanCategory>(
-                segments: [
-                  for (final category in LoanCategory.values)
-                    ButtonSegment(
-                      value: category,
-                      label: Text(category.formLabel),
-                    ),
-                ],
-                selected: {_category},
-                onSelectionChanged: (selection) =>
-                    setState(() => _category = selection.first),
-              ),
-              const SizedBox(height: AppSizes.md),
-            ] else
-              LoanCategoryBadge(category: widget.loan!.category),
-            const SizedBox(height: AppSizes.sm),
-            if (!_isEditing) ...[
-              Text(
-                'Which is it?',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-              const SizedBox(height: AppSizes.xs),
+              const LoanEmiFieldLabel('Did you borrow or lend it?'),
               SegmentedButton<LoanDirection>(
-                segments: [
-                  for (final direction in LoanDirection.values)
-                    ButtonSegment(
-                      value: direction,
-                      label: Text(direction.formLabel),
-                    ),
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: LoanDirection.taken,
+                    label: Text('I borrowed'),
+                  ),
+                  ButtonSegment(
+                    value: LoanDirection.given,
+                    label: Text('I lent'),
+                  ),
                 ],
                 selected: {_direction},
                 onSelectionChanged: (selection) =>
                     setState(() => _direction = selection.first),
               ),
               const SizedBox(height: AppSizes.md),
-            ] else
-              LoanDirectionBadge(direction: widget.loan!.direction),
-            const SizedBox(height: AppSizes.sm),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              alignment: Alignment.topCenter,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: _category == LoanCategory.personal
-                    ? KeyedSubtree(
-                        key: const ValueKey('category-personal'),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // TODO(future enhancement, post-Milestone 2): support inline
-                            // Person creation from this dropdown ("+ Create New Person"
-                            // -> bottom sheet -> auto-select), so a brand-new account
-                            // isn't blocked from adding a loan by needing to leave this
-                            // form first.
-                            DropdownButtonFormField<String>(
-                              initialValue: _personId,
-                              decoration: InputDecoration(
-                                labelText: _direction == LoanDirection.given
-                                    ? 'Who did you lend it to?'
-                                    : 'Who did you borrow it from?',
-                                helperText: _isEditing
-                                    ? 'Person can\'t be changed after the loan is created'
-                                    : null,
-                              ),
-                              items: [
-                                for (final person in people)
-                                  DropdownMenuItem(
-                                    value: person.id,
-                                    child: Text(person.name),
-                                  ),
-                              ],
-                              onChanged: _isEditing
-                                  ? null
-                                  : (value) =>
-                                        setState(() => _personId = value),
-                            ),
-                          ],
-                        ),
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('category-institutional'),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            TextFormField(
-                              controller: _institutionNameController,
-                              focusNode: _institutionNameFocusNode,
-                              autofocus:
-                                  _category == LoanCategory.institutional,
-                              decoration: const InputDecoration(
-                                labelText: 'Bank / Institution name',
-                              ),
-                              validator: (value) =>
-                                  _category == LoanCategory.institutional &&
-                                      (value == null || value.trim().isEmpty)
-                                  ? 'Institution name is required'
-                                  : null,
-                            ),
-                            const SizedBox(height: AppSizes.md),
-                            TextFormField(
-                              controller: _loanTypeController,
-                              decoration: const InputDecoration(
-                                labelText: 'Type of loan (optional)',
-                                hintText:
-                                    'e.g. Personal Loan, Vehicle Loan, Education Loan',
-                              ),
-                            ),
-                            const SizedBox(height: AppSizes.md),
-                            TextFormField(
-                              controller: _accountNumberController,
-                              decoration: const InputDecoration(
-                                labelText: 'Bank account number (optional)',
-                              ),
-                            ),
-                            const SizedBox(height: AppSizes.md),
-                            TextFormField(
-                              controller: _branchController,
-                              decoration: const InputDecoration(
-                                labelText: 'Branch (optional)',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: AppSizes.md),
-            DropdownButtonFormField<String?>(
-              initialValue: _payerPersonId,
-              decoration: const InputDecoration(
-                labelText: 'Who actually pays the EMIs? (optional)',
-                helperText:
-                    'Only pick someone if this is a loan that a friend or family member actually pays for you',
-              ),
-              items: [
-                const DropdownMenuItem(
-                  value: null,
-                  child: Text('I pay it myself'),
-                ),
-                for (final person in people)
-                  DropdownMenuItem(value: person.id, child: Text(person.name)),
-                const DropdownMenuItem(
-                  value: _addNewPersonValue,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add, size: 18),
-                      SizedBox(width: AppSizes.xs),
-                      Text('Add new person'),
-                    ],
+              LoanEmiFieldLabel(received ? 'Borrowed from a…' : 'Lent to a…'),
+              SegmentedButton<LoanCategory>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: LoanCategory.institutional,
+                    label: Text('Bank / lender'),
                   ),
-                ),
-              ],
-              onChanged: (value) async {
-                if (value == _addNewPersonValue) {
-                  final newPersonId = await PersonFormSheet.show(context);
-                  if (newPersonId != null) {
-                    setState(() => _payerPersonId = newPersonId);
-                  }
-                  return;
-                }
-                setState(() => _payerPersonId = value);
-              },
-            ),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
-              controller: _nameController,
-              focusNode: _nameFocusNode,
-              autofocus: _category == LoanCategory.personal,
-              decoration: const InputDecoration(
-                labelText: 'Loan name (optional)',
+                  ButtonSegment(
+                    value: LoanCategory.personal,
+                    label: Text('Person'),
+                  ),
+                ],
+                selected: {_category},
+                onSelectionChanged: (selection) =>
+                    setState(() => _category = selection.first),
               ),
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
+            ] else
+              Wrap(
+                spacing: AppSizes.xs,
+                runSpacing: AppSizes.xs,
+                children: [
+                  LoanDirectionBadge(direction: widget.loan!.direction),
+                  LoanCategoryBadge(category: widget.loan!.category),
+                ],
+              ),
+            const SizedBox(height: AppSizes.lg),
+
+            // 2 — who and how much.
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: _category == LoanCategory.personal
+                  ? DropdownButtonFormField<String>(
+                      key: const ValueKey('category-personal'),
+                      initialValue: _personId,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: lenderLabel,
+                        helperText: _isEditing
+                            ? 'Person can\'t be changed after the loan is created'
+                            : null,
+                      ),
+                      hint: const Text('Choose a person'),
+                      items: [
+                        for (final person in people)
+                          DropdownMenuItem(
+                            value: person.id,
+                            child: Text(person.name),
+                          ),
+                      ],
+                      onChanged: _isEditing
+                          ? null
+                          : (value) => setState(() => _personId = value),
+                    )
+                  : TextFormField(
+                      key: const ValueKey('category-institutional'),
+                      controller: _institutionNameController,
+                      focusNode: _institutionNameFocusNode,
+                      decoration: InputDecoration(
+                        labelText: lenderLabel,
+                        hintText: 'e.g. HDFC Bank',
+                      ),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) => _amountFocusNode.requestFocus(),
+                      validator: (value) =>
+                          _category == LoanCategory.institutional &&
+                              (value == null || value.trim().isEmpty)
+                          ? 'Enter the bank or lender'
+                          : null,
+                    ),
             ),
             const SizedBox(height: AppSizes.md),
             TextFormField(
               controller: _amountController,
               focusNode: _amountFocusNode,
               enabled: !hasPayments,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               decoration: InputDecoration(
                 labelText: 'Loan amount',
+                prefixText: '₹ ',
                 helperText: hasPayments
                     ? 'Amount can\'t be changed after a payment has been recorded'
                     : null,
@@ -637,193 +689,314 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
               validator: Validators.amount,
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: AppSizes.md),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              enabled:
-                  !_isEditing ||
-                  (_repaymentType == LoanRepaymentType.installment &&
-                      !hasPayments),
-              title: const Text('Loan date'),
-              subtitle: Text(
-                '${_loanDate.day}/${_loanDate.month}/${_loanDate.year}',
-              ),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap:
-                  !_isEditing ||
-                      (_repaymentType == LoanRepaymentType.installment &&
-                          !hasPayments)
-                  ? _pickLoanDate
-                  : null,
-            ),
-            if (_isEditing &&
-                _repaymentType == LoanRepaymentType.installment &&
-                hasPayments)
-              const Padding(
-                padding: EdgeInsets.only(top: AppSizes.xs),
-                child: Text(
-                  'Loan date can\'t be changed after a payment has been recorded',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
             const SizedBox(height: AppSizes.lg),
-            const SectionLabel('Repayment'),
-            const SizedBox(height: AppSizes.sm),
+
+            // 3 — how it's repaid.
             if (!_isEditing) ...[
+              const LoanEmiFieldLabel('How is it repaid?'),
               SegmentedButton<LoanRepaymentType>(
+                showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(
-                    value: LoanRepaymentType.oneTime,
-                    label: Text('One-time'),
+                    value: LoanRepaymentType.installment,
+                    label: Text('In installments'),
                   ),
                   ButtonSegment(
-                    value: LoanRepaymentType.installment,
-                    label: Text('Monthly Payments'),
+                    value: LoanRepaymentType.oneTime,
+                    label: Text('All at once'),
                   ),
                 ],
                 selected: {_repaymentType},
                 onSelectionChanged: (selection) =>
                     setState(() => _repaymentType = selection.first),
               ),
+              const SizedBox(height: AppSizes.md),
             ],
-            const SizedBox(height: AppSizes.md),
-            if (_repaymentType == LoanRepaymentType.oneTime)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Due date'),
-                subtitle: Text(
-                  _dueDate == null
-                      ? 'Choose a date'
-                      : '${_dueDate!.day}/${_dueDate!.month}/${_dueDate!.year}',
-                ),
-                trailing: const Icon(Icons.calendar_today_outlined),
+            if (!isInstallment)
+              _dateTile(
+                context,
+                title: 'Due date',
+                value: _dueDate == null
+                    ? 'Choose a date'
+                    : _formatDate(_dueDate!),
                 onTap: _pickDueDate,
               )
-            else ...[
-              DropdownButtonFormField<ScheduleType>(
-                initialValue: _installmentFrequency,
-                decoration: InputDecoration(
-                  labelText: 'Frequency',
-                  helperText: _isEditing
-                      ? 'Can be changed — only unpaid payments are recalculated'
-                      : null,
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: ScheduleType.weekly,
-                    child: Text('Weekly'),
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _installmentCountController,
+                      decoration: InputDecoration(
+                        labelText: 'Installments',
+                        helperText: _isEditing
+                            ? 'Not less than already paid'
+                            : null,
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: ScheduleType.monthly,
-                    child: Text('Monthly'),
+                  const SizedBox(width: AppSizes.md),
+                  Expanded(
+                    child: DropdownButtonFormField<ScheduleType>(
+                      initialValue: _installmentFrequency,
+                      decoration: InputDecoration(
+                        labelText: 'Paid',
+                        helperText: _isEditing
+                            ? 'Unpaid ones recalculate'
+                            : null,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: ScheduleType.monthly,
+                          child: Text('Monthly'),
+                        ),
+                        DropdownMenuItem(
+                          value: ScheduleType.weekly,
+                          child: Text('Weekly'),
+                        ),
+                      ],
+                      onChanged: (value) => setState(
+                        () => _installmentFrequency =
+                            value ?? ScheduleType.monthly,
+                      ),
+                    ),
                   ),
                 ],
-                onChanged: (value) => setState(
-                  () => _installmentFrequency = value ?? ScheduleType.monthly,
+              ),
+            const SizedBox(height: AppSizes.sm),
+            _dateTile(
+              context,
+              title: 'Loan date',
+              value: _formatDate(_loanDate),
+              onTap: canEditLoanDate ? _pickLoanDate : null,
+            ),
+            if (_isEditing && isInstallment && hasPayments)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSizes.xs),
+                child: Text(
+                  'Loan date can\'t be changed after a payment has been recorded',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: secondary),
                 ),
               ),
+
+            // 4 — interest, only when there is some.
+            if (!_isEditing || isInstallment) ...[
               const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _installmentCountController,
-                decoration: InputDecoration(
-                  labelText: 'Number of monthly payments',
-                  helperText: _isEditing
-                      ? 'Can\'t be less than the number of payments already made'
-                      : null,
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-              ),
-            ],
-            if (!_isEditing ||
-                _repaymentType == LoanRepaymentType.installment) ...[
-              const SizedBox(height: AppSizes.lg),
-              const SectionLabel('Interest'),
-              const SizedBox(height: AppSizes.xs),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Add interest'),
+              LoanEmiRevealSwitch(
                 value: _hasInterest,
                 onChanged: (value) => setState(() => _hasInterest = value),
-              ),
-            ],
-            if (_hasInterest &&
-                (!_isEditing ||
-                    _repaymentType == LoanRepaymentType.installment)) ...[
-              SegmentedButton<InterestType>(
-                segments: const [
-                  ButtonSegment(value: InterestType.flat, label: Text('Flat')),
-                  ButtonSegment(
-                    value: InterestType.reducingBalance,
-                    label: Text('Reducing balance'),
+                title: 'It has interest',
+                subtitle: 'Leave off for an interest-free loan.',
+                children: [
+                  TextFormField(
+                    controller: _rateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Interest rate (%)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
                   ),
-                ],
-                selected: {_interestType},
-                onSelectionChanged: (selection) =>
-                    setState(() => _interestType = selection.first),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _rateController,
-                decoration: const InputDecoration(
-                  labelText: 'Interest rate (%)',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSizes.md),
-              SegmentedButton<InterestPeriod>(
-                segments: const [
-                  ButtonSegment(
-                    value: InterestPeriod.monthly,
-                    label: Text('Per month'),
-                  ),
-                  ButtonSegment(
-                    value: InterestPeriod.yearly,
-                    label: Text('Per year'),
-                  ),
-                ],
-                selected: {_interestPeriod},
-                onSelectionChanged: (selection) =>
-                    setState(() => _interestPeriod = selection.first),
-              ),
-              if (preview != null) ...[
-                const SizedBox(height: AppSizes.md),
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.md),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total to pay: ${CurrencyFormatter.instance.format(preview.totalPayable)}',
+                  const SizedBox(height: AppSizes.md),
+                  SegmentedButton<InterestPeriod>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: InterestPeriod.yearly,
+                        label: Text('Per year'),
                       ),
-                      Text(
-                        'Total interest: ${CurrencyFormatter.instance.format(preview.totalInterest)}',
+                      ButtonSegment(
+                        value: InterestPeriod.monthly,
+                        label: Text('Per month'),
                       ),
                     ],
+                    selected: {_interestPeriod},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _interestPeriod = selection.first),
                   ),
+                  const SizedBox(height: AppSizes.sm),
+                  SegmentedButton<InterestType>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: InterestType.reducingBalance,
+                        label: Text('Reducing balance'),
+                      ),
+                      ButtonSegment(
+                        value: InterestType.flat,
+                        label: Text('Flat'),
+                      ),
+                    ],
+                    selected: {_interestType},
+                    onSelectionChanged: (selection) =>
+                        setState(() => _interestType = selection.first),
+                  ),
+                  if (preview != null) ...[
+                    const SizedBox(height: AppSizes.md),
+                    _previewBox(context, preview),
+                  ],
+                ],
+              ),
+            ],
+
+            // 5 — linked Account. Its fields only appear once switched on.
+            if (!_isEditing) ...[
+              const SizedBox(height: AppSizes.md),
+              LoanEmiRevealSwitch(
+                value: _recordMovement,
+                onChanged: (value) => setState(() => _recordMovement = value),
+                title: received
+                    ? 'Money came into one of my accounts'
+                    : 'Money went out of one of my accounts',
+                subtitle:
+                    "Leave off if it didn't pass through a FlowFi account — "
+                    'no balance changes.',
+                children: _accountFields(context),
+              ),
+            ],
+
+            // 6 — everything optional.
+            const SizedBox(height: AppSizes.md),
+            LoanEmiMoreOptions(
+              initiallyExpanded: _isEditing,
+              summary: _category == LoanCategory.institutional
+                  ? 'Name, who pays, bank details, notes'
+                  : 'Name, who pays, notes',
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  focusNode: _nameFocusNode,
+                  decoration: const InputDecoration(
+                    labelText: 'Loan name',
+                    hintText: 'e.g. Home Loan',
+                  ),
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: AppSizes.md),
+                DropdownButtonFormField<String?>(
+                  initialValue: _payerPersonId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Who pays the installments?',
+                    helperText:
+                        'Only if a friend or family member pays it for you',
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Text('I pay it myself'),
+                    ),
+                    for (final person in people)
+                      DropdownMenuItem(
+                        value: person.id,
+                        child: Text(person.name),
+                      ),
+                    const DropdownMenuItem(
+                      value: _addNewPersonValue,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, size: 18),
+                          SizedBox(width: AppSizes.xs),
+                          Text('Add new person'),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onChanged: (value) async {
+                    if (value == _addNewPersonValue) {
+                      final newPersonId = await PersonFormSheet.show(context);
+                      if (newPersonId != null) {
+                        setState(() => _payerPersonId = newPersonId);
+                      }
+                      return;
+                    }
+                    setState(() => _payerPersonId = value);
+                  },
+                ),
+                if (_category == LoanCategory.institutional) ...[
+                  const SizedBox(height: AppSizes.lg),
+                  const SectionLabel('Bank details'),
+                  const SizedBox(height: AppSizes.sm),
+                  TextFormField(
+                    controller: _loanTypeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Type of loan',
+                      hintText: 'e.g. Personal, Vehicle, Education',
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.md),
+                  TextFormField(
+                    controller: _accountNumberController,
+                    decoration: const InputDecoration(
+                      labelText: 'Bank account number',
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.md),
+                  TextFormField(
+                    controller: _branchController,
+                    decoration: const InputDecoration(labelText: 'Branch'),
+                  ),
+                ],
+                const SizedBox(height: AppSizes.md),
+                TextFormField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 3,
+                  textInputAction: TextInputAction.done,
                 ),
               ],
-            ],
-            const SizedBox(height: AppSizes.lg),
-            const SectionLabel('Notes'),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(labelText: 'Notes (optional)'),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _dateTile(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required VoidCallback? onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      enabled: onTap != null,
+      title: Text(title),
+      subtitle: Text(value),
+      trailing: const Icon(Icons.calendar_today_outlined),
+      onTap: onTap,
+    );
+  }
+
+  Widget _previewBox(
+    BuildContext context,
+    ({double totalPayable, double totalInterest}) preview,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(AppSizes.md),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Total to pay: ${CurrencyFormatter.instance.format(preview.totalPayable)}',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          Text(
+            'Total interest: ${CurrencyFormatter.instance.format(preview.totalInterest)}',
+          ),
+        ],
       ),
     );
   }

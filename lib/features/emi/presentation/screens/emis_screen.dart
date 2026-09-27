@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/router/app_routes.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
+import '../../../lending/presentation/widgets/loan_emi_ui.dart';
 import '../../domain/emi.dart';
 import '../../domain/emi_loan_type.dart';
 import '../../domain/emi_status.dart';
@@ -18,7 +19,22 @@ import 'emis_trash_screen.dart';
 /// Full EMI list — every EMI regardless of status, with search and the
 /// primary "add EMI" entry point.
 class EmisScreen extends ConsumerStatefulWidget {
-  const EmisScreen({super.key});
+  const EmisScreen({
+    super.key,
+    this.title = 'EMIs',
+    this.header,
+    this.onAddRequest,
+  });
+
+  final String title;
+
+  /// Scrolls above the list — the Loan & EMI summary and Loans / EMIs switch
+  /// when this list is hosted inside the unified Loan & EMI screen.
+  final Widget? header;
+
+  /// When set, "Add" defers to the unified Loan & EMI chooser instead of
+  /// opening the EMI form directly.
+  final VoidCallback? onAddRequest;
 
   @override
   ConsumerState<EmisScreen> createState() => _EmisScreenState();
@@ -78,6 +94,23 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
     }).toList();
   }
 
+  void _add() {
+    final request = widget.onAddRequest;
+    if (request != null) {
+      request();
+    } else {
+      EmiFormSheet.show(context);
+    }
+  }
+
+  void _clearFilters() => setState(() {
+    _statusFilter = EmiListFilter.all;
+    _loanTypeFilter = null;
+    _query = '';
+    _searching = false;
+    _searchController.clear();
+  });
+
   @override
   Widget build(BuildContext context) {
     final repository = ref.watch(emiRepositoryProvider);
@@ -95,11 +128,11 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
                 ),
                 onChanged: (value) => setState(() => _query = value),
               )
-            : const Text('EMIs'),
+            : Text(widget.title),
         actions: [
           IconButton(
             icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded),
-            tooltip: _searching ? 'Close search' : 'Search',
+            tooltip: _searching ? 'Close search' : 'Search EMIs',
             onPressed: () => setState(() {
               _searching = !_searching;
               if (!_searching) {
@@ -110,169 +143,172 @@ class _EmisScreenState extends ConsumerState<EmisScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'Trash',
+            tooltip: 'EMIs trash',
             onPressed: () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const EmisTrashScreen())),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         heroTag: 'emis_fab',
-        onPressed: () => EmiFormSheet.show(context),
-        child: const Icon(Icons.add),
+        onPressed: _add,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Add'),
       ),
       body: emisAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) =>
             Center(child: Text('Something went wrong: $error')),
         data: (emis) {
+          final headerSliver = SliverToBoxAdapter(
+            child: widget.header ?? const SizedBox(height: AppSizes.sm),
+          );
+
           if (emis.isEmpty) {
-            return EmptyState(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'No EMIs yet',
-              subtitle: 'Add an EMI to start tracking your monthly payments.',
-              action: FilledButton(
-                onPressed: () => EmiFormSheet.show(context),
-                child: const Text('Add your first EMI'),
-              ),
+            return CustomScrollView(
+              slivers: [
+                headerSliver,
+                SliverFillRemaining(
+                  child: EmptyState(
+                    icon: LoanEmiCopy.emiIcon,
+                    title: 'No EMIs yet',
+                    subtitle:
+                        'An EMI is a purchase or Credit Card EMI you pay back '
+                        "in fixed installments. Add one to see what's due "
+                        "and what's left.",
+                    action: FilledButton(
+                      onPressed: () => EmiFormSheet.show(context),
+                      child: const Text('Add an EMI'),
+                    ),
+                  ),
+                ),
+              ],
             );
           }
 
           final searched = _applySearch(emis);
           final visible = _applyFilters(searched, ref);
+          // Only offer the type filter when the list actually has variety.
+          final types = {for (final e in emis) e.loanType}.toList()
+            ..sort((a, b) => a.index.compareTo(b.index));
 
-          return SafeArea(
-            child: CustomScrollView(
-              slivers: [
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSizes.lg,
-                    AppSizes.lg,
-                    AppSizes.lg,
-                    0,
-                  ),
-                  sliver: SliverList.list(
-                    children: [
+          return CustomScrollView(
+            slivers: [
+              headerSliver,
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSizes.lg),
+                sliver: SliverList.list(
+                  children: [
+                    if (emis.length > 1)
                       EmiStatusFilterChips(
                         selected: _statusFilter,
                         onChanged: (filter) =>
                             setState(() => _statusFilter = filter),
                       ),
+                    if (types.length > 1) ...[
                       const SizedBox(height: AppSizes.sm),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                right: AppSizes.xs,
-                              ),
-                              child: ChoiceChip(
-                                label: const Text('All loan types'),
-                                selected: _loanTypeFilter == null,
-                                onSelected: (_) =>
-                                    setState(() => _loanTypeFilter = null),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    AppSizes.radiusPill,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            for (final type in EmiLoanType.values)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  right: AppSizes.xs,
-                                ),
-                                child: ChoiceChip(
-                                  label: Text(type.label),
-                                  selected: _loanTypeFilter == type,
-                                  onSelected: (_) =>
-                                      setState(() => _loanTypeFilter = type),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(
-                                      AppSizes.radiusPill,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            _typeChip('All types', null),
+                            for (final type in types)
+                              _typeChip(type.label, type),
                           ],
                         ),
                       ),
-                      const SizedBox(height: AppSizes.lg),
-                      if (visible.isEmpty)
-                        const EmptyState(
-                          icon: Icons.search_off_rounded,
-                          title: 'No matching EMIs',
-                          subtitle: 'Try a different search or filter.',
-                        ),
                     ],
-                  ),
+                    const SizedBox(height: AppSizes.md),
+                    if (visible.isEmpty)
+                      EmptyState(
+                        icon: Icons.search_off_rounded,
+                        title: 'No matching EMIs',
+                        subtitle: 'Try a different search or filter.',
+                        action: TextButton(
+                          onPressed: _clearFilters,
+                          child: const Text('Clear filters'),
+                        ),
+                      ),
+                  ],
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSizes.lg,
-                    0,
-                    AppSizes.lg,
-                    AppSizes.md,
-                  ),
-                  sliver: SliverList.builder(
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) {
-                      final emi = visible[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSizes.sm),
-                        child: Dismissible(
-                          key: ValueKey(emi.id),
-                          direction: DismissDirection.endToStart,
-                          confirmDismiss: (_) =>
-                              confirmDelete(context, entityName: 'EMI'),
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSizes.lg,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.error.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(
-                                AppSizes.radiusLg,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.archive_outlined,
-                              color: Theme.of(context).colorScheme.error,
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSizes.lg,
+                  0,
+                  AppSizes.lg,
+                  AppSizes.fabClearance,
+                ),
+                sliver: SliverList.builder(
+                  itemCount: visible.length,
+                  itemBuilder: (context, index) {
+                    final emi = visible[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSizes.sm),
+                      child: Dismissible(
+                        key: ValueKey(emi.id),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (_) =>
+                            confirmDelete(context, entityName: 'EMI'),
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSizes.lg,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.error.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(
+                              AppSizes.radiusLg,
                             ),
                           ),
-                          onDismissed: (_) async {
-                            await repository.softDelete(emi);
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('EMI archived'),
-                                action: SnackBarAction(
-                                  label: 'Undo',
-                                  onPressed: () => repository.restore(emi),
-                                ),
-                              ),
-                            );
-                          },
-                          child: EmiTile(
-                            emi: emi,
-                            onTap: () =>
-                                context.push('${AppRoutes.emis}/${emi.id}'),
+                          child: Icon(
+                            Icons.archive_outlined,
+                            color: Theme.of(context).colorScheme.error,
                           ),
                         ),
-                      );
-                    },
-                  ),
+                        onDismissed: (_) async {
+                          await repository.softDelete(emi);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('EMI archived'),
+                              action: SnackBarAction(
+                                label: 'Undo',
+                                onPressed: () => repository.restore(emi),
+                              ),
+                            ),
+                          );
+                        },
+                        child: EmiTile(
+                          emi: emi,
+                          onTap: () =>
+                              context.push('${AppRoutes.emis}/${emi.id}'),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _typeChip(String label, EmiLoanType? type) {
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSizes.xs),
+      child: ChoiceChip(
+        label: Text(label),
+        selected: _loanTypeFilter == type,
+        onSelected: (_) => setState(() => _loanTypeFilter = type),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSizes.radiusPill),
+        ),
       ),
     );
   }

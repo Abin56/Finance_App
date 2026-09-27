@@ -612,7 +612,9 @@ void main() {
   );
 
   group('Validation', () {
-    test('rejects a payment on a one-time loan', () async {
+    // One-time loans ARE payable now (see one_time_loan_payment_test.dart);
+    // this still rejects because no installment is supplied.
+    test('rejects a one-time loan payment when no installment is supplied', () async {
       final acct = await account();
       final loan = await loanRepository.createLoan(
         loanAmount: 5000,

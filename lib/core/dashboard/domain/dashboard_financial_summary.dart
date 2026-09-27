@@ -23,15 +23,11 @@ class DashboardFinancialSummary {
     required this.overdueObligationsTotal,
   });
 
-  /// Sum of every account's `currentBalance` — read straight off
-  /// `netWorthProvider` (`lib/features/accounts/presentation/providers/account_providers.dart`).
-  /// Not resummed here.
-  ///
-  /// `totalLiabilities`/`totalAssets` are deliberately omitted: the Accounts
-  /// feature exposes no per-account type/liability-vs-asset split provider
-  /// today (only the flat `currentBalance` sum via `netWorthProvider`), and
-  /// building one would be a new calculation, not a composition of an
-  /// existing source — out of scope per this task's own rule.
+  /// Net Worth including loan principal — read straight off
+  /// `netWorthWithLoansProvider`
+  /// (`lib/features/lending/presentation/providers/loan_balance_sheet_providers.dart`):
+  /// account balances + principal owed TO me − loan/EMI principal I owe
+  /// (card-linked EMIs excluded, the card owns them). Not resummed here.
   final double netWorth;
 
   /// This calendar month's total income lines — read from

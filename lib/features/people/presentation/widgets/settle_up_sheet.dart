@@ -12,6 +12,7 @@ import '../../../expense/presentation/providers/expense_providers.dart';
 import '../../../expense/presentation/widgets/record_split_payment_sheet.dart';
 import '../../domain/person.dart';
 import '../providers/person_pending_participants_providers.dart';
+import '../providers/person_position_providers.dart';
 
 /// Which pending amount a payment is being recorded against — the three
 /// choices "Receive Money" offers so the user isn't forced to hunt through
@@ -51,8 +52,14 @@ class SettleUpSheet extends ConsumerStatefulWidget {
 class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
   final _formKey = GlobalKey<FormState>();
   _PaymentTarget _target = _PaymentTarget.allPending;
+
+  /// Settle Up settles the DIRECT Person balance only (split expenses, manual
+  /// entries). Loan principal is settled from the Loan, never through the
+  /// ledger — see [personPositionProvider].
+  double get _direct =>
+      ref.read(personPositionProvider(widget.person.id)).directBalance;
   late final _amountController = TextEditingController(
-    text: widget.person.currentBalance.abs().toStringAsFixed(2),
+    text: _direct.abs().toStringAsFixed(2),
   );
   final _noteController = TextEditingController();
   DateTime _date = DateTime.now();
@@ -106,6 +113,9 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
                   )),
                 ),
             note: note.isEmpty ? 'Payment recorded' : note,
+            legacyLoanLedger: ref
+                .read(personPositionProvider(widget.person.id))
+                .legacyLoanLedger,
           );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -129,11 +139,11 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
   }
 
   Future<void> _save() async {
-    if (widget.person.currentBalance == 0) return;
+    if (_direct == 0) return;
     switch (_target) {
       case _PaymentTarget.allPending:
         await _saveAllPendingOrCustom(
-          amount: widget.person.currentBalance.abs(),
+          amount: _direct.abs(),
           date: DateTime.now(),
           note: '',
         );
@@ -152,9 +162,8 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
   @override
   Widget build(BuildContext context) {
     final person = widget.person;
-    final amount = CurrencyFormatter.instance.format(
-      person.currentBalance.abs(),
-    );
+    final direct = ref.watch(personPositionProvider(person.id)).directBalance;
+    final amount = CurrencyFormatter.instance.format(direct.abs());
     final pendingParticipants = ref
         .watch(personSplitParticipantsProvider(person.id))
         .where((p) => p.installment.remainingAmount > 0)
@@ -167,13 +176,13 @@ class _SettleUpSheetState extends ConsumerState<SettleUpSheet> {
         confirmLabel: 'Save Payment',
         isSaving: _isSaving,
         showConfirm:
-            person.currentBalance != 0 &&
+            direct != 0 &&
             _target != _PaymentTarget.specificExpense,
         onConfirm: _save,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (person.currentBalance == 0)
+            if (direct == 0)
               Text(
                 'Nothing to receive — you\'re all paid up.',
                 style: context.textTheme.bodyMedium?.copyWith(

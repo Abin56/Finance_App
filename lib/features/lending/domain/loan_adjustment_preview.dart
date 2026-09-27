@@ -31,6 +31,7 @@ PrincipalPrepaymentPreview previewPrincipalPrepayment({
   required List<Installment> installments,
   required double principalAmount,
   required DateTime date,
+  double principalPrepaid = 0,
 }) {
   final eligible =
       installments
@@ -72,10 +73,12 @@ PrincipalPrepaymentPreview previewPrincipalPrepayment({
   final principalBefore = LoanFinancialSummary.from(
     installments: installments,
     originalPrincipal: loan.loanAmount,
+    principalPrepaid: principalPrepaid,
   ).principalRemaining;
   final afterScheduledPrincipal = LoanFinancialSummary.from(
     installments: afterScheduled,
     originalPrincipal: loan.loanAmount,
+    principalPrepaid: principalPrepaid,
   ).principalRemaining;
   final principalAfter = (afterScheduledPrincipal - principalAmount)
       .clamp(0, loan.loanAmount)
@@ -135,10 +138,12 @@ AdditionalDisbursementPreview previewAdditionalDisbursement({
   required Loan loan,
   required List<Installment> installments,
   required double amount,
+  double principalPrepaid = 0,
 }) {
   final principalBefore = LoanFinancialSummary.from(
     installments: installments,
     originalPrincipal: loan.loanAmount,
+    principalPrepaid: principalPrepaid,
   ).principalRemaining;
   final untouched =
       installments

@@ -13,6 +13,7 @@ import '../../domain/person_timeline_builder.dart';
 import '../../domain/person_timeline_cycle_item.dart';
 import '../../domain/person_timeline_entry.dart';
 import 'people_providers.dart';
+import 'person_position_providers.dart';
 
 /// Every payment recorded across a loan's whole installment schedule —
 /// fans out over the schedule's installments (payments are stored per
@@ -51,8 +52,9 @@ final _loanPaymentsProvider = Provider.autoDispose
 /// just in the summary card's totals.
 final personTimelineProvider = Provider.autoDispose
     .family<List<PersonTimelineEntry>, String>((ref, personId) {
-      final ledgerEntries =
-          ref.watch(ledgerStreamProvider(personId)).value ?? const [];
+      // Legacy Loan-generated ledger entries are left out: the Loan's own
+      // events (below) represent them, so nothing shows twice.
+      final ledgerEntries = ref.watch(directLedgerEntriesProvider(personId));
       final asLender = ref.watch(loansForPersonProvider(personId));
       final asPayer = ref.watch(loansPayableByPersonProvider(personId));
       final loans = {
@@ -209,14 +211,11 @@ final personCycleSummaryProvider = Provider.autoDispose
       final timeline = ref.watch(personTimelineProvider(personId));
       final classified = _classifyPersonTimeline(timeline);
 
-      final ledgerEntries =
-          ref.watch(ledgerStreamProvider(personId)).value ?? const [];
+      final ledgerEntries = ref.watch(directLedgerEntriesProvider(personId));
       final overallTotals = PersonOverallTotals.from(ledgerEntries);
 
-      final people = ref.watch(peopleStreamProvider).value ?? const [];
-      final netBalance =
-          people.where((p) => p.id == personId).firstOrNull?.currentBalance ??
-          overallTotals.netBalance;
+      // The one People position (direct ledger + Loans), same as the list.
+      final netBalance = ref.watch(personPositionProvider(personId)).net;
 
       return PersonCycleSummary.from(
         cycleResult: classified.result,

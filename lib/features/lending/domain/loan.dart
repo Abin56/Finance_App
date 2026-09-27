@@ -11,6 +11,10 @@ import 'loan_interest.dart';
 import 'loan_repayment_type.dart';
 import 'loan_status.dart';
 
+enum LoanAgreementKind { loan, installmentPurchase }
+
+enum LoanFundingSource { bank, financeCompany, creditCard, person, other }
+
 /// Money lent to a [Person], tracked through a linked `PaymentSchedule`
 /// (see [scheduleId]) rather than a cached balance — `Installment` already
 /// owns the cached amountPaid roll-up, so `Loan` doesn't need a second
@@ -33,6 +37,7 @@ class Loan extends SoftDeletableEntity {
     this.accountNumber,
     this.branch,
     this.payerPersonId,
+    this.beneficiaryPersonId,
     this.name,
     this.interest,
     this.dueDate,
@@ -40,10 +45,23 @@ class Loan extends SoftDeletableEntity {
     this.installmentCount,
     this.notes = '',
     this.isClosed = false,
+    this.agreementKind = LoanAgreementKind.loan,
+    this.fundingSource,
+    this.linkedCreditCardId,
+    this.purchaseTransactionId,
+    this.purchaseAmount,
+    this.downPayment,
   });
 
   @override
   final String id;
+
+  final LoanAgreementKind agreementKind;
+  final LoanFundingSource? fundingSource;
+  final String? linkedCreditCardId;
+  final String? purchaseTransactionId;
+  final double? purchaseAmount;
+  final double? downPayment;
 
   /// Required when [category] is [LoanCategory.personal]; null for
   /// [LoanCategory.institutional] loans, enforced by
@@ -76,6 +94,14 @@ class Loan extends SoftDeletableEntity {
   /// schedule/math impact. `null` means the account owner pays it
   /// themselves (today's default, unchanged).
   String? payerPersonId;
+
+  /// "Who is this for?" — the Person this borrowing was taken for, when that
+  /// isn't the account owner. Written by Web (`beneficiaryPersonId`); Flutter
+  /// has no UI for it yet but must carry it through, because every
+  /// repository edit here is a whole-document `set` — without this field a
+  /// Flutter close/edit/trash silently erased the Web user's association.
+  /// Pure association: no schedule, liability, card or Person-ledger effect.
+  String? beneficiaryPersonId;
 
   String? name;
 
@@ -143,6 +169,16 @@ class Loan extends SoftDeletableEntity {
     final data = snapshot.data()!;
     return Loan(
         id: snapshot.id,
+        agreementKind: data['agreementKind'] == 'installmentPurchase'
+            ? LoanAgreementKind.installmentPurchase
+            : LoanAgreementKind.loan,
+        fundingSource: LoanFundingSource.values
+            .where((value) => value.name == data['fundingSource'])
+            .firstOrNull,
+        linkedCreditCardId: data['linkedCreditCardId'] as String?,
+        purchaseTransactionId: data['purchaseTransactionId'] as String?,
+        purchaseAmount: (data['purchaseAmount'] as num?)?.toDouble(),
+        downPayment: (data['downPayment'] as num?)?.toDouble(),
         personId: data['personId'] as String?,
         direction: LoanDirectionX.fromName(data['direction'] as String?),
         category: LoanCategoryX.fromName(data['category'] as String?),
@@ -152,6 +188,7 @@ class Loan extends SoftDeletableEntity {
         accountNumber: data['accountNumber'] as String?,
         branch: data['branch'] as String?,
         payerPersonId: data['payerPersonId'] as String?,
+        beneficiaryPersonId: data['beneficiaryPersonId'] as String?,
         name: data['name'] as String?,
         loanAmount: (data['loanAmount'] as num).toDouble(),
         interest: data['interest'] == null
@@ -180,6 +217,12 @@ class Loan extends SoftDeletableEntity {
 
   Map<String, dynamic> toFirestore() {
     return {
+      'agreementKind': agreementKind.name,
+      'fundingSource': fundingSource?.name,
+      'linkedCreditCardId': linkedCreditCardId,
+      'purchaseTransactionId': purchaseTransactionId,
+      'purchaseAmount': purchaseAmount,
+      'downPayment': downPayment,
       'personId': personId,
       'direction': direction.name,
       'category': category.name,
@@ -189,6 +232,7 @@ class Loan extends SoftDeletableEntity {
       'accountNumber': accountNumber,
       'branch': branch,
       'payerPersonId': payerPersonId,
+      'beneficiaryPersonId': beneficiaryPersonId,
       'name': name,
       'loanAmount': loanAmount,
       'interest': interest?.toMap(),

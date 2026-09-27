@@ -899,6 +899,12 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     installmentPaymentRepositoryFor,
     String note = '',
     String? settlementMethod,
+    // Signed total of this person's active legacy Loan-generated ledger
+    // entries (`PersonPosition.legacyLoanLedger`). Settle Up settles the
+    // DIRECT balance only, so the remainder's direction is decided from
+    // `currentBalance - legacyLoanLedger` — never from Loan principal an old
+    // web Loan once mirrored into the ledger.
+    double legacyLoanLedger = 0,
   }) async {
     if (amount <= 0) {
       throw const AppException('Settlement amount must be greater than 0');
@@ -929,7 +935,7 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
     if (remaining > 0) {
       await _ledgerRepositoryFor(person.id).addEntry(
         person,
-        type: person.isCreditor
+        type: person.currentBalance - legacyLoanLedger > 0
             ? LedgerEntryType.receivedBack
             : LedgerEntryType.repaid,
         amount: remaining,

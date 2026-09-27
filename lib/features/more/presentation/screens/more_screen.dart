@@ -32,6 +32,20 @@ class MoreScreen extends ConsumerWidget {
   // accent is teal instead.
   static const _financeItems = [
     _MoreItem(
+      icon: Icons.event_repeat_rounded,
+      label: 'Loan & EMI',
+      subtitle: 'Loans and monthly EMI payments',
+      route: AppRoutes.loans,
+      color: AppColors.secondary,
+    ),
+    _MoreItem(
+      icon: Icons.account_balance_outlined,
+      label: 'Loans & Installments',
+      subtitle: 'Borrowed, lent, and financed purchases',
+      route: AppRoutes.agreements,
+      color: AppColors.secondary,
+    ),
+    _MoreItem(
       icon: Icons.pie_chart_outline_rounded,
       label: 'Reports',
       subtitle: 'Spending trends and analysis',

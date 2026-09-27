@@ -20,6 +20,7 @@ import '../../transactions/domain/transaction_type.dart';
 import '../domain/loan.dart';
 import '../domain/loan_additional_disbursement.dart';
 import '../domain/loan_direction.dart';
+import '../domain/loan_principal.dart';
 import '../domain/loan_reamortization_event.dart';
 import '../domain/loan_repayment_type.dart';
 
@@ -190,16 +191,15 @@ class LoanAdvancePaymentRepository {
       )
       .doc(accountId);
 
-  DocumentReference<domain.Transaction> _transactionRef(String id) =>
-      _firestore
-          .collection(FirestoreCollections.users)
-          .doc(_uid)
-          .collection(FirestoreCollections.transactions)
-          .withConverter<domain.Transaction>(
-            fromFirestore: domain.Transaction.fromFirestore,
-            toFirestore: (t, _) => t.toFirestore(),
-          )
-          .doc(id);
+  DocumentReference<domain.Transaction> _transactionRef(String id) => _firestore
+      .collection(FirestoreCollections.users)
+      .doc(_uid)
+      .collection(FirestoreCollections.transactions)
+      .withConverter<domain.Transaction>(
+        fromFirestore: domain.Transaction.fromFirestore,
+        toFirestore: (t, _) => t.toFirestore(),
+      )
+      .doc(id);
 
   DocumentReference<Loan> _loanRef(String loanId) => _firestore
       .collection(FirestoreCollections.users)
@@ -223,12 +223,12 @@ class LoanAdvancePaymentRepository {
           .doc(scheduleId);
 
   CollectionReference<Installment> _installments(String scheduleId) =>
-      _scheduleRef(
-        scheduleId,
-      ).collection(FirestoreCollections.installments).withConverter<Installment>(
-        fromFirestore: Installment.fromFirestore,
-        toFirestore: (i, _) => i.toFirestore(),
-      );
+      _scheduleRef(scheduleId)
+          .collection(FirestoreCollections.installments)
+          .withConverter<Installment>(
+            fromFirestore: Installment.fromFirestore,
+            toFirestore: (i, _) => i.toFirestore(),
+          );
 
   CollectionReference<InstallmentPayment> _payments(
     String scheduleId,
@@ -246,6 +246,22 @@ class LoanAdvancePaymentRepository {
     String installmentId,
     String paymentId,
   ) => _payments(scheduleId, installmentId).doc(paymentId);
+
+  /// Total active extra principal on [scheduleId], derived from persisted
+  /// payment records ([principalPrepaidFor]) — never a stored total. Reads
+  /// payments under EVERY installment, retired ones included: the
+  /// extra-principal record lives under the schedule's last installment,
+  /// which the re-plan that follows it usually retires. Mirrors Web's
+  /// `activePrincipalPrepaid`.
+  Future<double> _activePrincipalPrepaid(String scheduleId) async {
+    final all = await _installments(scheduleId).get();
+    final payments = <InstallmentPayment>[];
+    for (final doc in all.docs) {
+      final snap = await _payments(scheduleId, doc.id).get();
+      payments.addAll(snap.docs.map((d) => d.data()));
+    }
+    return principalPrepaidFor(payments);
+  }
 
   CollectionReference<LoanReamortizationEvent> _reamortizationEvents(
     String loanId,
@@ -293,12 +309,12 @@ class LoanAdvancePaymentRepository {
     if (amount <= 0) {
       throw const AppException('Payment amount must be greater than 0');
     }
-    if (loan.repaymentType != LoanRepaymentType.installment) {
-      throw const AppException(
-        'One-time loans have a single due amount — pay it directly, there '
-        'is no advance/prepayment concept for them',
-      );
-    }
+    // One-time loans ARE paid through this method (full or partial payments
+    // against their single installment — account movement, Transaction,
+    // idempotency and reversal exactly like an installment loan). They only
+    // refuse an overflow (see below): with no schedule to re-plan, money above
+    // what is owed has nowhere correct to go. Mirrors Web.
+    final isOneTime = loan.repaymentType == LoanRepaymentType.oneTime;
 
     // Ids/sequence/dueDate are immutable once an installment is generated —
     // safe to use from the caller's (possibly stale) list purely to know
@@ -320,7 +336,11 @@ class LoanAdvancePaymentRepository {
       if (sentinelSnap.exists) {
         final existing = sentinelSnap.data()!;
         final overflowSnap = await tx.get(
-          _paymentRef(loan.scheduleId, lastKnownInstallmentId, overflowPaymentId),
+          _paymentRef(
+            loan.scheduleId,
+            lastKnownInstallmentId,
+            overflowPaymentId,
+          ),
         );
         final existingOverflow = overflowSnap.data();
         return _CoreResult(
@@ -332,12 +352,17 @@ class LoanAdvancePaymentRepository {
           installmentIds: [
             if (existing.installmentId != null) existing.installmentId!,
           ],
-          overflowPaymentId: existingOverflow != null ? overflowPaymentId : null,
-          overflowInstallmentId:
-              existingOverflow != null ? lastKnownInstallmentId : null,
+          overflowPaymentId: existingOverflow != null
+              ? overflowPaymentId
+              : null,
+          overflowInstallmentId: existingOverflow != null
+              ? lastKnownInstallmentId
+              : null,
           overallType:
-              existing.paymentAllocationType ?? PaymentAllocationType.regularEmi,
-          prepaymentPrincipalAmount: existingOverflow?.prepaymentPrincipalAmount,
+              existing.paymentAllocationType ??
+              PaymentAllocationType.regularEmi,
+          prepaymentPrincipalAmount:
+              existingOverflow?.prepaymentPrincipalAmount,
         );
       }
 
@@ -353,11 +378,9 @@ class LoanAdvancePaymentRepository {
       }
 
       // --- Classification/allocation, computed from FRESH state only. ---
-      final freshSorted = knownIds
-          .map((k) => freshById[k.id])
-          .whereType<Installment>()
-          .toList()
-        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      final freshSorted =
+          knownIds.map((k) => freshById[k.id]).whereType<Installment>().toList()
+            ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
       final eligible = freshSorted
           .where((i) => i.remainingAmount > 0 && !i.isSkipped)
           .toList();
@@ -370,6 +393,11 @@ class LoanAdvancePaymentRepository {
           : (dueNow.isNotEmpty ? dueNow : [eligible.first]);
       final plan = InstallmentSettlement.plan(classificationScope, amount);
       final overflow = plan.unallocated;
+      if (isOneTime && overflow > 0) {
+        throw const AppException(
+          "Amount is more than what's still owed on this loan",
+        );
+      }
 
       final paymentIds = [
         for (var i = 0; i < plan.portions.length; i++)
@@ -438,7 +466,11 @@ class LoanAdvancePaymentRepository {
         // money reduces principal directly, not this (or any) installment's
         // own amountDue.
         tx.set(
-          _paymentRef(loan.scheduleId, lastKnownInstallmentId, overflowPayment.id),
+          _paymentRef(
+            loan.scheduleId,
+            lastKnownInstallmentId,
+            overflowPayment.id,
+          ),
           overflowPayment,
         );
       }
@@ -578,85 +610,85 @@ class LoanAdvancePaymentRepository {
     // expense; more principal IN (taken) is income.
     final isIncome = loan.direction == LoanDirection.taken;
 
-    final coreResult = await _firestore.runTransaction<_DisbursementCoreResult>((
-      tx,
-    ) async {
-      // --- All reads first (Firestore transaction constraint). ---
-      final sentinelSnap = await tx.get(_transactionRef(transactionId));
-      if (sentinelSnap.exists) {
-        final existingDisbSnap = await tx.get(
-          _disbursements(loan.id).doc(disbursementId),
+    final coreResult = await _firestore.runTransaction<_DisbursementCoreResult>(
+      (tx) async {
+        // --- All reads first (Firestore transaction constraint). ---
+        final sentinelSnap = await tx.get(_transactionRef(transactionId));
+        if (sentinelSnap.exists) {
+          final existingDisbSnap = await tx.get(
+            _disbursements(loan.id).doc(disbursementId),
+          );
+          return _DisbursementCoreResult(
+            alreadyRecorded: true,
+            disbursementId: existingDisbSnap.exists ? disbursementId : '',
+          );
+        }
+
+        final accountSnap = await tx.get(_accountRef(accountId));
+        final account = accountSnap.data();
+        if (account == null) throw const AppException('Account not found');
+
+        final freshLoanSnap = await tx.get(_loanRef(loan.id));
+        final freshLoan = freshLoanSnap.data();
+        if (freshLoan == null) {
+          throw const NotFoundException('Loan not found');
+        }
+
+        // --- Then all writes. ---
+        final disbursement = LoanAdditionalDisbursement(
+          id: disbursementId,
+          loanId: loan.id,
+          amount: amount,
+          date: date,
+          note: note,
+          createdAt: DateTime.now(),
+          transactionId: transactionId,
         );
+        tx.set(_disbursements(loan.id).doc(disbursementId), disbursement);
+
+        final transactionDoc = domain.Transaction(
+          id: transactionId,
+          type: isIncome ? TransactionType.income : TransactionType.expense,
+          amount: amount,
+          dateTime: date,
+          accountId: accountId,
+          // TODO(Phase 1): point at the real seeded "Loan Disbursement" system
+          // category once that seeding mechanism exists.
+          categoryId: 'loan_payment',
+          description: loan.name?.isNotEmpty == true
+              ? 'Additional disbursement — ${loan.name}'
+              : 'Additional disbursement',
+          createdAt: DateTime.now(),
+          loanId: loan.id,
+          paymentAllocationType: PaymentAllocationType.additionalDisbursement,
+        );
+        tx.set(_transactionRef(transactionId), transactionDoc);
+
+        final delta = isIncome ? amount : -amount;
+        final newBalance = account.currentBalance + delta;
+        account.recordEdit(
+          field: 'currentBalance',
+          oldValue: account.currentBalance.toString(),
+          newValue: newBalance.toString(),
+        );
+        account.currentBalance = newBalance;
+        tx.set(_accountRef(accountId), account);
+
+        final newLoanAmount = freshLoan.loanAmount + amount;
+        freshLoan.recordEdit(
+          field: 'loanAmount (additional disbursement)',
+          oldValue: freshLoan.loanAmount.toString(),
+          newValue: newLoanAmount.toString(),
+        );
+        freshLoan.loanAmount = newLoanAmount;
+        tx.set(_loanRef(loan.id), freshLoan);
+
         return _DisbursementCoreResult(
-          alreadyRecorded: true,
-          disbursementId: existingDisbSnap.exists ? disbursementId : '',
+          alreadyRecorded: false,
+          disbursementId: disbursementId,
         );
-      }
-
-      final accountSnap = await tx.get(_accountRef(accountId));
-      final account = accountSnap.data();
-      if (account == null) throw const AppException('Account not found');
-
-      final freshLoanSnap = await tx.get(_loanRef(loan.id));
-      final freshLoan = freshLoanSnap.data();
-      if (freshLoan == null) {
-        throw const NotFoundException('Loan not found');
-      }
-
-      // --- Then all writes. ---
-      final disbursement = LoanAdditionalDisbursement(
-        id: disbursementId,
-        loanId: loan.id,
-        amount: amount,
-        date: date,
-        note: note,
-        createdAt: DateTime.now(),
-        transactionId: transactionId,
-      );
-      tx.set(_disbursements(loan.id).doc(disbursementId), disbursement);
-
-      final transactionDoc = domain.Transaction(
-        id: transactionId,
-        type: isIncome ? TransactionType.income : TransactionType.expense,
-        amount: amount,
-        dateTime: date,
-        accountId: accountId,
-        // TODO(Phase 1): point at the real seeded "Loan Disbursement" system
-        // category once that seeding mechanism exists.
-        categoryId: 'loan_payment',
-        description: loan.name?.isNotEmpty == true
-            ? 'Additional disbursement — ${loan.name}'
-            : 'Additional disbursement',
-        createdAt: DateTime.now(),
-        loanId: loan.id,
-        paymentAllocationType: PaymentAllocationType.additionalDisbursement,
-      );
-      tx.set(_transactionRef(transactionId), transactionDoc);
-
-      final delta = isIncome ? amount : -amount;
-      final newBalance = account.currentBalance + delta;
-      account.recordEdit(
-        field: 'currentBalance',
-        oldValue: account.currentBalance.toString(),
-        newValue: newBalance.toString(),
-      );
-      account.currentBalance = newBalance;
-      tx.set(_accountRef(accountId), account);
-
-      final newLoanAmount = freshLoan.loanAmount + amount;
-      freshLoan.recordEdit(
-        field: 'loanAmount (additional disbursement)',
-        oldValue: freshLoan.loanAmount.toString(),
-        newValue: newLoanAmount.toString(),
-      );
-      freshLoan.loanAmount = newLoanAmount;
-      tx.set(_loanRef(loan.id), freshLoan);
-
-      return _DisbursementCoreResult(
-        alreadyRecorded: false,
-        disbursementId: disbursementId,
-      );
-    });
+      },
+    );
 
     if (coreResult.alreadyRecorded) {
       return LoanAdditionalDisbursementResult(
@@ -790,7 +822,11 @@ class LoanAdvancePaymentRepository {
       InstallmentPayment? freshOverflowPayment;
       if (overflowPaymentId != null && overflowInstallmentId != null) {
         final overflowSnap = await tx.get(
-          _paymentRef(loan.scheduleId, overflowInstallmentId, overflowPaymentId),
+          _paymentRef(
+            loan.scheduleId,
+            overflowInstallmentId,
+            overflowPaymentId,
+          ),
         );
         freshOverflowPayment = overflowSnap.data();
       }
@@ -825,7 +861,11 @@ class LoanAdvancePaymentRepository {
         // nothing to reverse there, only the payment doc itself.
         freshOverflowPayment.markDeleted();
         tx.set(
-          _paymentRef(loan.scheduleId, overflowInstallmentId!, overflowPaymentId!),
+          _paymentRef(
+            loan.scheduleId,
+            overflowInstallmentId!,
+            overflowPaymentId!,
+          ),
           freshOverflowPayment,
         );
       }
@@ -967,10 +1007,7 @@ class LoanAdvancePaymentRepository {
       // --- Then all writes. ---
       if (freshDisbursement != null && !freshDisbursement.isDeleted) {
         freshDisbursement.markDeleted();
-        tx.set(
-          _disbursements(loan.id).doc(disbursementId),
-          freshDisbursement,
-        );
+        tx.set(_disbursements(loan.id).doc(disbursementId), freshDisbursement);
 
         final newLoanAmount = freshLoan.loanAmount - freshDisbursement.amount;
         freshLoan.recordEdit(
@@ -1044,7 +1081,10 @@ class LoanAdvancePaymentRepository {
     final allInstallments = await _installments(loan.scheduleId).get();
     for (final doc in allInstallments.docs) {
       final installment = doc.data();
-      final paymentsSnap = await _payments(loan.scheduleId, installment.id).get();
+      final paymentsSnap = await _payments(
+        loan.scheduleId,
+        installment.id,
+      ).get();
       for (final paymentDoc in paymentsSnap.docs) {
         final payment = paymentDoc.data();
         if (payment.isDeleted) continue;
@@ -1059,9 +1099,9 @@ class LoanAdvancePaymentRepository {
 
     if (event == null) return;
 
-    final laterEvents = await _reamortizationEvents(loan.id)
-        .where('reversed', isEqualTo: false)
-        .get();
+    final laterEvents = await _reamortizationEvents(
+      loan.id,
+    ).where('reversed', isEqualTo: false).get();
     for (final doc in laterEvents.docs) {
       final other = doc.data();
       if (other.id == event.id) continue;
@@ -1073,7 +1113,9 @@ class LoanAdvancePaymentRepository {
     }
 
     for (final installmentId in event.generatedInstallmentIds) {
-      final snap = await _installments(loan.scheduleId).doc(installmentId).get();
+      final snap = await _installments(
+        loan.scheduleId,
+      ).doc(installmentId).get();
       final installment = snap.data();
       if (installment != null && installment.amountPaid > 0) {
         throw const PaymentReversalBlockedException(
@@ -1112,7 +1154,9 @@ class LoanAdvancePaymentRepository {
     }
 
     for (final installmentId in freshEvent.generatedInstallmentIds) {
-      final snap = await _installments(loan.scheduleId).doc(installmentId).get();
+      final snap = await _installments(
+        loan.scheduleId,
+      ).doc(installmentId).get();
       final installment = snap.data();
       if (installment != null && installment.amountPaid > 0) {
         return const PaymentReversalResult(
@@ -1139,14 +1183,18 @@ class LoanAdvancePaymentRepository {
 
     final batch = _firestore.batch();
     for (final installmentId in freshEvent.retiredInstallmentIds) {
-      final snap = await _installments(loan.scheduleId).doc(installmentId).get();
+      final snap = await _installments(
+        loan.scheduleId,
+      ).doc(installmentId).get();
       final installment = snap.data();
       if (installment == null) continue;
       installment.restoreFromTrash();
       batch.set(_installments(loan.scheduleId).doc(installmentId), installment);
     }
     for (final installmentId in freshEvent.generatedInstallmentIds) {
-      final snap = await _installments(loan.scheduleId).doc(installmentId).get();
+      final snap = await _installments(
+        loan.scheduleId,
+      ).doc(installmentId).get();
       final installment = snap.data();
       if (installment == null) continue;
       installment.markDeleted();
@@ -1251,12 +1299,15 @@ class LoanAdvancePaymentRepository {
       if (i.amountPaid >= i.amountDue) return total + principalShare;
       return total + principalShare * (i.amountPaid / i.amountDue);
     });
-    // The prepayment overflow itself is never applied to any installment's
-    // amountDue (it's recorded as a ledger-only InstallmentPayment — see
-    // record()'s doc comment), so it never shows up in settled/untouched's
-    // principal math above and must be subtracted here explicitly, or this
-    // solve would completely ignore the money that triggered it.
-    final principalPaid = principalPaidViaInstallments + triggeringPrepaymentAmount;
+    // Extra-principal overflows are never applied to any installment's
+    // amountDue (ledger-only InstallmentPayments — see record()'s doc
+    // comment), so they never show up in settled/untouched's principal math
+    // above and must be subtracted explicitly — ALL active ones, not just this
+    // triggering one (already committed, so it is included). Subtracting only
+    // the triggering amount gave every earlier extra-principal payment back.
+    final principalPaid =
+        principalPaidViaInstallments +
+        await _activePrincipalPrepaid(loan.scheduleId);
     final outstandingPrincipalAfter = (freshLoan.loanAmount - principalPaid)
         .clamp(0, freshLoan.loanAmount)
         .toDouble();
@@ -1282,7 +1333,10 @@ class LoanAdvancePaymentRepository {
     final batch = _firestore.batch();
     for (final installment in untouched) {
       installment.markDeleted();
-      batch.set(_installments(loan.scheduleId).doc(installment.id), installment);
+      batch.set(
+        _installments(loan.scheduleId).doc(installment.id),
+        installment,
+      );
     }
 
     final remainingCount = outcome.remainingInstallmentCount;
@@ -1300,7 +1354,9 @@ class LoanAdvancePaymentRepository {
         period: interest.period,
         installmentCount: remainingCount,
         installmentFrequency: InterestPeriod.monthly,
-        installmentsPerYear: _installmentsPerYearFor(freshLoan.installmentFrequency!),
+        installmentsPerYear: _installmentsPerYearFor(
+          freshLoan.installmentFrequency!,
+        ),
       );
       precomputed = breakdown.periods
           .map(
@@ -1314,9 +1370,10 @@ class LoanAdvancePaymentRepository {
     }
     final amounts =
         precomputed ??
-        _evenSplit(outstandingPrincipalAfter, remainingCount)
-            .map((a) => PrecomputedInstallmentAmount(amountDue: a))
-            .toList();
+        _evenSplit(
+          outstandingPrincipalAfter,
+          remainingCount,
+        ).map((a) => PrecomputedInstallmentAmount(amountDue: a)).toList();
 
     var newTailTotal = 0.0;
     final generatedInstallmentIds = <String>[];
@@ -1432,7 +1489,8 @@ class LoanAdvancePaymentRepository {
         'Loan could not be found for re-amortization',
       );
     }
-    final loanAmountBeforeDisbursement = freshLoan.loanAmount - disbursementAmount;
+    final loanAmountBeforeDisbursement =
+        freshLoan.loanAmount - disbursementAmount;
 
     // `deletedAt` must be filtered here — see `_reamortize`'s identical
     // filtered read for why: an earlier re-amortization on this loan (a
@@ -1464,8 +1522,11 @@ class LoanAdvancePaymentRepository {
       if (i.amountPaid >= i.amountDue) return total + principalShare;
       return total + principalShare * (i.amountPaid / i.amountDue);
     });
+    // Earlier extra-principal payments stay subtracted — without this, a
+    // Borrow/Lend More after an extra-principal payment gave it back.
+    final principalPrepaid = await _activePrincipalPrepaid(loan.scheduleId);
     final outstandingPrincipalAfter =
-        (freshLoan.loanAmount - principalPaidViaInstallments)
+        (freshLoan.loanAmount - principalPaidViaInstallments - principalPrepaid)
             .clamp(0, freshLoan.loanAmount)
             .toDouble();
 
@@ -1488,7 +1549,10 @@ class LoanAdvancePaymentRepository {
     final batch = _firestore.batch();
     for (final installment in untouched) {
       installment.markDeleted();
-      batch.set(_installments(loan.scheduleId).doc(installment.id), installment);
+      batch.set(
+        _installments(loan.scheduleId).doc(installment.id),
+        installment,
+      );
     }
 
     final remainingCount = outcome.remainingInstallmentCount;
@@ -1506,7 +1570,9 @@ class LoanAdvancePaymentRepository {
         period: interest.period,
         installmentCount: remainingCount,
         installmentFrequency: InterestPeriod.monthly,
-        installmentsPerYear: _installmentsPerYearFor(freshLoan.installmentFrequency!),
+        installmentsPerYear: _installmentsPerYearFor(
+          freshLoan.installmentFrequency!,
+        ),
       );
       precomputed = breakdown.periods
           .map(
@@ -1520,9 +1586,10 @@ class LoanAdvancePaymentRepository {
     }
     final amounts =
         precomputed ??
-        _evenSplit(outstandingPrincipalAfter, remainingCount)
-            .map((a) => PrecomputedInstallmentAmount(amountDue: a))
-            .toList();
+        _evenSplit(
+          outstandingPrincipalAfter,
+          remainingCount,
+        ).map((a) => PrecomputedInstallmentAmount(amountDue: a)).toList();
 
     var newTailTotal = 0.0;
     final generatedInstallmentIds = <String>[];

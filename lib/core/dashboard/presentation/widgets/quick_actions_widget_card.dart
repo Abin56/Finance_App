@@ -10,6 +10,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../features/expense/presentation/widgets/split_expense_form_sheet.dart';
 import '../../../../features/people/domain/person.dart';
 import '../../../../features/people/presentation/providers/people_providers.dart';
+import '../../../../features/people/presentation/providers/person_position_providers.dart';
 import '../../../../features/people/presentation/widgets/person_avatar.dart';
 import '../../../../features/people/presentation/widgets/settle_up_sheet.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
@@ -32,10 +33,15 @@ class QuickActionsWidgetCard extends ConsumerWidget {
     // Debtors first (money you owe is usually the more urgent side), then
     // creditors — both already sorted largest-balance-first by their
     // providers.
+    // Settle Up settles the DIRECT ledger balance only; Loans are settled from
+    // the Loan. So list people by direct balance, not the Loan-inclusive net.
+    double direct(Person p) =>
+        ref.read(personPositionProvider(p.id)).directBalance;
     final people = [
       ...ref.read(debtorsProvider),
       ...ref.read(creditorsProvider),
-    ];
+    ].where((p) => direct(p) != 0).toList();
+    final directById = {for (final p in people) p.id: direct(p)};
     if (people.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -44,7 +50,7 @@ class QuickActionsWidgetCard extends ConsumerWidget {
       );
       return;
     }
-    final person = await _SettleUpPersonSheet.show(context, people);
+    final person = await _SettleUpPersonSheet.show(context, people, directById);
     if (person == null || !context.mounted) return;
     await SettleUpSheet.show(context, person);
   }
@@ -173,15 +179,22 @@ class _ActionTile extends StatelessWidget {
 /// each labeled with the direction and amount pending, and resolves to the
 /// tapped [Person] (or null when dismissed).
 class _SettleUpPersonSheet extends StatelessWidget {
-  const _SettleUpPersonSheet({required this.people});
+  const _SettleUpPersonSheet({required this.people, required this.direct});
 
   final List<Person> people;
 
-  static Future<Person?> show(BuildContext context, List<Person> people) {
+  /// Direct ledger balance per person id — what Settle Up actually settles.
+  final Map<String, double> direct;
+
+  static Future<Person?> show(
+    BuildContext context,
+    List<Person> people,
+    Map<String, double> direct,
+  ) {
     return showModalBottomSheet<Person>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _SettleUpPersonSheet(people: people),
+      builder: (_) => _SettleUpPersonSheet(people: people, direct: direct),
     );
   }
 
@@ -224,11 +237,11 @@ class _SettleUpPersonSheet extends StatelessWidget {
                       ),
                       title: Text(person.name),
                       subtitle: Text(
-                        person.isDebtor
-                            ? 'You owe ${format.format(person.currentBalance.abs())}'
-                            : 'Owes you ${format.format(person.currentBalance)}',
+                        (direct[person.id] ?? 0) < 0
+                            ? 'You owe ${format.format((direct[person.id] ?? 0).abs())}'
+                            : 'Owes you ${format.format(direct[person.id] ?? 0)}',
                         style: textTheme.bodySmall?.copyWith(
-                          color: person.isDebtor
+                          color: (direct[person.id] ?? 0) < 0
                               ? AppColors.expense
                               : AppColors.income,
                           fontWeight: FontWeight.w600,

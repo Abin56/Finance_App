@@ -10,6 +10,8 @@ import '../../../../features/reports/domain/reports_period.dart';
 import '../../../../features/transactions/domain/transaction.dart';
 import '../../../../features/transactions/domain/transaction_type.dart';
 import '../../../../features/transactions/presentation/providers/transaction_providers.dart';
+import '../../../../features/lending/domain/loan_direction.dart';
+import '../../../payment_schedule/domain/loan_cash_flow.dart';
 import '../../../payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../services/fiscal_year_controller.dart';
 import '../../domain/date_range_strategy.dart';
@@ -261,15 +263,37 @@ double _emiPaid(Ref ref, DateRange range) {
   return paid;
 }
 
+/// Money Out from Loan repayments that exist ONLY on the schedule. Two
+/// exclusions keep every Loan money movement counted exactly once and with
+/// the right sign (mirrors Web's `dashboardLoanPaidRows`):
+///  - money I lent ([LoanDirection.given]): a repayment received is not
+///    spending;
+///  - payments linked to a physical Transaction: [_myExpenses] already counts
+///    that Transaction — see [countsFromSchedule].
+/// Still bucketed by the owning installment's due date, as before.
 double _loanPaid(Ref ref, DateRange range) {
   final loans = ref.watch(activeLoansProvider);
   var paid = 0.0;
   for (final loan in loans) {
+    if (loan.direction != LoanDirection.taken) continue;
     final installments =
         ref.watch(installmentsStreamProvider(loan.scheduleId)).value ??
         const [];
     for (final i in installments) {
-      if (range.contains(i.dueDate)) paid += i.amountPaid;
+      if (i.amountPaid <= 0 || !range.contains(i.dueDate)) continue;
+      final payments =
+          ref
+              .watch(
+                installmentPaymentsStreamProvider((
+                  scheduleId: loan.scheduleId,
+                  installmentId: i.id,
+                )),
+              )
+              .value ??
+          const [];
+      for (final payment in payments) {
+        if (countsFromSchedule(payment)) paid += payment.amount;
+      }
     }
   }
   return paid;

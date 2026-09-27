@@ -14,7 +14,7 @@ extension LoanListFilterX on LoanListFilter {
       case LoanListFilter.active:
         return 'Active';
       case LoanListFilter.overdue:
-        return 'Missed Payment';
+        return 'Missed payment';
       case LoanListFilter.closed:
         return 'Closed';
     }
@@ -29,11 +29,11 @@ extension LoanDirectionFilterX on LoanDirectionFilter {
   String get label {
     switch (this) {
       case LoanDirectionFilter.all:
-        return 'All';
+        return 'Borrowed & lent';
       case LoanDirectionFilter.given:
-        return 'I Gave';
+        return 'I lent';
       case LoanDirectionFilter.taken:
-        return 'I Borrowed';
+        return 'I borrowed';
     }
   }
 }
@@ -81,11 +81,11 @@ extension LoanCategoryFilterX on LoanCategoryFilter {
   String get label {
     switch (this) {
       case LoanCategoryFilter.all:
-        return 'All';
+        return 'Banks & people';
       case LoanCategoryFilter.personal:
-        return 'Personal';
+        return 'From people';
       case LoanCategoryFilter.institutional:
-        return 'Institution';
+        return 'From banks';
     }
   }
 }

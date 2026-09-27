@@ -20,16 +20,19 @@ extension PeopleFilterX on PeopleFilter {
     }
   }
 
-  bool matches(Person person) {
+  /// [balance] is the person's net position (direct ledger + Loans);
+  /// defaults to the ledger balance.
+  bool matches(Person person, [double? balance]) {
+    final value = balance ?? person.currentBalance;
     switch (this) {
       case PeopleFilter.all:
         return true;
       case PeopleFilter.owesMe:
-        return person.isCreditor;
+        return value > 0;
       case PeopleFilter.iOwe:
-        return person.isDebtor;
+        return value < 0;
       case PeopleFilter.settled:
-        return person.currentBalance == 0;
+        return value == 0;
     }
   }
 }

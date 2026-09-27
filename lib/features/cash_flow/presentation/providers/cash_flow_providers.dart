@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/payment_schedule/domain/installment_status.dart';
+import '../../../../core/payment_schedule/domain/loan_cash_flow.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../shared/domain/payment_urgency.dart';
 import '../../../bills/domain/bill_status.dart';
@@ -640,6 +641,10 @@ final moneyInLinesForRangeFamilyProvider =
                   .value ??
               const [];
           for (final payment in payments) {
+            // Counted once: a payment linked to a physical Transaction is
+            // already the income Transaction line above — see
+            // [countsFromSchedule].
+            if (!countsFromSchedule(payment)) continue;
             final bucketDate = payment.date;
             if (bucketDate.isBefore(range.start) ||
                 bucketDate.isAfter(range.end)) {
@@ -780,6 +785,10 @@ final moneyOutLinesForRangeFamilyProvider =
                   .value ??
               const [];
           for (final payment in payments) {
+            // Counted once: a payment linked to a physical Transaction is
+            // already the expense Transaction line above — see
+            // [countsFromSchedule].
+            if (!countsFromSchedule(payment)) continue;
             final bucketDate = payment.date;
             if (bucketDate.isBefore(range.start) ||
                 bucketDate.isAfter(range.end)) {

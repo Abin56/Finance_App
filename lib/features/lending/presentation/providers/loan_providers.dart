@@ -8,10 +8,10 @@ import '../../../../core/payment_schedule/domain/installment_cycle_item.dart';
 import '../../../../core/payment_schedule/domain/installment_payment.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
 import '../../../../core/providers/firebase_providers.dart';
-import '../../../people/presentation/providers/people_providers.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 import '../../data/loan_repository.dart';
 import '../../data/loan_advance_payment_repository.dart';
+import '../../../people/presentation/providers/person_position_providers.dart';
 import '../../domain/loan.dart';
 import '../../domain/loan_dashboard_metrics.dart';
 import '../../domain/loan_direction.dart';
@@ -79,50 +79,31 @@ final loansPayableByPersonProvider = Provider.autoDispose
       return loans.where((l) => l.payerPersonId == personId).toList();
     });
 
-/// This person's combined "who owes whom" picture — see
-/// [PersonLoanLedgerSummary]'s own doc comment for why adding the ledger
-/// balance to loan outstanding totals is always safe (independent sources,
-/// never the same event counted twice). Folds exactly the same loans
-/// [PersonLoansSummaryCard] already reads ([loansForPersonProvider] +
-/// [loansPayableByPersonProvider], deduped by id) through
-/// [loanRemainingAmountProvider] — no new loan-balance calculation, and the
-/// ledger side is read straight off `Person.currentBalance`, never
-/// recomputed from raw [LedgerEntry]s here.
+/// This person's combined "who owes whom" picture, from the one People rule
+/// ([personPositionProvider], shared with the web app): the DIRECT ledger
+/// balance (legacy Loan-generated ledger entries taken out, so an old web Loan
+/// is not counted twice) plus the outstanding principal of Loans this person
+/// is the counterparty on ([Loan.personId]). Loans they merely pay EMIs on
+/// ([Loan.payerPersonId]) are not debts to them — what you owe them for those
+/// EMIs is already a direct ledger entry.
 final personLoanLedgerSummaryProvider = Provider.autoDispose
     .family<PersonLoanLedgerSummary, String>((ref, personId) {
-      final people = ref.watch(peopleStreamProvider).value ?? const [];
-      final person = people.where((p) => p.id == personId).firstOrNull;
-      final ledgerBalance = person?.currentBalance ?? 0;
-
-      final asLender = ref.watch(loansForPersonProvider(personId));
-      final asPayer = ref.watch(loansPayableByPersonProvider(personId));
-      final loans = <String, Loan>{
-        for (final loan in asLender) loan.id: loan,
-        for (final loan in asPayer) loan.id: loan,
-      }.values;
-
+      final position = ref.watch(personPositionProvider(personId));
       var loanGivenTotal = 0.0;
-      var loanGivenOutstanding = 0.0;
       var loanTakenTotal = 0.0;
-      var loanTakenOutstanding = 0.0;
-      for (final loan in loans) {
-        if (ref.watch(loanStatusProvider(loan)) == LoanStatus.closed) continue;
-        final remaining = ref.watch(loanRemainingAmountProvider(loan));
+      for (final loan in ref.watch(loansForPersonProvider(personId))) {
         if (loan.direction == LoanDirection.given) {
           loanGivenTotal += loan.loanAmount;
-          loanGivenOutstanding += remaining;
         } else {
           loanTakenTotal += loan.loanAmount;
-          loanTakenOutstanding += remaining;
         }
       }
-
       return PersonLoanLedgerSummary(
-        ledgerBalance: ledgerBalance,
+        ledgerBalance: position.directBalance,
         loanGivenTotal: loanGivenTotal,
-        loanGivenOutstanding: loanGivenOutstanding,
+        loanGivenOutstanding: position.loanReceivable,
         loanTakenTotal: loanTakenTotal,
-        loanTakenOutstanding: loanTakenOutstanding,
+        loanTakenOutstanding: position.loanPayable,
       );
     });
 
@@ -139,7 +120,21 @@ final loanFinancialSummaryProvider = Provider.autoDispose
       return LoanFinancialSummary.from(
         installments: installments,
         originalPrincipal: loan.loanAmount,
+        principalPrepaid:
+            ref.watch(loanPrincipalPrepaidProvider(loan)).value ?? 0,
       );
+    });
+
+/// Active extra principal paid on [loan], derived from its persisted payment
+/// records (`LoanRepository.activePrincipalPrepaid`) — the source of truth,
+/// never a stored total. Re-derives whenever the live installment stream
+/// changes (every extra-principal payment, re-plan and reversal changes it).
+final loanPrincipalPrepaidProvider = FutureProvider.autoDispose
+    .family<double, Loan>((ref, loan) {
+      ref.watch(installmentsStreamProvider(loan.scheduleId));
+      return ref
+          .watch(loanRepositoryProvider)
+          .activePrincipalPrepaid(loan.scheduleId);
     });
 
 /// The next installment still owed on a loan — the earliest (by

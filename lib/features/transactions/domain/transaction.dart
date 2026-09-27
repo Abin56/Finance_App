@@ -131,6 +131,22 @@ class Transaction extends SoftDeletableEntity {
   /// both income and expense in this app's Dashboard/Reports/Budget totals.
   bool get isTransfer => transferId != null;
 
+  /// A Loan principal disbursement — the origination movement
+  /// (`LoanRepository.createAgreementWithOrigination`) or a later Borrow More
+  /// / Lend More (`recordAdditionalDisbursement`). It really moves the Account
+  /// (so it keeps `excludeFromCalculations == false`: that flag also zeroes
+  /// [balanceEffect]), but the money is a liability/receivable change, not
+  /// income or spending. Mirrors the web app's `isLoanPrincipalDisbursement`.
+  bool get isLoanPrincipalDisbursement =>
+      loanId != null &&
+      paymentAllocationType == PaymentAllocationType.additionalDisbursement;
+
+  /// Whether income/expense totals must skip this transaction: transfer legs
+  /// and Loan principal disbursements. Mirrors the web app's
+  /// `isNonIncomeExpenseMovement`.
+  bool get isNonIncomeExpenseMovement =>
+      isTransfer || isLoanPrincipalDisbursement;
+
   /// The signed delta this transaction applies to its account's balance —
   /// the single source of truth for balance math, so the repository never
   /// has to duplicate "income adds, expense subtracts" logic.

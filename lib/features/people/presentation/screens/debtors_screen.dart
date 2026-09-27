@@ -8,6 +8,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../providers/people_providers.dart';
+import '../providers/person_position_providers.dart';
 import '../widgets/person_tile.dart';
 
 /// People you owe money to — a filtered view over the same people
@@ -18,6 +19,7 @@ class DebtorsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final debtors = ref.watch(debtorsProvider);
+    final balances = ref.watch(personNetBalancesProvider);
     final totalPayable = ref.watch(totalPayableProvider);
     final peopleAsync = ref.watch(peopleStreamProvider);
 
@@ -65,6 +67,7 @@ class DebtorsScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: AppSizes.sm),
                     child: PersonTile(
                       person: person,
+                      balance: balances[person.id],
                       onTap: () =>
                           context.push('${AppRoutes.people}/${person.id}'),
                     ),

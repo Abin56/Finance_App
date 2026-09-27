@@ -31,6 +31,8 @@ abstract class AppRoutes {
   static const String creditors = '/creditors';
   static const String debtors = '/debtors';
   static const String personStatement = '/people/:personId';
+  static const String agreements = '/loans-installments';
+  static const String addAgreement = '/loans-installments/add';
   static const String loans = '/loans';
   static const String loanDashboard = '/loans/dashboard';
   static const String loanDetail = '/loans/:loanId';

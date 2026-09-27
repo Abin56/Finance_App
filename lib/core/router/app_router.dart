@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/accounts/presentation/screens/account_detail_screen.dart';
 import '../../features/accounts/presentation/screens/accounts_screen.dart';
+import '../../features/agreements/presentation/screens/unified_agreements_screen.dart';
+import '../../features/agreements/presentation/screens/unified_agreement_create_screen.dart';
 import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
@@ -18,10 +20,9 @@ import '../../features/credit_cards/presentation/screens/credit_cards_screen.dar
 import '../../features/credit_cards/presentation/screens/statement_detail_screen.dart';
 import '../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/emi/presentation/screens/emi_detail_screen.dart';
-import '../../features/emi/presentation/screens/emis_screen.dart';
 import '../../features/lending/presentation/screens/loan_dashboard_screen.dart';
 import '../../features/lending/presentation/screens/loan_detail_screen.dart';
-import '../../features/lending/presentation/screens/loans_screen.dart';
+import '../../features/lending/presentation/screens/loan_emi_screen.dart';
 import '../../features/more/presentation/screens/about_screen.dart';
 import '../../features/more/presentation/screens/coming_soon_screen.dart';
 import '../../features/more/presentation/screens/more_screen.dart';
@@ -197,8 +198,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const DebtorsScreen(),
       ),
       GoRoute(
+        path: AppRoutes.agreements,
+        builder: (context, state) => const UnifiedAgreementsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.addAgreement,
+        builder: (context, state) => UnifiedAgreementCreateScreen(
+          initialKind: UnifiedCreateKind.values
+              .where((value) => value.name == state.uri.queryParameters['kind'])
+              .firstOrNull,
+        ),
+      ),
+      GoRoute(
         path: AppRoutes.loans,
-        builder: (context, state) => const LoansScreen(),
+        builder: (context, state) => const LoanEmiScreen(),
       ),
       GoRoute(
         path: AppRoutes.loanDashboard,
@@ -211,7 +224,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.emis,
-        builder: (context, state) => const EmisScreen(),
+        // Kept so existing EMI links land on the EMI tab of Loan & EMI.
+        builder: (context, state) =>
+            const LoanEmiScreen(initialTab: LoanEmiTab.emis),
       ),
       GoRoute(
         path: AppRoutes.emiDetail,

@@ -42,11 +42,17 @@ final transactionsStreamProvider = StreamProvider<List<Transaction>>((ref) {
 /// web app's own `isTransfer` exclusion in its Dashboard/Reports hooks.
 /// History/Search/Transaction Detail/Calendar/SMS linking must keep watching
 /// the raw stream, since an excluded transaction still needs to appear
-/// there.
+/// there. Loan principal disbursements
+/// ([Transaction.isLoanPrincipalDisbursement] — borrowed/lent principal at
+/// origination, Borrow/Lend More) are excluded for the same reason as
+/// transfers: the money moved, but it is a liability/receivable change, not
+/// income or spending. Account balances never derive from this list (they
+/// are cached on the Account), and an origination movement is never posted
+/// to a card account.
 final calculableTransactionsProvider = Provider<List<Transaction>>((ref) {
   final transactions = ref.watch(transactionsStreamProvider).value ?? const [];
   return transactions
-      .where((t) => !t.excludeFromCalculations && !t.isTransfer)
+      .where((t) => !t.excludeFromCalculations && !t.isNonIncomeExpenseMovement)
       .toList();
 });
 

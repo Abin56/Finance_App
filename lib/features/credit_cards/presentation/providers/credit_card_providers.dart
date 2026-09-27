@@ -5,7 +5,10 @@ import '../../../../core/payment_schedule/presentation/providers/payment_schedul
 import '../../../../core/providers/firebase_providers.dart';
 import '../../../accounts/domain/account.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
+import '../../../emi/domain/emi.dart';
 import '../../../emi/presentation/providers/emi_providers.dart';
+import '../../../lending/domain/loan.dart';
+import '../../../lending/presentation/providers/loan_providers.dart';
 import '../../../transactions/domain/transaction.dart';
 import '../../../transactions/presentation/providers/transaction_providers.dart';
 import '../../../../core/payment_schedule/domain/cycle_anchor.dart';
@@ -14,6 +17,7 @@ import '../../data/credit_card_repository.dart';
 import '../../data/shared_credit_limit_repository.dart';
 import '../../data/statement_payment_repository.dart';
 import '../../data/statement_repository.dart';
+import '../../domain/card_emi_ownership.dart';
 import '../../domain/credit_card_profile.dart';
 import '../../domain/shared_credit_limit.dart';
 import '../../domain/statement.dart';
@@ -306,10 +310,7 @@ final materializeStatementProvider = FutureProvider.autoDispose
 /// from `linkedEmiPrincipal`, overstating available credit.
 final principalRestoredForCardProvider = Provider.autoDispose
     .family<double, String>((ref, cardId) {
-      final emis = ref.watch(emisStreamProvider).value ?? const [];
-      final linked = emis.where(
-        (e) => e.linkedCreditCardId == cardId && !e.isClosed,
-      );
+      final linked = ref.watch(lockingEmisForCardProvider(cardId));
 
       var restored = 0.0;
       for (final emi in linked) {
@@ -350,6 +351,15 @@ final principalRestoredForCardProvider = Provider.autoDispose
           }
         }
       }
+      // A card-funded Loan restores exactly its repaid principal (extra
+      // principal included), so its lock always equals its outstanding
+      // principal — never its future interest.
+      for (final loan in ref.watch(lockingCardFundedLoansForCardProvider(cardId))) {
+        final repaid =
+            loan.loanAmount -
+            ref.watch(loanFinancialSummaryProvider(loan)).principalRemaining;
+        restored += repaid < 0 ? 0 : repaid;
+      }
       return restored;
     });
 
@@ -370,12 +380,99 @@ final principalRestoredForCardProvider = Provider.autoDispose
 /// principal was actually repaid.
 final linkedEmiPrincipalForCardProvider = Provider.autoDispose
     .family<double, String>((ref, cardId) {
-      final emis = ref.watch(emisStreamProvider).value ?? const [];
-      final linked = emis.where(
-        (e) => e.linkedCreditCardId == cardId && !e.isClosed,
-      );
-      return linked.fold(0.0, (sum, emi) => sum + emi.principalAmount);
+      final linked = ref.watch(lockingEmisForCardProvider(cardId));
+      final loans = ref.watch(lockingCardFundedLoansForCardProvider(cardId));
+      return linked.fold(0.0, (sum, emi) => sum + emi.principalAmount) +
+          loans.fold(0.0, (sum, loan) => sum + loan.loanAmount);
     });
+
+/// Open borrowed Loans financed on [cardId] ([cardFundedLoanCardId]) whose
+/// exposure the card carries through the lock — the same Case B/C filter as
+/// [lockingEmisForCardProvider]. Before this, a card-funded installment
+/// purchase created by the unified wizard never reduced the card's available
+/// credit (Case B), yet Net Worth still counted it as a borrowed Loan on top
+/// of the card account's purchase (Case A). Mirrors Web's card-funded entries
+/// in `useCardUtilizationEmis`.
+final lockingCardFundedLoansForCardProvider = Provider.autoDispose
+    .family<List<Loan>, String>((ref, cardId) {
+      final loans = ref.watch(loansStreamProvider).value ?? const [];
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      if (card == null) return const [];
+      final linked = loans
+          .where((l) => cardFundedLoanCardId(l) == cardId && !l.isClosed)
+          .toList();
+      if (linked.every((l) => l.purchaseTransactionId == null)) return linked;
+      final activeTransactionsById = {
+        for (final t in ref.watch(transactionsStreamProvider).value ?? const [])
+          t.id: t,
+      };
+      return linked
+          .where(
+            (l) => !emiPurchaseRepresentedOnCard(
+              purchaseTransactionId: l.purchaseTransactionId,
+              purchase: activeTransactionsById[l.purchaseTransactionId],
+              cardAccountId: card.accountId,
+            ),
+          )
+          .toList();
+    });
+
+/// Open EMIs linked to [cardId] whose exposure the card carries through the
+/// EMI lock — Cases B and C of [emiPurchaseRepresentedOnCard]. A Case A EMI
+/// (its `purchaseTransactionId` purchase is still an active, calculable
+/// Transaction on this card's account) is left out: that purchase is already
+/// inside the card's outstanding, so locking the EMI principal as well would
+/// count the same money twice (e.g. ₹60,000 + ₹60,000 = ₹1,20,000).
+/// Mirrors Web's `linkedEmiPrincipalFor` / `principalRestoredFor` filter.
+final lockingEmisForCardProvider = Provider.autoDispose
+    .family<List<Emi>, String>((ref, cardId) {
+      final emis = ref.watch(emisStreamProvider).value ?? const [];
+      final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+      final card = cards.where((c) => c.id == cardId).firstOrNull;
+      final linked = emis
+          .where((e) => e.linkedCreditCardId == cardId && !e.isClosed)
+          .toList();
+      if (card == null || linked.every((e) => e.purchaseTransactionId == null)) {
+        return linked;
+      }
+      final activeTransactionsById = {
+        for (final t in ref.watch(transactionsStreamProvider).value ?? const [])
+          t.id: t,
+      };
+      return linked
+          .where(
+            (e) => !emiPurchaseRepresentedOnCard(
+              purchaseTransactionId: e.purchaseTransactionId,
+              purchase: activeTransactionsById[e.purchaseTransactionId],
+              cardAccountId: card.accountId,
+            ),
+          )
+          .toList();
+    });
+
+/// Card-linked EMI principal still locked against [cardId]'s limit —
+/// `linkedEmiPrincipal − principalRestored`, floored at 0. The card owns this
+/// liability (Decision 3): exposure = outstanding + this; Net Worth and
+/// utilization read it from here, never from the EMI a second time.
+final lockedEmiPrincipalForCardProvider = Provider.autoDispose
+    .family<double, String>((ref, cardId) {
+      final locked =
+          ref.watch(linkedEmiPrincipalForCardProvider(cardId)) -
+          ref.watch(principalRestoredForCardProvider(cardId));
+      return locked < 0 ? 0 : locked;
+    });
+
+/// Sum of [lockedEmiPrincipalForCardProvider] across every active card — each
+/// EMI links to exactly one card, so summing per card never double counts a
+/// shared limit.
+final totalCardLockedEmiPrincipalProvider = Provider<double>((ref) {
+  final cards = ref.watch(activeCreditCardsProvider);
+  return cards.fold(
+    0.0,
+    (sum, c) => sum + ref.watch(lockedEmiPrincipalForCardProvider(c.id)),
+  );
+});
 
 /// A card's computed running figures — [outstanding] is every unpaid
 /// statement's remaining amount plus the current cycle's spend-to-date;

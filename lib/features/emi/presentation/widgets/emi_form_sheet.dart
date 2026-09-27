@@ -7,17 +7,25 @@ import '../../../../core/interest/interest_period.dart';
 import '../../../../core/interest/interest_type.dart';
 import '../../../../core/payment_schedule/domain/schedule_type.dart';
 import '../../../../core/payment_schedule/presentation/providers/payment_schedule_providers.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/dialogs/sectioned_form_sheet.dart';
-import '../../../../shared/widgets/section_label.dart';
 import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../credit_cards/domain/credit_card_profile.dart';
+import '../../../credit_cards/domain/credit_card_status.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
+import '../../../lending/presentation/widgets/add_elsewhere_link.dart';
+import '../../../lending/presentation/widgets/loan_emi_ui.dart';
+import '../../../transactions/domain/transaction_type.dart';
 import '../../domain/emi.dart';
 import '../../domain/emi_interest.dart';
 import '../../domain/emi_loan_type.dart';
 import '../providers/emi_providers.dart';
+
+/// How a card-linked EMI came about — only picks the form wording; both lock
+/// the principal against the card. Not persisted (mirrors the web form).
+enum _CardEmiKind { creditCardLoan, productPurchase }
 
 /// Bottom sheet for creating or editing an EMI. Frequency, number of
 /// payments, interest terms, and the Monthly Due Date can all be changed
@@ -120,7 +128,13 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
   late InterestPeriod _interestPeriod =
       widget.emi?.interest?.period ?? InterestPeriod.yearly;
   late EmiLoanType _loanType = widget.emi?.loanType ?? EmiLoanType.other;
+
+  /// "Link to Credit Card" — off by default; the card controls only appear
+  /// once it's on. An existing card-linked EMI opens with it on.
+  late bool _linkToCard = widget.emi?.linkedCreditCardId != null;
+  _CardEmiKind _cardEmiKind = _CardEmiKind.productPurchase;
   late String? _linkedCreditCardId = widget.emi?.linkedCreditCardId;
+  late String? _purchaseTransactionId = widget.emi?.purchaseTransactionId;
   DateTime? _sanctionDate;
   DateTime? _disbursementDate;
   late bool _isAutoDebitEnabled = widget.emi?.isAutoDebitEnabled ?? false;
@@ -288,6 +302,165 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
     return name;
   }
 
+  /// "Original card purchase" — sets `Emi.purchaseTransactionId` to a
+  /// purchase the user explicitly picks from this card's own transactions
+  /// (never matched automatically by amount/date). Linking it tells FlowFi the
+  /// purchase is already in the card's balance, so the EMI doesn't lock the
+  /// same money again; "Not recorded" keeps the EMI as the card exposure.
+  Widget _purchasePicker(BuildContext context, String cardId) {
+    final purchases = [
+      ...ref
+          .watch(transactionsForCardProvider(cardId))
+          .where((t) => t.type == TransactionType.expense),
+    ]..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    final localizations = MaterialLocalizations.of(context);
+    final linkedMissing =
+        _purchaseTransactionId != null &&
+        purchases.every((t) => t.id != _purchaseTransactionId);
+    return DropdownButtonFormField<String?>(
+      key: ValueKey('purchase-$cardId'),
+      initialValue: _purchaseTransactionId,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Original card purchase (optional)',
+        helperText:
+            'Pick it if the purchase is already recorded on this card, so it '
+            "isn't counted twice",
+        helperMaxLines: 2,
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Not recorded on this card'),
+        ),
+        if (linkedMissing)
+          DropdownMenuItem<String?>(
+            value: _purchaseTransactionId,
+            child: const Text('Linked purchase (no longer on this card)'),
+          ),
+        for (final t in purchases)
+          DropdownMenuItem<String?>(
+            value: t.id,
+            child: Text(
+              '${localizations.formatShortDate(t.dateTime)} · '
+              '${t.description.isEmpty ? 'Purchase' : t.description} · '
+              '${CurrencyFormatter.instance.format(t.amount)}',
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: (value) => setState(() => _purchaseTransactionId = value),
+    );
+  }
+
+  /// "Link to Credit Card" — off by default. Only existing FlowFi cards are
+  /// offered (closed/cancelled ones excluded, same as Web); new cards are
+  /// added in Credit Cards, never inline here. While editing, the card this
+  /// EMI is already linked to stays listed even if it has since closed.
+  Widget _creditCardSection(BuildContext context) {
+    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
+    final accounts = ref.watch(accountsStreamProvider).value ?? const [];
+    final accountNameById = {for (final a in accounts) a.id: a.name};
+    final eligibleCards = [
+      for (final card in creditCards)
+        if ((card.status != CreditCardStatus.closed &&
+                card.status != CreditCardStatus.cancelled) ||
+            card.id == widget.emi?.linkedCreditCardId)
+          card,
+    ];
+    final hint = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: loanEmiSecondaryText(context));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ...[
+          if (eligibleCards.isEmpty)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'No credit cards yet — add one, then come back.',
+                    style: hint,
+                  ),
+                ),
+                const AddElsewhereLink(
+                  route: AppRoutes.creditCards,
+                  label: 'Go to Credit Cards',
+                ),
+              ],
+            )
+          else ...[
+            DropdownButtonFormField<String>(
+              initialValue:
+                  eligibleCards.any((c) => c.id == _linkedCreditCardId)
+                  ? _linkedCreditCardId
+                  : null,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Credit card'),
+              hint: const Text('Select a card'),
+              items: [
+                for (final card in eligibleCards)
+                  DropdownMenuItem<String>(
+                    value: card.id,
+                    child: Text(
+                      _cardLabel(card, accountNameById),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (value) => setState(() {
+                _linkedCreditCardId = value;
+                // A purchase belongs to one card — changing the card drops it.
+                _purchaseTransactionId = null;
+              }),
+            ),
+            const Align(
+              alignment: Alignment.centerRight,
+              child: AddElsewhereLink(
+                route: AppRoutes.creditCards,
+                label: 'Add Credit Card',
+              ),
+            ),
+            if (!_isEditing) ...[
+              const LoanEmiFieldLabel('What kind?'),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<_CardEmiKind>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: _CardEmiKind.productPurchase,
+                      label: Text('Purchase on EMI'),
+                    ),
+                    ButtonSegment(
+                      value: _CardEmiKind.creditCardLoan,
+                      label: Text('Loan on card'),
+                    ),
+                  ],
+                  selected: {_cardEmiKind},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _cardEmiKind = selection.first),
+                ),
+              ),
+            ],
+            if (_linkedCreditCardId != null) ...[
+              const SizedBox(height: AppSizes.md),
+              _purchasePicker(context, _linkedCreditCardId!),
+            ],
+            const SizedBox(height: AppSizes.sm),
+            Text(
+              "The amount is held against this card's limit and released "
+              'as you pay it down.',
+              style: hint,
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
   Future<bool> _confirmStartDateChange() {
     return showDialog<bool>(
       context: context,
@@ -336,6 +509,21 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_linkToCard && _linkedCreditCardId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Choose the card this EMI is on, or turn off \"It's on a credit card\"",
+          ),
+        ),
+      );
+      return;
+    }
+    // Off means unlinked, whatever card was picked before switching it off.
+    final linkedCreditCardId = _linkToCard ? _linkedCreditCardId : null;
+    final purchaseTransactionId = linkedCreditCardId == null
+        ? null
+        : _purchaseTransactionId;
 
     if (_isEditing && _startDateChanged) {
       final confirmed = await _confirmStartDateChange();
@@ -391,8 +579,10 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                   _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
-          linkedCreditCardId: _linkedCreditCardId,
-          clearLinkedCreditCardId: _linkedCreditCardId == null,
+          linkedCreditCardId: linkedCreditCardId,
+          clearLinkedCreditCardId: linkedCreditCardId == null,
+          purchaseTransactionId: purchaseTransactionId,
+          clearPurchaseTransactionId: purchaseTransactionId == null,
         );
         if (_startDateChanged) {
           final installments =
@@ -448,7 +638,10 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
           loanNumber: _loanNumberController.text.trim().isEmpty
               ? null
               : _loanNumberController.text.trim(),
-          loanType: _loanType,
+          // A card-linked EMI is recorded as a credit-card EMI, same as Web.
+          loanType: linkedCreditCardId != null
+              ? EmiLoanType.creditCard
+              : _loanType,
           branch: _branchController.text.trim().isEmpty
               ? null
               : _branchController.text.trim(),
@@ -471,7 +664,8 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
                   _autoDebitAccountController.text.trim().isNotEmpty
               ? _autoDebitAccountController.text.trim()
               : null,
-          linkedCreditCardId: _linkedCreditCardId,
+          linkedCreditCardId: linkedCreditCardId,
+          purchaseTransactionId: purchaseTransactionId,
           dueDayOfMonth: _parsedDueDayOfMonth,
         );
       }
@@ -493,92 +687,42 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
     final hasPayments = _isEditing
         ? ref.watch(emiTotalPaidProvider(widget.emi!)) > 0
         : false;
-    final creditCards = ref.watch(creditCardsStreamProvider).value ?? const [];
-    final accounts = ref.watch(accountsStreamProvider).value ?? const [];
-    final accountNameById = {for (final a in accounts) a.id: a.name};
+    final secondary = loanEmiSecondaryText(context);
+    String formatDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
     return Form(
       key: _formKey,
       child: SectionedFormSheet(
-        title: _isEditing ? 'Edit EMI' : 'Add EMI',
+        title: _isEditing ? 'Edit EMI' : 'Add an EMI',
         confirmLabel: _isEditing ? 'Save changes' : 'Add EMI',
         isSaving: _isSaving,
         onConfirm: _save,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SectionLabel('Loan Details'),
-            const SizedBox(height: AppSizes.sm),
+            // 1 — what it is and how much.
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Loan name'),
+              decoration: const InputDecoration(
+                labelText: "What's this EMI for?",
+                hintText: 'e.g. iPhone 16, Sofa, Car',
+              ),
+              textInputAction: TextInputAction.next,
               validator: Validators.required,
             ),
             const SizedBox(height: AppSizes.md),
             TextFormField(
-              controller: _lenderController,
-              decoration: const InputDecoration(
-                labelText: 'Bank / finance company (optional)',
-              ),
-            ),
-            const SizedBox(height: AppSizes.md),
-            DropdownButtonFormField<EmiLoanType>(
-              initialValue: _loanType,
-              decoration: const InputDecoration(labelText: 'Loan type'),
-              items: [
-                for (final type in EmiLoanType.values)
-                  DropdownMenuItem(value: type, child: Text(type.label)),
-              ],
-              onChanged: (value) =>
-                  setState(() => _loanType = value ?? EmiLoanType.other),
-            ),
-            const SizedBox(height: AppSizes.md),
-            DropdownButtonFormField<String?>(
-              initialValue: _linkedCreditCardId,
-              decoration: const InputDecoration(
-                labelText: 'Linked credit card (optional)',
-                helperText:
-                    'If this loan came from a card purchase converted to EMI',
-              ),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('None'),
-                ),
-                for (final card in creditCards)
-                  DropdownMenuItem<String?>(
-                    value: card.id,
-                    child: Text(_cardLabel(card, accountNameById)),
-                  ),
-              ],
-              onChanged: (value) => setState(() => _linkedCreditCardId = value),
-            ),
-            const SizedBox(height: AppSizes.md),
-            DropdownButtonFormField<String>(
-              initialValue: _categoryId,
-              decoration: const InputDecoration(
-                labelText: 'Category (optional)',
-              ),
-              items: [
-                for (final category in categories)
-                  DropdownMenuItem(
-                    value: category.id,
-                    child: Text(category.name),
-                  ),
-              ],
-              onChanged: (value) => setState(() => _categoryId = value),
-            ),
-            const SizedBox(height: AppSizes.lg),
-            const SectionLabel('Amount & Schedule'),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
               controller: _amountController,
               enabled: !hasPayments,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               decoration: InputDecoration(
-                labelText: 'Loan amount',
+                labelText: 'Amount on EMI',
+                prefixText: '₹ ',
                 helperText: hasPayments
                     ? 'Amount can\'t be changed after a payment has been recorded'
-                    : null,
+                    : 'The amount being paid off in installments',
               ),
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
@@ -587,289 +731,337 @@ class _EmiFormSheetState extends ConsumerState<EmiFormSheet> {
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: AppSizes.md),
+
+            // 2 — schedule.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _installmentCountController,
+                    decoration: InputDecoration(
+                      labelText: 'Installments',
+                      hintText: 'e.g. 12',
+                      helperText: _isEditing
+                          ? 'Not less than already paid'
+                          : null,
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: Validators.required,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: AppSizes.md),
+                Expanded(
+                  child: DropdownButtonFormField<ScheduleType>(
+                    initialValue: _installmentFrequency,
+                    decoration: const InputDecoration(labelText: 'Paid'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: ScheduleType.monthly,
+                        child: Text('Monthly'),
+                      ),
+                      DropdownMenuItem(
+                        value: ScheduleType.weekly,
+                        child: Text('Weekly'),
+                      ),
+                    ],
+                    onChanged: (value) => setState(
+                      () =>
+                          _installmentFrequency = value ?? ScheduleType.monthly,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSizes.sm),
             ListTile(
               contentPadding: EdgeInsets.zero,
               enabled: !hasPayments,
-              title: const Text('First EMI Date'),
-              subtitle: Text(
-                '${_startDate.day}/${_startDate.month}/${_startDate.year}',
-              ),
+              title: const Text('First EMI date'),
+              subtitle: Text(formatDate(_startDate)),
               trailing: const Icon(Icons.calendar_today_outlined),
               onTap: hasPayments ? null : _pickStartDate,
             ),
             if (hasPayments)
-              const Padding(
-                padding: EdgeInsets.only(top: AppSizes.xs),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSizes.xs),
                 child: Text(
-                  'First EMI Date can\'t be changed after a payment has been recorded',
-                  style: TextStyle(fontSize: 12),
+                  'First EMI date can\'t be changed after a payment has been recorded',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: secondary),
                 ),
               ),
             const SizedBox(height: AppSizes.md),
-            DropdownButtonFormField<ScheduleType>(
-              initialValue: _installmentFrequency,
-              decoration: const InputDecoration(labelText: 'Frequency'),
-              items: const [
-                DropdownMenuItem(
-                  value: ScheduleType.weekly,
-                  child: Text('Weekly'),
-                ),
-                DropdownMenuItem(
-                  value: ScheduleType.monthly,
-                  child: Text('Monthly'),
-                ),
-              ],
-              onChanged: (value) => setState(
-                () => _installmentFrequency = value ?? ScheduleType.monthly,
-              ),
+
+            // 3 — credit card controls stay hidden until switched on.
+            LoanEmiRevealSwitch(
+              value: _linkToCard,
+              onChanged: (value) => setState(() => _linkToCard = value),
+              title: "It's on a credit card",
+              subtitle:
+                  "Credit Card EMI — the amount is held against the card's "
+                  'limit and released as you pay.',
+              children: [_creditCardSection(context)],
             ),
             const SizedBox(height: AppSizes.md),
-            TextFormField(
-              controller: _installmentCountController,
-              decoration: InputDecoration(
-                labelText: 'Number of payments',
-                helperText: _isEditing
-                    ? 'Can\'t be less than the number of payments already made'
-                    : null,
-              ),
-              keyboardType: TextInputType.number,
-              validator: Validators.required,
-              onChanged: (_) => setState(() {}),
-            ),
-            if (_installmentFrequency == ScheduleType.monthly) ...[
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _dueDayOfMonthController,
-                decoration: const InputDecoration(
-                  labelText: 'Monthly due date (optional)',
-                  helperText:
-                      'The fixed day every EMI after the first is due on, e.g. 5 for the 5th',
-                  suffixText: 'day of month',
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  final trimmed = value?.trim() ?? '';
-                  if (trimmed.isEmpty) return null;
-                  final day = int.tryParse(trimmed);
-                  if (day == null || day < 1 || day > 31) {
-                    return 'Enter a day between 1 and 31';
-                  }
-                  return null;
-                },
-                onChanged: (_) => setState(() {}),
-              ),
-            ],
-            const SizedBox(height: AppSizes.lg),
-            const SectionLabel('Interest'),
-            const SizedBox(height: AppSizes.xs),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Add interest'),
+
+            // 4 — interest, only when there is some.
+            LoanEmiRevealSwitch(
               value: _hasInterest,
               onChanged: (value) => setState(() => _hasInterest = value),
-            ),
-            if (_hasInterest) ...[
-              SegmentedButton<InterestType>(
-                segments: const [
-                  ButtonSegment(value: InterestType.flat, label: Text('Flat')),
-                  ButtonSegment(
-                    value: InterestType.reducingBalance,
-                    label: Text('Reducing balance'),
-                  ),
-                ],
-                selected: {_interestType},
-                onSelectionChanged: (selection) =>
-                    setState(() => _interestType = selection.first),
-              ),
-              const SizedBox(height: AppSizes.md),
-              TextFormField(
-                controller: _rateController,
-                decoration: InputDecoration(
-                  labelText: 'Interest rate (%)',
-                  helperText: _interestPeriod == InterestPeriod.yearly
-                      ? 'Enter the yearly rate (e.g. a bank\'s quoted rate, like 15.12)'
-                      : 'Enter the rate charged per month',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSizes.md),
-              SegmentedButton<InterestPeriod>(
-                segments: const [
-                  ButtonSegment(
-                    value: InterestPeriod.monthly,
-                    label: Text('Per month'),
-                  ),
-                  ButtonSegment(
-                    value: InterestPeriod.yearly,
-                    label: Text('Per year'),
-                  ),
-                ],
-                selected: {_interestPeriod},
-                onSelectionChanged: (selection) =>
-                    setState(() => _interestPeriod = selection.first),
-              ),
-              if (preview != null) ...[
-                const SizedBox(height: AppSizes.md),
-                Container(
-                  padding: const EdgeInsets.all(AppSizes.md),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total to pay: ${CurrencyFormatter.instance.format(preview.totalPayable)}',
-                      ),
-                      Text(
-                        'Total interest: ${CurrencyFormatter.instance.format(preview.totalInterest)}',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-            const SizedBox(height: AppSizes.md),
-            ExpansionTile(
-              title: const Text('Bank details (optional)'),
-              tilePadding: EdgeInsets.zero,
-              initiallyExpanded: _showBankDetails,
-              onExpansionChanged: (expanded) =>
-                  setState(() => _showBankDetails = expanded),
-              childrenPadding: EdgeInsets.zero,
+              title: 'It has interest',
+              subtitle: 'Leave off for a no-cost EMI.',
               children: [
                 TextFormField(
-                  controller: _loanNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Loan / account number',
+                  controller: _rateController,
+                  decoration: InputDecoration(
+                    labelText: 'Interest rate (%)',
+                    helperText: _interestPeriod == InterestPeriod.yearly
+                        ? 'The yearly rate your bank quotes, e.g. 15.12'
+                        : 'The rate charged per month',
                   ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _branchController,
-                  decoration: const InputDecoration(labelText: 'Branch'),
+                SegmentedButton<InterestPeriod>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: InterestPeriod.yearly,
+                      label: Text('Per year'),
+                    ),
+                    ButtonSegment(
+                      value: InterestPeriod.monthly,
+                      label: Text('Per month'),
+                    ),
+                  ],
+                  selected: {_interestPeriod},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _interestPeriod = selection.first),
                 ),
-                const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _customerIdController,
-                  decoration: const InputDecoration(labelText: 'Customer ID'),
+                const SizedBox(height: AppSizes.sm),
+                SegmentedButton<InterestType>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: InterestType.reducingBalance,
+                      label: Text('Reducing balance'),
+                    ),
+                    ButtonSegment(
+                      value: InterestType.flat,
+                      label: Text('Flat'),
+                    ),
+                  ],
+                  selected: {_interestType},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _interestType = selection.first),
                 ),
-                const SizedBox(height: AppSizes.md),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Sanction date'),
-                  subtitle: Text(
-                    _sanctionDate == null
-                        ? 'Not set'
-                        : '${_sanctionDate!.day}/${_sanctionDate!.month}/${_sanctionDate!.year}',
-                  ),
-                  trailing: const Icon(Icons.calendar_today_outlined),
-                  onTap: _pickSanctionDate,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Loan Disbursement Date'),
-                  subtitle: Text(
-                    _disbursementDate == null
-                        ? 'Not set'
-                        : '${_disbursementDate!.day}/${_disbursementDate!.month}/${_disbursementDate!.year}',
-                  ),
-                  trailing: const Icon(Icons.calendar_today_outlined),
-                  onTap: _pickDisbursementDate,
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Auto debit enabled'),
-                  subtitle: const Text(
-                    'For your reference only — this app does not process payments',
-                  ),
-                  value: _isAutoDebitEnabled,
-                  onChanged: (value) =>
-                      setState(() => _isAutoDebitEnabled = value),
-                ),
-                if (_isAutoDebitEnabled)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSizes.md),
-                    child: TextFormField(
-                      controller: _autoDebitAccountController,
-                      decoration: const InputDecoration(
-                        labelText: 'Auto debit account',
+                if (preview != null) ...[
+                  const SizedBox(height: AppSizes.md),
+                  Container(
+                    padding: const EdgeInsets.all(AppSizes.md),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total to pay: ${CurrencyFormatter.instance.format(preview.totalPayable)}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        Text(
+                          'Total interest: ${CurrencyFormatter.instance.format(preview.totalInterest)}',
+                        ),
+                      ],
+                    ),
                   ),
+                ],
               ],
             ),
-            ExpansionTile(
-              title: const Text('Fees & charges (optional)'),
-              tilePadding: EdgeInsets.zero,
-              initiallyExpanded: _showCharges,
-              onExpansionChanged: (expanded) =>
-                  setState(() => _showCharges = expanded),
-              childrenPadding: EdgeInsets.zero,
+            const SizedBox(height: AppSizes.md),
+
+            // 5 — everything optional.
+            LoanEmiMoreOptions(
+              initiallyExpanded: _isEditing,
+              summary: 'Lender, type, due day, bank details, charges, notes',
               children: [
                 TextFormField(
-                  controller: _processingFeeController,
+                  controller: _lenderController,
                   decoration: const InputDecoration(
-                    labelText: 'Processing fee',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                    labelText: 'Lender / store',
+                    hintText: 'e.g. Bajaj Finance, HDFC Bank',
                   ),
                 ),
+                // A new card-linked EMI is always a credit-card EMI (see
+                // _save), so the type only shows when it's actually a choice.
+                if (_isEditing || !_linkToCard) ...[
+                  const SizedBox(height: AppSizes.md),
+                  DropdownButtonFormField<EmiLoanType>(
+                    initialValue: _loanType,
+                    decoration: const InputDecoration(labelText: 'Type'),
+                    items: [
+                      for (final type in EmiLoanType.values)
+                        DropdownMenuItem(value: type, child: Text(type.label)),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _loanType = value ?? EmiLoanType.other),
+                  ),
+                ],
                 const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _insuranceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Insurance amount',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                DropdownButtonFormField<String>(
+                  initialValue: _categoryId,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                  items: [
+                    for (final category in categories)
+                      DropdownMenuItem(
+                        value: category.id,
+                        child: Text(category.name),
+                      ),
+                  ],
+                  onChanged: (value) => setState(() => _categoryId = value),
                 ),
-                const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _extraChargesController,
-                  decoration: const InputDecoration(labelText: 'Other charges'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                if (_installmentFrequency == ScheduleType.monthly) ...[
+                  const SizedBox(height: AppSizes.md),
+                  TextFormField(
+                    controller: _dueDayOfMonthController,
+                    decoration: const InputDecoration(
+                      labelText: 'Monthly due day',
+                      helperText:
+                          'The fixed day every EMI after the first is due on, e.g. 5 for the 5th',
+                      helperMaxLines: 2,
+                      suffixText: 'day of month',
+                    ),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      final trimmed = value?.trim() ?? '';
+                      if (trimmed.isEmpty) return null;
+                      final day = int.tryParse(trimmed);
+                      if (day == null || day < 1 || day > 31) {
+                        return 'Enter a day between 1 and 31';
+                      }
+                      return null;
+                    },
+                    onChanged: (_) => setState(() {}),
                   ),
+                ],
+                ExpansionTile(
+                  title: const Text('Bank details'),
+                  tilePadding: EdgeInsets.zero,
+                  shape: const Border(),
+                  collapsedShape: const Border(),
+                  initiallyExpanded: _showBankDetails,
+                  onExpansionChanged: (expanded) =>
+                      setState(() => _showBankDetails = expanded),
+                  childrenPadding: EdgeInsets.zero,
+                  children: [
+                    TextFormField(
+                      controller: _loanNumberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Loan / account number',
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.md),
+                    TextFormField(
+                      controller: _branchController,
+                      decoration: const InputDecoration(labelText: 'Branch'),
+                    ),
+                    const SizedBox(height: AppSizes.md),
+                    TextFormField(
+                      controller: _customerIdController,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer ID',
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.md),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Sanction date'),
+                      subtitle: Text(
+                        _sanctionDate == null
+                            ? 'Not set'
+                            : formatDate(_sanctionDate!),
+                      ),
+                      trailing: const Icon(Icons.calendar_today_outlined),
+                      onTap: _pickSanctionDate,
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Loan disbursement date'),
+                      subtitle: Text(
+                        _disbursementDate == null
+                            ? 'Not set'
+                            : formatDate(_disbursementDate!),
+                      ),
+                      trailing: const Icon(Icons.calendar_today_outlined),
+                      onTap: _pickDisbursementDate,
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Auto debit enabled'),
+                      subtitle: const Text(
+                        'For your reference only — this app does not process payments',
+                      ),
+                      value: _isAutoDebitEnabled,
+                      onChanged: (value) =>
+                          setState(() => _isAutoDebitEnabled = value),
+                    ),
+                    if (_isAutoDebitEnabled)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSizes.md),
+                        child: TextFormField(
+                          controller: _autoDebitAccountController,
+                          decoration: const InputDecoration(
+                            labelText: 'Auto debit account',
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(height: AppSizes.md),
-                TextFormField(
-                  controller: _foreclosureController,
-                  decoration: const InputDecoration(
-                    labelText: 'Foreclosure amount',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                ExpansionTile(
+                  title: const Text('Fees & charges'),
+                  tilePadding: EdgeInsets.zero,
+                  shape: const Border(),
+                  collapsedShape: const Border(),
+                  initiallyExpanded: _showCharges,
+                  onExpansionChanged: (expanded) =>
+                      setState(() => _showCharges = expanded),
+                  childrenPadding: EdgeInsets.zero,
+                  children: [
+                    for (final (controller, label) in [
+                      (_processingFeeController, 'Processing fee'),
+                      (_insuranceController, 'Insurance amount'),
+                      (_extraChargesController, 'Other charges'),
+                      (_foreclosureController, 'Foreclosure amount'),
+                      (_prepaymentChargesController, 'Prepayment charges'),
+                    ]) ...[
+                      TextFormField(
+                        controller: controller,
+                        decoration: InputDecoration(labelText: label),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                      ),
+                      const SizedBox(height: AppSizes.md),
+                    ],
+                  ],
                 ),
-                const SizedBox(height: AppSizes.md),
                 TextFormField(
-                  controller: _prepaymentChargesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Prepayment charges',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
+                  controller: _notesController,
+                  decoration: const InputDecoration(labelText: 'Notes'),
+                  maxLines: 3,
+                  textInputAction: TextInputAction.done,
                 ),
               ],
-            ),
-            const SizedBox(height: AppSizes.lg),
-            const SectionLabel('Notes'),
-            const SizedBox(height: AppSizes.sm),
-            TextFormField(
-              controller: _notesController,
-              decoration: const InputDecoration(labelText: 'Notes (optional)'),
-              maxLines: 3,
-              textInputAction: TextInputAction.done,
             ),
           ],
         ),

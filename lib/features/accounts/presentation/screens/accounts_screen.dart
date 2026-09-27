@@ -78,7 +78,7 @@ class AccountsScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Net worth',
+                          'Total balance',
                           style: context.textTheme.bodySmall?.copyWith(
                             color: context.flowfi.onHeroSurfaceMuted,
                             fontWeight: FontWeight.w600,
