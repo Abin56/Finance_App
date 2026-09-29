@@ -2,7 +2,19 @@
 /// Money In/Out detail screens so a mixed list (e.g. Money Out combining
 /// expense transactions with EMI/Loan/Bill payments) still reads as
 /// distinct rows, not a single undifferentiated list.
-enum MoneyFlowKind { income, expense, moneyReceived, emi, loan, bill }
+enum MoneyFlowKind {
+  income,
+  expense,
+  moneyReceived,
+  emi,
+  loan,
+  bill,
+
+  /// Paying a tracked credit card's bill from a bank/cash account — the
+  /// moment card spending actually leaves as cash (see
+  /// `moneyOutLinesForRangeFamilyProvider`).
+  creditCardPayment,
+}
 
 extension MoneyFlowKindX on MoneyFlowKind {
   String get label {
@@ -19,6 +31,8 @@ extension MoneyFlowKindX on MoneyFlowKind {
         return 'Loan';
       case MoneyFlowKind.bill:
         return 'Bill';
+      case MoneyFlowKind.creditCardPayment:
+        return 'Card Payment';
     }
   }
 }

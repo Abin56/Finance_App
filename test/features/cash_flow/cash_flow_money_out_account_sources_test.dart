@@ -353,19 +353,44 @@ void main() {
       },
     );
 
+    // A purchase on a TRACKED credit card only raises card debt — cash leaves
+    // when the card is paid (bank → card transfer). The same money is counted
+    // exactly once: at payment, never at purchase too (mirrors Web).
+    // `await provider.future` returns the already-resolved first snapshot, so
+    // writes made after it are not seen yet. Let the fake Firestore snapshot
+    // streams deliver before reading.
+    Future<void> settle() async {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await container.read(transactionsStreamProvider.future);
+      await container.read(creditCardsStreamProvider.future);
+    }
+
+    Future<String> createTrackedCard(String name) async {
+      final cardAccountId = await createAccountOfType(
+        container,
+        AccountType.card,
+        name: name,
+      );
+      await container
+          .read(creditCardRepositoryProvider)
+          .createCard(
+            accountId: cardAccountId,
+            statementDay: 1,
+            paymentDueDay: 15,
+            creditLimit: 50000,
+            cardNetwork: CardNetwork.visa,
+          );
+      await settle();
+      return cardAccountId;
+    }
+
     test(
-      'Test 9 — a credit-card purchase followed by a credit-card statement/bill payment is not double-counted',
+      'Test 9 — a tracked-card purchase is not cash out; paying the card from the bank is, once',
       () async {
-        final cardAccountId = await createAccountOfType(
-          container,
-          AccountType.card,
-          name: 'Visa Card',
-        );
+        final cardAccountId = await createTrackedCard('Visa Card');
         final bankId = await createAccountOfType(container, AccountType.bank);
         final transactions = container.read(transactionRepositoryProvider);
 
-        // The purchase itself — the one and only expense Transaction this
-        // economic event ever posts.
         await transactions.createTransaction(
           type: TransactionType.expense,
           amount: 700,
@@ -373,41 +398,35 @@ void main() {
           accountId: cardAccountId,
           categoryId: 'restaurant',
         );
-        await container.read(transactionsStreamProvider.future);
-
-        // Paying off the card's statement later is a transfer of money
-        // between the paying account and the card, not a second expense —
-        // no separate "bill payment" Transaction is created for it in this
-        // app's model (unlike a manual bank/cash payment, a credit card's
-        // statement payment status is tracked on the Statement itself, not
-        // as a second Transaction). Simulate this by NOT creating any second
-        // transaction, matching how CreditCardStatementSummaryCard's own
-        // section (never summed here) is the only place a statement payment
-        // is tracked.
-        final creditCards = container.read(creditCardRepositoryProvider);
-        await creditCards.createCard(
-          accountId: cardAccountId,
-          statementDay: 1,
-          paymentDueDay: 15,
-          creditLimit: 50000,
-          cardNetwork: CardNetwork.visa,
-        );
-        await container.read(creditCardsStreamProvider.future);
+        await settle();
 
         setCustomRange(
           DateTime(2026, 9, 1),
-          DateTime(2026, 9, 1, 23, 59, 59, 999),
+          DateTime(2026, 9, 30, 23, 59, 59, 999),
         );
-        final lines = container.read(moneyOutLinesForRangeProvider);
         expect(
-          lines.where((l) => l.amount == 700),
-          hasLength(1),
-          reason: 'the ₹700 purchase must appear exactly once',
+          container.read(cashFlowForRangeProvider).moneyOut,
+          0,
+          reason: 'the purchase only raised card debt — no cash left yet',
         );
+
+        await transactions.createTransferPair(
+          amount: 700,
+          dateTime: DateTime(2026, 9, 20),
+          sourceAccountId: bankId,
+          destinationAccountId: cardAccountId,
+          categoryId: 'transfer',
+          description: 'Card bill',
+        );
+        await settle();
+
+        final lines = container.read(moneyOutLinesForRangeProvider);
+        expect(lines, hasLength(1));
+        expect(lines.single.kind, MoneyFlowKind.creditCardPayment);
+        expect(lines.single.amount, 700);
         expect(container.read(cashFlowForRangeProvider).moneyOut, 700);
 
-        // Unrelated bank expense the same day doesn't get pulled into the
-        // card's total or vice versa.
+        // An ordinary bank expense still counts as before.
         await transactions.createTransaction(
           type: TransactionType.expense,
           amount: 300,
@@ -415,8 +434,73 @@ void main() {
           accountId: bankId,
           categoryId: 'food',
         );
-        await container.read(transactionsStreamProvider.future);
+        await settle();
         expect(container.read(cashFlowForRangeProvider).moneyOut, 1000);
+      },
+    );
+
+    test(
+      'Test 10 — income ₹7,000 + ₹1,000 tracked-card purchase leaves net cash flow at ₹7,000',
+      () async {
+        final cardAccountId = await createTrackedCard('OCTANE');
+        final bankId = await createAccountOfType(container, AccountType.bank);
+        final transactions = container.read(transactionRepositoryProvider);
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 7000,
+          dateTime: DateTime(2026, 9, 1),
+          accountId: bankId,
+          categoryId: 'salary',
+        );
+        await transactions.createTransaction(
+          type: TransactionType.expense,
+          amount: 1000,
+          dateTime: DateTime(2026, 9, 1),
+          accountId: cardAccountId,
+          categoryId: 'bills',
+        );
+        await settle();
+
+        setCustomRange(
+          DateTime(2026, 9, 1),
+          DateTime(2026, 9, 30, 23, 59, 59, 999),
+        );
+        final result = container.read(cashFlowForRangeProvider);
+        expect(result.moneyIn, 7000);
+        expect(result.moneyOut, 0);
+        expect(result.net, 7000);
+      },
+    );
+
+    test(
+      'Test 11 — a card refund is not Money In; a card-to-card transfer is not Money Out',
+      () async {
+        final cardA = await createTrackedCard('Card A');
+        final cardB = await createTrackedCard('Card B');
+        final transactions = container.read(transactionRepositoryProvider);
+        await transactions.createTransaction(
+          type: TransactionType.income,
+          amount: 250,
+          dateTime: DateTime(2026, 9, 2),
+          accountId: cardA,
+          categoryId: 'refund',
+        );
+        await transactions.createTransferPair(
+          amount: 400,
+          dateTime: DateTime(2026, 9, 3),
+          sourceAccountId: cardA,
+          destinationAccountId: cardB,
+          categoryId: 'transfer',
+        );
+        await settle();
+
+        setCustomRange(
+          DateTime(2026, 9, 1),
+          DateTime(2026, 9, 30, 23, 59, 59, 999),
+        );
+        final result = container.read(cashFlowForRangeProvider);
+        expect(result.moneyIn, 0);
+        expect(result.moneyOut, 0);
       },
     );
   });

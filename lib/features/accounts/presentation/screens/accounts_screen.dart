@@ -10,6 +10,7 @@ import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/states/empty_state.dart';
 import '../../../../shared/widgets/states/flowfi_amount_text.dart';
+import '../../../lending/presentation/providers/loan_balance_sheet_providers.dart';
 import '../providers/account_providers.dart';
 import '../widgets/account_form_sheet.dart';
 import '../widgets/account_tile.dart';
@@ -25,7 +26,9 @@ class AccountsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final repository = ref.watch(accountRepositoryProvider);
     final accountsAsync = ref.watch(accountsStreamProvider);
-    final netWorth = ref.watch(netWorthProvider);
+    // Money actually held — tracked credit-card accounts carry card debt, not
+    // cash (that debt is in Net Worth and the card's outstanding instead).
+    final netWorth = ref.watch(cashBalanceProvider);
 
     return Scaffold(
       appBar: AppBar(

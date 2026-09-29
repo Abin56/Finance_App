@@ -115,11 +115,58 @@ class LoanBalanceSheet {
 /// Net Worth (Decision 6 + card ownership): account balances (credit-card accounts included,
 /// which already carry card debt) + principal owed TO me − principal I owe on
 /// loans and on EMIs not owned by a tracked card − card-owned EMI principal that
-/// no recorded purchase represents (Case B/C). Mirrors Web's
-/// `netWorthWithLoans`.
-double netWorthWithLoans(double accountBalances, LoanBalanceSheet sheet) =>
+/// no recorded purchase represents (Case B/C) ± People direct ledger balances
+/// ([peopleDirectBalance]: + what people owe me, − what I owe them — e.g. a card
+/// purchase made for someone is card debt AND an equal receivable). Person Loans
+/// are NOT in [peopleDirectBalance] (`PersonPosition.directBalance` removes their
+/// legacy ledger entries), so they count once, via lent/borrowed principal.
+/// Mirrors Web's `netWorthWithLoans`.
+double netWorthWithLoans(
+  double accountBalances,
+  LoanBalanceSheet sheet, {
+  double peopleDirectBalance = 0,
+}) =>
     accountBalances +
     sheet.lentPrincipal -
     sheet.borrowedPrincipal -
     sheet.emiPrincipal -
-    sheet.cardLockedEmiPrincipal;
+    sheet.cardLockedEmiPrincipal +
+    peopleDirectBalance;
+
+/// The one global liability total — mirrors Web's `liabilityTotals`. Every
+/// figure is OUTSTANDING PRINCIPAL from the Loan/EMI engine (interest never
+/// reduces it; extra-principal payments and their reversals do) — never the
+/// original amount, the schedule total, or this cycle's installment. A
+/// card-owned EMI/Loan appears only on the card line; a Person Loan appears
+/// once under [loans]. Lent principal is an asset, never here.
+class LiabilityTotals {
+  const LiabilityTotals({
+    required this.creditCards,
+    required this.loans,
+    required this.emis,
+  });
+
+  /// Card debt + the card's locked EMI principal (card-owned, Decision 3).
+  final double creditCards;
+
+  /// Outstanding principal on money I borrowed (not card-financed).
+  final double loans;
+
+  /// Outstanding principal on EMIs not owned by a tracked card.
+  final double emis;
+
+  /// [loans] + [emis] — how much Loan/EMI principal is left.
+  double get loanDebt => loans + emis;
+
+  /// Every liability, each exactly once — how much total debt I have.
+  double get total => creditCards + loans + emis;
+}
+
+LiabilityTotals liabilityTotals(LoanBalanceSheet sheet, double cardOutstanding) =>
+    LiabilityTotals(
+      creditCards:
+          (cardOutstanding < 0 ? 0.0 : cardOutstanding) +
+          sheet.cardLockedEmiPrincipal,
+      loans: sheet.borrowedPrincipal,
+      emis: sheet.emiPrincipal,
+    );

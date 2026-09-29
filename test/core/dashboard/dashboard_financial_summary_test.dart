@@ -6,7 +6,8 @@ import 'package:finance_app/features/accounts/domain/account_type.dart';
 import 'package:finance_app/features/accounts/presentation/providers/account_providers.dart';
 import 'package:finance_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
-import 'package:finance_app/features/credit_cards/presentation/providers/credit_card_providers.dart';
+import 'package:finance_app/features/lending/domain/loan_balance_sheet.dart';
+import 'package:finance_app/features/lending/presentation/providers/loan_balance_sheet_providers.dart';
 import 'package:finance_app/features/lending/presentation/providers/loan_providers.dart';
 import 'package:finance_app/features/people/presentation/providers/people_providers.dart';
 import 'package:finance_app/features/transactions/domain/transaction_type.dart';
@@ -49,13 +50,17 @@ void main() {
       overrides: [
         netWorthProvider.overrideWithValue(netWorth),
         cashFlowThisMonthProvider.overrideWithValue(cashFlow),
-        totalCreditCardOutstandingProvider.overrideWithValue(
-          creditCardOutstanding,
+        // Debt now comes from the one global liability total (remaining
+        // principal, card-owned EMI once) — overridden at that boundary.
+        loanBalanceSheetProvider.overrideWithValue(LoanBalanceSheet.empty),
+        peopleDirectBalanceProvider.overrideWithValue(0),
+        liabilityTotalsProvider.overrideWithValue(
+          LiabilityTotals(
+            creditCards: creditCardOutstanding + cardLockedEmiPrincipal,
+            loans: loanPayable,
+            emis: 0,
+          ),
         ),
-        totalCardLockedEmiPrincipalProvider.overrideWithValue(
-          cardLockedEmiPrincipal,
-        ),
-        totalAmountToPayProvider.overrideWithValue(loanPayable),
         totalAmountToReceiveProvider.overrideWithValue(loanReceivable),
         totalPayableProvider.overrideWithValue(peoplePayable),
         totalReceivableProvider.overrideWithValue(peopleReceivable),
@@ -398,9 +403,11 @@ void main() {
             moneyOut: 0.0,
             net: 0.0,
           )),
-          totalCreditCardOutstandingProvider.overrideWithValue(0),
-          totalCardLockedEmiPrincipalProvider.overrideWithValue(0),
-          totalAmountToPayProvider.overrideWithValue(0),
+          loanBalanceSheetProvider.overrideWithValue(LoanBalanceSheet.empty),
+          peopleDirectBalanceProvider.overrideWithValue(0),
+          liabilityTotalsProvider.overrideWithValue(
+            const LiabilityTotals(creditCards: 0, loans: 0, emis: 0),
+          ),
           upcomingDueProvider.overrideWith((ref, cycle) => const []),
         ],
       );

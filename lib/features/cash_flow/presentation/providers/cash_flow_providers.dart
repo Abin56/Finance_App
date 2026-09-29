@@ -538,9 +538,8 @@ typedef _PeriodRange = ({CashFlowPeriod period, DateRange range});
 /// plain income transactions, split-expense settlements collected from
 /// others (via each expense's own tracked installments), and repayments
 /// received on money I lent ([LoanDirection.given] loans — see the loan loop
-/// below). No account type (bank, credit card, cash, wallet, ...) is ever
-/// filtered here or anywhere downstream — [Transaction.accountId] only ever
-/// affects the line's display `accountLabel`, never whether it's included.
+/// below). Income posted on a tracked credit card (a refund/credit) is left
+/// out: it lowers the card's liability, no cash arrives.
 ///
 /// Bucketing: plain transactions are matched against
 /// [CashFlowPeriod.bucketDateFor] (so a whole-month preset still respects
@@ -567,10 +566,14 @@ final moneyInLinesForRangeFamilyProvider =
       };
 
       final lines = <MoneyFlowLine>[];
+      final cardAccountIds = ref.watch(_trackedCardAccountIdsProvider);
 
       final transactions = ref.watch(calculableTransactionsProvider);
       for (final t in transactions) {
         if (t.isDeleted || t.type != TransactionType.income) continue;
+        // A refund/credit on a tracked card lowers the card's liability — no
+        // cash arrives, so it is not Money In (mirrors Web `cashFlowThisMonth`).
+        if (cardAccountIds.contains(t.accountId)) continue;
         final bucketDate = period.bucketDateFor(t);
         if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) {
           continue;
@@ -666,16 +669,26 @@ final moneyInLinesForRangeFamilyProvider =
       return lines;
     });
 
+/// Account ids behind every tracked [CreditCardProfile] — the accounts whose
+/// transactions move card debt rather than cash. Same identification as Web
+/// (`creditCards.map(c => c.accountId)`); an account merely typed "card" with
+/// no tracked profile is treated like any other account.
+final _trackedCardAccountIdsProvider = Provider<Set<String>>((ref) {
+  final cards = ref.watch(creditCardsStreamProvider).value ?? const [];
+  return {for (final c in cards) c.accountId};
+});
+
 /// Every [MoneyFlowLine] that contributes to Money Out for [key]'s range —
-/// EVERY qualifying expense transaction regardless of which [Account]/
-/// [AccountType] it's posted against (bank, credit card, cash, wallet, or
-/// any other type this app supports), plus EMI/Loan/Bill payments (which
-/// never post their own [Transaction], see [cashFlowThisMonthProvider]'s
-/// doc comment). A credit-card purchase is stored as an ordinary
-/// [Transaction] on that card's [Account] — see `CreditCardProfile.accountId`
-/// — so it is already included by the same unfiltered loop as any other
-/// account's expense transaction; there is deliberately no `accountId`/
-/// `AccountType`/"is this a credit card" branch anywhere in this provider.
+/// cash actually leaving: every qualifying expense transaction on a
+/// non-card account (bank, cash, wallet, ...), plus EMI/Loan/Bill payments
+/// (which never post their own [Transaction], see
+/// [cashFlowThisMonthProvider]'s doc comment), plus credit-card bill
+/// payments. A purchase on a TRACKED credit card (`CreditCardProfile.accountId`)
+/// is not cash out — it only raises the card's liability; the cash leaves
+/// when the card is paid (a transfer into the card account), and that
+/// payment is the Money Out line. Counting both would count one purchase as
+/// cash spent AND card debt. The purchase still appears in spending
+/// analytics and the card's own outstanding. Mirrors Web `cashFlowThisMonth`.
 /// Same single-source-of-truth contract as
 /// [moneyInLinesForRangeFamilyProvider]: whichever total reads this (Cash
 /// Flow screen or Dashboard) sums these exact lines, so the summary and the
@@ -691,15 +704,9 @@ final moneyInLinesForRangeFamilyProvider =
 /// arbitrary range instead of always the current calendar month. Loan lines
 /// are the one exception: they bucket by each payment's own real date (see
 /// the loan loop below) since a repayment has no due-cycle concept of its
-/// own the way a recurring EMI/Bill does. A
-/// credit-card STATEMENT payment (paying off the card's bill) is distinct
-/// from a credit-card PURCHASE: the purchase already counted once as an
-/// ordinary expense [Transaction] above, and paying the statement later
-/// moves money between the card account and the paying account without
-/// posting a second expense transaction — see `CreditCardStatementSummaryCard`'s
-/// own section, which tracks statement payment status separately and is
-/// never summed into this provider, so a purchase is never double-counted
-/// against its own later bill payment.
+/// own the way a recurring EMI/Bill does. A credit-card STATEMENT payment
+/// (paying off the card's bill) is distinct from a credit-card PURCHASE: the
+/// purchase is excluded here, the payment is counted — never both.
 final moneyOutLinesForRangeFamilyProvider =
     Provider.family<List<MoneyFlowLine>, _PeriodRange>((ref, key) {
       final period = key.period;
@@ -714,10 +721,16 @@ final moneyOutLinesForRangeFamilyProvider =
       };
 
       final lines = <MoneyFlowLine>[];
+      final cardAccountIds = ref.watch(_trackedCardAccountIdsProvider);
 
       final transactions = ref.watch(calculableTransactionsProvider);
       for (final t in transactions) {
         if (t.isDeleted || t.type != TransactionType.expense) continue;
+        // A purchase on a tracked credit card only raises the card's
+        // liability — no cash has left yet. Cash leaves when the card is paid
+        // (the card-payment lines below). Counting the purchase here as well
+        // would treat one ₹1,000 purchase as both cash spent and card debt.
+        if (cardAccountIds.contains(t.accountId)) continue;
         final bucketDate = period.bucketDateFor(t);
         if (bucketDate.isBefore(range.start) || bucketDate.isAfter(range.end)) {
           continue;
@@ -730,6 +743,49 @@ final moneyOutLinesForRangeFamilyProvider =
           categoryLabel: categoriesById[t.categoryId]?.name,
           accountLabel: accountsById[t.accountId]?.name,
         ));
+      }
+
+      // Card bill payments: a transfer from a non-card account INTO a tracked
+      // card account is when card spending actually leaves as cash. Counted
+      // once, on the paying (outgoing) leg; a card-to-card transfer is not cash.
+      // Transfers are excluded from `calculableTransactionsProvider`, so the
+      // raw stream is read here.
+      if (cardAccountIds.isNotEmpty) {
+        final all = ref.watch(transactionsStreamProvider).value ?? const [];
+        final cardPaymentTransferIds = {
+          for (final t in all)
+            if (!t.isDeleted &&
+                t.transferId != null &&
+                t.type == TransactionType.income &&
+                cardAccountIds.contains(t.accountId))
+              t.transferId!,
+        };
+        for (final t in all) {
+          // (Transfer legs are always stored `excludeFromCalculations: true`,
+          // so that flag can't be used to skip here.)
+          if (t.isDeleted ||
+              t.type != TransactionType.expense ||
+              t.transferId == null ||
+              cardAccountIds.contains(t.accountId) ||
+              !cardPaymentTransferIds.contains(t.transferId)) {
+            continue;
+          }
+          final bucketDate = period.bucketDateFor(t);
+          if (bucketDate.isBefore(range.start) ||
+              bucketDate.isAfter(range.end)) {
+            continue;
+          }
+          lines.add((
+            kind: MoneyFlowKind.creditCardPayment,
+            date: t.dateTime,
+            title: t.description.isNotEmpty
+                ? t.description
+                : 'Credit card payment',
+            amount: t.amount,
+            categoryLabel: 'Card Payment',
+            accountLabel: accountsById[t.accountId]?.name,
+          ));
+        }
       }
 
       for (final emi in ref.watch(activeEmisProvider)) {

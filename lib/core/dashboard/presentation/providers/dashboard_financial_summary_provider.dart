@@ -1,9 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../features/cash_flow/presentation/providers/cash_flow_providers.dart';
-import '../../../../features/credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../../features/lending/presentation/providers/loan_balance_sheet_providers.dart';
-import '../../../../features/lending/presentation/providers/loan_providers.dart';
 import '../../domain/dashboard_financial_summary.dart';
 import '../../domain/date_range_strategy.dart';
 import 'upcoming_due_provider.dart';
@@ -22,10 +20,13 @@ final dashboardFinancialSummaryProvider = Provider<DashboardFinancialSummary>((
 
   final cashFlow = ref.watch(cashFlowThisMonthProvider);
 
-  final outstandingDebt =
-      ref.watch(totalCreditCardOutstandingProvider) +
-      ref.watch(totalCardLockedEmiPrincipalProvider) +
-      ref.watch(totalAmountToPayProvider);
+  // The one global liability total (remaining PRINCIPAL, EMIs included, card-
+  // owned EMI/Loan counted once on the card line) — the same balance sheet Net
+  // Worth subtracts, so the two always reconcile. Previously this added the
+  // loans' remaining amount INCLUDING future interest, left EMIs and closed
+  // loans with principal out, and re-added card-funded loans the card
+  // already carries.
+  final outstandingDebt = ref.watch(liabilityTotalsProvider).total;
 
   // upcomingDueProvider is keyed by an explicit cycle window; SalaryCycleFull
   // (default anchorDay 17) is the same default cycle EMI/Loan/People already
