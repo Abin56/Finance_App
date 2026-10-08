@@ -43,7 +43,7 @@ List<LoanEmiBadge> loanBadges(
 ) {
   return [
     if (loan.direction == LoanDirection.given)
-      const LoanEmiBadge('Money I lent', AppColors.success),
+      const LoanEmiBadge('Loan I Gave', AppColors.success),
     if (status == LoanStatus.overdue)
       const LoanEmiBadge('Missed payment', AppColors.error),
     if (status == LoanStatus.closed)

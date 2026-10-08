@@ -30,6 +30,7 @@ class Transaction extends SoftDeletableEntity {
     this.installmentId,
     this.installmentPaymentId,
     this.paymentAllocationType,
+    this.isPersonLedgerMovement = false,
   });
 
   @override
@@ -123,6 +124,15 @@ class Transaction extends SoftDeletableEntity {
   /// "Prepayment" without a join. Null for every non-loan/EMI transaction.
   final PaymentAllocationType? paymentAllocationType;
 
+  /// The real account movement ("cash leg") of a People-ledger payment —
+  /// money received from / paid to a person that settles what is owed
+  /// (Record Payment, Received back, Repaid, Borrowed). It moves the Account
+  /// but is not income or spending, so totals skip it via
+  /// [isNonIncomeExpenseMovement]. Mirrors the web app's
+  /// `Transaction.isPersonLedgerMovement`; round-tripped so an edit here
+  /// never strips it from a web-created cash leg.
+  final bool isPersonLedgerMovement;
+
   /// Whether this transaction is one leg of a transfer between two of the
   /// user's own accounts — money moving, not real income or a real expense.
   /// Mirrors the web app's `isTransfer()` (`lib/models/transaction.ts`); the
@@ -145,7 +155,7 @@ class Transaction extends SoftDeletableEntity {
   /// and Loan principal disbursements. Mirrors the web app's
   /// `isNonIncomeExpenseMovement`.
   bool get isNonIncomeExpenseMovement =>
-      isTransfer || isLoanPrincipalDisbursement;
+      isTransfer || isLoanPrincipalDisbursement || isPersonLedgerMovement;
 
   /// The signed delta this transaction applies to its account's balance —
   /// the single source of truth for balance math, so the repository never
@@ -196,6 +206,8 @@ class Transaction extends SoftDeletableEntity {
             : PaymentAllocationTypeX.fromName(
                 data['paymentAllocationType'] as String?,
               ),
+        isPersonLedgerMovement:
+            data['isPersonLedgerMovement'] as bool? ?? false,
       )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -228,6 +240,7 @@ class Transaction extends SoftDeletableEntity {
       'installmentId': installmentId,
       'installmentPaymentId': installmentPaymentId,
       'paymentAllocationType': paymentAllocationType?.name,
+      'isPersonLedgerMovement': isPersonLedgerMovement,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null
           ? null

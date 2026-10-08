@@ -49,11 +49,12 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
     final filtered = people
         .where((p) => _filter.matches(p, balances[p.id]))
         .where((p) {
-      if (query.isEmpty) return true;
-      return p.name.toLowerCase().contains(query) ||
-          (p.phone?.toLowerCase().contains(query) ?? false) ||
-          (p.email?.toLowerCase().contains(query) ?? false);
-    }).toList();
+          if (query.isEmpty) return true;
+          return p.name.toLowerCase().contains(query) ||
+              (p.phone?.toLowerCase().contains(query) ?? false) ||
+              (p.email?.toLowerCase().contains(query) ?? false);
+        })
+        .toList();
     return applyPeopleSort(filtered, _sort, balances);
   }
 
@@ -146,7 +147,7 @@ class _PeopleScreenState extends ConsumerState<PeopleScreen> {
               icon: Icons.people_outline_rounded,
               title: 'No people yet',
               subtitle:
-                  'Add someone to start tracking money given, borrowed, or repaid.',
+                  'Add someone to track Money I Gave, Money I Borrowed, or repayments.',
               action: FilledButton(
                 onPressed: () => PersonFormSheet.show(context),
                 child: const Text('Add your first person'),

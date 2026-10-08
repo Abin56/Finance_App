@@ -45,6 +45,8 @@ class _UnifiedAgreementCreateScreenState
   var _interestType = InterestType.reducingBalance;
   var _repayment = UnifiedRepayment.scheduled;
   DateTime? _dueDate;
+  DateTime _loanDate = DateTime.now();
+  DateTime _firstEmiDate = DateTime.now();
   String? _personId, _cardId, _purchaseTransactionId, _movementAccountId;
   var _recordMovement = false;
   bool _saving = false;
@@ -330,6 +332,14 @@ class _UnifiedAgreementCreateScreenState
                 ),
               ],
               const SizedBox(height: AppSizes.md),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.account_balance_outlined),
+                title: const Text('Loan Taken Date'),
+                subtitle: Text(_formatDate(_loanDate)),
+                onTap: _pickLoanDate,
+              ),
+              const SizedBox(height: AppSizes.md),
               if (form.isOneTime)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -341,14 +351,25 @@ class _UnifiedAgreementCreateScreenState
                   onTap: _pickDueDate,
                 )
               else
-                TextField(
-                  controller: _count,
-                  textInputAction: TextInputAction.next,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Monthly payments',
-                  ),
-                  onChanged: (_) => setState(() {}),
+                Column(
+                  children: [
+                    TextField(
+                      controller: _count,
+                      textInputAction: TextInputAction.next,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Monthly payments',
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.calendar_month_outlined),
+                      title: const Text('First EMI Date'),
+                      subtitle: Text(_formatDate(_firstEmiDate)),
+                      onTap: _pickFirstEmiDate,
+                    ),
+                  ],
                 ),
               const SizedBox(height: AppSizes.md),
               TextField(
@@ -520,6 +541,26 @@ class _UnifiedAgreementCreateScreenState
     if (picked != null) setState(() => _dueDate = picked);
   }
 
+  Future<void> _pickLoanDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _loanDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _loanDate = picked);
+  }
+
+  Future<void> _pickFirstEmiDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _firstEmiDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _firstEmiDate = picked);
+  }
+
   Future<void> _create() async {
     if (_saving) return;
     setState(() => _saving = true);
@@ -557,7 +598,8 @@ class _UnifiedAgreementCreateScreenState
                 ? LoanDirection.given
                 : LoanDirection.taken,
             loanAmount: figures.principal,
-            loanDate: DateTime.now(),
+            loanDate: _loanDate,
+            firstDueDate: form.isOneTime ? null : _firstEmiDate,
             repaymentType: form.isOneTime
                 ? LoanRepaymentType.oneTime
                 : LoanRepaymentType.installment,
@@ -608,7 +650,7 @@ String _formatDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
 String _kindLabel(UnifiedCreateKind value) => switch (value) {
-  UnifiedCreateKind.borrowed => 'Money I Borrowed',
-  UnifiedCreateKind.lent => 'Money I Lent',
+  UnifiedCreateKind.borrowed => 'Loan I Took',
+  UnifiedCreateKind.lent => 'Loan I Gave',
   UnifiedCreateKind.installmentPurchase => 'Purchase on Installments',
 };

@@ -225,7 +225,9 @@ class _SummaryCard extends ConsumerWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const TextSpan(text: ' lent, still to receive'),
+                    const TextSpan(
+                      text: ' from loans I gave, still to receive',
+                    ),
                   ],
                 ),
                 style: context.textTheme.bodySmall?.copyWith(color: secondary),
@@ -251,7 +253,10 @@ class _SummaryCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                VerticalDivider(width: AppSizes.xl, color: context.colors.outline),
+                VerticalDivider(
+                  width: AppSizes.xl,
+                  color: context.colors.outline,
+                ),
                 Expanded(
                   flex: 6,
                   child: Column(

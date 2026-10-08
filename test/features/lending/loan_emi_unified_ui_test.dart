@@ -108,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Add a Loan'), findsWidgets);
     // A Loan defaults to money borrowed from a bank / lender.
-    expect(find.text('Borrowed from'), findsOneWidget);
+    expect(find.text('Loan taken from'), findsOneWidget);
     // Account movement is opt-in; card accounts are never offered, so with
     // only cards the form points to Accounts instead of an inline create.
     expect(find.text('Go to Accounts'), findsNothing);

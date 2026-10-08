@@ -24,7 +24,7 @@ extension PersonTimelineCategoryX on PersonTimelineCategory {
   String get label {
     switch (this) {
       case PersonTimelineCategory.lending:
-        return 'Lending';
+        return 'Money Between Us';
       case PersonTimelineCategory.assignedExpense:
         return 'Expenses this person will pay';
       case PersonTimelineCategory.splitExpense:

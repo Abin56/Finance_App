@@ -132,7 +132,7 @@ OriginationMovement? planOriginationMovement({
 String originationDescription(OriginationMovementKind kind, String? name) {
   final label = switch (kind) {
     OriginationMovementKind.principalReceived => 'Loan received',
-    OriginationMovementKind.principalSent => 'Money lent',
+    OriginationMovementKind.principalSent => 'Money I Gave',
     OriginationMovementKind.downPaymentPaid => 'Down payment',
   };
   final trimmed = name?.trim() ?? '';
@@ -231,7 +231,7 @@ String originationReversalMessage(
           '${movement.accountName} and reverse the loan creation.',
     OriginationMovementKind.principalSent =>
       'This will restore $amount to ${movement.accountName} and reverse the '
-          'amount lent.',
+          'amount given.',
     OriginationMovementKind.downPaymentPaid =>
       'This will restore the recorded $amount down payment to '
           '${movement.accountName} and reverse the installment purchase.',

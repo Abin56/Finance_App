@@ -247,7 +247,7 @@ abstract class PersonTimelineBuilder {
         // this row renders.
         title: isInstallment && hasName
             ? loan.name!
-            : (isGiven ? 'Money lent' : 'Money borrowed'),
+            : (isGiven ? 'Money I Gave' : 'Money I Borrowed'),
         signedAmount: isGiven ? loan.loanAmount : -loan.loanAmount,
         category: PersonTimelineCategory.lending,
         status: _statusForLoan(loanStatus),

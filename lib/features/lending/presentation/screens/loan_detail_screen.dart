@@ -174,7 +174,9 @@ class LoanDetailScreen extends ConsumerWidget {
                             )
                           : null,
                       icon: const Icon(Icons.payments_outlined),
-                      label: Text(isGiven ? 'Record received' : 'Record payment'),
+                      label: Text(
+                        isGiven ? 'Record received' : 'Record payment',
+                      ),
                     ),
                   ),
                   const SizedBox(width: AppSizes.sm),
@@ -183,8 +185,7 @@ class LoanDetailScreen extends ConsumerWidget {
                       minimumSize: const Size(0, 48),
                     ),
                     onPressed:
-                        isClosed ||
-                            (!isInstallment && summary.outstanding <= 0)
+                        isClosed || (!isInstallment && summary.outstanding <= 0)
                         ? null
                         : () => _showMoreActions(
                             context,
@@ -258,7 +259,10 @@ class LoanDetailScreen extends ConsumerWidget {
                     isGiven ? 'Received so far' : 'Paid so far',
                     _money(summary.totalPaid),
                   ),
-                  LoanEmiFact('Total payable', _money(summary.totalScheduledPayable)),
+                  LoanEmiFact(
+                    'Total payable',
+                    _money(summary.totalScheduledPayable),
+                  ),
                   if (loan.interest != null) ...[
                     LoanEmiFact(
                       'Principal left',
@@ -294,11 +298,12 @@ class LoanDetailScreen extends ConsumerWidget {
                     icon: isInstitutional
                         ? Icons.account_balance_outlined
                         : Icons.person_outline_rounded,
-                    label: isGiven ? 'Lent to' : 'Borrowed from',
+                    label: isGiven ? 'Loan given to' : 'Loan taken from',
                     value: loanCounterpartyName(loan, person),
                     onOpen: person == null
                         ? null
-                        : () => context.push('${AppRoutes.people}/${person.id}'),
+                        : () =>
+                              context.push('${AppRoutes.people}/${person.id}'),
                   ),
                   Divider(height: 1, color: context.colors.outline),
                   LoanEmiLinkedRow(
@@ -501,7 +506,7 @@ class LoanDetailScreen extends ConsumerWidget {
               if (isInstallment)
                 option(
                   icon: Icons.add_card_rounded,
-                  title: isGiven ? 'Lend More' : 'Borrow More',
+                  title: isGiven ? 'Give More Money' : 'Borrow More Money',
                   subtitle: isGiven
                       ? 'Add more money given under this loan.'
                       : 'Add more money received under this loan.',

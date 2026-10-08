@@ -155,14 +155,14 @@ class PersonStatementHeader extends StatelessWidget {
               ),
               Expanded(
                 child: _StatColumn(
-                  label: 'You Lent',
+                  label: 'Money I Gave',
                   value: _youLent,
                   color: AppColors.success,
                 ),
               ),
               Expanded(
                 child: _StatColumn(
-                  label: 'You Borrowed',
+                  label: 'Money I Borrowed',
                   value: _youBorrowed,
                   color: AppColors.error,
                 ),
@@ -174,7 +174,7 @@ class PersonStatementHeader extends StatelessWidget {
           _StatRow(label: 'Total money given', value: _totalGiven),
           _StatRow(label: 'Total money received', value: _totalReceived),
           _StatRow(
-            label: 'Total lending',
+            label: 'Money between us',
             value: _totalForCategory(PersonTimelineCategory.lending),
           ),
           _StatRow(

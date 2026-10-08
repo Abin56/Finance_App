@@ -193,13 +193,13 @@ class _LoanAdjustmentSheetState extends ConsumerState<LoanAdjustmentSheet> {
         title: _prepay
             ? 'Pay Extra Principal'
             : widget.loan.direction == LoanDirection.taken
-            ? 'Borrow More'
-            : 'Lend More',
+            ? 'Borrow More Money'
+            : 'Give More Money',
         description: _prepay
             ? 'Settle the current due amount and intentionally reduce principal.'
             : widget.loan.direction == LoanDirection.taken
             ? 'Record additional money received from this lender.'
-            : 'Record additional money lent to this borrower.',
+            : 'Record additional money given to this borrower.',
         confirmLabel: _saving
             ? 'Recording…'
             : _prepay && preview is PrincipalPrepaymentPreview

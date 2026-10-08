@@ -35,6 +35,10 @@ class LedgerRepository extends FirestoreCrudRepository<LedgerEntry> {
     String note = '',
     String? transactionRef,
     bool increasesBalance = true,
+    String? parentEntryId,
+    String sourceKind = 'manual',
+    String? obligationRef,
+    String receivedStatus = 'yetToReceive',
   }) async {
     if (amount <= 0) {
       throw const AppException('Amount must be greater than 0');
@@ -50,6 +54,10 @@ class LedgerRepository extends FirestoreCrudRepository<LedgerEntry> {
       transactionRef: transactionRef,
       increasesBalance: increasesBalance,
       createdAt: DateTime.now(),
+      parentEntryId: parentEntryId,
+      sourceKind: sourceKind,
+      obligationRef: obligationRef,
+      receivedStatus: receivedStatus,
     );
     await add(entry.id, entry);
     await personRepository.adjustBalance(person, entry.signedAmount);

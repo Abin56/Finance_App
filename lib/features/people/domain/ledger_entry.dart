@@ -23,6 +23,13 @@ class LedgerEntry extends SoftDeletableEntity {
     this.note = '',
     this.transactionRef,
     this.increasesBalance = true,
+    this.parentEntryId,
+    this.sourceKind,
+    this.obligationRef,
+    this.receivedStatus,
+    this.paymentId,
+    this.installmentPaymentRef,
+    this.incomeTransactionRef,
   });
 
   @override
@@ -47,6 +54,38 @@ class LedgerEntry extends SoftDeletableEntity {
   /// an account transaction. Stored but not validated against the
   /// Transactions collection in this milestone.
   final String? transactionRef;
+
+  // --- Settlement linkage (shared with the web app — see the web
+  // `lib/models/person.ts`). Every field is read AND written back, so a
+  // full-document `set()` from this app (edit / soft-delete / restore) can
+  // never strip a link the web app wrote. Stripping them used to detach a
+  // settlement from the obligation it paid, reopening it and losing its
+  // payment history and Undo.
+
+  /// For a "receivedBack"/"repaid" settlement: the "gave"/"borrowed" entry it settles.
+  final String? parentEntryId;
+
+  /// Explicit origin: manual, splitExpense, assignedExpense, emiInstallment,
+  /// loanInstallment, advance. Null on legacy entries.
+  final String? sourceKind;
+
+  /// Stable key of a derived obligation this entry settles, e.g. `emi-inst:{id}`.
+  final String? obligationRef;
+
+  /// "yetToReceive" / "received" — a settlement marker only, never balance math.
+  final String? receivedStatus;
+
+  /// Groups every entry written by one Record Payment (one real payment).
+  final String? paymentId;
+
+  /// Split-share tracking payment this entry wrote: `{scheduleId}/{installmentId}/{paymentId}`.
+  final String? installmentPaymentRef;
+
+  /// When part of the payment was recorded as separate income: that Income transaction.
+  final String? incomeTransactionRef;
+
+  /// An advance — money paid ahead of any obligation (held, not pending).
+  bool get isAdvance => sourceKind == 'advance';
 
   final DateTime createdAt;
 
@@ -74,6 +113,13 @@ class LedgerEntry extends SoftDeletableEntity {
         transactionRef: data['transactionRef'] as String?,
         increasesBalance: data['increasesBalance'] as bool? ?? true,
         createdAt: (data['createdAt'] as Timestamp).toDate(),
+        parentEntryId: data['parentEntryId'] as String?,
+        sourceKind: data['sourceKind'] as String?,
+        obligationRef: data['obligationRef'] as String?,
+        receivedStatus: data['receivedStatus'] as String?,
+        paymentId: data['paymentId'] as String?,
+        installmentPaymentRef: data['installmentPaymentRef'] as String?,
+        incomeTransactionRef: data['incomeTransactionRef'] as String?,
       )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -92,6 +138,15 @@ class LedgerEntry extends SoftDeletableEntity {
       'transactionRef': transactionRef,
       'increasesBalance': increasesBalance,
       'createdAt': Timestamp.fromDate(createdAt),
+      'parentEntryId': parentEntryId,
+      if (sourceKind != null) 'sourceKind': sourceKind,
+      if (obligationRef != null) 'obligationRef': obligationRef,
+      if (receivedStatus != null) 'receivedStatus': receivedStatus,
+      if (paymentId != null) 'paymentId': paymentId,
+      if (installmentPaymentRef != null)
+        'installmentPaymentRef': installmentPaymentRef,
+      if (incomeTransactionRef != null)
+        'incomeTransactionRef': incomeTransactionRef,
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null
           ? null

@@ -757,7 +757,11 @@ class ExpenseRepository extends FirestoreCrudRepository<Expense> {
         }
 
         resolvedParticipants.add(
-          participant.copyWith(installmentId: installment.id),
+          // Keep the share's settlement marker (web-written) across the edit.
+          participant.copyWith(
+            installmentId: installment.id,
+            receivedStatus: old?.receivedStatus,
+          ),
         );
       }
 

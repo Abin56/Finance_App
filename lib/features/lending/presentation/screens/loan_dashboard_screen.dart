@@ -70,7 +70,7 @@ class _BorrowedVsLentCard extends StatelessWidget {
         children: [
           Expanded(
             child: _DirectionStat(
-              label: 'Borrowed',
+              label: 'Loan I Took',
               amount: metrics.totalBorrowed,
               color: AppColors.debit,
               currency: currency,
@@ -80,7 +80,7 @@ class _BorrowedVsLentCard extends StatelessWidget {
           const SizedBox(width: AppSizes.md),
           Expanded(
             child: _DirectionStat(
-              label: 'Lent',
+              label: 'Loan I Gave',
               amount: metrics.totalLent,
               color: AppColors.credit,
               currency: currency,
@@ -93,7 +93,12 @@ class _BorrowedVsLentCard extends StatelessWidget {
 }
 
 class _DirectionStat extends StatelessWidget {
-  const _DirectionStat({required this.label, required this.amount, required this.color, required this.currency});
+  const _DirectionStat({
+    required this.label,
+    required this.amount,
+    required this.color,
+    required this.currency,
+  });
 
   final String label;
   final double amount;
@@ -106,14 +111,22 @@ class _DirectionStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: textTheme.bodyMedium?.copyWith(color: context.colors.onSurfaceVariant)),
+        Text(
+          label,
+          style: textTheme.bodyMedium?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: AppSizes.xs),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
             currency.format(amount),
-            style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: color),
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -137,8 +150,17 @@ class _StatGrid extends StatelessWidget {
       crossAxisSpacing: AppSizes.md,
       childAspectRatio: 2.2,
       children: [
-        _StatTile(label: 'Total Outstanding', amount: metrics.totalOutstanding, currency: currency),
-        _StatTile(label: 'Total Paid', amount: metrics.totalPaid, currency: currency, color: AppColors.success),
+        _StatTile(
+          label: 'Total Outstanding',
+          amount: metrics.totalOutstanding,
+          currency: currency,
+        ),
+        _StatTile(
+          label: 'Total Paid',
+          amount: metrics.totalPaid,
+          currency: currency,
+          color: AppColors.success,
+        ),
         _StatTile(
           label: 'Interest Remaining',
           amount: metrics.totalInterestRemaining,
@@ -157,7 +179,12 @@ class _StatGrid extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.amount, required this.currency, this.color});
+  const _StatTile({
+    required this.label,
+    required this.amount,
+    required this.currency,
+    this.color,
+  });
 
   final String label;
   final double amount;
@@ -172,14 +199,22 @@ class _StatTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label, style: textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+          Text(
+            label,
+            style: textTheme.bodySmall?.copyWith(
+              color: context.colors.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: AppSizes.xs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               currency.format(amount),
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: color),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ),
         ],
@@ -269,14 +304,22 @@ class _LabeledAmount extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: textTheme.bodySmall?.copyWith(color: context.colors.onSurfaceVariant)),
+        Text(
+          label,
+          style: textTheme.bodySmall?.copyWith(
+            color: context.colors.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: AppSizes.xs),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
             value,
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
+            style: textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -302,10 +345,15 @@ class _MonthlyRepaymentCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(monthFormat.format(buckets[i].month), style: textTheme.bodyLarge),
+                Text(
+                  monthFormat.format(buckets[i].month),
+                  style: textTheme.bodyLarge,
+                ),
                 Text(
                   currency.format(buckets[i].amountDue),
-                  style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                  style: textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),

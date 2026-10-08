@@ -29,11 +29,11 @@ extension LoanDirectionFilterX on LoanDirectionFilter {
   String get label {
     switch (this) {
       case LoanDirectionFilter.all:
-        return 'Borrowed & lent';
+        return 'All loans';
       case LoanDirectionFilter.given:
-        return 'I lent';
+        return 'Loan I Gave';
       case LoanDirectionFilter.taken:
-        return 'I borrowed';
+        return 'Loan I Took';
     }
   }
 }

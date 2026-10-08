@@ -33,6 +33,7 @@ import '../widgets/person_loan_ledger_summary_card.dart';
 import '../widgets/person_loans_summary_card.dart';
 import '../widgets/person_pending_breakdown.dart';
 import '../widgets/person_statement_groups_card.dart';
+import '../widgets/person_settlement_section.dart';
 import '../widgets/person_statement_header.dart';
 import '../widgets/request_payment.dart';
 import '../widgets/settle_up_sheet.dart';
@@ -271,7 +272,22 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
                       ],
                     ),
                   ),
-                  if (_tab != _LedgerTab.summary)
+                  // History: the People Ledger settlement view (statement
+                  // engine, Record payment, per-row actions) as compact
+                  // rows — never the wide desktop-style table on a phone.
+                  if (_tab == _LedgerTab.history)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSizes.lg,
+                        0,
+                        AppSizes.lg,
+                        AppSizes.xxxl,
+                      ),
+                      sliver: SliverToBoxAdapter(
+                        child: PersonSettlementSection(person: person),
+                      ),
+                    )
+                  else if (_tab == _LedgerTab.payments)
                     ..._historyOrPaymentsSlivers(
                       context,
                       person,
@@ -305,7 +321,7 @@ class _PersonStatementScreenState extends ConsumerState<PersonStatementScreen> {
               title: isPayments ? 'No payments yet' : 'No history yet',
               subtitle: isPayments
                   ? 'Payments that clear this balance will show up here.'
-                  : 'Add an expense, or record money given or borrowed, to build the history.',
+                  : 'Add an expense, or record Money I Gave or Money I Borrowed, to build the history.',
             ),
           ),
         ),

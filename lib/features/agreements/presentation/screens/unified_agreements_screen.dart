@@ -159,7 +159,7 @@ class _UnifiedAgreementsScreenState
                   icon: Icons.account_balance_outlined,
                   title: 'No agreements yet',
                   subtitle:
-                      'Add money you borrowed, money you lent, or an installment purchase.',
+                      'Add a loan you took, a loan you gave, or an installment purchase.',
                   action: FilledButton.icon(
                     onPressed: _showAddChoices,
                     icon: const Icon(Icons.add_rounded),
@@ -217,12 +217,14 @@ class _UnifiedAgreementsScreenState
             ),
             ListTile(
               leading: const Icon(Icons.south_west_rounded),
-              title: const Text('Money I borrowed'),
+              title: const Text('Loan I Took'),
+              subtitle: const Text('I received money and need to pay it back'),
               onTap: () => Navigator.pop(context, _AddChoice.borrowed),
             ),
             ListTile(
               leading: const Icon(Icons.north_east_rounded),
-              title: const Text('Money I lent'),
+              title: const Text('Loan I Gave'),
+              subtitle: const Text('I gave money and need to get it back'),
               onTap: () => Navigator.pop(context, _AddChoice.lent),
             ),
             ListTile(
@@ -289,8 +291,8 @@ String _agreementLabel(AgreementFilter value) => switch (value) {
 
 String _directionLabel(DirectionFilter value) => switch (value) {
   DirectionFilter.all => 'All directions',
-  DirectionFilter.borrowed => 'Borrowed',
-  DirectionFilter.lent => 'Lent',
+  DirectionFilter.borrowed => 'Loan I Took',
+  DirectionFilter.lent => 'Loan I Gave',
 };
 
 String _fundingLabel(FundingFilter value) => switch (value) {

@@ -10,6 +10,7 @@ import 'loan_direction.dart';
 import 'loan_interest.dart';
 import 'loan_repayment_type.dart';
 import 'loan_status.dart';
+import 'ownership_share.dart';
 
 enum LoanAgreementKind { loan, installmentPurchase }
 
@@ -38,6 +39,8 @@ class Loan extends SoftDeletableEntity {
     this.branch,
     this.payerPersonId,
     this.beneficiaryPersonId,
+    this.beneficiaryRepaysInstallments = false,
+    this.ownershipShares,
     this.name,
     this.interest,
     this.dueDate,
@@ -102,6 +105,19 @@ class Loan extends SoftDeletableEntity {
   /// Flutter close/edit/trash silently erased the Web user's association.
   /// Pure association: no schedule, liability, card or Person-ledger effect.
   String? beneficiaryPersonId;
+
+  /// Explicit opt-in (Web: "{name} repays me each installment") that makes
+  /// each installment a People-ledger obligation of [beneficiaryPersonId].
+  /// Merely having a beneficiary never means they owe the installment.
+  /// Carried through for the same whole-document `set` reason as
+  /// [beneficiaryPersonId] — dropping it removed the obligations on Web.
+  bool beneficiaryRepaysInstallments;
+
+  /// Shared ownership of the principal, written by Web (see [OwnershipShare]).
+  /// No Flutter UI creates it, but it is carried through every whole-document
+  /// `set` — dropping it erased the shares (and every person's installment
+  /// obligation) when Flutter closed, edited or paid a Web-shared Loan.
+  List<OwnershipShare>? ownershipShares;
 
   String? name;
 
@@ -189,6 +205,9 @@ class Loan extends SoftDeletableEntity {
         branch: data['branch'] as String?,
         payerPersonId: data['payerPersonId'] as String?,
         beneficiaryPersonId: data['beneficiaryPersonId'] as String?,
+        beneficiaryRepaysInstallments:
+            data['beneficiaryRepaysInstallments'] as bool? ?? false,
+        ownershipShares: ownershipSharesFromData(data['ownershipShares']),
         name: data['name'] as String?,
         loanAmount: (data['loanAmount'] as num).toDouble(),
         interest: data['interest'] == null
@@ -233,6 +252,9 @@ class Loan extends SoftDeletableEntity {
       'branch': branch,
       'payerPersonId': payerPersonId,
       'beneficiaryPersonId': beneficiaryPersonId,
+      'beneficiaryRepaysInstallments': beneficiaryRepaysInstallments,
+      if (hasOwnershipShares(ownershipShares))
+        'ownershipShares': ownershipSharesToData(ownershipShares),
       'name': name,
       'loanAmount': loanAmount,
       'interest': interest?.toMap(),

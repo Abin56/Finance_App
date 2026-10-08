@@ -25,9 +25,12 @@ class PersonLoanLedgerSummaryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final summary = ref.watch(personLoanLedgerSummaryProvider(person.id));
-    if (summary.youOweThem == 0 && summary.theyOweYou == 0) return const SizedBox.shrink();
+    if (summary.youOweThem == 0 && summary.theyOweYou == 0)
+      return const SizedBox.shrink();
 
-    final netColor = summary.isNetReceivable ? AppColors.credit : AppColors.debit;
+    final netColor = summary.isNetReceivable
+        ? AppColors.credit
+        : AppColors.debit;
 
     return AppCard(
       child: Column(
@@ -46,7 +49,10 @@ class PersonLoanLedgerSummaryCard extends ConsumerWidget {
               Text('Net', style: context.textTheme.titleSmall),
               Text(
                 '${CurrencyFormatter.instance.format(summary.net.abs())} ${summary.isNetReceivable ? 'receivable' : 'payable'}',
-                style: context.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: netColor),
+                style: context.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: netColor,
+                ),
               ),
             ],
           ),
@@ -55,9 +61,17 @@ class PersonLoanLedgerSummaryCard extends ConsumerWidget {
             Text('Loans', style: context.textTheme.titleSmall),
             const SizedBox(height: AppSizes.sm),
             if (summary.loanGivenTotal > 0)
-              _LoanDirectionRow(label: 'Given', total: summary.loanGivenTotal, outstanding: summary.loanGivenOutstanding),
+              _LoanDirectionRow(
+                label: 'Given',
+                total: summary.loanGivenTotal,
+                outstanding: summary.loanGivenOutstanding,
+              ),
             if (summary.loanTakenTotal > 0)
-              _LoanDirectionRow(label: 'Borrowed', total: summary.loanTakenTotal, outstanding: summary.loanTakenOutstanding),
+              _LoanDirectionRow(
+                label: 'Loan I Took',
+                total: summary.loanTakenTotal,
+                outstanding: summary.loanTakenOutstanding,
+              ),
           ],
         ],
       ),
@@ -66,7 +80,11 @@ class PersonLoanLedgerSummaryCard extends ConsumerWidget {
 }
 
 class _LoanDirectionRow extends StatelessWidget {
-  const _LoanDirectionRow({required this.label, required this.total, required this.outstanding});
+  const _LoanDirectionRow({
+    required this.label,
+    required this.total,
+    required this.outstanding,
+  });
 
   final String label;
   final double total;
@@ -82,17 +100,34 @@ class _LoanDirectionRow extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-              Text(CurrencyFormatter.instance.format(total), style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                label,
+                style: context.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                CurrencyFormatter.instance.format(total),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Outstanding', style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6))),
+              Text(
+                'Outstanding',
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
               Text(
                 CurrencyFormatter.instance.format(outstanding),
-                style: context.textTheme.bodySmall?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.6)),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurface.withValues(alpha: 0.6),
+                ),
               ),
             ],
           ),
@@ -115,10 +150,17 @@ class _Row extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: context.textTheme.bodyMedium?.copyWith(color: context.colors.onSurface.withValues(alpha: 0.7))),
+          Text(
+            label,
+            style: context.textTheme.bodyMedium?.copyWith(
+              color: context.colors.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
           Text(
             CurrencyFormatter.instance.format(amount),
-            style: context.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: context.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),

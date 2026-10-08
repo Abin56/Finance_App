@@ -224,9 +224,8 @@ class _LoansScreenState extends ConsumerState<LoansScreen> {
                     icon: LoanEmiCopy.loanIcon,
                     title: 'No loans yet',
                     subtitle:
-                        'A Loan is money borrowed from a bank, lender or '
-                        'person. Add one to track its installments and '
-                        "what's left to repay.",
+                        'Track loans you took and need to repay, or loans '
+                        'you gave and need to get back.',
                     action: FilledButton(
                       onPressed: () => LoanFormSheet.show(context),
                       child: const Text('Add a Loan'),

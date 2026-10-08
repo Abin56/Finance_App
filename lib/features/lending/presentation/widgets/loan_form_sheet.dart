@@ -105,6 +105,7 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
   late LoanDirection _direction =
       widget.loan?.direction ?? widget.initialDirection ?? LoanDirection.taken;
   late DateTime _loanDate = widget.loan?.loanDate ?? DateTime.now();
+  late DateTime? _firstEmiDate = widget.loan == null ? DateTime.now() : null;
   late DateTime? _dueDate = widget.loan?.dueDate;
   late LoanRepaymentType _repaymentType =
       widget.loan?.repaymentType ?? LoanRepaymentType.oneTime;
@@ -154,6 +155,25 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
       lastDate: DateTime(2100),
     );
     if (picked != null) setState(() => _loanDate = picked);
+  }
+
+  DateTime get _effectiveFirstEmiDate {
+    if (_firstEmiDate != null) return _firstEmiDate!;
+    final loan = widget.loan;
+    if (loan == null) return _loanDate;
+    final installments =
+        ref.read(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+    return installments.isEmpty ? loan.loanDate : installments.first.dueDate;
+  }
+
+  Future<void> _pickFirstEmiDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _effectiveFirstEmiDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _firstEmiDate = picked);
   }
 
   Future<void> _pickDueDate() async {
@@ -249,14 +269,26 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
     return !_loanDate.isAtSameMomentAs(loan.loanDate);
   }
 
+  bool get _firstEmiDateChanged {
+    final loan = widget.loan;
+    if (loan == null || loan.repaymentType != LoanRepaymentType.installment) {
+      return false;
+    }
+    final installments =
+        ref.read(installmentsStreamProvider(loan.scheduleId)).value ?? const [];
+    final original = installments.isEmpty
+        ? loan.loanDate
+        : installments.first.dueDate;
+    return !_effectiveFirstEmiDate.isAtSameMomentAs(original);
+  }
+
   Future<bool> _confirmLoanDateChange() {
     return showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Change Loan Date?'),
         content: const Text(
-          'This regenerates every payment in this loan\'s schedule against the new date. Since no payments have '
-          'been recorded yet, nothing else is affected.',
+          'This changes when the loan was taken. The First EMI Date and repayment schedule will stay unchanged.',
         ),
         actions: [
           TextButton(
@@ -402,6 +434,17 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
             ),
           );
         }
+        if (_firstEmiDateChanged) {
+          final installments =
+              ref.read(installmentsStreamProvider(loan.scheduleId)).value ??
+              const [];
+          await repository.editFirstDueDate(
+            loan,
+            newFirstDueDate: _effectiveFirstEmiDate,
+            hasPayments: hasPayments,
+            currentInstallments: installments,
+          );
+        }
       } else {
         final institutional = _category == LoanCategory.institutional;
         final installment = _repaymentType == LoanRepaymentType.installment;
@@ -447,6 +490,7 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
             payerPersonId: _payerPersonId,
             loanAmount: loanAmount,
             loanDate: _loanDate,
+            firstDueDate: _effectiveFirstEmiDate,
             repaymentType: _repaymentType,
             direction: _direction,
             name: name,
@@ -468,6 +512,7 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
             payerPersonId: _payerPersonId,
             loanAmount: loanAmount,
             loanDate: _loanDate,
+            firstDueDate: _effectiveFirstEmiDate,
             repaymentType: _repaymentType,
             direction: _direction,
             name: name,
@@ -556,15 +601,19 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isEditing) {
+      ref.watch(installmentsStreamProvider(widget.loan!.scheduleId));
+    }
     final people = ref.watch(peopleStreamProvider).value ?? const <Person>[];
     final preview = _preview;
     final hasPayments = _isEditing
         ? ref.watch(loanTotalReceivedProvider(widget.loan!)) > 0
         : false;
     final received = _direction == LoanDirection.taken;
-    final lenderLabel = received ? 'Borrowed from' : 'Lent to';
+    final lenderLabel = received ? 'Loan taken from' : 'Loan given to';
     final isInstallment = _repaymentType == LoanRepaymentType.installment;
     final canEditLoanDate = !_isEditing || (isInstallment && !hasPayments);
+    final canEditFirstEmiDate = !_isEditing || (isInstallment && !hasPayments);
     final secondary = loanEmiSecondaryText(context);
 
     return Form(
@@ -579,17 +628,17 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
           children: [
             // 1 — what kind of loan. Decides the wording of everything below.
             if (!_isEditing) ...[
-              const LoanEmiFieldLabel('Did you borrow or lend it?'),
+              const LoanEmiFieldLabel('Which kind of loan is this?'),
               SegmentedButton<LoanDirection>(
                 showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(
                     value: LoanDirection.taken,
-                    label: Text('I borrowed'),
+                    label: Text('Loan I Took'),
                   ),
                   ButtonSegment(
                     value: LoanDirection.given,
-                    label: Text('I lent'),
+                    label: Text('Loan I Gave'),
                   ),
                 ],
                 selected: {_direction},
@@ -597,7 +646,9 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
                     setState(() => _direction = selection.first),
               ),
               const SizedBox(height: AppSizes.md),
-              LoanEmiFieldLabel(received ? 'Borrowed from a…' : 'Lent to a…'),
+              LoanEmiFieldLabel(
+                received ? 'I received money from…' : 'I gave money to…',
+              ),
               SegmentedButton<LoanCategory>(
                 showSelectedIcon: false,
                 segments: const [
@@ -769,10 +820,19 @@ class _LoanFormSheetState extends ConsumerState<LoanFormSheet> {
             const SizedBox(height: AppSizes.sm),
             _dateTile(
               context,
-              title: 'Loan date',
+              title: 'Loan Taken Date',
               value: _formatDate(_loanDate),
               onTap: canEditLoanDate ? _pickLoanDate : null,
             ),
+            if (isInstallment) ...[
+              const SizedBox(height: AppSizes.sm),
+              _dateTile(
+                context,
+                title: 'First EMI Date',
+                value: _formatDate(_effectiveFirstEmiDate),
+                onTap: canEditFirstEmiDate ? _pickFirstEmiDate : null,
+              ),
+            ],
             if (_isEditing && isInstallment && hasPayments)
               Padding(
                 padding: const EdgeInsets.only(top: AppSizes.xs),

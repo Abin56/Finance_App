@@ -12,7 +12,7 @@ import '../../../../core/utils/currency_formatter.dart';
 /// by the existing providers; nothing here computes money.
 ///
 /// Terminology (identical on web):
-///   Loan — money borrowed from a bank, lender or person.
+///   Loan — money taken from or given to a bank, lender or person.
 ///   EMI  — installments for a purchase, Credit Card EMI or store finance.
 abstract final class LoanEmiCopy {
   static const loan = 'Loan';
@@ -20,7 +20,7 @@ abstract final class LoanEmiCopy {
   static const emi = 'EMI';
   static const emis = 'EMIs';
   static const loanDescription =
-      'Money borrowed from a bank, lender or person.';
+      'Money you took and need to repay, or gave and need to get back.';
   static const emiDescription =
       'Installments for a purchase, Credit Card EMI or store finance.';
   static const outstanding = 'Outstanding';
@@ -541,7 +541,8 @@ class LoanEmiFactGrid extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var j = 0; j < 2; j++) ...[
-                if (j == 1) VerticalDivider(width: 1, color: context.colors.outline),
+                if (j == 1)
+                  VerticalDivider(width: 1, color: context.colors.outline),
                 Expanded(
                   child: j < pair.length
                       ? Padding(
@@ -792,9 +793,7 @@ class LoanEmiRevealSwitch extends StatelessWidget {
           SwitchListTile(
             value: value,
             onChanged: onChanged,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSizes.md,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
             title: Text(
               title,
               style: context.textTheme.titleSmall?.copyWith(

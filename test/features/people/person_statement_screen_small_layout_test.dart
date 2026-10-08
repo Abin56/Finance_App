@@ -43,7 +43,7 @@ void main() {
   final currentCycleDate = currentCycle.start.add(const Duration(days: 1));
 
   testWidgets(
-    'Previous Cycle Pending + Current Cycle sections fit a small phone without overflow',
+    'Brought-forward + this-cycle settlement rows fit a small phone without overflow',
     (tester) async {
       tester.view.physicalSize = _smallPhone;
       tester.view.devicePixelRatio = 1.0;
@@ -197,22 +197,18 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Previous Cycle Pending'), findsOneWidget);
-      expect(find.text('Current Cycle'), findsOneWidget);
-      expect(find.textContaining('CARRIED FORWARD'), findsOneWidget);
-
-      // The reference-only entry's pill is further down the current-cycle
-      // list, past the two expense entries above — scroll to bring it into
-      // the sliver's built extent before asserting on it.
+      // History is the settlement view: the unpaid previous-cycle share is
+      // brought forward (not re-created), this cycle's share is listed below.
+      expect(find.textContaining('BROUGHT FORWARD'), findsOneWidget);
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
       await tester.pumpAndSettle();
-      expect(find.text('Reference only'), findsOneWidget);
+      expect(find.text('THIS CYCLE'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
 
   testWidgets(
-    'Previous Cycle section is hidden once its only entry is fully settled',
+    'Nothing is brought forward once the previous-cycle share is fully settled',
     (tester) async {
       tester.view.physicalSize = _smallPhone;
       tester.view.devicePixelRatio = 1.0;
@@ -276,9 +272,22 @@ void main() {
           ),
           firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
           peopleStreamProvider.overrideWith((ref) => Stream.value([person])),
-          ledgerStreamProvider(
-            'p1',
-          ).overrideWith((ref) => Stream.value([settledLedgerEntry])),
+          ledgerStreamProvider('p1').overrideWith(
+            (ref) => Stream.value([
+              settledLedgerEntry,
+              // What settling the share writes: its "Received back" entry.
+              LedgerEntry(
+                id: 'l-received',
+                personId: 'p1',
+                type: LedgerEntryType.receivedBack,
+                amount: 500,
+                date: previousCycleDate,
+                note: 'Split settlement: Lunch',
+                transactionRef: 'txn-settled',
+                createdAt: previousCycleDate,
+              ),
+            ]),
+          ),
           ledgerTrashStreamProvider(
             'p1',
           ).overrideWith((ref) => Stream.value(const [])),
@@ -305,8 +314,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Previous Cycle Pending'), findsNothing);
-      expect(find.text('Current Cycle'), findsOneWidget);
+      // Fully paid in the previous cycle → nothing is brought forward.
+      expect(find.textContaining('BROUGHT FORWARD'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

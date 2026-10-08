@@ -82,6 +82,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
     String? installmentId,
     String? installmentPaymentId,
     PaymentAllocationType? paymentAllocationType,
+    bool isPersonLedgerMovement = false,
   }) async {
     final built = Transaction(
       id: IdGenerator.generate(),
@@ -104,6 +105,7 @@ class TransactionRepository extends FirestoreCrudRepository<Transaction> {
       installmentId: installmentId,
       installmentPaymentId: installmentPaymentId,
       paymentAllocationType: paymentAllocationType,
+      isPersonLedgerMovement: isPersonLedgerMovement,
     );
 
     // Always validates the account exists, regardless of balanceEffect —

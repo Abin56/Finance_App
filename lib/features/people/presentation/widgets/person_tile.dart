@@ -34,15 +34,12 @@ class PersonTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final balance = this.balance ?? person.currentBalance;
     final direction =
-        MoneyDirectionX.forSignedBalance(balance) ??
-        MoneyDirection.completed;
-    final amount = CurrencyFormatter.instance.format(
-      balance.abs(),
-    );
+        MoneyDirectionX.forSignedBalance(balance) ?? MoneyDirection.completed;
+    final amount = CurrencyFormatter.instance.format(balance.abs());
     final subtitle = balance == 0
         ? 'nothing to pay'
         : balance > 0
-        ? 'you lent $amount'
+        ? 'they owe you $amount'
         : 'you need to pay $amount';
     final pillLabel = balance == 0
         ? 'Nothing to Pay'

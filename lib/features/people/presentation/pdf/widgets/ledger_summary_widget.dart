@@ -53,7 +53,7 @@ class LedgerSummaryWidget extends pw.StatelessWidget {
         pw.SizedBox(width: PdfTokens.sm),
         pw.Expanded(
           child: PdfKpiCard(
-            title: 'You Lent',
+            title: 'Money I Gave',
             value: fmt.format(model.youLent),
             fonts: fonts,
           ),
@@ -61,7 +61,7 @@ class LedgerSummaryWidget extends pw.StatelessWidget {
         pw.SizedBox(width: PdfTokens.sm),
         pw.Expanded(
           child: PdfKpiCard(
-            title: 'You Borrowed',
+            title: 'Money I Borrowed',
             value: fmt.format(model.youBorrowed),
             fonts: fonts,
           ),

@@ -41,7 +41,7 @@ class MoreScreen extends ConsumerWidget {
     _MoreItem(
       icon: Icons.account_balance_outlined,
       label: 'Loans & Installments',
-      subtitle: 'Borrowed, lent, and financed purchases',
+      subtitle: 'Loans I took, loans I gave, and financed purchases',
       route: AppRoutes.agreements,
       color: AppColors.secondary,
     ),

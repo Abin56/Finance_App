@@ -8,6 +8,7 @@ import '../../../core/payment_schedule/domain/schedule_type.dart';
 import 'emi_interest.dart';
 import 'emi_loan_type.dart';
 import 'emi_status.dart';
+import '../../lending/domain/ownership_share.dart';
 
 /// A recurring monthly (or weekly/custom) payment obligation — a loan
 /// you're repaying in installments — tracked through a linked
@@ -49,6 +50,8 @@ class Emi extends SoftDeletableEntity {
     this.purchaseTransactionId,
     this.beneficiaryPersonId,
     this.dueDayOfMonth,
+    this.beneficiaryRepaysInstallments = false,
+    this.ownershipShares,
   });
 
   @override
@@ -108,6 +111,17 @@ class Emi extends SoftDeletableEntity {
   /// Flutter close/edit/trash silently erased the Web user's association.
   /// Pure association: no schedule, liability, card or Person-ledger effect.
   String? beneficiaryPersonId;
+
+  /// Explicit opt-in (Web: "{name} repays me each installment") that makes
+  /// each installment a People-ledger obligation of [beneficiaryPersonId].
+  /// Merely having a beneficiary never means they owe the installment.
+  /// Carried through for the same whole-document `set` reason as
+  /// [beneficiaryPersonId] — dropping it removed the obligations on Web.
+  bool beneficiaryRepaysInstallments;
+
+  /// Shared ownership of the principal, written by Web — carried through every
+  /// whole-document `set` exactly like [beneficiaryRepaysInstallments].
+  List<OwnershipShare>? ownershipShares;
 
   /// Locked once any payment has been recorded — see `EmiRepository.editEmi`.
   double principalAmount;
@@ -223,6 +237,9 @@ class Emi extends SoftDeletableEntity {
         purchaseTransactionId: data['purchaseTransactionId'] as String?,
         beneficiaryPersonId: data['beneficiaryPersonId'] as String?,
         dueDayOfMonth: (data['dueDayOfMonth'] as num?)?.toInt(),
+        beneficiaryRepaysInstallments:
+            data['beneficiaryRepaysInstallments'] as bool? ?? false,
+        ownershipShares: ownershipSharesFromData(data['ownershipShares']),
       )
       ..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate()
       ..lastEditedAt = (data['lastEditedAt'] as Timestamp?)?.toDate()
@@ -268,6 +285,9 @@ class Emi extends SoftDeletableEntity {
       'purchaseTransactionId': purchaseTransactionId,
       'beneficiaryPersonId': beneficiaryPersonId,
       'dueDayOfMonth': dueDayOfMonth,
+      'beneficiaryRepaysInstallments': beneficiaryRepaysInstallments,
+      if (hasOwnershipShares(ownershipShares))
+        'ownershipShares': ownershipSharesToData(ownershipShares),
       'deletedAt': deletedAt == null ? null : Timestamp.fromDate(deletedAt!),
       'lastEditedAt': lastEditedAt == null
           ? null

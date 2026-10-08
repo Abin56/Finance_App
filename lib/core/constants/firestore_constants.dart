@@ -9,6 +9,8 @@ abstract class FirestoreCollections {
   static const String budgets = 'budgets';
   static const String savingsGoals = 'savingsGoals';
   static const String people = 'people'; // creditors & debtors
+  static const String advanceApplications =
+      'advanceApplications'; // subcollection under people/{personId}
   static const String ledger =
       'ledger'; // subcollection under people/{personId}
   static const String bills = 'bills';

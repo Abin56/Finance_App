@@ -14,7 +14,7 @@ extension LoanDirectionX on LoanDirection {
 
   /// Label for the direction picker on the Add Loan form.
   String get formLabel =>
-      this == LoanDirection.given ? 'I Gave Money' : 'I Borrowed Money';
+      this == LoanDirection.given ? 'Loan I Gave' : 'Loan I Took';
 
   /// Label for the direction badge shown on loan rows/detail.
   String get badgeLabel =>

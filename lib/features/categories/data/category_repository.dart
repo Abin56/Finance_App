@@ -89,4 +89,25 @@ class CategoryRepository extends FirestoreCrudRepository<Category> {
       await add(category.id, category);
     }
   }
+
+  /// The category every People cash leg (Record Payment, Received back,
+  /// Repaid) is posted under — same deterministic id the web app uses
+  /// (`CategoryRepository.getOrCreatePersonalLoanCategory`), so both apps
+  /// share one document.
+  Future<Category> getOrCreatePersonalLoanCategory() async {
+    const id = 'default-both-personal-loan';
+    final existing = await getByKey(id);
+    if (existing != null) return existing;
+    final category = Category(
+      id: id,
+      name: 'Personal Loan',
+      type: CategoryType.both,
+      iconKey: 'people',
+      colorValue: 0xff5b5fef,
+      createdAt: DateTime.now(),
+      isDefault: true,
+    );
+    await add(category.id, category);
+    return category;
+  }
 }

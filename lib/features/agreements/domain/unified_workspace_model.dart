@@ -147,10 +147,10 @@ String fundingLabel(UnifiedFundingSource funding) => switch (funding) {
 })
 agreementCardPresentation(UnifiedFinanceAgreement agreement) => (
   relationship: agreement.direction == UnifiedAgreementDirection.lent
-      ? 'Money I Lent'
+      ? 'Loan I Gave'
       : agreement.agreementKind == UnifiedAgreementKind.installmentPurchase
       ? 'Installment Purchase · ${fundingLabel(agreement.fundingSource)}'
-      : 'Money I Borrowed',
+      : 'Loan I Took',
   remainingLabel: agreement.direction == UnifiedAgreementDirection.lent
       ? 'Principal owed to me'
       : 'Principal remaining',

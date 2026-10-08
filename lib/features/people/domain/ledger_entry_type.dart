@@ -29,9 +29,9 @@ extension LedgerEntryTypeX on LedgerEntryType {
   String get label {
     switch (this) {
       case LedgerEntryType.gave:
-        return 'They Need to Pay Me';
+        return 'Money I Gave';
       case LedgerEntryType.borrowed:
-        return 'They Paid for Me';
+        return 'Money I Borrowed';
       case LedgerEntryType.receivedBack:
         return 'Received Payment';
       case LedgerEntryType.repaid:

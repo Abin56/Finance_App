@@ -418,31 +418,83 @@ void main() {
   });
 
   group('LoanRepository.createLoan — monthly due-day pinning', () {
-    test('due date stays pinned to loanDate.day across a short month, no drift', () async {
-      // Regression: nextDueDate/_addMonths chains off the previous computed
-      // date, so once a Jan 31 due date clamps to Feb 28, every subsequent
-      // month re-derives from the 28th and never recovers the 31st (Jan
-      // 31 -> Feb 28 -> Mar 28 -> Apr 28 instead of Mar 31 -> Apr 30).
-      // Passing dueDayOfMonth (fixed to the original day) avoids this.
+    test(
+      'due date stays pinned to loanDate.day across a short month, no drift',
+      () async {
+        // Regression: nextDueDate/_addMonths chains off the previous computed
+        // date, so once a Jan 31 due date clamps to Feb 28, every subsequent
+        // month re-derives from the 28th and never recovers the 31st (Jan
+        // 31 -> Feb 28 -> Mar 28 -> Apr 28 instead of Mar 31 -> Apr 30).
+        // Passing dueDayOfMonth (fixed to the original day) avoids this.
+        final loan = await repository.createLoan(
+          personId: 'p1',
+          loanAmount: 600,
+          loanDate: DateTime(2026, 1, 31),
+          repaymentType: LoanRepaymentType.installment,
+          installmentFrequency: ScheduleType.monthly,
+          installmentCount: 6,
+        );
+
+        final installments = await installmentsFor(loan.scheduleId);
+        installments.sort(
+          (a, b) => a.sequenceNumber.compareTo(b.sequenceNumber),
+        );
+        final dueDates = installments.map((i) => i.dueDate).toList();
+
+        expect(dueDates[0], DateTime(2026, 1, 31));
+        expect(dueDates[1], DateTime(2026, 2, 28)); // Feb has no 31st — clamped
+        expect(dueDates[2], DateTime(2026, 3, 31)); // recovers the 31st
+        expect(
+          dueDates[3],
+          DateTime(2026, 4, 30),
+        ); // April has no 31st — clamped
+        expect(dueDates[4], DateTime(2026, 5, 31));
+        expect(dueDates[5], DateTime(2026, 6, 30));
+      },
+    );
+  });
+
+  group('separate loan and first EMI dates', () {
+    test(
+      'monthly schedule uses First EMI Date across the year boundary',
+      () async {
+        final loan = await repository.createLoan(
+          personId: 'p1',
+          loanAmount: 25000,
+          loanDate: DateTime(2026, 9, 10),
+          firstDueDate: DateTime(2026, 10, 5),
+          repaymentType: LoanRepaymentType.installment,
+          installmentFrequency: ScheduleType.monthly,
+          installmentCount: 10,
+        );
+        final installments = await installmentsFor(loan.scheduleId)
+          ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+        expect(loan.loanDate, DateTime(2026, 9, 10));
+        expect(installments[0].dueDate, DateTime(2026, 10, 5));
+        expect(installments[1].dueDate, DateTime(2026, 11, 5));
+        expect(installments[2].dueDate, DateTime(2026, 12, 5));
+        expect(installments[3].dueDate, DateTime(2027, 1, 5));
+      },
+    );
+
+    test('weekly schedule uses First EMI Date as its anchor', () async {
       final loan = await repository.createLoan(
         personId: 'p1',
-        loanAmount: 600,
-        loanDate: DateTime(2026, 1, 31),
+        loanAmount: 25000,
+        loanDate: DateTime(2026, 9, 10),
+        firstDueDate: DateTime(2026, 9, 20),
         repaymentType: LoanRepaymentType.installment,
-        installmentFrequency: ScheduleType.monthly,
-        installmentCount: 6,
+        installmentFrequency: ScheduleType.weekly,
+        installmentCount: 4,
       );
-
-      final installments = await installmentsFor(loan.scheduleId);
-      installments.sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
-      final dueDates = installments.map((i) => i.dueDate).toList();
-
-      expect(dueDates[0], DateTime(2026, 1, 31));
-      expect(dueDates[1], DateTime(2026, 2, 28)); // Feb has no 31st — clamped
-      expect(dueDates[2], DateTime(2026, 3, 31)); // recovers the 31st
-      expect(dueDates[3], DateTime(2026, 4, 30)); // April has no 31st — clamped
-      expect(dueDates[4], DateTime(2026, 5, 31));
-      expect(dueDates[5], DateTime(2026, 6, 30));
+      final installments = await installmentsFor(loan.scheduleId)
+        ..sort((a, b) => a.sequenceNumber.compareTo(b.sequenceNumber));
+      expect(installments.map((i) => i.dueDate), [
+        DateTime(2026, 9, 20),
+        DateTime(2026, 9, 27),
+        DateTime(2026, 10, 4),
+        DateTime(2026, 10, 11),
+      ]);
     });
   });
 

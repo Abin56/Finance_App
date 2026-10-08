@@ -62,6 +62,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
   Future<Loan> createLoan({
     required double loanAmount,
     required DateTime loanDate,
+    DateTime? firstDueDate,
     required LoanRepaymentType repaymentType,
     String? personId,
     LoanDirection direction = LoanDirection.given,
@@ -88,6 +89,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     final request = _CreateLoanRequest(
       loanAmount: loanAmount,
       loanDate: loanDate,
+      firstDueDate: firstDueDate ?? loanDate,
       repaymentType: repaymentType,
       personId: personId,
       direction: direction,
@@ -127,7 +129,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         .generateInstallments(
           schedule,
           precomputedAmounts: plan.precomputed,
-          dueDayOfMonth: loanDate.day,
+          dueDayOfMonth: plan.firstDueDate.day,
         );
 
     final loan = request.buildLoan(loanId, schedule.id, DateTime.now());
@@ -162,6 +164,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     required String idempotencyKey,
     required double loanAmount,
     required DateTime loanDate,
+    DateTime? firstDueDate,
     required LoanRepaymentType repaymentType,
     String? movementAccountId,
     DateTime? movementDate,
@@ -191,6 +194,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     final request = _CreateLoanRequest(
       loanAmount: loanAmount,
       loanDate: loanDate,
+      firstDueDate: firstDueDate ?? loanDate,
       repaymentType: repaymentType,
       personId: personId,
       direction: direction,
@@ -316,7 +320,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
           final installments = InstallmentRepository.buildInstallments(
             schedule,
             precomputedAmounts: plan.precomputed,
-            dueDayOfMonth: loanDate.day,
+            dueDayOfMonth: plan.firstDueDate.day,
             idFor: ids.installmentId,
           );
           for (final installment in installments) {
@@ -641,7 +645,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       scheduleType: shape.scheduleType,
       firstDueDate: request.repaymentType == LoanRepaymentType.oneTime
           ? request.dueDate!
-          : request.loanDate,
+          : request.firstDueDate,
       precomputed: precomputed,
       totalAmount: precomputed == null
           ? request.loanAmount
@@ -942,25 +946,26 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
   /// scratch against the new date, reusing the loan's existing
   /// interest/frequency/count. One-time loans use [dueDate] instead, which
   /// is already editable via [editLoan].
-  Future<void> editLoanDate(
+  Future<void> editFirstDueDate(
     Loan loan, {
-    required DateTime newLoanDate,
+    required DateTime newFirstDueDate,
     required bool hasPayments,
     required List<Installment> currentInstallments,
   }) async {
     if (loan.repaymentType != LoanRepaymentType.installment) {
       throw const AppException(
-        'Only installment loans have an editable loan date',
+        'Only installment loans have an editable First EMI Date',
       );
     }
     if (hasPayments) {
       throw const AppException(
-        'Loan date can\'t be changed after a payment has been recorded',
+        'First EMI Date can\'t be changed after a payment has been recorded',
       );
     }
 
     final installmentRepository = _installmentRepositoryFor(loan.scheduleId);
-    for (final installment in currentInstallments) {
+    final liveInstallments = await installmentRepository.getAll();
+    for (final installment in liveInstallments) {
       await installmentRepository.softDelete(installment);
     }
 
@@ -997,7 +1002,7 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
       await paymentScheduleRepository.editSchedule(
         schedule,
         totalAmount: totalAmount,
-        firstDueDate: newLoanDate,
+        firstDueDate: newFirstDueDate,
       );
     }
 
@@ -1008,14 +1013,36 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
         ownerId: loan.id,
         totalAmount: totalAmount,
         scheduleType: loan.installmentFrequency!,
-        firstDueDate: newLoanDate,
+        firstDueDate: newFirstDueDate,
         installmentCount: loan.installmentCount!,
         createdAt: loan.createdAt,
       ),
       precomputedAmounts: precomputed,
-      dueDayOfMonth: newLoanDate.day,
+      dueDayOfMonth: newFirstDueDate.day,
     );
 
+    if (newInstallments.isNotEmpty) {
+      rescheduleReminders(loan, newInstallments.first.dueDate);
+    }
+  }
+
+  /// Changes when the loan was taken without moving the repayment schedule.
+  Future<void> editLoanDate(
+    Loan loan, {
+    required DateTime newLoanDate,
+    required bool hasPayments,
+    required List<Installment> currentInstallments,
+  }) async {
+    if (loan.repaymentType != LoanRepaymentType.installment) {
+      throw const AppException(
+        'Only installment loans have an editable loan date',
+      );
+    }
+    if (hasPayments) {
+      throw const AppException(
+        'Loan date can\'t be changed after a payment has been recorded',
+      );
+    }
     loan.recordEdit(
       field: 'loanDate',
       oldValue: loan.loanDate.toIso8601String(),
@@ -1023,10 +1050,6 @@ class LoanRepository extends FirestoreCrudRepository<Loan> {
     );
     loan.loanDate = newLoanDate;
     await update(loan);
-
-    if (newInstallments.isNotEmpty) {
-      rescheduleReminders(loan, newInstallments.first.dueDate);
-    }
   }
 
   Future<void> closeLoan(Loan loan) async {
@@ -1292,6 +1315,7 @@ class _CreateLoanRequest {
   const _CreateLoanRequest({
     required this.loanAmount,
     required this.loanDate,
+    required this.firstDueDate,
     required this.repaymentType,
     required this.direction,
     required this.category,
@@ -1318,6 +1342,7 @@ class _CreateLoanRequest {
 
   final double loanAmount;
   final DateTime loanDate;
+  final DateTime firstDueDate;
   final LoanRepaymentType repaymentType;
   final String? personId;
   final LoanDirection direction;

@@ -80,10 +80,10 @@ void main() {
     ]);
   });
   test('3 borrowed Loan presentation', () {
-    expect(agreementCardPresentation(loan).relationship, 'Money I Borrowed');
+    expect(agreementCardPresentation(loan).relationship, 'Loan I Took');
   });
   test('4 lent Loan presentation', () {
-    expect(agreementCardPresentation(lent).relationship, 'Money I Lent');
+    expect(agreementCardPresentation(lent).relationship, 'Loan I Gave');
   });
   test('5 standard EMI presentation', () {
     expect(

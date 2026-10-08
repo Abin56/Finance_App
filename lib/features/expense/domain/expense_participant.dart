@@ -10,6 +10,7 @@ class ExpenseParticipant {
     this.personId,
     this.installmentId,
     this.isMe = false,
+    this.receivedStatus,
   });
 
   /// Null when the participant isn't tracked as a [Person] (e.g. the payer
@@ -36,6 +37,12 @@ class ExpenseParticipant {
   /// correctly.
   final bool isMe;
 
+  /// "yetToReceive" / "received" (web: `ExpenseParticipant.receivedStatus`) —
+  /// whether this share has been paid back. Carried through unchanged so
+  /// editing the expense here never resets a share the web app marked
+  /// received (the expense document is rewritten whole on every edit).
+  final String? receivedStatus;
+
   factory ExpenseParticipant.fromMap(Map<String, dynamic> map) {
     return ExpenseParticipant(
       personId: map['personId'] as String?,
@@ -43,6 +50,7 @@ class ExpenseParticipant {
       share: (map['share'] as num).toDouble(),
       installmentId: map['installmentId'] as String?,
       isMe: map['isMe'] as bool? ?? false,
+      receivedStatus: map['receivedStatus'] as String?,
     );
   }
 
@@ -53,16 +61,18 @@ class ExpenseParticipant {
       'share': share,
       'installmentId': installmentId,
       'isMe': isMe,
+      if (receivedStatus != null) 'receivedStatus': receivedStatus,
     };
   }
 
-  ExpenseParticipant copyWith({String? installmentId}) {
+  ExpenseParticipant copyWith({String? installmentId, String? receivedStatus}) {
     return ExpenseParticipant(
       personId: personId,
       name: name,
       share: share,
       installmentId: installmentId ?? this.installmentId,
       isMe: isMe,
+      receivedStatus: receivedStatus ?? this.receivedStatus,
     );
   }
 }
