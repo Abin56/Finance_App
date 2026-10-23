@@ -1,7 +1,11 @@
 package com.example.finance_app
 
+import android.Manifest
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
@@ -11,9 +15,11 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val notificationListenerChannel = "finance_app/notification_listener"
+    private val AUTO_SYNC_CHANNEL = "finance_app/sms_auto_sync"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        registerAutoSyncChannel(flutterEngine)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, notificationListenerChannel)
             .setMethodCallHandler { call, result ->
@@ -44,6 +50,59 @@ class MainActivity : FlutterActivity() {
                 }
             }
     }
+
+    /**
+     * SMS Auto Sync settings/status. Status carries counters and timestamps
+     * only — never message content. Enabling schedules nothing by itself;
+     * work is enqueued only when a financial-looking message arrives (or via
+     * `scanNow`).
+     */
+    private fun registerAutoSyncChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AUTO_SYNC_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                val prefs = AutoSyncPrefs(applicationContext)
+                when (call.method) {
+                    "getStatus" -> result.success(
+                        mapOf(
+                            "supported" to isSmsReceiverPresent(),
+                            "enabled" to prefs.enabled,
+                            "receiveSmsGranted" to hasPermission(Manifest.permission.RECEIVE_SMS),
+                            "readSmsGranted" to hasPermission(Manifest.permission.READ_SMS),
+                            "pendingSignals" to prefs.pendingSignals,
+                            "rejectedCount" to prefs.rejectedCount,
+                            "lastSuccessAt" to prefs.lastSuccessAt,
+                            "lastError" to prefs.lastError,
+                            "retryCount" to prefs.retryCount,
+                        )
+                    )
+                    "setEnabled" -> {
+                        val enabled = call.argument<Boolean>("enabled") ?: false
+                        prefs.enabled = enabled
+                        if (!enabled) {
+                            SmsScanScheduler.cancel(applicationContext)
+                            prefs.clearSignals()
+                        }
+                        result.success(null)
+                    }
+                    "scanNow" -> {
+                        if (prefs.enabled) SmsScanScheduler.enqueue(applicationContext)
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** False in the `play` flavor, whose manifest removes [SmsReceiver]. */
+    private fun isSmsReceiverPresent(): Boolean = try {
+        packageManager.getReceiverInfo(ComponentName(this, SmsReceiver::class.java), 0)
+        true
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
     private fun isNotificationAccessEnabled(): Boolean {
         return NotificationManagerCompat.getEnabledListenerPackages(this).contains(packageName)

@@ -82,7 +82,20 @@ class SmsInboxDatabase {
   /// provider). Backs the notification-listener capture path (see
   /// `NotificationCaptureListenerService`) that lets RCS-only bank alerts —
   /// which never reach `content://sms` — be scanned alongside real SMS.
-  static const int schemaVersion = 9;
+  ///
+  /// v10 — added nullable `captured_for_uid` to [tableName]: the signed-in
+  /// Firebase uid at the moment a row was *first scanned*, written once by
+  /// [SmsInboxRepository.scanInbox] and never changed afterward. Every row
+  /// from before this version (and any row scanned while nobody is signed
+  /// in) backfills/defaults to `NULL` — "unowned" — and deliberately stays
+  /// that way forever; nothing in this app ever retroactively assigns an
+  /// owner to an existing row. This is what lets the (device-wide, single
+  /// physical sqflite file) local store stay safely multi-account: a row is
+  /// only ever eligible for cloud upload when it's bound to the CURRENTLY
+  /// signed-in uid, never merely "whoever happens to be signed in now." See
+  /// `Finance_App/docs/sms-background-cloud-sync-architecture.md` §3 and
+  /// `captured_uid_resolver.dart`.
+  static const int schemaVersion = 10;
 
   static SmsInboxDatabase? _instance;
 
@@ -133,7 +146,8 @@ class SmsInboxDatabase {
         linked_entity_route TEXT,
         imported_at INTEGER,
         ignored_at INTEGER,
-        created_at INTEGER NOT NULL
+        created_at INTEGER NOT NULL,
+        captured_for_uid TEXT
       )
     ''');
     await _createInboxIndexes(db);
@@ -528,6 +542,17 @@ class SmsInboxDatabase {
     if (oldVersion >= 2 && oldVersion < 9) {
       await db.execute(
         "ALTER TABLE $tableName ADD COLUMN source TEXT NOT NULL DEFAULT 'deviceSms'",
+      );
+    }
+    // v10's column is included directly in the CREATE TABLE above, so a
+    // database jumping from v1 straight to v10 already has it from the
+    // v1→v2 branch's full rebuild; every other pre-v10 database needs the
+    // ALTER TABLE here. No DEFAULT is specified — every existing row
+    // backfills to NULL ("unowned"), deliberately: nobody retroactively
+    // claims a historical row, however long it's been pending.
+    if (oldVersion >= 2 && oldVersion < 10) {
+      await db.execute(
+        'ALTER TABLE $tableName ADD COLUMN captured_for_uid TEXT',
       );
     }
   }
@@ -983,6 +1008,57 @@ class SmsInboxDatabase {
           await _createTransactionCandidatesTable(db);
           await _createFinancialEventsTable(db);
           await _createSmsFinancialEventLinksTable(db);
+        },
+      ),
+    );
+  }
+
+  /// Test-only seam for the v9→v10 migration: creates the schema exactly as
+  /// it existed at v9 (with `source`, before `captured_for_uid`), so a test
+  /// can seed it and then reopen at [schemaVersion] to exercise [_onUpgrade]
+  /// against real rows — mirrors [openV7ForTest]'s role for the v7→v8 step.
+  @visibleForTesting
+  static Future<Database> openV9ForTest(String path) {
+    return databaseFactory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 9,
+        singleInstance: false,
+        onCreate: (db, version) async {
+          await db.execute('''
+            CREATE TABLE $tableName (
+              id TEXT PRIMARY KEY,
+              message_key TEXT NOT NULL UNIQUE,
+              dedup_key TEXT NOT NULL,
+              duplicate_of_id TEXT,
+              duplicate_reason TEXT,
+              sender TEXT NOT NULL,
+              body TEXT NOT NULL,
+              received_at INTEGER NOT NULL,
+              source TEXT NOT NULL DEFAULT 'deviceSms',
+              direction TEXT,
+              amount REAL,
+              merchant TEXT,
+              bank_name TEXT,
+              masked_account TEXT,
+              reference_number TEXT,
+              category TEXT,
+              confidence REAL,
+              status TEXT NOT NULL DEFAULT 'pending',
+              linked_entity_id TEXT,
+              linked_entity_route TEXT,
+              imported_at INTEGER,
+              ignored_at INTEGER,
+              created_at INTEGER NOT NULL
+            )
+          ''');
+          await _createInboxIndexes(db);
+          await _createMerchantMemoryTable(db);
+          await _createDeletedMessageKeysTable(db);
+          await _createTransactionCandidatesTable(db);
+          await _createFinancialEventsTable(db);
+          await _createSmsFinancialEventLinksTable(db);
+          await _createMerchantLearningTables(db);
         },
       ),
     );

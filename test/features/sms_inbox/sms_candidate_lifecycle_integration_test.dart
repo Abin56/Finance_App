@@ -66,12 +66,28 @@ void main() {
   late MerchantMemoryRepository memoryRepository;
   late String accountId;
 
+  // Phase C (2026-10-24) added UID isolation: a local candidate only syncs
+  // to the cloud when its SmsInboxItem.capturedForUid matches the currently
+  // signed-in uid. This file's whole point is the real end-to-end pipeline
+  // working, not UID isolation itself (that's `sms_candidate_cloud_sync_test
+  // .dart`'s dedicated "UID isolation" group) — so every repository here is
+  // built as a single, consistently "signed-in" owner throughout.
+  const testOwnerUid = 'lifecycle-test-owner-uid';
+  String? testOwnerUidResolver() => testOwnerUid;
+  // Phase D ownership safeguard: a "long ago" sign-in so this file's own
+  // real SMS fixtures (all 2026-dated) are treated as arriving after the
+  // session started — the per-message check has its own dedicated coverage
+  // in sms_inbox_repository_test.dart and is not what this file tests.
+  DateTime? testOwnerSignedInAtResolver() => DateTime(2000);
+
   setUp(() async {
     SmsInboxDatabase.debugReset();
     database = await SmsInboxDatabase.openInMemoryForTest();
     inboxRepository = SmsInboxRepository(
       SmsInboxDao(database),
       const SmsReaderAdapter(),
+      capturedUidResolver: testOwnerUidResolver,
+      signedInAtResolver: testOwnerSignedInAtResolver,
     );
     candidateDao = TransactionCandidateDao(database);
     memoryRepository = MerchantMemoryRepository(MerchantMemoryDao(database));
@@ -110,6 +126,7 @@ void main() {
       cloudCandidateRepository,
       candidateDao,
       inboxRepository,
+      capturedUidResolver: testOwnerUidResolver,
     );
   });
 
@@ -125,11 +142,17 @@ void main() {
     AccountCardMatcher matcher,
   ) async {
     final reader = _FakeReaderAdapter(messages);
-    inboxRepository = SmsInboxRepository(SmsInboxDao(database), reader);
+    inboxRepository = SmsInboxRepository(
+      SmsInboxDao(database),
+      reader,
+      capturedUidResolver: testOwnerUidResolver,
+      signedInAtResolver: testOwnerSignedInAtResolver,
+    );
     cloudSync = SmsCandidateCloudSync(
       cloudCandidateRepository,
       candidateDao,
       inboxRepository,
+      capturedUidResolver: testOwnerUidResolver,
     );
 
     await inboxRepository.scanInbox();

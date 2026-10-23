@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_dao.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_inbox_database.dart';
@@ -45,7 +46,17 @@ void main() {
   late TransactionCandidateDao candidateDao;
   late FakeFirebaseFirestore firestore;
   late SmsTransactionCandidateRepository cloudRepository;
+  late CollectionReference<Map<String, dynamic>> tombstoneCollection;
   late SmsCandidateCloudSync sync;
+
+  // Every pre-existing test in this file is about sync BEHAVIOR (upload
+  // once, remove on import/ignore, idempotency, duplicates), not about UID
+  // isolation — so they all seed and sync as the same, single signed-in
+  // user, exactly as if nothing in Phase C changed. The dedicated
+  // "UID isolation" group below is the one that varies this.
+  const ownerUid = 'test-owner-uid';
+  String? currentSignedInUid = ownerUid;
+  String? currentUidResolver() => currentSignedInUid;
 
   final financialSms = RawSmsMessage(
     address: 'VM-HDFCBK',
@@ -63,17 +74,29 @@ void main() {
           toFirestore: (c, _) => c.toFirestore(),
         );
     cloudRepository = SmsTransactionCandidateRepository(collection);
+    tombstoneCollection = firestore.collection('smsCandidateTombstones');
   }
 
   /// (Re)points [inboxRepository] at [reader] and rebuilds [sync] against
   /// it — every test needs its own `SmsInboxRepository` (different seeded
   /// messages), so this can't happen once in `setUp`.
   void useReader(_FakeSmsReaderAdapter reader) {
-    inboxRepository = SmsInboxRepository(SmsInboxDao(database), reader);
+    inboxRepository = SmsInboxRepository(
+      SmsInboxDao(database),
+      reader,
+      capturedUidResolver: currentUidResolver,
+      // Phase D ownership safeguard: every message in this file's fixtures
+      // is dated 2026, so a "long ago" sign-in keeps the existing behavior
+      // this file is actually testing (sync/upload semantics) unaffected by
+      // the separate per-message sign-in-time check — that check has its
+      // own dedicated coverage in sms_inbox_repository_test.dart.
+      signedInAtResolver: () => DateTime(2000),
+    );
     sync = SmsCandidateCloudSync(
       cloudRepository,
       candidateDao,
       inboxRepository,
+      capturedUidResolver: currentUidResolver,
     );
   }
 
@@ -82,6 +105,7 @@ void main() {
     database = await SmsInboxDatabase.openInMemoryForTest();
     candidateDao = TransactionCandidateDao(database);
     setUpCloud();
+    currentSignedInUid = ownerUid;
   });
 
   tearDown(() async {
@@ -265,6 +289,7 @@ void main() {
         throwingRepo,
         candidateDao,
         inboxRepository,
+        capturedUidResolver: currentUidResolver,
       );
 
       await expectLater(throwingSync.sync(), throwsException);
@@ -281,4 +306,201 @@ void main() {
       );
     },
   );
+
+  group('UID isolation (Phase C, 2026-10-24)', () {
+    test(
+      'a candidate captured while signed out (capturedForUid null) is never uploaded, even while someone is signed in',
+      () async {
+        currentSignedInUid = null; // captured while signed out
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        expect(item.capturedForUid, isNull);
+
+        currentSignedInUid = ownerUid; // someone signs in afterward
+        final result = await sync.sync();
+
+        expect(result.synced, 0);
+        expect(await cloudRepository.getAll(), isEmpty);
+      },
+    );
+
+    test(
+      "User A's candidate cannot upload once the device has switched to User B",
+      () async {
+        currentSignedInUid = 'user-a-uid';
+        await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+        expect(await sync.sync(), isA<SmsCandidateSyncResult>());
+        // Still User A at this point — nothing to assert differently yet;
+        // the real point is the switch below.
+
+        currentSignedInUid = 'user-b-uid';
+        final result = await sync.sync();
+
+        expect(result.synced, 0);
+        // User A's candidate must not be left over under whatever Firestore
+        // path this fake collection represents either — the "no longer a
+        // valid target" removal applies the same as any other candidate
+        // that stopped qualifying.
+        expect(await cloudRepository.getAll(), isEmpty);
+      },
+    );
+
+    test(
+      'nobody signed in at sync time: nothing uploads, even for a candidate captured under a real uid',
+      () async {
+        currentSignedInUid = ownerUid;
+        await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+
+        currentSignedInUid = null; // signed out before the next sync runs
+        final result = await sync.sync();
+
+        expect(result.synced, 0);
+        expect(await cloudRepository.getAll(), isEmpty);
+      },
+    );
+
+    test(
+      'an unowned legacy candidate (pre-Phase-C row, capturedForUid never backfilled) stays excluded even though it is otherwise a perfectly normal pending candidate',
+      () async {
+        // Simulates a row that existed before this migration: scanned, then
+        // its capturedForUid is wiped to null directly (what a real
+        // pre-v10 row looks like after the additive ALTER TABLE backfill).
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        await database.database.update(
+          SmsInboxDatabase.tableName,
+          {'captured_for_uid': null},
+          where: 'id = ?',
+          whereArgs: [item.id],
+        );
+
+        final result = await sync.sync();
+
+        expect(result.synced, 0);
+        expect(await cloudRepository.getAll(), isEmpty);
+      },
+    );
+
+    test(
+      'pending candidates are never deleted locally just because they fail the uid check — only the cloud mirror is affected',
+      () async {
+        currentSignedInUid = null;
+        await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+
+        await sync.sync();
+
+        final localItems = await inboxRepository.getAll();
+        final localCandidates = await candidateDao.getAll();
+        expect(localItems, hasLength(1));
+        expect(localCandidates, hasLength(1));
+        expect(localItems.single.status.name, 'pending');
+      },
+    );
+
+    test(
+      'once the SAME uid that captured a candidate signs back in, it uploads normally',
+      () async {
+        currentSignedInUid = ownerUid;
+        await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+
+        currentSignedInUid = 'someone-else';
+        expect((await sync.sync()).synced, 0);
+
+        currentSignedInUid = ownerUid; // back to the real owner
+        final result = await sync.sync();
+
+        expect(result.synced, 1);
+        expect(await cloudRepository.getAll(), hasLength(1));
+      },
+    );
+  });
+
+  group('tombstone-aware upload (Phase D, 2026-10-24)', () {
+    // IMPORTANT SCOPE NOTE: these tests pin the LOGIC SHAPE of
+    // `_uploadUnlessHandled` (tombstone absent -> write; tombstone present ->
+    // skip) using `fake_cloud_firestore`, which has no concept of a second,
+    // concurrent client — it cannot prove the actual race-safety guarantee
+    // (a transaction retrying because another client concurrently wrote the
+    // same document). That guarantee is a property of the real Firestore
+    // backend's transaction semantics, which are identical regardless of SDK
+    // language, and IS verified against the real Firestore Emulator on the
+    // web side: `Flow-Fi-WEB/tests/integration/sms-candidate-lifecycle.
+    // integration.test.ts` (import-vs-dismiss race, resurrection-denied
+    // under real `firestore.rules`). Confirmed directly in this session:
+    // `Firebase.initializeApp()` cannot even complete under `flutter test`
+    // on this desktop host (no platform channel implementation) — there is
+    // no way to connect a Dart test in this repo to a live Firestore
+    // Emulator without a real device, which this machine does not have. See
+    // the Phase D report's "remaining blockers" for the explicit
+    // consequence: the Dart writer's own transaction has not been exercised
+    // against a live backend, only its logic shape.
+    test(
+      'no tombstone for the candidate id: uploads normally',
+      () async {
+        await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncWithTombstones.sync();
+
+        expect(result.synced, 1);
+        expect(result.skippedHandled, 0);
+        expect(await cloudRepository.getAll(), hasLength(1));
+      },
+    );
+
+    test(
+      'a tombstone already exists for the candidate id: never (re)creates it, reports it as skipped, never touches local state',
+      () async {
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        await tombstoneCollection.doc(item.id).set({
+          'outcome': 'imported',
+          'transactionId': 'txn-already-imported',
+          'handledAt': Timestamp.now(),
+        });
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncWithTombstones.sync();
+
+        expect(result.synced, 0);
+        expect(result.skippedHandled, 1);
+        expect(await cloudRepository.getAll(), isEmpty); // never resurrected
+        // Local state is untouched either way — this is a cloud-mirror
+        // decision only, never a local delete/status change.
+        expect(await inboxRepository.getAll(), hasLength(1));
+        expect(await candidateDao.getAll(), hasLength(1));
+      },
+    );
+
+    test(
+      'without a tombstoneCollection configured (pre-Phase-D call site): falls back to the original unconditional upload, unchanged',
+      () async {
+        await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+        // `sync` (built in `useReader`/`setUp`, no tombstoneCollection) is
+        // exactly today's foreground-provider wiring.
+        final result = await sync.sync();
+
+        expect(result.synced, 1);
+        expect(result.skippedHandled, 0);
+      },
+    );
+  });
 }

@@ -32,26 +32,26 @@ class NotificationCaptureListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        // Package check happens before any notification content is read.
+        // `getDefaultSmsPackage()` may be null or a different app than the one
+        // posting RCS alerts, so Google Messages & friends are matched by an
+        // explicit allowlist too (see SmsFinancialPrefilter.MESSAGING_PACKAGES).
+        // Diagnostics log package names and lengths only — never content.
         val defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(applicationContext)
-        // TEMPORARY DIAGNOSTIC LOGGING — no message content, remove once RCS
-        // capture is confirmed working. `adb logcat -s FinanceAppNotifCap`.
+        if (!SmsFinancialPrefilter.isMessagingPackage(sbn.packageName, defaultSmsPackage)) {
+            return
+        }
         Log.d(
             "FinanceAppNotifCap",
-            "posted pkg=${sbn.packageName} defaultSmsPkg=$defaultSmsPackage " +
-                "category=${sbn.notification.category} " +
-                "extrasKeys=${sbn.notification.extras.keySet().joinToString(",")}"
+            "messaging pkg=${sbn.packageName} defaultSmsPkg=$defaultSmsPackage"
         )
-        if (defaultSmsPackage == null || sbn.packageName != defaultSmsPackage) {
-            Log.d("FinanceAppNotifCap", "rejected: package filter (pkg=${sbn.packageName} != default=$defaultSmsPackage)")
-            return
-        }
 
         val extras = sbn.notification.extras
+        // A MessagingStyle post can omit EXTRA_TITLE; the title is only a
+        // display label, so don't drop an otherwise valid alert over it.
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
-        if (title == null) {
-            Log.d("FinanceAppNotifCap", "rejected: no EXTRA_TITLE")
-            return
-        }
+            ?: extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()
+            ?: "Messages"
         var text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
         var postTime = sbn.postTime
 
@@ -92,40 +92,29 @@ class NotificationCaptureListenerService : NotificationListenerService() {
             Log.d("FinanceAppNotifCap", "rejected: no text extracted")
             return
         }
-        val financialReason = financialCheckReason(text)
-        if (financialReason != FinancialCheck.MATCH) {
-            Log.d("FinanceAppNotifCap", "rejected: keyword filter ($financialReason)")
-            return
-        }
-
-        Log.d("FinanceAppNotifCap", "ACCEPTED — inserting into NotificationCaptureStore")
-        store.insertIfNew(title, text, postTime)
-    }
-
-    private enum class FinancialCheck { MATCH, OTP_LIKE, NO_KEYWORD }
-
-    private fun financialCheckReason(text: String): FinancialCheck {
-        val lower = text.lowercase()
-        if (OTP_PATTERN.containsMatchIn(lower)) return FinancialCheck.OTP_LIKE
-        return if (FINANCIAL_KEYWORDS.any { lower.contains(it) }) {
-            FinancialCheck.MATCH
-        } else {
-            FinancialCheck.NO_KEYWORD
-        }
-    }
-
-    companion object {
-        // Coarse pre-filter only — never persist anything OTP-shaped, and
-        // only persist what already looks plausibly financial, so this
+        // Coarse pre-filter only — never persist anything OTP/security-shaped,
+        // and only persist what already looks plausibly financial, so this
         // service's data footprint stays as small as the notification stream
         // allows. `SmsFinancialFilter.isFinancial` on the Dart side is the
         // real, authoritative accept/reject call.
-        private val OTP_PATTERN = Regex(
-            "\\botp\\b|one[- ]?time password|verification code"
-        )
-        private val FINANCIAL_KEYWORDS = listOf(
-            "debited", "credited", "spent", "paid", "withdrawn", "received",
-            "deposited", "upi", "imps", "neft", "rtgs", "emi", "transaction"
-        )
+        val verdict = SmsFinancialPrefilter.evaluate(text)
+        if (verdict != SmsFinancialPrefilter.Verdict.ACCEPT) {
+            Log.d("FinanceAppNotifCap", "rejected: $verdict")
+            return
+        }
+        // Personal RCS chats can quote amounts too; require bank/UPI evidence.
+        if (!SmsFinancialPrefilter.hasBankEvidence(text)) {
+            Log.d("FinanceAppNotifCap", "rejected: no bank evidence")
+            return
+        }
+
+        // Re-posts/updates of the same MessagingStyle thread hit the store's
+        // UNIQUE dedup hash and report `false` — no second scan is scheduled.
+        val isNew = store.insertIfNew(title, text, postTime)
+        val prefs = AutoSyncPrefs(applicationContext)
+        if (isNew && prefs.enabled) {
+            prefs.recordSignal()
+            SmsScanScheduler.enqueue(applicationContext)
+        }
     }
 }

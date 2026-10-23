@@ -48,6 +48,15 @@ abstract class FirestoreCollections {
   // `SmsCandidateCloudSync`.
   static const String smsTransactionCandidates = 'smsTransactionCandidates';
 
+  // Durable "handled" marker for an imported/dismissed SMS candidate — see
+  // `lib/features/sms_inbox/domain/sms_candidate_tombstone.dart` and
+  // `docs/sms-background-cloud-sync-architecture.md` §1/§5. Written by the
+  // web app only (`markHandled`); Android (Phase D) only ever reads it,
+  // inside the same transaction that would otherwise re-create a candidate,
+  // to decide whether to skip. Same document id as the candidate it
+  // replaces.
+  static const String smsCandidateTombstones = 'smsCandidateTombstones';
+
   // --- Financial Document Intelligence Engine (Architecture v1.0) ---
   // Web-only feature today (flowfi-web/lib/firestore/collections.ts) — no
   // Flutter repository layer reads/writes these yet. Declared here so the

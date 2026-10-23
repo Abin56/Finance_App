@@ -296,6 +296,7 @@ class SmsInboxDao {
       'imported_at': item.importedAt?.millisecondsSinceEpoch,
       'ignored_at': item.ignoredAt?.millisecondsSinceEpoch,
       'created_at': item.createdAt.millisecondsSinceEpoch,
+      'captured_for_uid': item.capturedForUid,
     };
   }
 
@@ -349,6 +350,7 @@ class SmsInboxDao {
       ignoredAt: row['ignored_at'] == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row['ignored_at']! as int),
+      capturedForUid: row['captured_for_uid'] as String?,
     );
   }
 }

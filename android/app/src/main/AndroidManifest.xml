@@ -8,6 +8,11 @@
          is no background/live SMS listener, only an explicit user-triggered
          scan (see lib/features/sms_inbox/data/sms_inbox_repository.dart). -->
     <uses-permission android:name="android.permission.READ_SMS"/>
+    <!-- SMS Auto Sync (opt-in, sideload only — removed for `play` via
+         src/play/AndroidManifest.xml): lets SmsReceiver wake a background
+         scan when a financial-looking SMS arrives. The receiver never stores
+         or uploads message text; see docs/sms-auto-sync.md. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <!-- SMS Inbox feature: lets the app prompt the user to exempt itself from
          Doze/App Standby battery restrictions. Needed because OEM background-
          freezing (e.g. Samsung's "Optimised" battery mode) silently prevents
@@ -77,6 +82,15 @@
              notification-listener access the same way it treats SMS access
              for a non-default-handler app. See PLAY_STORE.md > "SMS Inbox
              and the Play build". -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".NotificationCaptureListenerService"
             android:exported="true"

@@ -38,7 +38,16 @@
          scrutinizes BIND_NOTIFICATION_LISTENER_SERVICE the same way it
          scrutinizes SMS access for an app that isn't the default handler.
          See PLAY_STORE.md > "SMS Inbox and the Play build". -->
+    <!-- Background SMS auto-capture (SmsReceiver) is sideload-only for the same
+         reason as READ_SMS. -->
+    <uses-permission
+        android:name="android.permission.RECEIVE_SMS"
+        tools:node="remove" />
+
     <application>
+        <receiver
+            android:name="com.example.finance_app.SmsReceiver"
+            tools:node="remove" />
         <service
             android:name="com.example.finance_app.NotificationCaptureListenerService"
             tools:node="remove" />

@@ -1,5 +1,6 @@
 import '../../../core/utils/id_generator.dart';
 import '../domain/bank_sender_matcher.dart';
+import '../domain/notification_bank_evidence.dart';
 import '../domain/sms_dedup_key.dart';
 import '../domain/sms_duplicate_reason.dart';
 import '../domain/sms_import_status.dart';
@@ -8,6 +9,7 @@ import '../domain/sms_message_key.dart';
 import '../domain/sms_message_source.dart';
 import '../domain/sms_parser.dart';
 import '../domain/sms_parser_registry.dart';
+import 'captured_uid_resolver.dart';
 import 'notification_capture_adapter.dart';
 import 'sms_inbox_dao.dart';
 import 'sms_reader_adapter.dart';
@@ -30,6 +32,8 @@ class SmsInboxRepository {
     this._reader, {
     this.parserRegistry = const SmsParserRegistry(),
     this.notificationReader = const NotificationCaptureAdapter(),
+    this.capturedUidResolver = defaultCapturedUidResolver,
+    this.signedInAtResolver = defaultCapturedUidSignInTimeResolver,
   });
 
   final SmsInboxDao _dao;
@@ -40,6 +44,17 @@ class SmsInboxRepository {
   /// for RCS/other bank alerts that never reach `content://sms` at all. See
   /// [NotificationCaptureAdapter]'s doc comment.
   final NotificationCaptureAdapter notificationReader;
+
+  /// Who to bind newly-scanned rows to — see `captured_uid_resolver.dart`.
+  /// Overridable in tests; production code always uses the real
+  /// [defaultCapturedUidResolver] default.
+  final CapturedUidResolver capturedUidResolver;
+
+  /// When the CURRENT sign-in session started — the Phase D ownership
+  /// safeguard. A message received before this moment is never bound to
+  /// [capturedUidResolver]'s uid, however long it's been sitting unscanned.
+  /// See `captured_uid_resolver.dart`'s doc comment for the full rationale.
+  final CapturedUidSignInTimeResolver signedInAtResolver;
 
   /// Reads the device inbox, drops anything non-financial (OTP/promo/spam/
   /// delivery/recharge), parses the rest, and stores every genuinely new
@@ -63,6 +78,22 @@ class SmsInboxRepository {
   /// balance unless the user explicitly converts one from the Duplicates
   /// review.
   Future<int> scanInbox() async {
+    // Resolved once per scan, not re-resolved per message: who's signed in
+    // (and since when) is read once, so a signed-in state change mid-scan
+    // (unlikely, but not impossible) can't split one scan's rows across two
+    // owners. `null` here (nobody signed in, or Firebase Auth unavailable in
+    // this isolate) is a normal, expected outcome and never blocks capture
+    // — see `captured_uid_resolver.dart`.
+    //
+    // PHASE D OWNERSHIP SAFEGUARD: a session uid is only usable at all if its
+    // sign-in time is known — `sessionSignedInAt` gates every message below,
+    // not just this top-level resolution, because the actual risk is
+    // per-message (a message older than the current session must never be
+    // bound to it, no matter how long it's been sitting unscanned). See
+    // `CapturedUidSignInTimeResolver`'s doc comment for the full scenario
+    // this closes.
+    final sessionUid = capturedUidResolver();
+    final sessionSignedInAt = sessionUid == null ? null : signedInAtResolver();
     final rawMessages = [
       ...await _reader.readInbox(),
       ...await notificationReader.readCaptured(),
@@ -100,6 +131,12 @@ class SmsInboxRepository {
 
     for (final message in rawMessages) {
       if (!SmsFinancialFilter.isFinancial(message)) continue;
+      // Notification text can be a personal chat; require bank/UPI evidence
+      // (see NotificationBankEvidence). Device SMS is unaffected.
+      if (message.source == SmsMessageSource.notification &&
+          !NotificationBankEvidence.matches(message.body)) {
+        continue;
+      }
 
       final messageKey = SmsMessageKey.compute(
         sender: message.address,
@@ -164,6 +201,18 @@ class SmsInboxRepository {
         }
       }
 
+      // Eligible for binding only if a session uid AND its sign-in time are
+      // both known, AND this specific message arrived at or after that
+      // session started. A message older than the session is left unowned
+      // even though someone is signed in right now — see the ownership
+      // safeguard note above `sessionSignedInAt`'s resolution.
+      final capturedForUid =
+          sessionUid != null &&
+              sessionSignedInAt != null &&
+              !message.date.isBefore(sessionSignedInAt)
+          ? sessionUid
+          : null;
+
       final item = SmsInboxItem(
         id: IdGenerator.generate(),
         messageKey: messageKey,
@@ -174,6 +223,7 @@ class SmsInboxRepository {
         duplicateReason: duplicateReason,
         status: SmsImportStatus.pending,
         createdAt: DateTime.now(),
+        capturedForUid: capturedForUid,
       );
       items.add(item);
 

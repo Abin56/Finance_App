@@ -136,6 +136,18 @@ androidComponents {
             doLast {
                 val manifestText = manifestFileProperty.get().asFile.readText()
                 val hasReadSms = Regex("""android\.permission\.READ_SMS""").containsMatchIn(manifestText)
+                // RECEIVE_SMS and SmsReceiver (background SMS auto-capture)
+                // carry the same Play-policy risk as READ_SMS: sideload only.
+                val hasReceiveSms = Regex("""android\.permission\.RECEIVE_SMS""").containsMatchIn(manifestText)
+                val hasSmsReceiver = manifestText.contains("SmsReceiver")
+                if (hasReceiveSms != expectReadSms || hasSmsReceiver != expectReadSms) {
+                    throw GradleException(
+                        "Background SMS capture check failed for variant '${variant.name}': expected " +
+                            "RECEIVE_SMS and SmsReceiver to be ${if (expectReadSms) "PRESENT" else "ABSENT"} " +
+                            "but RECEIVE_SMS=$hasReceiveSms, SmsReceiver=$hasSmsReceiver. " +
+                            "See src/play|sideload/AndroidManifest.xml."
+                    )
+                }
                 if (hasReadSms != expectReadSms) {
                     throw GradleException(
                         "SMS permission check failed for variant '${variant.name}': expected " +
@@ -196,6 +208,13 @@ androidComponents {
 dependencies {
     // Required by flutter_local_notifications for Java 8+ API desugaring on API < 26.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
+    // Durable, constraint-aware background scheduling for SMS Auto Sync
+    // (SmsScanScheduler / SmsScanWorker). Present in every flavor so the
+    // sources compile; the play flavor's manifest never declares the receiver.
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    testImplementation("junit:junit:4.13.2")
 }
 
 flutter {

@@ -24,6 +24,15 @@ class NotificationCaptureStore(context: Context) :
 
         // Same scale as SmsReaderAdapter's own device-SMS scan cap.
         private const val MAX_ROWS = 500
+
+        /**
+         * SHA-256 rather than `String.hashCode()` (32 bits): a collision there
+         * would silently drop a different, genuine alert as a "duplicate".
+         */
+        fun dedupHash(title: String, text: String, postTime: Long): String =
+            java.security.MessageDigest.getInstance("SHA-256")
+                .digest("$title|$text|$postTime".toByteArray(Charsets.UTF_8))
+                .joinToString("") { "%02x".format(it) }
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -52,18 +61,18 @@ class NotificationCaptureStore(context: Context) :
      * would also catch a re-delivered duplicate eventually, but pruning it
      * here keeps this store's own 500-row cap meaningful.
      */
-    fun insertIfNew(title: String, text: String, postTime: Long) {
-        val dedupHash = "$title|$text|$postTime".hashCode().toString()
+    fun insertIfNew(title: String, text: String, postTime: Long): Boolean {
         val values = ContentValues().apply {
             put("title", title)
             put("text", text)
             put("post_time", postTime)
-            put("dedup_hash", dedupHash)
+            put("dedup_hash", dedupHash(title, text, postTime))
         }
-        writableDatabase.insertWithOnConflict(
+        val rowId = writableDatabase.insertWithOnConflict(
             TABLE, null, values, SQLiteDatabase.CONFLICT_IGNORE
         )
         pruneOldest()
+        return rowId != -1L
     }
 
     private fun pruneOldest() {

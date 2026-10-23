@@ -32,6 +32,7 @@ import '../widgets/sms_message_detail_sheet.dart';
 import '../widgets/sms_message_tile.dart';
 import '../widgets/notification_access_dialog.dart';
 import '../widgets/notification_capture_banner.dart';
+import '../widgets/sms_auto_sync_card.dart';
 import '../widgets/sms_multi_select_toolbar.dart';
 import '../widgets/sms_permission_gate_view.dart';
 import '../widgets/sms_search_filter_bar.dart';
@@ -303,6 +304,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
                 ),
               ),
               const SliverToBoxAdapter(child: NotificationCaptureBanner()),
+              const SliverToBoxAdapter(child: SmsAutoSyncCard()),
               if (rows.isEmpty)
                 SliverFillRemaining(
                   child: SmsEmptyState(

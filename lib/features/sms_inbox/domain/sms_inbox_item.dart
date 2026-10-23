@@ -24,6 +24,7 @@ class SmsInboxItem {
     this.linkedEntityRoute,
     this.importedAt,
     this.ignoredAt,
+    this.capturedForUid,
   });
 
   final String id;
@@ -65,6 +66,15 @@ class SmsInboxItem {
   final DateTime? ignoredAt;
   final DateTime createdAt;
 
+  /// The signed-in Firebase uid at the moment this row was first scanned —
+  /// `null` for a legacy pre-ownership row, or one scanned while nobody was
+  /// signed in. Set once, at construction, and never changed afterward (see
+  /// `SmsInboxDatabase`'s v10 migration doc and `captured_uid_resolver.dart`):
+  /// no status transition in [copyWith] below may alter it, since
+  /// retroactively assigning or reassigning ownership is exactly what this
+  /// field exists to prevent.
+  final String? capturedForUid;
+
   SmsInboxItem copyWith({
     SmsImportStatus? status,
     String? linkedEntityId,
@@ -86,6 +96,7 @@ class SmsInboxItem {
       linkedEntityRoute: linkedEntityRoute ?? this.linkedEntityRoute,
       importedAt: importedAt ?? this.importedAt,
       ignoredAt: ignoredAt ?? this.ignoredAt,
+      capturedForUid: capturedForUid,
     );
   }
 }

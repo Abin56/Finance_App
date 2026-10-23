@@ -16,8 +16,19 @@ import 'core/services/security/app_lock_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
+import 'features/sms_inbox/background/sms_background_entry.dart';
 import 'features/sms_inbox/data/sms_inbox_database.dart';
 import 'firebase_options.dart';
+
+/// Headless entrypoint for SMS Auto Sync, started by the native
+/// `SmsScanWorker` in its own FlutterEngine. Declared in this root library
+/// (and named without a library URI on the native side) so it is always part
+/// of the compiled app: a pragma'd function in a library nothing imports is
+/// never compiled in, which is exactly what failed on-device
+/// ("Dart_LookupLibrary … not found"). The implementation lives in
+/// `features/sms_inbox/background/`.
+@pragma('vm:entry-point')
+Future<void> smsBackgroundMain() => runSmsBackgroundEntry();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
