@@ -213,7 +213,18 @@ Closing Balance: Rs. 48,930.50
             categoryId: foodCategory.id,
             description: 'Swiggy',
           );
-      await container.read(transactionsStreamProvider.future);
+      // `.future` is already resolved with the earlier (empty) snapshot; wait
+      // for the stream to deliver the new write, as the live screen sees it.
+      for (
+        var i = 0;
+        i < 50 &&
+            (container.read(transactionsStreamProvider).value ?? const [])
+                .isEmpty;
+        i++
+      ) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(container.read(transactionsStreamProvider).value, isNotEmpty);
       controller.setAccount(account.id); // re-triggers the duplicate check
       final afterDuplicateCheck = container.read(pasteImportControllerProvider);
       final swiggyRow = afterDuplicateCheck.detected.firstWhere(
@@ -234,7 +245,11 @@ Closing Balance: Rs. 48,930.50
       final afterImport = container.read(pasteImportControllerProvider);
       expect(afterImport.stage, PasteImportStage.done);
       expect(afterImport.importResult?.imported, 2);
-      expect(afterImport.importResult?.skippedDuplicates, 1);
+      // Swiggy was already unchecked when it was flagged, so it never became
+      // an import candidate; "skipped as duplicates" counts only rows still
+      // checked at import without an override (same rule as PDF import). The
+      // no-re-import guarantee itself is the `hasLength(3)` check below.
+      expect(afterImport.importResult?.skippedDuplicates, 0);
 
       final repository = container.read(transactionRepositoryProvider);
       final saved = await repository.getAll();

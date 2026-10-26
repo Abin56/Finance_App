@@ -295,3 +295,34 @@ class NoopFinancialEventAiProvider implements FinancialEventAiProvider {
     FinancialEventAiRequest request,
   ) async => null;
 }
+
+/// Forwards to [_inner] only while [_isAllowed] says the user has given
+/// cloud-AI consent — otherwise abstains exactly like
+/// [NoopFinancialEventAiProvider], without touching [_inner] at all.
+///
+/// [_isAllowed] is re-read on every call (not once per scan), so withdrawing
+/// consent stops requests immediately, even mid-scan. It fails closed: a
+/// throwing consent read counts as "not allowed".
+class ConsentGatedFinancialEventAiProvider implements FinancialEventAiProvider {
+  const ConsentGatedFinancialEventAiProvider(
+    this._inner, {
+    required bool Function() isAllowed,
+  }) : _isAllowed = isAllowed;
+
+  final FinancialEventAiProvider _inner;
+  final bool Function() _isAllowed;
+
+  @override
+  Future<FinancialEventAiResult?> classify(
+    FinancialEventAiRequest request,
+  ) async {
+    bool allowed;
+    try {
+      allowed = _isAllowed();
+    } catch (_) {
+      allowed = false;
+    }
+    if (!allowed) return null;
+    return _inner.classify(request);
+  }
+}

@@ -13,6 +13,7 @@ import 'package:finance_app/features/sms_inbox/data/sms_transaction_candidate_re
 import 'package:finance_app/features/sms_inbox/data/transaction_candidate_dao.dart';
 import 'package:finance_app/features/sms_inbox/domain/account_card_matcher.dart';
 import 'package:finance_app/features/sms_inbox/domain/raw_sms_message.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_candidate_cloud_identity.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_import_status.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_candidate_cloud.dart';
 import 'package:finance_app/features/sms_inbox/domain/transaction_candidate_builder.dart';
@@ -218,17 +219,41 @@ void main() {
     // real app scopes it under `users/{uid}/...` at the provider layer
     // (see `smsTransactionCandidateRepositoryProvider`), which doesn't
     // change the document's own shape — only its parent path.
+    //
+    // Phase F1 (2026-10-24): this fixture SMS has a reference number
+    // ("Ref No 123456789012"), so its cloud document id is the
+    // content-derived identity, not `smsItem.id` — see
+    // `SmsCandidateCloudIdentity` and `sms_candidate_cloud_identity_test.dart`
+    // for why that's deliberate (cross-device dedup for reference-numbered
+    // transactions).
+    final expectedCloudId = SmsCandidateCloudIdentity.compute(
+      sender: message.address,
+      referenceNumber: localCandidate.referenceNumber,
+      maskedAccountOrCard: smsItem.parsed!.maskedAccountOrCard,
+      amount: localCandidate.amount,
+      direction: localCandidate.direction,
+      legacyPerDeviceId: smsItem.id,
+    );
     final snapshot = await firestore
         .collection('smsTransactionCandidates')
-        .doc(smsItem.id)
+        .doc(expectedCloudId)
         .get();
     final raw = snapshot.data()!;
 
     expect(
       snapshot.id,
+      expectedCloudId,
+      reason:
+          'the document id is the reference-number-derived cloud identity '
+          'for this fixture (it has a reference number) — see '
+          'SmsCandidateCloudIdentity',
+    );
+    expect(
+      raw['smsItemId'],
       smsItem.id,
       reason:
-          'the document id must be the local SmsInboxItem id, not a random id',
+          'the local row id is still carried in the document body, so the '
+          'app can join this cloud row back to its local SmsInboxItem',
     );
     expect(raw['amount'], 1250.5);
     expect(raw['direction'], 'debit');
@@ -286,6 +311,10 @@ void main() {
       smsId: smsItem.id,
       linkedEntityId: created.id,
       cloudCandidateRepository: cloudCandidateRepository,
+      // Phase F1 (2026-10-24): this fixture's candidate has a reference
+      // number, so its cloud doc id is content-derived, not smsItem.id —
+      // same real computation `SmsBulkConverter` does before calling this.
+      cloudCandidateId: expectedCloudId,
     );
 
     final cloudAfterConvert = await cloudCandidateRepository.getAll();

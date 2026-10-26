@@ -1,154 +1,411 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
+import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/router/app_routes.dart';
-import '../../../../features/transactions/domain/transaction.dart';
-import '../../../../features/transactions/domain/transaction_type.dart';
-import '../../../../features/transactions/presentation/providers/transaction_providers.dart';
+import 'dashboard_format.dart';
+import '../../../../features/accounts/presentation/providers/account_providers.dart';
+import '../../../../features/credit_cards/presentation/providers/credit_card_providers.dart';
+import '../../../../features/emi/presentation/providers/emi_providers.dart';
+import '../../../../features/lending/presentation/providers/loan_providers.dart';
+import '../../../../features/people/presentation/providers/people_providers.dart';
 import '../../../../shared/widgets/animations/count_up_text.dart';
 import '../../../../shared/widgets/cards/flowfi_card.dart';
 import '../../../../shared/widgets/charts/mini_trend_chart.dart';
+import '../../../../shared/widgets/states/section_load_state.dart';
 import '../../domain/widget_configuration.dart';
+import '../providers/dashboard_display_providers.dart';
 import '../providers/dashboard_financial_summary_provider.dart';
 
-/// Renders [DashboardWidgetType.netWorth] — the dashboard's hero card, the
-/// single most prominent surface on the default layout (see
-/// [FlowFiCard.hero]'s doc comment: at most one per screen). Reads net worth
-/// via [dashboardFinancialSummaryProvider] (itself a thin composition over
-/// the existing `netWorthProvider` — never re-derives a figure
-/// Accounts/Reports already own) and adds a 7-day net-cash-flow sparkline
-/// for an at-a-glance trend, derived client-side from the same transaction
-/// stream every other Dashboard stat already watches.
-class NetWorthWidgetCard extends ConsumerStatefulWidget {
+/// Renders [DashboardWidgetType.netWorth] — the dashboard's hero card and its
+/// only near-black surface (see [FlowFiCard.hero]: at most one per screen).
+///
+/// Every figure is read, never re-derived: the headline from
+/// [dashboardFinancialSummaryProvider] (`netWorthWithLoansProvider`), the
+/// Assets / Debt line from [netWorthCompositionProvider] (which reconciles to
+/// the headline exactly), and the sparkline from [netWorthTrendProvider] —
+/// real Net Worth per day, or an honest "unavailable" note when the last
+/// week can't be replayed from records.
+class NetWorthWidgetCard extends ConsumerWidget {
   const NetWorthWidgetCard({super.key, required this.config});
 
   final WidgetConfiguration config;
 
   @override
-  ConsumerState<NetWorthWidgetCard> createState() => _NetWorthWidgetCardState();
-}
-
-class _NetWorthWidgetCardState extends ConsumerState<NetWorthWidgetCard> {
-  bool _hidden = false;
-
-  /// Cumulative net (income − expense) for each of the last 7 days, oldest
-  /// first — purely a display sparkline.
-  List<double> _weeklyTrend(List<Transaction> transactions) {
-    final today = DateTime.now().dateOnly;
-    final days = List.generate(7, (i) => today.subtract(Duration(days: 6 - i)));
-    var running = 0.0;
-    return [
-      for (final day in days)
-        running += transactions
-            .where((t) => t.dateTime.isSameDay(day))
-            .fold(
-              0.0,
-              (sum, t) =>
-                  sum +
-                  (t.type == TransactionType.income ? t.amount : -t.amount),
-            ),
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final netWorth = ref.watch(dashboardFinancialSummaryProvider).netWorth;
-    final transactions = ref.watch(calculableTransactionsProvider);
-    final trend = _weeklyTrend(transactions);
-    final format = NumberFormat.currency(
-      locale: 'en_IN',
-      symbol: '₹',
-      decimalDigits: 0,
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
+    final load = SectionLoad.of([
+      ref.watch(accountsStreamProvider),
+      ref.watch(creditCardsStreamProvider),
+      ref.watch(loansStreamProvider),
+      ref.watch(emisStreamProvider),
+      ref.watch(peopleStreamProvider),
+    ]);
+    final hidden = ref.watch(netWorthHiddenProvider);
     final flowfi = context.flowfi;
+    final textTheme = context.textTheme;
 
     return FlowFiCard.hero(
       accent: true,
-      onTap: () => context.push(AppRoutes.accounts),
+      padding: const EdgeInsets.fromLTRB(
+        AppSizes.lg,
+        AppSizes.md,
+        AppSizes.lg,
+        AppSizes.lg,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: flowfi.onHeroSurface.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.account_balance_wallet_rounded,
-                      size: 15,
-                      color: flowfi.onHeroSurface,
-                    ),
-                  ),
-                  const SizedBox(width: AppSizes.sm),
-                  Text(
-                    widget.config.title,
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: flowfi.onHeroSurfaceMuted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: AppSizes.xs),
-                  InkWell(
-                    onTap: () => setState(() => _hidden = !_hidden),
-                    borderRadius: BorderRadius.circular(AppSizes.radiusPill),
-                    child: Icon(
-                      _hidden
-                          ? Icons.visibility_off_rounded
-                          : Icons.visibility_rounded,
-                      size: 14,
-                      color: flowfi.onHeroSurfaceMuted,
-                    ),
-                  ),
-                ],
+              Icon(
+                Icons.account_balance_rounded,
+                size: AppSizes.iconSm,
+                color: flowfi.onHeroSurfaceMuted,
               ),
-              Container(
-                width: 26,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: flowfi.onHeroSurface.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
+              const SizedBox(width: AppSizes.sm),
+              Expanded(
+                child: Text(
+                  config.title,
+                  style: textTheme.labelLarge?.copyWith(
+                    color: flowfi.onHeroSurfaceMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: flowfi.onHeroSurface,
+              ),
+              IconButton(
+                onPressed: () =>
+                    ref.read(netWorthHiddenProvider.notifier).toggle(),
+                tooltip: hidden ? 'Show net worth' : 'Hide net worth',
+                icon: Icon(
+                  hidden
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  size: AppSizes.iconSm + 2,
+                  color: flowfi.onHeroSurfaceMuted,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSizes.md),
-          _hidden
+          switch (load.status) {
+            SectionLoadStatus.loading => const _HeroSkeleton(),
+            SectionLoadStatus.error => Padding(
+              padding: const EdgeInsets.only(top: AppSizes.sm),
+              child: SectionErrorRow(
+                message: "Couldn't load your net worth.",
+                onRetry: () => invalidateDashboardSources(ref),
+                onHeroSurface: true,
+              ),
+            ),
+            SectionLoadStatus.ready => _HeroBody(hidden: hidden),
+          },
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroBody extends ConsumerWidget {
+  const _HeroBody({required this.hidden});
+
+  final bool hidden;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final netWorth = ref.watch(dashboardFinancialSummaryProvider).netWorth;
+    final composition = ref.watch(netWorthCompositionProvider);
+    final trend = ref.watch(netWorthTrendProvider);
+    final flowfi = context.flowfi;
+    final textTheme = context.textTheme;
+    final format = formatRupees;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: hidden
               ? Text(
-                  '••••••',
-                  style: context.textTheme.displayLarge?.copyWith(
+                  '₹ ••••••',
+                  style: textTheme.displayLarge?.copyWith(
                     color: flowfi.onHeroSurface,
                   ),
                 )
               : CountUpText(
                   value: netWorth,
-                  formatter: format.format,
-                  // Matches [FlowFiAmountText]'s `AmountSize.display` style —
-                  // kept as `CountUpText` rather than a static
-                  // `FlowFiAmountText` so the hero balance keeps its
-                  // count-up animation on change.
-                  style: context.textTheme.displayLarge?.copyWith(
+                  formatter: format,
+                  style: textTheme.displayLarge?.copyWith(
                     color: flowfi.onHeroSurface,
                   ),
                 ),
-          const SizedBox(height: AppSizes.lg),
-          MiniTrendChart(values: trend, color: flowfi.heroAccent),
+        ),
+        const SizedBox(height: AppSizes.xs),
+        Text(
+          'Everything you own, minus everything you owe',
+          style: textTheme.bodySmall?.copyWith(
+            color: flowfi.onHeroSurfaceMuted,
+          ),
+        ),
+        const SizedBox(height: AppSizes.md),
+        Row(
+          children: [
+            Expanded(
+              child: _HeroMetric(
+                label: 'Assets',
+                value: hidden ? '••••' : format(composition.assets),
+              ),
+            ),
+            const SizedBox(width: AppSizes.sm),
+            Expanded(
+              child: _HeroMetric(
+                label: 'Debt',
+                value: hidden ? '••••' : format(composition.debt),
+                valueColor: composition.debt > 0 ? _debtOnHero : null,
+                caption: hidden ? null : _debtCaption(composition),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSizes.md),
+        _TrendRow(trend: trend, hidden: hidden),
+      ],
+    );
+  }
+
+  /// A lighter expense red — the base token is too dark to read as a small
+  /// figure on the near-black hero.
+  static final Color _debtOnHero = Color.lerp(
+    AppColors.expense,
+    Colors.white,
+    0.35,
+  )!;
+
+  String? _debtCaption(NetWorthComposition c) {
+    final format = formatRupeesCompact;
+    final parts = [
+      if (c.loanDebt > 0) '${format(c.loanDebt)} loans/EMI',
+      if (c.peopleDebt > 0) '${format(c.peopleDebt)} to people',
+    ];
+    return parts.isEmpty ? null : 'incl. ${parts.join(' · ')}';
+  }
+}
+
+class _HeroMetric extends StatelessWidget {
+  const _HeroMetric({
+    required this.label,
+    required this.value,
+    this.valueColor,
+    this.caption,
+  });
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final flowfi = context.flowfi;
+    final textTheme = context.textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSizes.md,
+        vertical: AppSizes.sm,
+      ),
+      decoration: BoxDecoration(
+        color: flowfi.heroSurfaceRaised,
+        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: textTheme.labelSmall?.copyWith(
+              color: flowfi.onHeroSurfaceMuted,
+            ),
+          ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: textTheme.titleSmall?.copyWith(
+                color: valueColor ?? flowfi.onHeroSurface,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          if (caption != null)
+            Text(
+              caption!,
+              style: textTheme.labelSmall?.copyWith(
+                color: flowfi.onHeroSurfaceMuted,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendRow extends StatelessWidget {
+  const _TrendRow({required this.trend, required this.hidden});
+
+  final NetWorthTrend trend;
+  final bool hidden;
+
+  @override
+  Widget build(BuildContext context) {
+    final flowfi = context.flowfi;
+    final caption = context.textTheme.labelSmall?.copyWith(
+      color: flowfi.onHeroSurfaceMuted,
+    );
+    final values = trend.values;
+
+    final Widget body;
+    if (hidden) {
+      body = const SizedBox.shrink();
+    } else if (trend.status == NetWorthTrendStatus.loading) {
+      body = Container(
+        height: 36,
+        decoration: BoxDecoration(
+          color: flowfi.heroSurfaceRaised,
+          borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+        ),
+      );
+    } else if (values == null) {
+      body = Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            size: AppSizes.iconSm,
+            color: flowfi.onHeroSurfaceMuted,
+          ),
+          const SizedBox(width: AppSizes.sm),
+          Expanded(
+            child: Text(
+              '7-day trend unavailable — recent loan, EMI, People or new-'
+              'account activity can’t be replayed exactly.',
+              style: caption,
+            ),
+          ),
+        ],
+      );
+    } else if (trend.isFlat) {
+      body = Text('No change in the last 7 days', style: caption);
+    } else {
+      final change = values.last - values.first;
+      body = Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Semantics(
+              label: 'Net worth over the last 7 days',
+              child: MiniTrendChart(
+                values: values,
+                color: flowfi.heroAccent,
+                height: 36,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSizes.md),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${change >= 0 ? '+' : '−'}'
+                    '${formatRupeesCompact(change.abs())}',
+                    style: context.textTheme.labelLarge?.copyWith(
+                      color: flowfi.onHeroSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text('Last 7 days', style: caption),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        body,
+        const SizedBox(height: AppSizes.sm),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: () => context.push(AppRoutes.accounts),
+            style: TextButton.styleFrom(
+              foregroundColor: flowfi.onHeroSurface,
+              backgroundColor: flowfi.heroSurfaceRaised,
+              minimumSize: const Size(48, 40),
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.md),
+              textStyle: context.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Accounts'),
+                Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroSkeleton extends StatelessWidget {
+  const _HeroSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final raised = context.flowfi.heroSurfaceRaised;
+    Widget block(double w, double h) => Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        color: raised,
+        borderRadius: BorderRadius.circular(AppSizes.radiusSm),
+      ),
+    );
+    return Semantics(
+      label: 'Loading net worth',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          block(200, 40),
+          const SizedBox(height: AppSizes.sm),
+          block(220, 12),
+          const SizedBox(height: AppSizes.md),
+          Row(
+            children: [
+              Expanded(child: block(double.infinity, 48)),
+              const SizedBox(width: AppSizes.sm),
+              Expanded(child: block(double.infinity, 48)),
+            ],
+          ),
+          const SizedBox(height: AppSizes.md),
+          block(double.infinity, 36),
         ],
       ),
     );

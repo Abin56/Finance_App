@@ -11,6 +11,11 @@ import '../../../accounts/presentation/providers/account_providers.dart';
 import '../../../categories/presentation/providers/category_providers.dart';
 import '../../../credit_cards/presentation/providers/credit_card_providers.dart';
 import '../../../transactions/domain/transaction_type.dart';
+import '../../background/sms_background_upload_switch.dart';
+import '../../data/captured_uid_resolver.dart';
+import '../../data/sms_auto_sync_service.dart';
+import '../../pairing/sms_device_presence.dart';
+import '../../pairing/sms_pairing_providers.dart';
 import '../../data/battery_optimization_service.dart';
 import '../../data/cloud_function_financial_event_ai_provider.dart';
 import '../../data/financial_event_dao.dart';
@@ -18,6 +23,7 @@ import '../../data/merchant_memory_dao.dart';
 import '../../data/merchant_memory_repository.dart';
 import '../../data/notification_access_service.dart';
 import '../../data/notification_capture_adapter.dart';
+import '../../data/pending_candidate_generator.dart';
 import '../../data/sms_inbox_dao.dart';
 import '../../data/sms_inbox_database.dart';
 import '../../data/sms_inbox_repository.dart';
@@ -46,14 +52,16 @@ import '../../domain/merchant/merchant_category_suggester.dart';
 import '../../domain/merchant/merchant_memory.dart';
 import '../../domain/notification_access_availability.dart';
 import '../../domain/sms_availability.dart';
+import '../../domain/sms_candidate_cloud_identity.dart';
 import '../../domain/sms_import_status.dart';
 import '../../domain/sms_inbox_item.dart';
+import '../../domain/sms_sync_diagnostics.dart';
 import '../../domain/sms_transaction_candidate_cloud.dart';
 import '../../domain/sms_transaction_category.dart';
 import '../../domain/sms_transaction_direction.dart';
 import '../../domain/transaction_candidate.dart';
-import '../../domain/transaction_candidate_builder.dart';
 import '../sms_candidate_cloud_sync.dart';
+import '../sms_historical_recovery.dart';
 
 final smsInboxDatabaseProvider = Provider<SmsInboxDatabase>(
   (ref) => SmsInboxDatabase.instance,
@@ -115,11 +123,61 @@ final smsTransactionCandidateRepositoryProvider =
       return SmsTransactionCandidateRepository(collection);
     });
 
+/// Tombstone-aware, like the background path: once the user has owned rows
+/// (e.g. after historical recovery), a foreground scan must not re-upload a
+/// candidate the web already imported or dismissed.
 final smsCandidateCloudSyncProvider = Provider<SmsCandidateCloudSync>((ref) {
   return SmsCandidateCloudSync(
     ref.watch(smsTransactionCandidateRepositoryProvider),
     ref.watch(transactionCandidateDaoProvider),
     ref.watch(smsInboxRepositoryProvider),
+    tombstoneCollection: ref
+        .watch(firestoreProvider)
+        .collection(FirestoreCollections.users)
+        .doc(ref.watch(currentUserIdProvider))
+        .collection(FirestoreCollections.smsCandidateTombstones),
+  );
+});
+
+/// One-time historical ownership recovery — see [SmsHistoricalRecovery].
+/// Collections are built from the confirmed uid itself (not the ambient
+/// user provider), and the sync only treats rows as targets while that uid
+/// is still the signed-in one.
+final smsHistoricalRecoveryProvider = Provider<SmsHistoricalRecovery>((ref) {
+  final firestore = ref.watch(firestoreProvider);
+  final candidateDao = ref.watch(transactionCandidateDaoProvider);
+  final inboxRepository = ref.watch(smsInboxRepositoryProvider);
+  return SmsHistoricalRecovery(
+    inboxRepository,
+    candidateDao,
+    isCloudReachable: (uid) async =>
+        (await SmsBackgroundUploadSwitch(
+          firestore: () => firestore,
+        ).check(uid)).state !=
+        SmsCloudSyncState.unverified,
+    cloudSyncFor: (uid) {
+      final user = firestore.collection(FirestoreCollections.users).doc(uid);
+      return SmsCandidateCloudSync(
+        SmsTransactionCandidateRepository(
+          user
+              .collection(FirestoreCollections.smsTransactionCandidates)
+              .withConverter<SmsTransactionCandidateCloud>(
+                fromFirestore: SmsTransactionCandidateCloud.fromFirestore,
+                toFirestore: (candidate, _) => candidate.toFirestore(),
+              ),
+        ),
+        candidateDao,
+        inboxRepository,
+        // Fixed, not re-resolved: only rows bound to [uid] are ever targets,
+        // and they only ever go to [uid]'s own path (rules enforce auth).
+        // A re-resolved null mid-run would make sync() delete every cloud
+        // candidate as "no longer a target".
+        capturedUidResolver: () => uid,
+        tombstoneCollection: user.collection(
+          FirestoreCollections.smsCandidateTombstones,
+        ),
+      );
+    },
   );
 });
 
@@ -140,11 +198,56 @@ final financialEventDaoProvider = Provider<FinancialEventDao>((ref) {
 /// `classifyFinancialSms` Cloud Function. Swappable seam: a future "AI
 /// processing" toggle can point this at [NoopFinancialEventAiProvider]
 /// instead without touching anything else in the pipeline.
+///
+/// Gated by [smsAiClassificationConsentKey]: no request reaches the Cloud
+/// Function (and so Anthropic) unless the user explicitly opted in. Installs
+/// that predate the setting have no stored value and therefore no consent.
 final financialEventAiProviderProvider = Provider<FinancialEventAiProvider>((
   ref,
 ) {
-  return CloudFunctionFinancialEventAiProvider(FirebaseFunctions.instance);
+  return ConsentGatedFinancialEventAiProvider(
+    CloudFunctionFinancialEventAiProvider(FirebaseFunctions.instance),
+    isAllowed: readSmsAiClassificationConsent,
+  );
 });
+
+/// Per-device opt-in for cloud AI classification of uncertain SMS. Versioned
+/// so a future change to what is sent can require fresh consent.
+const smsAiClassificationConsentKey = 'sms_ai_classification_consent_v1';
+
+/// Fails closed: an unreadable setting means no consent.
+bool readSmsAiClassificationConsent() {
+  try {
+    return LocalSettingsService.getBool(
+      smsAiClassificationConsentKey,
+      defaultValue: false,
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Backs the AI classification switch in the SMS Inbox. Only [grant] — called
+/// after the user confirms the consent dialog — can turn it on.
+class SmsAiClassificationConsentNotifier extends Notifier<bool> {
+  @override
+  bool build() => readSmsAiClassificationConsent();
+
+  Future<void> grant() async {
+    await LocalSettingsService.setBool(smsAiClassificationConsentKey, true);
+    state = true;
+  }
+
+  Future<void> withdraw() async {
+    await LocalSettingsService.setBool(smsAiClassificationConsentKey, false);
+    state = false;
+  }
+}
+
+final smsAiClassificationConsentProvider =
+    NotifierProvider<SmsAiClassificationConsentNotifier, bool>(
+      SmsAiClassificationConsentNotifier.new,
+    );
 
 /// Wraps [merchantCategorySuggesterProvider] with the AI-inference tier —
 /// see [CategoryResolver].
@@ -505,27 +608,15 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
   /// successful scan into an `AsyncError` the user sees.
   Future<void> _generateCandidatesForPending() async {
     try {
-      final dao = ref.read(transactionCandidateDaoProvider);
-      final alreadyBuilt = await dao.existingSmsItemIds();
-
-      final pending = await ref
-          .read(smsInboxRepositoryProvider)
-          .getByStatus(SmsImportStatus.pending);
-      final toBuild = pending.where(
-        (item) => item.parsed != null && !alreadyBuilt.contains(item.id),
+      final built = await generateMissingTransactionCandidates(
+        inboxRepository: ref.read(smsInboxRepositoryProvider),
+        dao: ref.read(transactionCandidateDaoProvider),
+        matcher: () => AccountCardMatcher(
+          accounts: ref.read(accountsStreamProvider).value ?? const [],
+          cards: ref.read(activeCreditCardsProvider),
+        ),
       );
-      if (toBuild.isEmpty) return;
-
-      final matcher = AccountCardMatcher(
-        accounts: ref.read(accountsStreamProvider).value ?? const [],
-        cards: ref.read(activeCreditCardsProvider),
-      );
-      final builder = TransactionCandidateBuilder(matcher);
-
-      for (final item in toBuild) {
-        final candidate = builder.build(item);
-        if (candidate != null) await dao.upsert(candidate);
-      }
+      if (built == 0) return;
       ref.invalidate(transactionCandidatesProvider);
     } catch (e, st) {
       debugPrint(
@@ -544,7 +635,65 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
   /// method only ever reads local storage, never writes it.
   Future<void> _syncCandidatesToCloud() async {
     try {
-      await ref.read(smsCandidateCloudSyncProvider).sync();
+      // Web sync needs Auto Sync on AND an active pairing: the server-written
+      // `backgroundUpload` must name this install (the same fail-closed gate
+      // the background worker uses). Auto Sync OFF revokes the pairing, so
+      // nothing reaches the Web until a fresh QR pairing.
+      final autoSync = await const SmsAutoSyncService().getStatus();
+      if (!autoSync.supported || !autoSync.enabled) return;
+      final uid = defaultCapturedUidResolver();
+      if (uid == null) return;
+      final decision = await SmsBackgroundUploadSwitch().check(uid);
+      if (decision.state != SmsCloudSyncState.enabled) return;
+
+      final presence = ref.read(smsDevicePresenceReporterProvider);
+      final previous = await SmsDevicePresenceReporter.readSync();
+      final throttle = SmsPresenceProgressThrottle(presence);
+      SmsPresenceSync at(SmsPresenceSyncPhase phase, {DateTime? finished}) {
+        final p = throttle.last;
+        return SmsPresenceSync(
+          phase: phase,
+          total: p.total,
+          done: p.done,
+          uploaded: p.uploaded,
+          skipped: p.skipped,
+          failed: p.failed,
+          updatedAt: DateTime.now(),
+          lastSyncAt: finished ?? previous.lastSyncAt,
+        );
+      }
+
+      try {
+        await ref
+            .read(smsCandidateCloudSyncProvider)
+            .sync(
+              onProgress: (p) => throttle.update(
+                SmsPresenceSync(
+                  phase: SmsPresenceSyncPhase.uploading,
+                  total: p.total,
+                  done: p.done,
+                  uploaded: p.uploaded,
+                  skipped: p.skipped,
+                  failed: p.failed,
+                  updatedAt: DateTime.now(),
+                  lastSyncAt: previous.lastSyncAt,
+                ),
+              ),
+            );
+        await throttle.flush();
+        final now = DateTime.now();
+        await presence.report(
+          sync: at(SmsPresenceSyncPhase.done, finished: now),
+          force: true,
+        );
+      } catch (_) {
+        await throttle.flush();
+        await presence.report(
+          sync: at(SmsPresenceSyncPhase.failed),
+          force: true,
+        );
+        rethrow;
+      }
     } catch (e, st) {
       debugPrint(
         'SMS candidate cloud sync failed (local SMS scan itself still succeeded): $e\n$st',
@@ -565,6 +714,7 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
     required String linkedEntityId,
     String? linkedEntityRoute,
   }) async {
+    final cloudCandidateId = _cloudCandidateIdFor(id);
     await ref
         .read(smsInboxRepositoryProvider)
         .markImported(
@@ -573,13 +723,14 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
           linkedEntityRoute: linkedEntityRoute,
         );
     await refresh();
-    await _removeCloudCandidate(id);
+    await _removeCloudCandidate(cloudCandidateId);
   }
 
   Future<void> markIgnored(String id) async {
+    final cloudCandidateId = _cloudCandidateIdFor(id);
     await ref.read(smsInboxRepositoryProvider).markIgnored(id);
     await refresh();
-    await _removeCloudCandidate(id);
+    await _removeCloudCandidate(cloudCandidateId);
   }
 
   /// Ignores many in one batch, reloading the list once at the end — calling
@@ -587,31 +738,55 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
   /// which over a large selection is what makes the screen freeze.
   Future<void> markIgnoredMany(List<String> ids) async {
     if (ids.isEmpty) return;
+    final cloudCandidateIds = ids.map(_cloudCandidateIdFor).toList();
     await ref.read(smsInboxRepositoryProvider).markIgnoredMany(ids);
     await refresh();
-    for (final id in ids) {
-      await _removeCloudCandidate(id);
+    for (final cloudCandidateId in cloudCandidateIds) {
+      await _removeCloudCandidate(cloudCandidateId);
     }
   }
 
-  /// Deletes [id]'s cloud candidate doc (if any) right away, so the web
-  /// Transaction Studio stops showing it the moment there's nothing left to
-  /// review — rather than waiting for the next [scan]'s full
-  /// [SmsCandidateCloudSync.sync] reconciliation, which still runs as the
-  /// safety net that catches anything missed here (e.g. a duplicate flagged
-  /// without ever going through markImported/markIgnored).
+  /// Resolves [id]'s current cloud candidate document id (Phase F1,
+  /// 2026-10-24) from THIS notifier's own [state] before anything mutates
+  /// it — `refresh()`/`markImported`/`markIgnored` all change what's in
+  /// [state], so this must be read first, not after. Falls back to [id]
+  /// itself when the item isn't found in [state] (nothing to compute from)
+  /// or carries no reference number — the exact same conservative default
+  /// `SmsCandidateCloudIdentity.compute` itself uses.
+  String _cloudCandidateIdFor(String id) {
+    final item = state.valueOrNull?.where((i) => i.id == id).firstOrNull;
+    final referenceNumber = item?.parsed?.referenceNumber;
+    if (item == null || referenceNumber == null) return id;
+    return SmsCandidateCloudIdentity.compute(
+      sender: item.rawMessage.address,
+      referenceNumber: referenceNumber,
+      maskedAccountOrCard: item.parsed!.maskedAccountOrCard,
+      amount: item.parsed!.amount,
+      direction: item.parsed!.direction,
+      legacyPerDeviceId: id,
+    );
+  }
+
+  /// Deletes [cloudCandidateId]'s cloud candidate doc (if any) right away,
+  /// so the web Transaction Studio stops showing it the moment there's
+  /// nothing left to review — rather than waiting for the next [scan]'s
+  /// full [SmsCandidateCloudSync.sync] reconciliation, which still runs as
+  /// the safety net that catches anything missed here (e.g. a duplicate
+  /// flagged without ever going through markImported/markIgnored).
   ///
   /// Best-effort and isolated, same rationale as [_syncCandidatesToCloud]:
   /// local state (the mark above) has already succeeded, so a missing
   /// document, an offline device, or a Firestore error here must never be
   /// surfaced as a failed conversion/ignore, nor retried — the next sync()
   /// will clean it up.
-  Future<void> _removeCloudCandidate(String id) async {
+  Future<void> _removeCloudCandidate(String cloudCandidateId) async {
     try {
-      await ref.read(smsTransactionCandidateRepositoryProvider).deleteById(id);
+      await ref
+          .read(smsTransactionCandidateRepositoryProvider)
+          .deleteById(cloudCandidateId);
     } catch (e, st) {
       debugPrint(
-        'SMS cloud candidate cleanup failed for $id (local state already updated): $e\n$st',
+        'SMS cloud candidate cleanup failed for $cloudCandidateId (local state already updated): $e\n$st',
       );
     }
   }

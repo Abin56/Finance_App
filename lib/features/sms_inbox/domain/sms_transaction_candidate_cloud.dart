@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/soft_deletable_entity.dart';
+import 'sms_candidate_cloud_identity.dart';
 import 'sms_confidence_scorer.dart';
 import 'sms_transaction_category.dart';
 import 'sms_transaction_direction.dart';
@@ -46,6 +47,7 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     required this.confidenceScore,
     required this.needsReview,
     required this.createdAt,
+    required String cloudId,
     this.merchant,
     this.bankName,
     this.rawLastFour,
@@ -53,7 +55,8 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     this.cardId,
     this.referenceNumber,
     this.needsReviewReasons = const [],
-  });
+    // ignore: prefer_initializing_formals
+  }) : _cloudId = cloudId;
 
   /// Always `'sms'` — this collection is dedicated to SMS-derived candidates
   /// (see the collection-path comment in `firestore_constants.dart`), but
@@ -64,13 +67,31 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
   static const String source = 'sms';
 
   /// The `SmsInboxItem.id` (== `TransactionCandidate.smsItemId`) this was
-  /// built from — also the Firestore document id, which is what makes
-  /// re-syncing the same SMS an idempotent overwrite rather than a
-  /// duplicate. See [SoftDeletableEntity.id].
+  /// built from — the LOCAL join key back to the device's own
+  /// `sms_inbox`/`sms_transaction_candidates` rows. No longer always the
+  /// Firestore document id — see [id]/[cloudId] and
+  /// `SmsCandidateCloudIdentity`'s doc comment (Phase F1, 2026-10-24).
   final String smsItemId;
 
+  /// Computed once at construction via [SmsCandidateCloudIdentity.compute]
+  /// — either a reference-number-derived, device-independent id (so the
+  /// same eligible SMS captured on two devices maps to one Firestore
+  /// document), or [smsItemId] itself as the conservative fallback when no
+  /// reference number was parseable. Never recomputed from a decoded
+  /// Firestore document (see [fromFirestore]): the document's own id, once
+  /// written, IS the identity — recomputing it from possibly-absent stored
+  /// fields would risk drifting from the id this document actually lives
+  /// at.
+  final String _cloudId;
+
+  /// The Firestore document id — see [SoftDeletableEntity.id] and
+  /// [_cloudId]'s doc comment for exactly how it's derived.
   @override
-  String get id => smsItemId;
+  String get id => _cloudId;
+
+  /// Public alias for [id] — some call sites read cloud identity by this
+  /// more specific name for clarity against [smsItemId].
+  String get cloudId => _cloudId;
 
   final double amount;
   final SmsTransactionDirection direction;
@@ -114,15 +135,26 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
   final DateTime createdAt;
 
   /// Builds the cloud document from the already-computed local
-  /// [TransactionCandidate] plus the one extra field it doesn't carry
-  /// ([rawLastFour], sourced from the SMS parse directly) — see the class
-  /// doc for why nothing else is added.
+  /// [TransactionCandidate] plus the two extra inputs it doesn't carry:
+  /// [rawLastFour] (sourced from the SMS parse directly) and [sender] (the
+  /// raw SMS sender/address — needed only to compute [cloudId], never
+  /// stored in the document itself; see the class doc for why no raw SMS
+  /// data is persisted here).
   factory SmsTransactionCandidateCloud.fromLocal(
     TransactionCandidate candidate, {
+    required String sender,
     String? rawLastFour,
   }) {
     return SmsTransactionCandidateCloud(
       smsItemId: candidate.smsItemId,
+      cloudId: SmsCandidateCloudIdentity.compute(
+        sender: sender,
+        referenceNumber: candidate.referenceNumber,
+        maskedAccountOrCard: rawLastFour,
+        amount: candidate.amount,
+        direction: candidate.direction,
+        legacyPerDeviceId: candidate.smsItemId,
+      ),
       amount: candidate.amount,
       direction: candidate.direction,
       eventType: candidate.eventType,
@@ -155,7 +187,16 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     }
 
     return SmsTransactionCandidateCloud(
-      smsItemId: snapshot.id,
+      // The document's own id IS its identity, written once at upload time
+      // by SmsCandidateCloudIdentity — never recomputed on read.
+      cloudId: snapshot.id,
+      // `smsItemId` is stored explicitly (see toFirestore) precisely
+      // because, since Phase F1, it can differ from the document id —
+      // `sync()` needs it to join this cloud row back to its local
+      // `SmsInboxItem`/`TransactionCandidate` row. Falls back to the
+      // document id for any pre-Phase-F1 document that predates the field
+      // (where the two were always equal anyway).
+      smsItemId: data['smsItemId'] as String? ?? snapshot.id,
       amount: (data['amount'] as num).toDouble(),
       direction: direction,
       eventType: SmsTransactionCategoryX.fromName(data['eventType'] as String?),
@@ -180,6 +221,10 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
 
   Map<String, dynamic> toFirestore() {
     return {
+      // Stored explicitly since Phase F1 (2026-10-24): the document id
+      // ([id]/[cloudId]) can now differ from the local row id this
+      // document was built from — see [smsItemId]'s doc comment.
+      'smsItemId': smsItemId,
       'amount': amount,
       'direction': direction.name,
       'eventType': eventType.name,

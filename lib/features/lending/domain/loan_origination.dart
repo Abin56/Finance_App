@@ -231,7 +231,7 @@ String originationReversalMessage(
           '${movement.accountName} and reverse the loan creation.',
     OriginationMovementKind.principalSent =>
       'This will restore $amount to ${movement.accountName} and reverse the '
-          'amount given.',
+          'amount lent.',
     OriginationMovementKind.downPaymentPaid =>
       'This will restore the recorded $amount down payment to '
           '${movement.accountName} and reverse the installment purchase.',

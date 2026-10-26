@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,6 +60,7 @@ void main() {
               ),
             ],
             child: MaterialApp(
+              theme: AppTheme.light,
               builder: (context, child) => MediaQuery(
                 data: MediaQuery.of(
                   context,

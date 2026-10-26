@@ -113,21 +113,26 @@ void main() {
     expect(await dao.getAll(), isEmpty);
   });
 
-  test('RCS notification duplicate of a device SMS is flagged, not new', () async {
-    final rcs = RawSmsMessage(
-      // Same normalized sender as the device SMS. A display-name title such
-      // as "HDFC Bank" would NOT fuzzy-match (pre-existing limit, documented
-      // in docs/sms-auto-sync.md).
-      address: 'VM-HDFCBK',
-      body: bankSms.body,
-      date: bankSms.date.add(const Duration(seconds: 40)),
-      source: SmsMessageSource.notification,
-    );
-    final result = await runBackgroundSmsScan(repo([bankSms], captured: [rcs]));
-    expect(result.success, isTrue);
-    final items = await dao.getAll();
-    expect(items.where((i) => !i.isDuplicate), hasLength(1));
-  });
+  test(
+    'RCS notification duplicate of a device SMS is flagged, not new',
+    () async {
+      final rcs = RawSmsMessage(
+        // Same normalized sender as the device SMS. A display-name title such
+        // as "HDFC Bank" would NOT fuzzy-match (pre-existing limit, documented
+        // in docs/sms-auto-sync.md).
+        address: 'VM-HDFCBK',
+        body: bankSms.body,
+        date: bankSms.date.add(const Duration(seconds: 40)),
+        source: SmsMessageSource.notification,
+      );
+      final result = await runBackgroundSmsScan(
+        repo([bankSms], captured: [rcs]),
+      );
+      expect(result.success, isTrue);
+      final items = await dao.getAll();
+      expect(items.where((i) => !i.isDuplicate), hasLength(1));
+    },
+  );
 
   group('RCS notification content reaches parser and durable storage', () {
     // Shape produced by NotificationCaptureStore.getAll() -> adapter: title
@@ -139,25 +144,28 @@ void main() {
       source: SmsMessageSource.notification,
     );
 
-    test('RCS-only debit alert is parsed and stored as a pending item', () async {
-      final result = await runBackgroundSmsScan(
-        repo(
-          const [],
-          captured: [
-            rcs(
-              'Rs. 2,450.00 debited from a/c XX5623 on 20-10-26 to VPA '
-              'amazon@apl. Ref No 987654321012.',
-            ),
-          ],
-        ),
-      );
-      expect(result.newItems, 1);
-      final item = (await dao.getAll()).single;
-      expect(item.rawMessage.source, SmsMessageSource.notification);
-      expect(item.status, SmsImportStatus.pending);
-      expect(item.parsed?.amount, 2450.0);
-      expect(item.parsed?.referenceNumber, '987654321012');
-    });
+    test(
+      'RCS-only debit alert is parsed and stored as a pending item',
+      () async {
+        final result = await runBackgroundSmsScan(
+          repo(
+            const [],
+            captured: [
+              rcs(
+                'Rs. 2,450.00 debited from a/c XX5623 on 20-10-26 to VPA '
+                'amazon@apl. Ref No 987654321012.',
+              ),
+            ],
+          ),
+        );
+        expect(result.newItems, 1);
+        final item = (await dao.getAll()).single;
+        expect(item.rawMessage.source, SmsMessageSource.notification);
+        expect(item.status, SmsImportStatus.pending);
+        expect(item.parsed?.amount, 2450.0);
+        expect(item.parsed?.referenceNumber, '987654321012');
+      },
+    );
 
     test('RCS OTP and personal chat are rejected, never stored', () async {
       final result = await runBackgroundSmsScan(
@@ -180,10 +188,14 @@ void main() {
 
     test('same RCS row re-read on every scan is stored once', () async {
       final captured = [
-        rcs('INR 500.00 credited to a/c XX5623 on 20-10-26 via UPI. Ref 111222333444'),
+        rcs(
+          'INR 500.00 credited to a/c XX5623 on 20-10-26 via UPI. Ref 111222333444',
+        ),
       ];
       await runBackgroundSmsScan(repo(const [], captured: captured));
-      final again = await runBackgroundSmsScan(repo(const [], captured: captured));
+      final again = await runBackgroundSmsScan(
+        repo(const [], captured: captured),
+      );
       expect(again.newItems, 0);
       expect(await dao.getAll(), hasLength(1));
     });
@@ -206,35 +218,45 @@ void main() {
     expect(result.toMap().toString(), isNot(contains('debited')));
   });
 
-  test('headless entrypoint is declared in the root library and found natively', () {
-    // Regression: a pragma'd function in a library nothing imports is never
-    // compiled in ("Dart_LookupLibrary ... not found" on device). The entry
-    // must live in lib/main.dart and the native side must name it without a
-    // library URI.
-    final main = File('lib/main.dart').readAsStringSync();
-    expect(
-      RegExp(
-        r"@pragma\('vm:entry-point'\)\s*\n\s*Future<void> smsBackgroundMain\(\)",
-      ).hasMatch(main),
-      isTrue,
-    );
-    expect(main, contains('runSmsBackgroundEntry()'));
+  test(
+    'headless entrypoint is declared in the root library and found natively',
+    () {
+      // Regression: a pragma'd function in a library nothing imports is never
+      // compiled in ("Dart_LookupLibrary ... not found" on device). The entry
+      // must live in lib/main.dart and the native side must name it without a
+      // library URI.
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(
+        RegExp(
+          r"@pragma\('vm:entry-point'\)\s*\n\s*Future<void> smsBackgroundMain\(\)",
+        ).hasMatch(main),
+        isTrue,
+      );
+      expect(main, contains('runSmsBackgroundEntry()'));
 
-    final worker = File(
-      'android/app/src/main/kotlin/com/example/finance_app/SmsScanWorker.kt',
-    ).readAsStringSync();
-    expect(worker, contains('"smsBackgroundMain"'));
-    expect(worker, isNot(contains('package:finance_app/')));
+      final worker = File(
+        'android/app/src/main/kotlin/com/flowfi/app/SmsScanWorker.kt',
+      ).readAsStringSync();
+      expect(worker, contains('"smsBackgroundMain"'));
+      expect(worker, isNot(contains('package:finance_app/')));
 
-    final impl = File(
-      'lib/features/sms_inbox/background/sms_background_entry.dart',
-    ).readAsStringSync();
-    expect(impl, isNot(contains('Future<void> smsBackgroundMain(')));
-  });
+      final impl = File(
+        'lib/features/sms_inbox/background/sms_background_entry.dart',
+      ).readAsStringSync();
+      expect(impl, isNot(contains('Future<void> smsBackgroundMain(')));
+    },
+  );
 
-  test('cloud upload from the background stays disabled', () {
-    expect(kSmsAutoSyncCloudUploadEnabled, isFalse);
-  });
+  test(
+    'background cloud upload is runtime-controlled; the build has no hard-coded "on" and a build-time kill (the const) removes the path',
+    () {
+      expect(kSmsAutoSyncCloudUploadRuntimeControlled, isTrue);
+      final policy = File(
+        'lib/features/sms_inbox/background/sms_auto_sync_policy.dart',
+      ).readAsStringSync();
+      expect(policy, isNot(contains('kSmsAutoSyncCloudUploadEnabled = true')));
+    },
+  );
 
   test(
     'background sources never reference financial-transaction-creation modules (Phase D requirement: no financial transaction creation)',
@@ -266,19 +288,32 @@ void main() {
   );
 
   test(
-    'the background upload step is only ever reached through sms_background_entry.dart, gated by kSmsAutoSyncCloudUploadEnabled',
+    'the background upload step is only ever reached through sms_background_entry.dart, gated by the build flag AND the runtime switch',
     () {
       final entry = File(
         'lib/features/sms_inbox/background/sms_background_entry.dart',
       ).readAsStringSync();
-      expect(entry, contains('kSmsAutoSyncCloudUploadEnabled'));
+      expect(entry, contains('kSmsAutoSyncCloudUploadRuntimeControlled'));
       expect(
         RegExp(
-          r'kSmsAutoSyncCloudUploadEnabled\s*\?\s*\(\)\s*=>\s*buildBackgroundCloudSync',
+          r'kSmsAutoSyncCloudUploadRuntimeControlled\s*\?\s*\(\)\s*=>\s*buildBackgroundCloudSync',
         ).hasMatch(entry),
         isTrue,
         reason:
             'cloudSyncBuilder must be conditioned on the flag, not unconditionally built',
+      );
+      // The builder must go through the runtime switch before touching the
+      // candidate collection.
+      final builderStart = entry.indexOf(
+        'Future<SmsCandidateCloudSync?> buildBackgroundCloudSync',
+      );
+      expect(builderStart, greaterThan(-1));
+      final builder = entry.substring(builderStart);
+      expect(
+        builder.indexOf('resolveBackgroundUploadGate'),
+        lessThan(builder.indexOf('smsTransactionCandidates')),
+        reason:
+            'the switch must be consulted before the candidate path is built',
       );
     },
   );
@@ -317,10 +352,7 @@ void main() {
     test(
       'ensureFirebaseInitializedForBackground never throws, even with no usable Firebase config in this test process',
       () async {
-        await expectLater(
-          ensureFirebaseInitializedForBackground(),
-          completes,
-        );
+        await expectLater(ensureFirebaseInitializedForBackground(), completes);
       },
     );
 
@@ -333,7 +365,7 @@ void main() {
           _FakeReader(const []),
         );
 
-        final cloudSync = buildBackgroundCloudSync(db, inboxRepository);
+        final cloudSync = await buildBackgroundCloudSync(db, inboxRepository);
 
         expect(cloudSync, isNull);
         await db.database.close();
@@ -341,7 +373,7 @@ void main() {
     );
 
     test(
-      'runBackgroundSmsScan never attempts an upload when cloudSyncBuilder is null (today\'s production wiring, kSmsAutoSyncCloudUploadEnabled == false)',
+      'runBackgroundSmsScan never attempts an upload when cloudSyncBuilder is null (the wiring when the build flag is off)',
       () async {
         final result = await runBackgroundSmsScan(repo([bankSms]));
 
@@ -362,6 +394,35 @@ void main() {
 
         expect(result.success, isTrue);
         expect(result.newItems, 1);
+        expect(result.uploaded, 0);
+        expect(result.uploadError, isNull);
+      },
+    );
+
+    test(
+      'runBackgroundSmsScan fails closed when the cloudSyncBuilder itself throws (e.g. the switch read blew up): scan succeeds, no upload, no error',
+      () async {
+        final result = await runBackgroundSmsScan(
+          repo([bankSms]),
+          cloudSyncBuilder: () => throw StateError('switch read failed'),
+        );
+
+        expect(result.success, isTrue);
+        expect(result.newItems, 1);
+        expect(result.uploaded, 0);
+        expect(result.uploadError, isNull);
+      },
+    );
+
+    test(
+      'runBackgroundSmsScan awaits an async builder resolving to null (switch OFF) and never uploads',
+      () async {
+        final result = await runBackgroundSmsScan(
+          repo([bankSms]),
+          cloudSyncBuilder: () async => null,
+        );
+
+        expect(result.success, isTrue);
         expect(result.uploaded, 0);
         expect(result.uploadError, isNull);
       },
@@ -390,11 +451,14 @@ void main() {
 /// scan result.
 class _ThrowingCloudSyncStub implements SmsCandidateCloudSync {
   @override
-  Future<SmsCandidateSyncResult> sync() {
+  Future<SmsCandidateSyncResult> sync({
+    bool continueOnUploadError = false,
+    Duration? uploadTimeout,
+    void Function(SmsCandidateSyncProgress progress)? onProgress,
+  }) {
     throw Exception('simulated Firestore outage during background upload');
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

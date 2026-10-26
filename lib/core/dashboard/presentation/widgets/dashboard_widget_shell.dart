@@ -3,6 +3,176 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_shadows.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../shared/widgets/states/section_load_state.dart';
+
+/// The one header every Dashboard 2.0 section uses: title, an optional
+/// quiet subtitle (the period or a count), and an optional trailing action
+/// rendered as a real button — 48×40 hit target, ink feedback and button
+/// semantics, unlike the old bare `GestureDetector` "See all ›" text.
+class DashboardCardHeader extends StatelessWidget {
+  const DashboardCardHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = context.textTheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: context.colors.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
+        if (actionLabel != null && onAction != null)
+          TextButton(
+            onPressed: onAction,
+            style: TextButton.styleFrom(
+              foregroundColor: context.colors.onSurface,
+              minimumSize: const Size(48, 40),
+              padding: const EdgeInsets.symmetric(horizontal: AppSizes.sm),
+              textStyle: textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(actionLabel!),
+                const Icon(Icons.chevron_right_rounded, size: AppSizes.iconSm),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Renders [builder] only once [load] is ready — a skeleton while the
+/// section's streams are still loading and an honest error row (with Retry)
+/// when one failed, so neither state is ever drawn as "empty" or ₹0.
+class DashboardSectionBody extends StatelessWidget {
+  const DashboardSectionBody({
+    super.key,
+    required this.load,
+    required this.builder,
+    this.onRetry,
+    this.errorMessage = "Couldn't load this section.",
+    this.skeletonRows = 3,
+    this.skeletonLeadingHeight = 0,
+  });
+
+  final SectionLoad load;
+  final WidgetBuilder builder;
+  final VoidCallback? onRetry;
+  final String errorMessage;
+  final int skeletonRows;
+  final double skeletonLeadingHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget child = switch (load.status) {
+      SectionLoadStatus.loading => SectionSkeleton(
+        key: const ValueKey('loading'),
+        rows: skeletonRows,
+        leadingHeight: skeletonLeadingHeight,
+      ),
+      SectionLoadStatus.error => SectionErrorRow(
+        key: const ValueKey('error'),
+        message: errorMessage,
+        onRetry: onRetry,
+      ),
+      SectionLoadStatus.ready => KeyedSubtree(
+        key: const ValueKey('ready'),
+        child: builder(context),
+      ),
+    };
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      switchInCurve: Curves.easeOutCubic,
+      layoutBuilder: (current, previous) => Stack(
+        alignment: Alignment.topLeft,
+        children: [...previous, ?current],
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A calm one-line empty state with an optional next step — used inside a
+/// section instead of a bare grey sentence.
+class DashboardEmptyLine extends StatelessWidget {
+  const DashboardEmptyLine({
+    super.key,
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      children: [
+        Icon(icon, size: AppSizes.iconSm, color: colors.onSurfaceVariant),
+        const SizedBox(width: AppSizes.sm),
+        Expanded(
+          child: Text(
+            message,
+            style: context.textTheme.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+        ),
+        if (actionLabel != null && onAction != null)
+          TextButton(
+            onPressed: onAction,
+            // Lime text fails contrast on a light surface — CTAs on plain
+            // surfaces take the primary text color instead.
+            style: TextButton.styleFrom(
+              foregroundColor: colors.onSurface,
+              minimumSize: const Size(48, 40),
+            ),
+            child: Text(actionLabel!),
+          ),
+      ],
+    );
+  }
+}
 
 /// Shared surface shell every dashboard widget card renders inside — same
 /// radius/shadow contract as the old `DashboardSectionCard`, just promoted
@@ -76,14 +246,21 @@ class _DashboardWidgetCardState extends State<DashboardWidgetCard> {
             onTap: widget.onTap,
             onHighlightChanged: (value) => setState(() => _pressed = value),
             child: Container(
-              decoration: BoxDecoration(border: border),
+              // The radius keeps the hairline's corners from being cut off by
+              // the Material's rounded clip.
+              decoration: BoxDecoration(
+                border: border,
+                borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+              ),
               padding:
                   widget.padding ??
                   (widget.isHero
-                      ? const EdgeInsets.all(AppSizes.md)
-                      : const EdgeInsets.symmetric(
-                          horizontal: AppSizes.md,
-                          vertical: AppSizes.sm,
+                      ? const EdgeInsets.all(AppSizes.lg)
+                      : const EdgeInsets.fromLTRB(
+                          AppSizes.lg,
+                          AppSizes.md,
+                          AppSizes.lg,
+                          AppSizes.md,
                         )),
               child: widget.child,
             ),
@@ -109,6 +286,7 @@ class DashboardWidgetEditFrame extends StatelessWidget {
     required this.onConfigure,
     required this.onDelete,
     this.dragHandle,
+    this.canConfigure = true,
   });
 
   final String title;
@@ -118,6 +296,10 @@ class DashboardWidgetEditFrame extends StatelessWidget {
   final VoidCallback onConfigure;
   final VoidCallback onDelete;
   final Widget? dragHandle;
+
+  /// Whether this widget has settings — a settings button that does nothing
+  /// is not shown.
+  final bool canConfigure;
 
   @override
   Widget build(BuildContext context) {
@@ -157,12 +339,13 @@ class DashboardWidgetEditFrame extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.settings_outlined),
-                    iconSize: AppSizes.iconSm,
-                    onPressed: onConfigure,
-                    tooltip: 'Configure',
-                  ),
+                  if (canConfigure)
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined),
+                      iconSize: AppSizes.iconSm,
+                      onPressed: onConfigure,
+                      tooltip: 'Configure',
+                    ),
                   IconButton(
                     icon: Icon(
                       isVisible

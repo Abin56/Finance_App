@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/dashboard_widget_type.dart';
 import '../../domain/widget_configuration.dart';
 import 'accounts_widget_card.dart';
+import 'attention_widget_card.dart';
 import 'bills_widget_card.dart';
 import 'calendar_widget_card.dart';
 import 'cash_flow_widget_card.dart';
@@ -75,6 +76,8 @@ Widget buildDashboardWidget(
       return PreviousCycleWidgetCard(config: config);
     case DashboardWidgetType.expenseComparison:
       return ExpenseComparisonWidgetCard(config: config);
+    case DashboardWidgetType.attention:
+      return AttentionWidgetCard(config: config);
     case DashboardWidgetType.savingsGoals:
     case DashboardWidgetType.budgetProgress:
       return _NotYetBuiltCard(type: type);

@@ -13,7 +13,8 @@ import 'package:finance_app/features/sms_inbox/presentation/widgets/sms_message_
 
 /// The SMS Inbox's compact rows are the whole point of the redesign, so they
 /// are pinned to the small-Android budget here: they must stay within the
-/// 70-90dp band and must not overflow at 360dp, even with worst-case
+/// 64-90dp band (68dp with Material 2021 line heights: 20 + 16 + 16 + 2x8
+/// padding) and must not overflow at 360dp, even with worst-case
 /// merchant/bank text and a large accessibility text scale.
 void main() {
   SmsInboxItem itemWith({
@@ -102,11 +103,11 @@ void main() {
   }
 
   group('compact row height', () {
-    testWidgets('stays inside the 70-90dp band at 360dp', (tester) async {
+    testWidgets('stays inside the 64-90dp band at 360dp', (tester) async {
       await pumpTile(tester, itemWith());
 
       final height = tester.getSize(find.byType(SmsMessageTile)).height;
-      expect(height, greaterThanOrEqualTo(70));
+      expect(height, greaterThanOrEqualTo(64));
       expect(height, lessThanOrEqualTo(90));
     });
 
@@ -242,7 +243,7 @@ void main() {
           findsNothing,
         );
         final height = tester.getSize(find.byType(SmsMessageTile)).height;
-        expect(height, greaterThanOrEqualTo(70));
+        expect(height, greaterThanOrEqualTo(64));
         expect(height, lessThanOrEqualTo(90));
       },
     );

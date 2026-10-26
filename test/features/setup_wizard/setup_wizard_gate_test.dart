@@ -77,7 +77,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SetupWizardScreen), findsNothing);
-    expect(find.text('Total Balance'), findsOneWidget);
+    expect(find.text('Net Worth'), findsOneWidget);
   });
 
   testWidgets(
@@ -94,7 +94,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(SetupWizardScreen), findsNothing);
-      expect(find.text('Total Balance'), findsOneWidget);
+      expect(find.text('Net Worth'), findsOneWidget);
     },
   );
 }

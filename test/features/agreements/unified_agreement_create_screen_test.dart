@@ -216,10 +216,18 @@ void main() {
     (tester) async {
       await _open(tester, _app(await _seeded()));
       await _toTerms(tester);
+      // The field sits below the fold of the terms ListView (lazily built).
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextField, 'Monthly payments'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(
         find.widgetWithText(TextField, 'Monthly payments'),
         findsOneWidget,
       );
+      await tester.ensureVisible(find.text('One-time'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('One-time'));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(TextField, 'Monthly payments'), findsNothing);

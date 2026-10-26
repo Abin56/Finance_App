@@ -46,10 +46,10 @@
 
     <application>
         <receiver
-            android:name="com.example.finance_app.SmsReceiver"
+            android:name="com.flowfi.app.SmsReceiver"
             tools:node="remove" />
         <service
-            android:name="com.example.finance_app.NotificationCaptureListenerService"
+            android:name="com.flowfi.app.NotificationCaptureListenerService"
             tools:node="remove" />
     </application>
 

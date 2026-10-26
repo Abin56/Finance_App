@@ -123,18 +123,14 @@ class FinancialEventDao {
   }
 
   Future<void> linkSms(FinancialEventEvidenceLink link) async {
-    await _database.insert(
-      SmsInboxDatabase.smsFinancialEventLinksTableName,
-      {
-        'id': link.id,
-        'financial_event_id': link.financialEventId,
-        'sms_item_id': link.smsItemId,
-        'link_type': link.linkType.name,
-        'confidence': link.confidence,
-        'linked_at': link.linkedAt.millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await _database.insert(SmsInboxDatabase.smsFinancialEventLinksTableName, {
+      'id': link.id,
+      'financial_event_id': link.financialEventId,
+      'sms_item_id': link.smsItemId,
+      'link_type': link.linkType.name,
+      'confidence': link.confidence,
+      'linked_at': link.linkedAt.millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<FinancialEventEvidenceLink>> getLinksForEvent(

@@ -108,11 +108,16 @@ class AccountDetailScreen extends ConsumerWidget {
                         size: AppSizes.iconSm,
                       ),
                       const SizedBox(width: AppSizes.sm),
-                      Text(
-                        'View Full History',
-                        style: context.textTheme.labelLarge?.copyWith(
-                          color: accentColor,
-                          fontWeight: FontWeight.w700,
+                      // Flexible so a large accessibility text scale wraps
+                      // the label instead of overflowing the button.
+                      Flexible(
+                        child: Text(
+                          'View Full History',
+                          textAlign: TextAlign.center,
+                          style: context.textTheme.labelLarge?.copyWith(
+                            color: accentColor,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],

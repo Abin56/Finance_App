@@ -13,6 +13,7 @@ import '../../../credit_cards/presentation/widgets/credit_card_form_sheet.dart';
 import '../../../security/presentation/pin_setup_sheet.dart';
 import '../../../sms_inbox/domain/sms_availability.dart';
 import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/widgets/sms_consent_sheets.dart';
 import '../providers/setup_wizard_providers.dart';
 import '../widgets/setup_step_view.dart';
 import '../widgets/setup_wizard_scaffold.dart';
@@ -128,14 +129,14 @@ class _SetupWizardScreenState extends ConsumerState<SetupWizardScreen> {
           accent: AppColors.info,
           title: 'Scan your bank SMS',
           description:
-              'Let FlowFi read your bank transaction SMS to suggest expenses. Your messages stay on your device.',
+              'Let FlowFi read your bank transaction SMS to suggest expenses for you to review.',
           optional: true,
           actionLabel: 'Enable SMS scan',
           doneLabel: smsGranted ? 'SMS access enabled' : null,
           // Requests the permission in place — reviewing messages happens
           // later in the SMS Inbox. Kept inline (like onboarding) rather than
           // navigating to a screen, so the wizard stays a single flow.
-          onAction: () => ref.read(smsAvailabilityProvider.notifier).request(),
+          onAction: () => requestSmsAccessWithConsent(context, ref),
         ),
       _WizardStep(
         icon: Icons.notifications_active_rounded,

@@ -1,25 +1,19 @@
-/// Master switch for uploading background-captured candidates to
-/// `users/{uid}/smsTransactionCandidates`.
+/// Whether the background worker CONSULTS the runtime upload switch at all
+/// (Phase F3, 2026-10-25). This is a build-time capability flag, not the
+/// on/off control: with it `true`, upload still happens only for the one
+/// account + one device named in `users/{uid}/smsSyncConfig/backgroundUpload`
+/// (see `sms_background_upload_switch.dart`), and does NOT happen when that
+/// document is absent, disabled, unreadable, or names a different device.
 ///
-/// Deliberately `false`. As of Phase D (2026-10-24) the code path itself is
-/// fully wired — `sms_background_entry.dart` initializes Firebase in this
-/// headless isolate, resolves a verified signed-in uid, and (only when this
-/// flag is `true`) attempts a tombstone-aware upload via
-/// `SmsCandidateCloudSync` — but the flag stays off because two of the
-/// required verification gates (see
-/// `docs/sms-background-cloud-sync-architecture.md`) remain unverified on
-/// THIS development machine, not because the mechanism is unbuilt:
+/// Default behavior is therefore OFF for every account and device, and it can
+/// be turned off again without rebuilding the APK by editing/deleting that
+/// document. Set this to `false` in a build to remove the cloud path from that
+/// build entirely (no Firestore read, no upload).
 ///
-/// 1. Whether `FirebaseAuth.currentUser` actually rehydrates in a headless
-///    `FlutterEngine` that never ran `main()` — needs a real Android device
-///    (no SDK/adb available here).
-/// 2. Whether the Dart `runTransaction` tombstone check is race-safe against
-///    a REAL, concurrently-writing Firestore backend — `fake_cloud_firestore`
-///    proves the logic shape only; this repo has no way to connect a Dart
-///    test to a live Firestore Emulator without a device (confirmed
-///    directly: `Firebase.initializeApp()` cannot complete under
-///    `flutter test` on this desktop host — no platform channel).
-///
-/// Flip this only once both are verified on a physical device, per the
-/// architecture doc's stopping conditions — not as a standalone code change.
-const bool kSmsAutoSyncCloudUploadEnabled = false;
+/// The earlier hard-coded `kSmsAutoSyncCloudUploadEnabled = false` is gone:
+/// a constant `false` could not be enabled without shipping a new APK. The
+/// verification gates it protected (headless Auth rehydration and a live-
+/// backend proof of the tombstone transaction — see
+/// `docs/sms-background-cloud-sync-architecture.md`) are now exercised through
+/// the single-device activation procedure in `docs/sms-auto-sync.md`.
+const bool kSmsAutoSyncCloudUploadRuntimeControlled = true;

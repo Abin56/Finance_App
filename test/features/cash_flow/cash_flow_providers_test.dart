@@ -311,6 +311,55 @@ void main() {
         expect(container.read(totalMoneyToReceiveProvider), 800);
       },
     );
+
+    test(
+      'regression: a person-linked loan counts once, under Loan Recoveries only (never ₹1,300)',
+      () async {
+        final people = container.read(personRepositoryProvider);
+        final loans = container.read(loanRepositoryProvider);
+
+        // Only a loan — no direct ledger money at all.
+        final loanOnly = await people.createPerson(
+          name: 'Bina',
+          avatarColorValue: 0xFF000000,
+          openingBalance: 0,
+        );
+        final loan = await loans.createLoan(
+          personId: loanOnly.id,
+          loanAmount: 500,
+          loanDate: DateTime.now(),
+          repaymentType: LoanRepaymentType.oneTime,
+          dueDate: DateTime.now().add(const Duration(days: 30)),
+        );
+
+        // I owe this person directly — that is never money to receive.
+        final iOwe = await people.createPerson(
+          name: 'Chetan',
+          avatarColorValue: 0xFF000000,
+          openingBalance: 0,
+        );
+        await container
+            .read(ledgerRepositoryProvider(iOwe.id))
+            .addEntry(
+              iOwe,
+              type: LedgerEntryType.borrowed,
+              amount: 200,
+              date: DateTime.now(),
+            );
+
+        await container.read(peopleStreamProvider.future);
+        await container.read(loansStreamProvider.future);
+        await container.read(
+          installmentsStreamProvider(loan.scheduleId).future,
+        );
+
+        final peopleLine = container.read(peoplePendingReceivableProvider);
+        expect(peopleLine.amount, 0);
+        expect(peopleLine.count, 0);
+        expect(container.read(loanRecoveriesReceivableProvider).amount, 500);
+        expect(container.read(totalMoneyToReceiveProvider), 500);
+      },
+    );
   });
 
   group('upcomingPaymentsTimelineProvider', () {

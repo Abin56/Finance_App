@@ -176,6 +176,7 @@ void main() {
           'sms-1',
           SmsTransactionCandidateCloud(
             smsItemId: 'sms-1',
+            cloudId: 'sms-1',
             amount: 100,
             direction: SmsTransactionDirection.debit,
             eventType: SmsTransactionCategory.cardPurchase,

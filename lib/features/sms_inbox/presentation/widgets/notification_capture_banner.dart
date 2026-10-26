@@ -74,7 +74,9 @@ class _NotificationCaptureBannerState
         title: 'Catch messages SMS misses',
         body:
             'Some bank alerts arrive as RCS chat messages, which never show up in your '
-            'SMS inbox. Enable notification access to catch those too.',
+            'SMS inbox. With notification access, FlowFi reads notifications from your '
+            'messaging app only. The alert text stays on this phone; transaction details '
+            'it finds are saved to your FlowFi account for review, just like SMS.',
         actionLabel: 'Enable',
         onAction: () => ref
             .read(notificationAccessAvailabilityProvider.notifier)

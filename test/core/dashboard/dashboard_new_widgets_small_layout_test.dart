@@ -150,6 +150,8 @@ void main() {
     // value for this Firebase-less widget test.
     emisStreamProvider.overrideWith((ref) => Stream.value(const [])),
     loansStreamProvider.overrideWith((ref) => Stream.value(const [])),
+    // personPositionProvider also reads trashed loans.
+    loansTrashStreamProvider.overrideWith((ref) => Stream.value(const [])),
     billsStreamProvider.overrideWith((ref) => Stream.value(const [])),
     expensesStreamProvider.overrideWith((ref) => Stream.value(const [])),
   ];
@@ -191,6 +193,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        expect(tester.takeException(), isNull);
+        // At large text scales the People card starts below the lazily
+        // built part of the list — bring it in, then re-check for overflow.
+        await tester.scrollUntilVisible(find.text('Owed to You'), 200);
         expect(tester.takeException(), isNull);
         expect(find.text('You Owe'), findsOneWidget);
         expect(find.text('Owed to You'), findsOneWidget);

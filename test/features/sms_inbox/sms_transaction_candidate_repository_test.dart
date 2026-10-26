@@ -12,6 +12,7 @@ void main() {
   SmsTransactionCandidateCloud candidate(String id, {String? accountId}) {
     return SmsTransactionCandidateCloud(
       smsItemId: id,
+      cloudId: id,
       amount: 100,
       direction: SmsTransactionDirection.debit,
       eventType: SmsTransactionCategory.upiPayment,

@@ -5,6 +5,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/sms_availability.dart';
 import '../providers/sms_inbox_providers.dart';
+import 'sms_consent_sheets.dart';
 
 /// Full-bleed explanation + call-to-action shown in place of the SMS list
 /// whenever [smsAvailabilityProvider] isn't `granted`. Copy matches the
@@ -20,11 +21,11 @@ class SmsPermissionGateView extends ConsumerWidget {
       SmsAvailability.notRequestedYet => (
         Icons.mark_email_unread_outlined,
         'Read your financial SMS?',
-        'FlowFi only reads financial SMS stored on your device to help you quickly add transactions. '
+        'FlowFi reads bank SMS on this phone to suggest transactions for you to review. '
             'Nothing is added automatically.',
         _Action(
           'Allow SMS access',
-          () => ref.read(smsAvailabilityProvider.notifier).request(),
+          () => requestSmsAccessWithConsent(context, ref),
         ),
       ),
       SmsAvailability.denied => (

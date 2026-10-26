@@ -9,6 +9,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../security/presentation/pin_setup_sheet.dart';
 import '../../../sms_inbox/domain/sms_availability.dart';
 import '../../../sms_inbox/presentation/providers/sms_inbox_providers.dart';
+import '../../../sms_inbox/presentation/widgets/sms_consent_sheets.dart';
 import '../providers/onboarding_providers.dart';
 import '../widgets/onboarding_illustration.dart';
 import '../widgets/onboarding_page_view.dart';
@@ -78,9 +79,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (mounted) _next();
   }
 
-  Future<void> _enableSms() => _runThenAdvance(
-    () => ref.read(smsAvailabilityProvider.notifier).request(),
-  );
+  Future<void> _enableSms() =>
+      _runThenAdvance(() => requestSmsAccessWithConsent(context, ref));
 
   Future<void> _enableNotifications() =>
       _runThenAdvance(() => ReminderNotificationService.requestPermission());
@@ -129,7 +129,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           headline: 'Smart SMS detection',
           subtitle:
               'FlowFi can recognize your bank transaction SMS to help you record expenses faster.',
-          note: 'Your SMS stays on your device until you choose to convert it.',
+          note: "You'll see exactly what is shared before Android asks for access.",
           badges: [
             OnboardingBadge(
               icon: Icons.sms_rounded,

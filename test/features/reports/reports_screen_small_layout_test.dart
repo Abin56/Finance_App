@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/features/bills/presentation/providers/bill_providers.dart';
 import 'package:finance_app/features/categories/domain/category.dart';
 import 'package:finance_app/features/categories/domain/category_type.dart';
@@ -125,6 +126,7 @@ void main() {
           expensesStreamProvider.overrideWith((ref) => Stream.value(const [])),
         ],
         child: MaterialApp(
+          theme: AppTheme.light,
           builder: (context, inner) => MediaQuery(
             data: MediaQuery.of(
               context,

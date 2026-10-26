@@ -311,6 +311,10 @@ class SmsInboxRepository {
   /// for an unconverted SMS, so nothing recalculates.
   Future<void> clearDuplicateFlag(String id) => _dao.clearDuplicateFlag(id);
 
+  /// See [SmsInboxDao.claimUnowned].
+  Future<int> claimUnowned(List<String> ids, String uid) =>
+      _dao.claimUnowned(ids, uid);
+
   Future<void> deleteMany(List<String> ids) => _dao.deleteByIds(ids);
 }
 

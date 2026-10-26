@@ -133,6 +133,7 @@ void main() {
     SmsTransactionCandidateCloud buildCloudDoc(String smsItemId) {
       return SmsTransactionCandidateCloud(
         smsItemId: smsItemId,
+        cloudId: smsItemId,
         amount: 500,
         direction: SmsTransactionDirection.debit,
         eventType: SmsTransactionCategory.unknown,

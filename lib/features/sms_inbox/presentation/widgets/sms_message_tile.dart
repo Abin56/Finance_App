@@ -11,7 +11,7 @@ import '../../domain/sms_transaction_category.dart';
 import '../../domain/sms_transaction_direction.dart';
 import '../../domain/transaction_candidate.dart';
 
-/// One SMS in the inbox, rendered as a compact ~76dp messaging-app row
+/// One SMS in the inbox, rendered as a compact ~68dp messaging-app row
 /// (channel icon, amount, merchant, time, status chip) rather than a
 /// dashboard card — so a user with thousands of bank SMS can scan the list
 /// with minimal scrolling. Row actions live in the screen's swipe/long-press
@@ -213,7 +213,7 @@ class _Leading extends StatelessWidget {
   final Color color;
 
   /// Shows a small corner dot rather than a second chip or a line of text —
-  /// the row has no spare height for either (see the 70-90dp budget this
+  /// the row has no spare height for either (see the 64-90dp budget this
   /// tile is held to), and the full "why" already lives one tap away in
   /// `SmsMessageDetailSheet`'s `SmsCandidateSummary`.
   final bool needsReview;

@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/features/transactions/domain/history_entry.dart';
 import 'package:finance_app/features/transactions/presentation/widgets/history_tile.dart';
 import 'package:finance_app/shared/domain/transaction_kind.dart';
@@ -30,6 +31,7 @@ void main() {
   Future<void> pump(WidgetTester tester, HistoryEntry entry) {
     return tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.light,
         home: Scaffold(body: HistoryTile(entry: entry)),
       ),
     );

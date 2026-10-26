@@ -50,6 +50,8 @@ abstract class AppRoutes {
   static const String accounts = '/accounts';
   static const String accountDetail = '/accounts/:accountId';
   static const String smsInbox = '/sms-inbox';
+  // SMS Sync pairing — opened by FlowFi Web's QR (`flowfi://app/pair?t=…`).
+  static const String smsPairing = '/pair';
   static const String lock = '/lock';
 
   static const String dashboardName = 'dashboard';

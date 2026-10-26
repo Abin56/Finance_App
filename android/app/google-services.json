@@ -7,18 +7,18 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:570188084565:android:0c7820ca8654808325ebdc",
+        "mobilesdk_app_id": "1:570188084565:android:141e0df6573ce52b25ebdc",
         "android_client_info": {
-          "package_name": "com.example.finance_app"
+          "package_name": "com.flowfi.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "570188084565-r24vmnicjj0ttmaliio59d5mlggcl6be.apps.googleusercontent.com",
+          "client_id": "570188084565-m76blai8ujatcdlaegeukar6q2ud97jc.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.finance_app",
-            "certificate_hash": "6bf32565d81c98c6359e0f86ed6ba6c5e1986e6e"
+            "package_name": "com.flowfi.app",
+            "certificate_hash": "a312176e5ffda96780d077f80ffba11fb0d69e42"
           }
         },
         {

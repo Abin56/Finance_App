@@ -3,10 +3,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    <!-- SMS Inbox feature: on-demand read of the device SMS inbox for
-         review/manual-conversion only. Deliberately no RECEIVE_SMS — there
-         is no background/live SMS listener, only an explicit user-triggered
-         scan (see lib/features/sms_inbox/data/sms_inbox_repository.dart). -->
+    <!-- SMS Inbox feature: reads the device SMS inbox when the user scans
+         (and, with Auto Sync on, from the background worker) to find bank
+         transaction alerts for review. Sideload only — removed for `play`
+         via src/play/AndroidManifest.xml. The disclosure shown before this
+         permission is SmsAccessConsentSheet. -->
     <uses-permission android:name="android.permission.READ_SMS"/>
     <!-- SMS Auto Sync (opt-in, sideload only — removed for `play` via
          src/play/AndroidManifest.xml): lets SmsReceiver wake a background
@@ -54,6 +55,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- SMS Sync pairing: FlowFi Web's QR opens its /pair page, which
+                 hands the one-time token to the app as flowfi://app/pair?t=…
+                 (go_router routes it to SmsPairingScreen). The token alone
+                 can't pair anything: the pairing Cloud Function only accepts
+                 it from the account that created it, after explicit approval. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="flowfi" android:host="app" android:path="/pair"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

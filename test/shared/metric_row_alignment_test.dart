@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,7 @@ void main() {
       ProviderScope(
         overrides: overrides,
         child: MaterialApp(
+          theme: AppTheme.light,
           // MediaQuery must go inside MaterialApp, which otherwise inserts its
           // own from the view and discards an outer one.
           builder: (context, inner) => MediaQuery(

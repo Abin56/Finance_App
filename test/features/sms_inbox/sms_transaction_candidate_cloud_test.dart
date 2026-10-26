@@ -1,4 +1,5 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_candidate_cloud_identity.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_confidence_scorer.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_candidate_cloud.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_category.dart';
@@ -7,12 +8,15 @@ import 'package:finance_app/features/sms_inbox/domain/transaction_candidate.dart
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  const sender = 'VM-HDFCBK';
+
   TransactionCandidate localCandidate({
     String smsItemId = 'sms-1',
     String? matchedAccountId,
     String? matchedCardId,
     bool needsReview = false,
     List<String> reasons = const [],
+    String? referenceNumber = 'REF123',
   }) {
     return TransactionCandidate(
       id: 'cand-1',
@@ -25,7 +29,7 @@ void main() {
       bankName: 'HDFC Bank',
       matchedAccountId: matchedAccountId,
       matchedCardId: matchedCardId,
-      referenceNumber: 'REF123',
+      referenceNumber: referenceNumber,
       confidenceLevel: ConfidenceLevel.high,
       confidenceScore: 0.92,
       needsReview: needsReview,
@@ -35,17 +39,83 @@ void main() {
   }
 
   group('fromLocal', () {
-    test('id is the smsItemId, not a new/random id', () {
-      final cloud = SmsTransactionCandidateCloud.fromLocal(
-        localCandidate(smsItemId: 'sms-42'),
-      );
-      expect(cloud.id, 'sms-42');
-      expect(cloud.smsItemId, 'sms-42');
-    });
+    test(
+      'smsItemId always carries the local row id, even when id (cloudId) differs',
+      () {
+        final cloud = SmsTransactionCandidateCloud.fromLocal(
+          localCandidate(smsItemId: 'sms-42'),
+          sender: sender,
+        );
+        expect(cloud.smsItemId, 'sms-42');
+      },
+    );
+
+    test(
+      'id falls back to the local smsItemId when a reference number is present but no last-4 was given (safety correction, 2026-10-24)',
+      () {
+        // A reference number alone is no longer enough to compute a
+        // content-derived (V2) id — a reliable last-4 is also required, or
+        // this falls back to the conservative per-device id, same as the
+        // no-reference-number case. See SmsCandidateCloudIdentity.compute's
+        // doc comment for why: an earlier version used a 'none' placeholder
+        // here and still cross-device-merged on it, which could falsely
+        // merge two different accounts that both lack a last-4.
+        final cloud = SmsTransactionCandidateCloud.fromLocal(
+          localCandidate(smsItemId: 'sms-42', referenceNumber: 'REF123'),
+          sender: sender,
+        );
+        expect(cloud.id, 'sms-42');
+      },
+    );
+
+    test(
+      'id is the V2 identity when both a reference number and a last-4 are present',
+      () {
+        final cloud = SmsTransactionCandidateCloud.fromLocal(
+          localCandidate(smsItemId: 'sms-43', referenceNumber: 'REF123'),
+          sender: sender,
+          rawLastFour: '5623',
+        );
+        expect(
+          cloud.id,
+          SmsCandidateCloudIdentity.forReferencedTransactionV2(
+            sender: sender,
+            referenceNumber: 'REF123',
+            maskedAccountOrCard: '5623',
+            amount: 1250.5,
+            direction: SmsTransactionDirection.debit,
+          ),
+        );
+        expect(
+          cloud.id,
+          isNot(
+            SmsCandidateCloudIdentity.forReferencedTransactionV1(
+              sender: sender,
+              referenceNumber: 'REF123',
+              amount: 1250.5,
+              direction: SmsTransactionDirection.debit,
+            ),
+          ),
+          reason: 'fromLocal always builds the current (V2) id, never V1',
+        );
+      },
+    );
+
+    test(
+      'id falls back to the local smsItemId when no reference number was parsed (conservative fallback)',
+      () {
+        final cloud = SmsTransactionCandidateCloud.fromLocal(
+          localCandidate(smsItemId: 'sms-42', referenceNumber: null),
+          sender: sender,
+        );
+        expect(cloud.id, 'sms-42');
+      },
+    );
 
     test('carries the matched account/card ids through unchanged', () {
       final cloud = SmsTransactionCandidateCloud.fromLocal(
         localCandidate(matchedAccountId: 'acc-1', matchedCardId: 'card-1'),
+        sender: sender,
       );
       expect(cloud.accountId, 'acc-1');
       expect(cloud.cardId, 'card-1');
@@ -54,7 +124,10 @@ void main() {
     test(
       'leaves accountId/cardId null when unresolved rather than guessing',
       () {
-        final cloud = SmsTransactionCandidateCloud.fromLocal(localCandidate());
+        final cloud = SmsTransactionCandidateCloud.fromLocal(
+          localCandidate(),
+          sender: sender,
+        );
         expect(cloud.accountId, isNull);
         expect(cloud.cardId, isNull);
       },
@@ -63,6 +136,7 @@ void main() {
     test('carries the raw last-4 hint separately from the matched account', () {
       final cloud = SmsTransactionCandidateCloud.fromLocal(
         localCandidate(),
+        sender: sender,
         rawLastFour: '9876',
       );
       expect(cloud.rawLastFour, '9876');
@@ -76,6 +150,7 @@ void main() {
             'No matching account or card found for this message.',
           ],
         ),
+        sender: sender,
       );
       expect(cloud.needsReview, isTrue);
       expect(cloud.needsReviewReasons, [
@@ -110,6 +185,7 @@ void main() {
           needsReview: true,
           reasons: const ['x'],
         ),
+        sender: sender,
         rawLastFour: '1234',
       );
       await collection.doc(original.id).set(original);
@@ -139,6 +215,7 @@ void main() {
         final collection = firestore.collection('smsTransactionCandidates');
         final cloud = SmsTransactionCandidateCloud.fromLocal(
           localCandidate(),
+          sender: sender,
           rawLastFour: '1234',
         );
         await collection.doc(cloud.id).set(cloud.toFirestore());
@@ -168,7 +245,10 @@ void main() {
 
     test('enum fields serialize as their Dart enum name', () async {
       final collection = firestore.collection('smsTransactionCandidates');
-      final cloud = SmsTransactionCandidateCloud.fromLocal(localCandidate());
+      final cloud = SmsTransactionCandidateCloud.fromLocal(
+        localCandidate(),
+        sender: sender,
+      );
       await collection.doc(cloud.id).set(cloud.toFirestore());
 
       final raw = (await collection.doc(cloud.id).get()).data()!;

@@ -6,7 +6,9 @@ import '../../transactions/presentation/providers/transaction_providers.dart';
 import '../data/merchant_memory_repository.dart';
 import '../data/sms_inbox_repository.dart';
 import '../data/sms_transaction_candidate_repository.dart';
+import '../domain/sms_candidate_cloud_identity.dart';
 import '../domain/sms_inbox_item.dart';
+import '../domain/sms_transaction_direction.dart';
 import 'providers/sms_inbox_providers.dart';
 import 'sms_import_completion.dart';
 
@@ -152,6 +154,19 @@ class SmsBulkConverter {
           learnCategoryType: config.type,
           learnCategoryId: config.categoryId,
           cloudCandidateRepository: _cloudCandidates,
+          // Phase F1 (2026-10-24): the cloud doc this candidate uploaded
+          // under may not be `item.id` — see SmsCandidateCloudIdentity.
+          // `item.parsed` is non-null whenever `referenceNumber` is (both
+          // come from the same parse result), so `direction` is only ever
+          // actually read by `compute` in that same case.
+          cloudCandidateId: SmsCandidateCloudIdentity.compute(
+            sender: item.rawMessage.address,
+            referenceNumber: item.parsed?.referenceNumber,
+            maskedAccountOrCard: item.parsed?.maskedAccountOrCard,
+            amount: amount,
+            direction: item.parsed?.direction ?? SmsTransactionDirection.debit,
+            legacyPerDeviceId: item.id,
+          ),
         );
       } catch (_) {
         failed++;

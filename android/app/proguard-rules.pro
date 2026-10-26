@@ -17,3 +17,10 @@
 -dontwarn com.google.mlkit.vision.text.devanagari.**
 -dontwarn com.google.mlkit.vision.text.japanese.**
 -dontwarn com.google.mlkit.vision.text.korean.**
+
+# WorkManager (SmsScanWorker) builds its Room database by reflective class-name
+# lookup; R8 stripping WorkDatabase_Impl crashes the app at startup in release.
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class androidx.work.** { *; }
+-dontwarn androidx.work.**

@@ -73,10 +73,20 @@ Future<void> completeSmsImport(
 ///
 /// [cloudCandidateRepository] is optional so existing tests/callers that
 /// construct this without cloud wiring keep working unchanged; when given,
-/// [smsId]'s cloud candidate doc (if any) is deleted right after marking
-/// imported — same "delete now, sync() reconciles the rest" pattern as
-/// `SmsInboxItemsNotifier._removeCloudCandidate`, best-effort and isolated
-/// from the linking failure it's already nested inside.
+/// the cloud candidate doc at [cloudCandidateId] (if any) is deleted right
+/// after marking imported — same "delete now, sync() reconciles the rest"
+/// pattern as `SmsInboxItemsNotifier._removeCloudCandidate`, best-effort and
+/// isolated from the linking failure it's already nested inside.
+///
+/// [cloudCandidateId] defaults to [smsId] — correct for every candidate with
+/// no reference number (the conservative fallback,
+/// `SmsCandidateCloudIdentity`'s default identity) and for every caller that
+/// predates Phase F1 (2026-10-24). A caller whose candidate DOES have a
+/// reference number must pass the real computed id explicitly (see
+/// `SmsBulkConverter`) — otherwise this best-effort delete silently misses
+/// and the doc is left for the next `sync()` call to clean up instead (not a
+/// correctness bug on its own, `sync()`'s own removal logic is the actual
+/// safety net — just a delayed cleanup).
 Future<void> linkSmsImportViaRepositories({
   required SmsInboxRepository inboxRepository,
   required MerchantMemoryRepository memoryRepository,
@@ -86,6 +96,7 @@ Future<void> linkSmsImportViaRepositories({
   TransactionType? learnCategoryType,
   String? learnCategoryId,
   SmsTransactionCandidateRepository? cloudCandidateRepository,
+  String? cloudCandidateId,
 }) async {
   await _swallowLinkingFailure(smsId, () async {
     await inboxRepository.markImported(smsId, linkedEntityId: linkedEntityId);
@@ -97,7 +108,7 @@ Future<void> linkSmsImportViaRepositories({
       );
     }
     if (cloudCandidateRepository != null) {
-      await cloudCandidateRepository.deleteById(smsId);
+      await cloudCandidateRepository.deleteById(cloudCandidateId ?? smsId);
     }
   });
 }

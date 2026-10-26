@@ -14,7 +14,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// PROPOSAL STATUS (2026-10-23): schema + rules only so far (Phase A).
 /// Nothing reads or writes this collection from Android yet — the
 /// transactional tombstone-check-then-upload path lands in Phase C/D.
-/// `kSmsAutoSyncCloudUploadEnabled` stays `false` until then.
+/// Background upload stays off (runtime switch) until then.
 ///
 /// Immutable once written — `firestore.rules` denies `update` outright, so a
 /// dismissed candidate's tombstone can never later be rewritten as imported

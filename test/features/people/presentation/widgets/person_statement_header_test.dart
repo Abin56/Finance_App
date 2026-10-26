@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/constants/app_colors.dart';
 import 'package:finance_app/features/people/domain/person.dart';
 import 'package:finance_app/features/people/domain/person_timeline_entry.dart';
@@ -61,6 +62,7 @@ void main() {
   ) {
     return tester.pumpWidget(
       MaterialApp(
+        theme: AppTheme.light,
         home: Scaffold(
           body: PersonStatementHeader(person: p, entries: entries),
         ),

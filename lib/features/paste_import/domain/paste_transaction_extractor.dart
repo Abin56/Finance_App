@@ -208,7 +208,7 @@ abstract class PasteTransactionExtractor {
       referenceRawText: referenceMatch?.group(0),
     );
 
-    return DetectedTransaction(
+    final row = DetectedTransaction(
       id: IdGenerator.generate(),
       sourceImageIndex: blockIndex,
       rawText: combinedText,
@@ -222,6 +222,10 @@ abstract class PasteTransactionExtractor {
       type: direction ?? TransactionType.expense,
       referenceNumber: referenceNumber,
     );
+    // Same rule as the screenshot extractor: a row missing a required field
+    // must not start pre-checked for import.
+    row.isSelected = row.hasRequiredFields;
+    return row;
   }
 
   static ParsedAmount? _extractAmountNearDirection(String line) {

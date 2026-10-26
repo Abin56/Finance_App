@@ -11,7 +11,6 @@ import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
 import 'package:finance_app/core/constants/app_strings.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
-import 'package:finance_app/core/dashboard/presentation/widgets/dashboard_spending_snapshot_card.dart';
 import 'package:finance_app/features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'package:finance_app/features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
 
@@ -51,13 +50,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Total Balance'), findsOneWidget);
+    expect(find.text('Net Worth'), findsOneWidget);
     expect(find.byIcon(Icons.home_rounded), findsOneWidget);
 
-    // This account has no transactions at all, so the Spending Snapshot
-    // shows its empty state rather than a wall of ₹0 stats.
-    expect(find.byType(DashboardSpendingSnapshotCard), findsOneWidget);
-    expect(find.text('Spending Snapshot'), findsOneWidget);
+    // The default layout renders past the hero: its second widget (see
+    // dashboard_layout_defaults.dart) is the attention strip, which on an
+    // empty account is one calm "All caught up" line.
+    expect(
+      find.textContaining('All caught up.', findRichText: true),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Cash Flow tab shows the moved planning sections', (

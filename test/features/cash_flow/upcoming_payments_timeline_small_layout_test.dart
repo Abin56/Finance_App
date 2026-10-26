@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/features/cash_flow/domain/cash_flow_preset.dart';
 import 'package:finance_app/features/cash_flow/presentation/providers/cash_flow_providers.dart';
 import 'package:finance_app/features/cash_flow/presentation/widgets/upcoming_payments_timeline.dart';
@@ -55,11 +56,15 @@ void main() {
           cashFlowSelectionProvider.overrideWith(
             (ref) => CashFlowSelection(
               preset: CashFlowPreset.custom,
-              range: DateRange(now.subtract(const Duration(days: 60)), now.add(const Duration(days: 60))),
+              range: DateRange(
+                now.subtract(const Duration(days: 60)),
+                now.add(const Duration(days: 60)),
+              ),
             ),
           ),
         ],
         child: MaterialApp(
+          theme: AppTheme.light,
           builder: (context, inner) => MediaQuery(
             data: MediaQuery.of(
               context,

@@ -43,6 +43,9 @@ import '../../features/search/presentation/screens/search_screen.dart';
 import '../../features/security/presentation/lock_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 import '../../features/transactions/presentation/screens/transaction_detail_screen.dart';
+import '../../features/sms_inbox/pairing/sms_pairing_link.dart';
+import '../../features/sms_inbox/pairing/sms_pairing_providers.dart';
+import '../../features/sms_inbox/pairing/sms_pairing_screen.dart';
 import '../../features/sms_inbox/presentation/screens/sms_inbox_screen.dart';
 import '../../features/transactions/presentation/screens/transactions_screen.dart';
 import '../services/security/app_lock_controller.dart';
@@ -77,6 +80,12 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 ///   account has completed *or* dismissed the first-time setup wizard, every
 ///   navigation goes to `/setup`. Dismissing it marks it done, so it never
 ///   permanently blocks the app.
+///
+/// SMS Sync pairing deep links (`/pair?t=…`, from FlowFi Web's QR) can land
+/// before any of those gates are satisfied. The token is captured into
+/// [pendingSmsPairingProvider] first, the gates run as usual, and once they
+/// all pass the user is sent to `/pair` — so a brand-new install keeps the
+/// scanned code through onboarding and sign-in instead of dropping it.
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = RouterRefreshNotifier(ref);
   final modalCounter = ref.read(modalRouteCountProvider.notifier);
@@ -88,6 +97,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshNotifier,
     errorBuilder: (context, state) => const RouteErrorScreen(),
     redirect: (context, state) {
+      final pairingToken = smsPairingTokenFromUri(state.uri);
+      if (pairingToken != null) {
+        ref.read(pendingSmsPairingProvider).offer(pairingToken);
+      }
+
       final goingToOnboarding = state.matchedLocation == AppRoutes.onboarding;
       if (!ref.read(onboardingCompletedProvider)) {
         return goingToOnboarding ? null : AppRoutes.onboarding;
@@ -129,6 +143,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         return goingToSetup ? null : AppRoutes.setupWizard;
       }
       if (goingToSetup) return AppRoutes.dashboard;
+
+      // Every gate passed: resume a scanned pairing code.
+      final goingToPairing = state.matchedLocation == AppRoutes.smsPairing;
+      if (!goingToPairing && ref.read(pendingSmsPairingProvider).hasToken) {
+        return AppRoutes.smsPairing;
+      }
       return null;
     },
     routes: [
@@ -151,6 +171,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.lock,
         builder: (context, state) => const LockScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.smsPairing,
+        builder: (context, state) => const SmsPairingScreen(),
       ),
       GoRoute(
         path: AppRoutes.accounts,

@@ -24,6 +24,10 @@ enum DashboardWidgetType {
   creditUtilization,
   previousCycleCarryForward,
   expenseComparison,
+
+  /// Overdue + next-due strip under the hero. Appended last: persisted
+  /// layouts store the enum by name, so position here never matters.
+  attention,
 }
 
 extension DashboardWidgetTypeX on DashboardWidgetType {
@@ -73,6 +77,8 @@ extension DashboardWidgetTypeX on DashboardWidgetType {
         return 'Previous Cycle Carry Forward';
       case DashboardWidgetType.expenseComparison:
         return 'My Expenses vs People';
+      case DashboardWidgetType.attention:
+        return 'Needs Attention';
     }
   }
 
@@ -115,6 +121,7 @@ extension DashboardWidgetTypeX on DashboardWidgetType {
       case DashboardWidgetType.insights:
       case DashboardWidgetType.previousCycleCarryForward:
       case DashboardWidgetType.expenseComparison:
+      case DashboardWidgetType.attention:
         return true;
       case DashboardWidgetType.savingsGoals:
       case DashboardWidgetType.budgetProgress:

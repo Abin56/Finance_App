@@ -195,6 +195,31 @@ class SmsInboxDao {
     return rows.map(_fromRow).toList();
   }
 
+  /// Binds [ids] to [uid] — but only rows that are still unowned, pending
+  /// and not flagged as duplicates. The guard lives in the `WHERE` clause
+  /// itself, so a row owned by any account (including [uid]) or handled in
+  /// the meantime is never touched, and re-running is a no-op. Returns how
+  /// many rows were actually bound. Only `captured_for_uid` changes.
+  Future<int> claimUnowned(List<String> ids, String uid) async {
+    if (ids.isEmpty || uid.trim().isEmpty) return 0;
+
+    var claimed = 0;
+    // Chunked to stay under SQLite's bound-parameter limit.
+    for (var start = 0; start < ids.length; start += 400) {
+      final chunk = ids.sublist(start, (start + 400).clamp(0, ids.length));
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      claimed += await _database.update(
+        SmsInboxDatabase.tableName,
+        {'captured_for_uid': uid},
+        where:
+            'id IN ($placeholders) AND captured_for_uid IS NULL '
+            'AND status = ? AND duplicate_of_id IS NULL',
+        whereArgs: [...chunk, SmsImportStatus.pending.name],
+      );
+    }
+    return claimed;
+  }
+
   /// Clears the duplicate flag, returning the row to the normal inbox feed.
   /// Backs the user overruling a false positive — the detection rules are
   /// heuristics, and the user is the authority on their own messages.
@@ -237,11 +262,10 @@ class SmsInboxDao {
     final batch = _database.batch();
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final row in rows) {
-      batch.insert(
-        SmsInboxDatabase.deletedMessageKeysTableName,
-        {'message_key': row['message_key'], 'deleted_at': now},
-        conflictAlgorithm: ConflictAlgorithm.ignore,
-      );
+      batch.insert(SmsInboxDatabase.deletedMessageKeysTableName, {
+        'message_key': row['message_key'],
+        'deleted_at': now,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
     batch.delete(
       SmsInboxDatabase.tableName,

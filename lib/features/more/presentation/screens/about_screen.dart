@@ -9,7 +9,7 @@ import '../../../../core/constants/app_strings.dart';
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
-  static const _version = '1.0.0';
+  static const _version = '1.0.1';
 
   @override
   Widget build(BuildContext context) {

@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -123,6 +124,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
+            theme: AppTheme.light,
             home: TransactionsScreen(initialAccountId: accountA.id),
           ),
         ),
@@ -158,7 +160,10 @@ void main() {
             ]),
           ),
         ],
-        child: const MaterialApp(home: TransactionsScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const TransactionsScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

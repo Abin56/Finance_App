@@ -124,22 +124,20 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
-        border: Border.all(color: colors.outline),
-      ),
+    // Borderless tiles on the muted surface: the row reads as one toolbar
+    // rather than four more cards competing with the sections around it.
+    return Semantics(
+      button: true,
       child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppSizes.radiusMd),
+        // Same value as `FlowFiColors.mutedSurface`.
+        color: context.colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppSizes.radiusLg),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              vertical: AppSizes.sm,
+              vertical: AppSizes.md,
               horizontal: AppSizes.xs,
             ),
             child: Column(

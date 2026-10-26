@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../constants/app_sizes.dart';
 import '../../../extensions/context_extensions.dart';
@@ -10,9 +11,7 @@ import '../../../../features/auth/presentation/providers/auth_providers.dart';
 
 /// Time-of-day greeting shown at the top of the dashboard, personalized
 /// with the signed-in user's first name when available. Carries the app's
-/// entry point to global Search. The bell icon links to Settings for now
-/// (notifications land in a later milestone, so there's no notification
-/// center yet to link to instead).
+/// entry point to global Search.
 class GreetingHeader extends ConsumerWidget {
   const GreetingHeader({super.key});
 
@@ -47,7 +46,8 @@ class GreetingHeader extends ConsumerWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'Your financial overview',
+                '${DateFormat('EEEE, d MMMM').format(DateTime.now())} · '
+                "here's where your money stands",
                 style: context.textTheme.labelSmall?.copyWith(
                   color: context.colors.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
@@ -64,12 +64,8 @@ class GreetingHeader extends ConsumerWidget {
           tooltip: 'Search',
           onPressed: () => context.push(AppRoutes.search),
         ),
-        const SizedBox(width: AppSizes.xs),
-        _HeaderIconButton(
-          icon: Icons.notifications_outlined,
-          tooltip: 'Notifications',
-          onPressed: () => context.push(AppRoutes.settings),
-        ),
+        // No bell: there is no notification center, and a bell that opened
+        // Settings promised something the app doesn't have.
       ],
     );
   }

@@ -6,18 +6,20 @@ import '../domain/financial_view_module.dart';
 import '../domain/widget_configuration.dart';
 
 /// The dashboard a fresh install (or a user with no saved layout yet) sees —
-/// one "Personal" profile covering the same ground the old static dashboard
-/// did, so the redesign doesn't regress what's shown by default. Users can
-/// hide, reorder, reconfigure, or delete any of these from Edit Mode; this
-/// is only ever read once, by [DashboardLayoutController.build], when no
-/// saved layout exists.
+/// one "Personal" profile. Users can hide, reorder, reconfigure, or delete
+/// any of these from Edit Mode, and bring them back through Add Widget /
+/// Reset; this is read by [DashboardLayoutController.build] when no saved
+/// layout exists, by Reset, and as the per-type seed for Add Widget.
 ///
-/// Order follows the dashboard's information-priority hierarchy: hero →
-/// carry-forward alert → my-expense-vs-people → what's due/actionable →
-/// financial snapshot (accounts/credit cards/people) → cash flow → insights
-/// → recent activity teaser, with not-yet-built types trailing at the end
-/// (they're collapsed into a single "Coming Soon" card in View Mode
-/// regardless of position).
+/// Order follows the dashboard's information-priority hierarchy (mirrors
+/// Web's `app/(app)/dashboard/page.tsx`): headline (net worth) → attention
+/// (overdue / due next, plus the previous cycle's carry-forward, which the
+/// PRD requires near the top) → this month's cash flow and the shortcuts →
+/// what's due → cycle spend analysis → composition (accounts, categories,
+/// credit) → people → recent activity → insights.
+///
+/// Only built types ([DashboardWidgetTypeX.isBuilt]) appear here — an
+/// unbuilt type would surface as a "Coming Soon" card on every new install.
 ({List<WidgetConfiguration> configs, List<DashboardLayout> layouts})
 buildDefaultDashboard() {
   final configs = <WidgetConfiguration>[
@@ -26,7 +28,39 @@ buildDefaultDashboard() {
       type: DashboardWidgetType.netWorth,
       title: 'Net Worth',
     ),
-    // The billing-cycle hero: total spend in the current 17th→17th cycle,
+    WidgetConfiguration(
+      id: 'attention',
+      type: DashboardWidgetType.attention,
+      title: 'Needs Attention',
+    ),
+    // Previous cycle's carry-forward, kept unmissable near the top per the
+    // PRD ("must NOT be hidden, must be visible near the top").
+    WidgetConfiguration(
+      id: 'previousCycleCarryForward',
+      type: DashboardWidgetType.previousCycleCarryForward,
+      title: 'Previous Cycle Carry Forward',
+      dateStrategy: const SalaryCycleToDate(),
+    ),
+    // The card always shows this calendar month (`cashFlowThisMonthProvider`)
+    // — the strategy is set to match so the stored config never contradicts
+    // what's displayed.
+    WidgetConfiguration(
+      id: 'cashFlow',
+      type: DashboardWidgetType.cashFlow,
+      title: 'Cash Flow',
+      dateStrategy: const ReportsPeriodStrategy(ReportsPeriod.thisMonth),
+    ),
+    WidgetConfiguration(
+      id: 'quickActions',
+      type: DashboardWidgetType.quickActions,
+      title: 'Quick Actions',
+    ),
+    WidgetConfiguration(
+      id: 'upcomingPayments',
+      type: DashboardWidgetType.upcomingPayments,
+      title: 'Upcoming Payments',
+    ),
+    // The billing-cycle spend: total spend in the current 17th→17th cycle,
     // with the cycle-progress indicator the salary-cycle strategy unlocks in
     // FinancialViewWidgetCard.
     WidgetConfiguration(
@@ -36,15 +70,6 @@ buildDefaultDashboard() {
       dateStrategy: const SalaryCycleToDate(),
       financialViewModule: FinancialViewModule.combinedExpenses,
     ),
-    // Previous cycle's carry-forward, kept unmissable right under the
-    // hero per the PRD ("must NOT be hidden, must be visible near the
-    // top") — same salary-cycle anchor as the hero above it.
-    WidgetConfiguration(
-      id: 'previousCycleCarryForward',
-      type: DashboardWidgetType.previousCycleCarryForward,
-      title: 'Previous Cycle Carry Forward',
-      dateStrategy: const SalaryCycleToDate(),
-    ),
     WidgetConfiguration(
       id: 'expenseComparison',
       type: DashboardWidgetType.expenseComparison,
@@ -52,19 +77,19 @@ buildDefaultDashboard() {
       dateStrategy: const SalaryCycleToDate(),
     ),
     WidgetConfiguration(
-      id: 'upcomingPayments',
-      type: DashboardWidgetType.upcomingPayments,
-      title: 'Upcoming Payments',
-    ),
-    WidgetConfiguration(
-      id: 'quickActions',
-      type: DashboardWidgetType.quickActions,
-      title: 'Quick Actions',
-    ),
-    WidgetConfiguration(
       id: 'accounts',
       type: DashboardWidgetType.accounts,
       title: 'Accounts',
+    ),
+    WidgetConfiguration(
+      id: 'spendingCategories',
+      type: DashboardWidgetType.spendingCategories,
+      title: 'Spending by Category',
+    ),
+    WidgetConfiguration(
+      id: 'creditUtilization',
+      type: DashboardWidgetType.creditUtilization,
+      title: 'Credit Utilization',
     ),
     WidgetConfiguration(
       id: 'creditCards',
@@ -77,30 +102,14 @@ buildDefaultDashboard() {
       title: 'People',
     ),
     WidgetConfiguration(
-      id: 'cashFlow',
-      type: DashboardWidgetType.cashFlow,
-      title: 'Today',
-      dateStrategy: const ReportsPeriodStrategy(ReportsPeriod.today),
-    ),
-    WidgetConfiguration(
-      id: 'insights',
-      type: DashboardWidgetType.insights,
-      title: 'Insights',
-    ),
-    WidgetConfiguration(
       id: 'recentActivity',
       type: DashboardWidgetType.recentActivity,
       title: 'Recent Activity',
     ),
     WidgetConfiguration(
-      id: 'budgetProgress',
-      type: DashboardWidgetType.budgetProgress,
-      title: 'Budget Health',
-    ),
-    WidgetConfiguration(
-      id: 'savingsGoals',
-      type: DashboardWidgetType.savingsGoals,
-      title: 'Goals',
+      id: 'insights',
+      type: DashboardWidgetType.insights,
+      title: 'Insights',
     ),
   ];
 
@@ -108,78 +117,21 @@ buildDefaultDashboard() {
     id: 'personal',
     name: 'Personal',
     widgets: [
-      const DashboardWidget(
-        id: 'w-netWorth',
-        type: DashboardWidgetType.netWorth,
-        configId: 'netWorth',
-      ),
-      const DashboardWidget(
-        id: 'w-financialView-salaryCycle',
-        type: DashboardWidgetType.financialView,
-        configId: 'financialView-salaryCycle',
-      ),
-      const DashboardWidget(
-        id: 'w-previousCycleCarryForward',
-        type: DashboardWidgetType.previousCycleCarryForward,
-        configId: 'previousCycleCarryForward',
-      ),
-      const DashboardWidget(
-        id: 'w-expenseComparison',
-        type: DashboardWidgetType.expenseComparison,
-        configId: 'expenseComparison',
-      ),
-      const DashboardWidget(
-        id: 'w-upcomingPayments',
-        type: DashboardWidgetType.upcomingPayments,
-        configId: 'upcomingPayments',
-      ),
-      const DashboardWidget(
-        id: 'w-quickActions',
-        type: DashboardWidgetType.quickActions,
-        configId: 'quickActions',
-      ),
-      const DashboardWidget(
-        id: 'w-accounts',
-        type: DashboardWidgetType.accounts,
-        configId: 'accounts',
-      ),
-      const DashboardWidget(
-        id: 'w-creditCards',
-        type: DashboardWidgetType.creditCards,
-        configId: 'creditCards',
-      ),
-      const DashboardWidget(
-        id: 'w-people',
-        type: DashboardWidgetType.people,
-        configId: 'people',
-      ),
-      const DashboardWidget(
-        id: 'w-cashFlow',
-        type: DashboardWidgetType.cashFlow,
-        configId: 'cashFlow',
-      ),
-      const DashboardWidget(
-        id: 'w-insights',
-        type: DashboardWidgetType.insights,
-        configId: 'insights',
-      ),
-      const DashboardWidget(
-        id: 'w-recentActivity',
-        type: DashboardWidgetType.recentActivity,
-        configId: 'recentActivity',
-      ),
-      const DashboardWidget(
-        id: 'w-budgetProgress',
-        type: DashboardWidgetType.budgetProgress,
-        configId: 'budgetProgress',
-      ),
-      const DashboardWidget(
-        id: 'w-savingsGoals',
-        type: DashboardWidgetType.savingsGoals,
-        configId: 'savingsGoals',
-      ),
+      for (final c in configs)
+        DashboardWidget(id: 'w-${c.id}', type: c.type, configId: c.id),
     ],
   );
 
   return (configs: configs, layouts: [layout]);
+}
+
+/// The default [WidgetConfiguration] for [type], if the default dashboard
+/// has one — Add Widget seeds a new instance from it so a re-added widget
+/// comes back with its intended date strategy / title rather than bare
+/// defaults (e.g. Previous Cycle needs its salary-cycle strategy).
+WidgetConfiguration? defaultConfigFor(DashboardWidgetType type) {
+  for (final c in buildDefaultDashboard().configs) {
+    if (c.type == type) return c;
+  }
+  return null;
 }

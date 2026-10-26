@@ -1,3 +1,4 @@
+import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,7 +67,10 @@ void main() {
             currentCycleSpend: 0,
           )),
         ],
-        child: const MaterialApp(home: CreditCardsScreen()),
+        child: MaterialApp(
+          theme: AppTheme.light,
+          home: const CreditCardsScreen(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

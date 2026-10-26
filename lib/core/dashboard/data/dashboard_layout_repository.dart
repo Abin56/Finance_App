@@ -1,8 +1,10 @@
 import 'dart:convert';
 
+import '../../../features/reports/domain/reports_period.dart';
 import '../../services/local_settings_service.dart';
 import '../domain/dashboard_widget.dart';
 import '../domain/dashboard_widget_type.dart';
+import '../domain/date_range_strategy.dart';
 import '../domain/widget_configuration.dart';
 import 'dashboard_layout_defaults.dart';
 
@@ -13,6 +15,11 @@ const _activeLayoutKey = 'dashboard_active_layout_id';
 /// first time a saved layout is checked for the Quick Actions widget, so a
 /// user who later deletes that widget never has it silently re-added.
 const _quickActionsMigrationKey = 'dashboard_quick_actions_added_v1';
+
+/// One-shot flag for [DashboardLayoutRepository._withDashboardV2] — the
+/// Dashboard 2.0 cleanup runs against a saved layout exactly once, so a user
+/// who later removes the attention strip never has it silently re-added.
+const _dashboardV2MigrationKey = 'dashboard_v2_layout_migrated_v1';
 
 /// Everything [DashboardLayoutController] persists: every
 /// [WidgetConfiguration] that exists (regardless of which layout references
@@ -78,7 +85,7 @@ class DashboardLayoutRepository {
         layouts: layouts,
         activeLayoutId: activeLayoutId,
       );
-      return _withQuickActions(state);
+      return _withDashboardV2(_withQuickActions(state));
     } catch (_) {
       // Corrupt or outdated shape (e.g. from a future format) — fall back
       // to defaults rather than crash the dashboard on startup.
@@ -142,6 +149,81 @@ class DashboardLayoutRepository {
     );
     save(migrated);
     return migrated;
+  }
+
+  /// Dashboard 2.0 migration for saved layouts, additive and run once
+  /// ([_dashboardV2MigrationKey]):
+  ///  - drops placements of types with no renderer yet (Budget Health /
+  ///    Goals), which only ever showed as a "Coming Soon" card — their
+  ///    [WidgetConfiguration]s stay in `configs`, untouched;
+  ///  - inserts one Needs Attention strip right under Net Worth (or at the
+  ///    top when there is no Net Worth widget), in every layout without one;
+  ///  - re-labels the untouched default Cash Flow config ("Today" on a
+  ///    Today strategy) to the This-Month period the card actually shows.
+  /// Every other widget keeps its order, visibility and settings.
+  DashboardState _withDashboardV2(DashboardState state) {
+    if (LocalSettingsService.getBool(_dashboardV2MigrationKey)) return state;
+    LocalSettingsService.setBool(_dashboardV2MigrationKey, true);
+
+    var configId = 'attention';
+    final existingAttention = state.configs[configId];
+    if (existingAttention != null &&
+        existingAttention.type != DashboardWidgetType.attention) {
+      configId = 'attention-v2';
+    }
+    final configs = {
+      ...state.configs,
+      configId:
+          state.configs[configId] ??
+          WidgetConfiguration(
+            id: configId,
+            type: DashboardWidgetType.attention,
+            title: DashboardWidgetType.attention.defaultTitle,
+          ),
+    };
+    for (final entry in state.configs.entries) {
+      final c = entry.value;
+      if (c.type == DashboardWidgetType.cashFlow &&
+          c.title == 'Today' &&
+          c.dateStrategy is ReportsPeriodStrategy &&
+          (c.dateStrategy as ReportsPeriodStrategy).period ==
+              ReportsPeriod.today) {
+        configs[entry.key] = c.copyWith(
+          title: 'Cash Flow',
+          dateStrategy: const ReportsPeriodStrategy(ReportsPeriod.thisMonth),
+        );
+      }
+    }
+
+    final layouts = [
+      for (final layout in state.layouts)
+        layout.copyWith(widgets: _migrateWidgets(layout, configId)),
+    ];
+    final migrated = state.copyWith(configs: configs, layouts: layouts);
+    save(migrated);
+    return migrated;
+  }
+
+  List<DashboardWidget> _migrateWidgets(
+    DashboardLayout layout,
+    String configId,
+  ) {
+    final widgets = layout.widgets.where((w) => w.type.isBuilt).toList();
+    if (widgets.any((w) => w.type == DashboardWidgetType.attention)) {
+      return widgets;
+    }
+    final netWorthIndex = widgets.indexWhere(
+      (w) => w.type == DashboardWidgetType.netWorth,
+    );
+    widgets.insert(
+      netWorthIndex + 1,
+      DashboardWidget(
+        id: 'w-attention-${layout.id}',
+        type: DashboardWidgetType.attention,
+        configId: configId,
+      ),
+    );
+    return widgets;
   }
 
   DashboardState _defaultState() {

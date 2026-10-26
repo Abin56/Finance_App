@@ -19,7 +19,8 @@ class SmsPermissionService {
   Future<SmsAvailability> checkStatus() async {
     // `Platform.isAndroid` throws on web (no `dart:io`), so check `kIsWeb`
     // first rather than let it short-circuit `||`.
-    if (kIsWeb || !Platform.isAndroid) return SmsAvailability.unsupportedPlatform;
+    if (kIsWeb || !Platform.isAndroid)
+      return SmsAvailability.unsupportedPlatform;
 
     final status = await Permission.sms.status;
     return _mapStatus(status);
@@ -28,7 +29,8 @@ class SmsPermissionService {
   /// Actually triggers the OS permission dialog. Callers should show the
   /// explanation copy first (before ever calling this), per the spec.
   Future<SmsAvailability> requestPermission() async {
-    if (kIsWeb || !Platform.isAndroid) return SmsAvailability.unsupportedPlatform;
+    if (kIsWeb || !Platform.isAndroid)
+      return SmsAvailability.unsupportedPlatform;
 
     await LocalSettingsService.setBool(_hasRequestedKey, true);
     final status = await Permission.sms.request();

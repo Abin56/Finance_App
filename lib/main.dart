@@ -18,6 +18,7 @@ import 'core/theme/theme_controller.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/sms_inbox/background/sms_background_entry.dart';
 import 'features/sms_inbox/data/sms_inbox_database.dart';
+import 'features/sms_inbox/pairing/sms_presence_lifecycle.dart';
 import 'firebase_options.dart';
 
 /// Headless entrypoint for SMS Auto Sync, started by the native
@@ -74,6 +75,10 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // SMS Sync live presence for FlowFi Web (no-op off Android / signed out).
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ref.read(smsPresenceLifecycleProvider).resumed(),
+    );
   }
 
   @override
@@ -84,6 +89,7 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    ref.read(smsPresenceLifecycleProvider).onLifecycle(state);
     final lockState = ref.read(appLockProvider);
     if (!lockState.pinEnabled) return;
 
@@ -105,6 +111,12 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
   @override
   Widget build(BuildContext context) {
     ref.watch(authSideEffectsProvider);
+    // Sign-in / account switch: report this install for the new account.
+    ref.listen(authStateProvider, (previous, next) {
+      if (previous?.value?.uid != next.value?.uid && next.value != null) {
+        ref.read(smsPresenceLifecycleProvider).refresh(force: true);
+      }
+    });
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
 

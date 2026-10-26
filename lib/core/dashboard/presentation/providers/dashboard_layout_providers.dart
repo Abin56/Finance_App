@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../data/dashboard_layout_defaults.dart';
 import '../../data/dashboard_layout_repository.dart';
 import '../../domain/dashboard_widget.dart';
 import '../../domain/dashboard_widget_type.dart';
@@ -74,6 +75,7 @@ class DashboardLayoutController extends Notifier<DashboardState> {
     final widgetId = _uuid.v4();
     final source =
         seed ??
+        defaultConfigFor(type) ??
         WidgetConfiguration(id: configId, type: type, title: type.defaultTitle);
     final configWithId = WidgetConfiguration(
       id: configId,
@@ -100,6 +102,37 @@ class DashboardLayoutController extends Notifier<DashboardState> {
         layouts: [
           for (final l in state.layouts)
             l.id == layout.id ? layout.copyWith(widgets: widgets) : l,
+        ],
+      ),
+    );
+  }
+
+  /// Puts a previously removed slot back at [index] (clamped) — the Undo of
+  /// [removeWidget]. Its [WidgetConfiguration] was never deleted, so the
+  /// widget returns with exactly the settings it had.
+  Future<void> insertWidget(DashboardWidget widget, int index) async {
+    final layout = state.activeLayout;
+    if (layout.widgets.any((w) => w.id == widget.id)) return;
+    final widgets = [...layout.widgets]
+      ..insert(index.clamp(0, layout.widgets.length), widget);
+    await _updateActiveLayout(layout.copyWith(widgets: widgets));
+  }
+
+  /// Replaces the active layout with the default arrangement — only ever on
+  /// an explicit, confirmed user action. Configurations of widgets outside
+  /// the default (e.g. extra Financial Views) stay in `configs`; only the
+  /// active layout's placement and the default widgets' settings reset.
+  Future<void> resetActiveLayoutToDefault() async {
+    final defaults = buildDefaultDashboard();
+    final active = state.activeLayout;
+    await _persist(
+      state.copyWith(
+        configs: {...state.configs, for (final c in defaults.configs) c.id: c},
+        layouts: [
+          for (final l in state.layouts)
+            l.id == active.id
+                ? active.copyWith(widgets: defaults.layouts.first.widgets)
+                : l,
         ],
       ),
     );

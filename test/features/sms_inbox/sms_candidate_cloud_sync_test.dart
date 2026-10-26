@@ -7,6 +7,7 @@ import 'package:finance_app/features/sms_inbox/data/sms_reader_adapter.dart';
 import 'package:finance_app/features/sms_inbox/data/sms_transaction_candidate_repository.dart';
 import 'package:finance_app/features/sms_inbox/data/transaction_candidate_dao.dart';
 import 'package:finance_app/features/sms_inbox/domain/raw_sms_message.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_candidate_cloud_identity.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_confidence_scorer.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_inbox_item.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_candidate_cloud.dart';
@@ -136,6 +137,12 @@ void main() {
         merchant: item.parsed!.merchantOrSender,
         bankName: item.parsed!.bankName,
         matchedAccountId: matchedAccountId,
+        // Propagated since Phase F1 (2026-10-24) — previously dropped here,
+        // which meant no test in this file ever exercised the
+        // reference-numbered cloud-identity path through a real sync()
+        // call, even though every fixture SMS in this file includes one.
+        // See the dedicated "content-derived identity" group below.
+        referenceNumber: item.parsed!.referenceNumber,
         confidenceLevel: matchedAccountId == null
             ? ConfidenceLevel.low
             : ConfidenceLevel.high,
@@ -161,19 +168,28 @@ void main() {
       expect(result.removed, 0);
       final cloudDocs = await cloudRepository.getAll();
       expect(cloudDocs, hasLength(1));
-      expect(cloudDocs.single.id, item.id);
+      expect(cloudDocs.single.smsItemId, item.id);
       expect(cloudDocs.single.accountId, 'acc-1');
     },
   );
 
   test(
-    'the cloud document id is the local SmsInboxItem id, not a random id',
+    'the cloud document carries the local SmsInboxItem id as smsItemId, '
+    'even though its document id (cloudId) is content-derived when a '
+    'reference number is present (Phase F1, 2026-10-24)',
     () async {
       final item = await seedPendingCandidate(financialSms);
       await sync.sync();
 
       final cloudDocs = await cloudRepository.getAll();
-      expect(cloudDocs.single.id, item.id);
+      expect(cloudDocs.single.smsItemId, item.id);
+      expect(
+        cloudDocs.single.id,
+        isNot(item.id),
+        reason:
+            'financialSms has a reference number, so its cloud identity is '
+            'no longer the local row id — see sms_candidate_cloud_identity_test.dart',
+      );
     },
   );
 
@@ -187,7 +203,8 @@ void main() {
       final secondResult = await sync.sync();
 
       expect(await cloudRepository.getAll(), hasLength(1));
-      expect(secondResult.synced, 1);
+      expect(secondResult.synced, 0); // already in the cloud: nothing re-sent
+      expect(secondResult.alreadySynced, 1);
       expect(secondResult.removed, 0);
     },
   );
@@ -322,7 +339,20 @@ void main() {
         final result = await sync.sync();
 
         expect(result.synced, 0);
+        expect(result.skippedNotOwned, 1);
         expect(await cloudRepository.getAll(), isEmpty);
+      },
+    );
+
+    test(
+      'owned candidates are not counted as skippedNotOwned',
+      () async {
+        await seedPendingCandidate(financialSms, matchedAccountId: 'acc-1');
+
+        final result = await sync.sync();
+
+        expect(result.synced, 1);
+        expect(result.skippedNotOwned, 0);
       },
     );
 
@@ -465,7 +495,19 @@ void main() {
           financialSms,
           matchedAccountId: 'acc-1',
         );
-        await tombstoneCollection.doc(item.id).set({
+        // Tombstone must be written at the candidate's actual cloud
+        // identity (Phase F1, 2026-10-24: content-derived when a reference
+        // number is present, not the local row id) — same id the real
+        // upload path would compute and check.
+        final candidateCloudId = SmsCandidateCloudIdentity.compute(
+          sender: financialSms.address,
+          referenceNumber: item.parsed!.referenceNumber,
+          maskedAccountOrCard: item.parsed!.maskedAccountOrCard,
+          amount: item.parsed!.amount,
+          direction: item.parsed!.direction,
+          legacyPerDeviceId: item.id,
+        );
+        await tombstoneCollection.doc(candidateCloudId).set({
           'outcome': 'imported',
           'transactionId': 'txn-already-imported',
           'handledAt': Timestamp.now(),
@@ -500,6 +542,267 @@ void main() {
 
         expect(result.synced, 1);
         expect(result.skippedHandled, 0);
+      },
+    );
+  });
+
+  group('V1/V2 versioned identity compatibility (Phase F1 hardening, 2026-10-24)', () {
+    // SCOPE NOTE: same as the tombstone group above — `fake_cloud_firestore`
+    // pins the LOGIC SHAPE (a V1 tombstone/candidate blocks a V2 write),
+    // not real concurrent-client race-safety. The actual atomic
+    // multi-document transaction race is verified against the real
+    // Firestore Emulator — see
+    // `integration_test/sms_candidate_cloud_sync_emulator_test.dart`.
+
+    String v1IdFor(SmsInboxItem item) =>
+        SmsCandidateCloudIdentity.forReferencedTransactionV1(
+          sender: financialSms.address,
+          referenceNumber: item.parsed!.referenceNumber!,
+          amount: item.parsed!.amount,
+          direction: item.parsed!.direction,
+        );
+
+    test(
+      'an existing V1 candidate document (no V1 tombstone) blocks the V2 write — never creates a duplicate V1/V2 pair',
+      () async {
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        // Simulates a real document already uploaded under the OLD (V1)
+        // scheme, before this hardening shipped.
+        await cloudRepository.collection.doc(v1IdFor(item)).set(
+          SmsTransactionCandidateCloud(
+            smsItemId: item.id,
+            cloudId: v1IdFor(item),
+            amount: item.parsed!.amount,
+            direction: item.parsed!.direction,
+            eventType: item.parsed!.category,
+            transactionDate: item.parsed!.dateTime,
+            confidenceLevel: ConfidenceLevel.high,
+            confidenceScore: 0.9,
+            needsReview: false,
+            createdAt: DateTime.now(),
+          ),
+        );
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncWithTombstones.sync();
+
+        expect(result.synced, 0, reason: 'must not create a second (V2) doc');
+        expect(
+          (await cloudRepository.getAll()).map((d) => d.id),
+          [v1IdFor(item)],
+          reason: 'only the original V1 document exists — not touched, not duplicated',
+        );
+      },
+    );
+
+    test(
+      'an existing V1 tombstone (no V1 candidate document) blocks the V2 write — legacy handled candidates stay handled',
+      () async {
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        await tombstoneCollection.doc(v1IdFor(item)).set({
+          'outcome': 'dismissed',
+          'transactionId': null,
+          'handledAt': Timestamp.now(),
+        });
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncWithTombstones.sync();
+
+        expect(result.synced, 0);
+        expect(result.skippedHandled, 1);
+        expect(
+          await cloudRepository.getAll(),
+          isEmpty,
+          reason: 'never resurrected under the new V2 id either',
+        );
+        // The V1 tombstone itself is never touched/deleted/rewritten.
+        final v1Tombstone = await tombstoneCollection.doc(v1IdFor(item)).get();
+        expect(v1Tombstone.exists, isTrue);
+        expect(v1Tombstone.data()!['outcome'], 'dismissed');
+      },
+    );
+
+    test(
+      'an existing V2 tombstone (the current-scheme case) still blocks correctly, same as before this hardening',
+      () async {
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        final v2Id = SmsCandidateCloudIdentity.forReferencedTransactionV2(
+          sender: financialSms.address,
+          referenceNumber: item.parsed!.referenceNumber!,
+          maskedAccountOrCard: item.parsed!.maskedAccountOrCard!,
+          amount: item.parsed!.amount,
+          direction: item.parsed!.direction,
+        );
+        await tombstoneCollection.doc(v2Id).set({
+          'outcome': 'imported',
+          'transactionId': 'txn-1',
+          'handledAt': Timestamp.now(),
+        });
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncWithTombstones.sync();
+
+        expect(result.synced, 0);
+        expect(result.skippedHandled, 1);
+        expect(await cloudRepository.getAll(), isEmpty);
+      },
+    );
+
+    test(
+      'no V1 tombstone and no V1 candidate exist: uploads normally at the V2 id',
+      () async {
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncWithTombstones.sync();
+
+        expect(result.synced, 1);
+        final cloudDocs = await cloudRepository.getAll();
+        expect(cloudDocs, hasLength(1));
+        expect(cloudDocs.single.id, isNot(v1IdFor(item)));
+      },
+    );
+
+    test(
+      'no-reference-number fallback: V1 and V2 compute the same (legacy per-device) id, so there is nothing distinct to cross-check',
+      () async {
+        // Build a candidate with no referenceNumber directly (bypassing
+        // seedPendingCandidate, which always propagates one from this
+        // file's fixture) — the exact scenario where `_legacyV1IdIfApplicable`
+        // returns null.
+        useReader(_FakeSmsReaderAdapter([financialSms]));
+        await inboxRepository.scanInbox();
+        final item = (await inboxRepository.getAll()).single;
+        await candidateDao.upsert(
+          TransactionCandidate(
+            id: 'cand-${item.id}',
+            smsItemId: item.id,
+            amount: item.parsed!.amount,
+            direction: item.parsed!.direction,
+            eventType: item.parsed!.category,
+            transactionDate: item.parsed!.dateTime,
+            referenceNumber: null, // the fallback case
+            confidenceLevel: ConfidenceLevel.high,
+            confidenceScore: 0.9,
+            needsReview: false,
+            createdAt: DateTime.now(),
+          ),
+        );
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncWithTombstones.sync();
+
+        expect(result.synced, 1);
+        final cloudDocs = await cloudRepository.getAll();
+        expect(cloudDocs.single.id, item.id);
+      },
+    );
+
+    test(
+      'UID isolation still holds under the V1/V2 compatibility check: a V1 candidate under a different uid never blocks this uid\'s own upload',
+      () async {
+        currentSignedInUid = 'user-a-uid';
+        final itemA = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        // User A's own V1-style doc (irrelevant — different Firestore path
+        // in production via users/{uid}/..., but this file's fixtures share
+        // one bare collection, so this proves the LOCAL uid filter alone —
+        // see sms_candidate_cloud_sync.dart's UID ISOLATION doc comment —
+        // already excludes this candidate from any OTHER user's sync target
+        // set before cloud identity is even computed).
+        currentSignedInUid = 'user-b-uid';
+        final syncAsB = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        final result = await syncAsB.sync();
+
+        expect(
+          result.synced,
+          0,
+          reason:
+              "User B's sync must not touch User A's candidate (itemA) just "
+              'because the V1/V2 compatibility check exists',
+        );
+        expect(itemA.capturedForUid, 'user-a-uid');
+      },
+    );
+
+    test(
+      'no financial Transaction is ever created by the V1/V2 compatibility path — structural guarantee, not just a runtime check',
+      () async {
+        final item = await seedPendingCandidate(
+          financialSms,
+          matchedAccountId: 'acc-1',
+        );
+        await tombstoneCollection.doc(v1IdFor(item)).set({
+          'outcome': 'imported',
+          'transactionId': 'txn-already-imported',
+          'handledAt': Timestamp.now(),
+        });
+        final syncWithTombstones = SmsCandidateCloudSync(
+          cloudRepository,
+          candidateDao,
+          inboxRepository,
+          capturedUidResolver: currentUidResolver,
+          tombstoneCollection: tombstoneCollection,
+        );
+
+        await syncWithTombstones.sync();
+
+        // Local SMS status is untouched by any of this — only an explicit
+        // user conversion (outside this class entirely) ever changes it.
+        final localItem = (await inboxRepository.getAll()).single;
+        expect(localItem.status.name, 'pending');
+        expect(localItem.linkedEntityId, isNull);
       },
     );
   });

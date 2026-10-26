@@ -52,6 +52,8 @@ IconData _iconFor(DashboardWidgetType type) {
       return Icons.history_toggle_off_outlined;
     case DashboardWidgetType.expenseComparison:
       return Icons.balance_outlined;
+    case DashboardWidgetType.attention:
+      return Icons.notification_important_outlined;
   }
 }
 

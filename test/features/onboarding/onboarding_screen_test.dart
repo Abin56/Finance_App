@@ -133,51 +133,47 @@ void main() {
 
   group('layout', () {
     for (final width in _widths) {
-      testWidgets(
-        'every page lays out at ${width.toInt()}dp without overflow',
-        (tester) async {
-          await pumpTour(tester, width: width, height: _shortHeight);
+      testWidgets('every page lays out at ${width.toInt()}dp without overflow', (
+        tester,
+      ) async {
+        await pumpTour(tester, width: width, height: _shortHeight);
 
-          // Walking the whole tour is itself the assertion: a RenderFlex
-          // overflow on any page surfaces as a pumped exception.
-          expectVisibleInPage(
-            tester,
-            find.text('Manage all your money in one place.'),
-          );
+        // Walking the whole tour is itself the assertion: a RenderFlex
+        // overflow on any page surfaces as a pumped exception.
+        expectVisibleInPage(
+          tester,
+          find.text('Manage all your money in one place.'),
+        );
 
-          await tapPrimary(tester);
-          expect(find.text('Smart SMS detection'), findsOneWidget);
-          // The privacy promise is the whole reason this page persuades anyone
-          // to grant SMS access — it has to be on screen next to the button
-          // that asks, not reachable by scrolling.
-          expectVisibleInPage(
-            tester,
-            find.text(
-              'Your SMS stays on your device until you choose to convert it.',
-            ),
-          );
+        await tapPrimary(tester);
+        expect(find.text('Smart SMS detection'), findsOneWidget);
+        // The disclosure promise is the whole reason this page persuades anyone
+        // to grant SMS access — it has to be on screen next to the button
+        // that asks, not reachable by scrolling.
+        expectVisibleInPage(
+          tester,
+          find.text(
+            "You'll see exactly what is shared before Android asks for access.",
+          ),
+        );
 
-          await tapSecondary(tester);
-          expectVisibleInPage(tester, find.text('Every payment, tracked'));
+        await tapSecondary(tester);
+        expectVisibleInPage(tester, find.text('Every payment, tracked'));
 
-          await tapPrimary(tester);
-          expectVisibleInPage(
-            tester,
-            find.text('Never miss an important payment.'),
-          );
+        await tapPrimary(tester);
+        expectVisibleInPage(
+          tester,
+          find.text('Never miss an important payment.'),
+        );
 
-          await tapSecondary(tester);
-          expectVisibleInPage(
-            tester,
-            find.text('Protect your financial data.'),
-          );
+        await tapSecondary(tester);
+        expectVisibleInPage(tester, find.text('Protect your financial data.'));
 
-          await tapSecondary(tester);
-          expectVisibleInPage(tester, find.text('You\'re all set!'));
+        await tapSecondary(tester);
+        expectVisibleInPage(tester, find.text('You\'re all set!'));
 
-          expect(tester.takeException(), isNull);
-        },
-      );
+        expect(tester.takeException(), isNull);
+      });
     }
   });
 
@@ -243,10 +239,43 @@ void main() {
       await tapPrimary(tester);
       expect(primaryLabel(tester), 'Enable SMS Detection');
 
-      await tapPrimary(tester);
+      // The primary button's busy spinner keeps animating while the consent
+      // sheet is open, so pump frames instead of settling.
+      await tester.tap(find.byKey(OnboardingScreen.primaryActionKey).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.text('How FlowFi uses your SMS'), findsOneWidget);
+      expect(find.textContaining('Anthropic'), findsOneWidget);
+      expect(smsService.requestCount, 0, reason: 'disclosure comes first');
+
+      await tester.ensureVisible(find.text('Continue'));
+      await tester.pump();
+      await tester.tap(find.text('Continue'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
 
       expect(smsService.requestCount, 1);
       expect(find.text('Every payment, tracked'), findsOneWidget);
+    });
+
+    testWidgets('"Not now" on the disclosure never reaches Android', (
+      tester,
+    ) async {
+      await pumpTour(tester);
+      await tapPrimary(tester);
+
+      await tester.tap(find.byKey(OnboardingScreen.primaryActionKey).first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.ensureVisible(find.text('Not now'));
+      await tester.pump();
+      await tester.tap(find.text('Not now'));
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+
+      expect(smsService.requestCount, 0);
     });
 
     testWidgets('declining SMS access moves on without asking', (tester) async {

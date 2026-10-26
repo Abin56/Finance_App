@@ -57,6 +57,24 @@ abstract class FirestoreCollections {
   // replaces.
   static const String smsCandidateTombstones = 'smsCandidateTombstones';
 
+  // Runtime switch for background SMS cloud upload (Phase F3) — see
+  // `sms_background_upload_switch.dart`. Written only via the Admin SDK: by an
+  // operator, or by the SMS Sync pairing Cloud Functions after the user
+  // approves a QR pairing on this phone. The app only reads it.
+  // `firestore.rules` denies client writes.
+  static const String smsSyncConfig = 'smsSyncConfig';
+
+  // SMS Sync pairing (2026-10-25) — see `lib/features/sms_inbox/pairing/`.
+  // `smsDevices`: paired phones, Cloud Functions-written only.
+  // `smsDeviceStatus`: this phone's own setup/health report for FlowFi Web,
+  // written by `SmsDeviceStatusReporter` under a strict rules schema.
+  static const String smsDevices = 'smsDevices';
+  static const String smsDeviceStatus = 'smsDeviceStatus';
+  // `smsDevicePresence`: this install's live heartbeat (online, permission,
+  // Auto Sync, sync progress), written before or after pairing by
+  // `SmsDevicePresenceReporter`. Grants nothing.
+  static const String smsDevicePresence = 'smsDevicePresence';
+
   // --- Financial Document Intelligence Engine (Architecture v1.0) ---
   // Web-only feature today (flowfi-web/lib/firestore/collections.ts) — no
   // Flutter repository layer reads/writes these yet. Declared here so the

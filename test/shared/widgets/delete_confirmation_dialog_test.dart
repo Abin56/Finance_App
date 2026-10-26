@@ -30,7 +30,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Delete'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Delete'), findsOneWidget);
   });
 
   testWidgets('returns true when Delete is tapped', (tester) async {
@@ -59,7 +59,7 @@ void main() {
     await tester.tap(find.text('trigger'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
     await tester.pumpAndSettle();
 
     expect(result, isTrue);

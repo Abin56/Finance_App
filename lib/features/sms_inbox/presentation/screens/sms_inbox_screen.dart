@@ -11,6 +11,7 @@ import '../../../../core/extensions/date_extensions.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../shared/widgets/dialogs/anchored_sort_menu.dart';
 import '../../../../shared/widgets/states/flowfi_icon_chip.dart';
+import '../../data/captured_uid_resolver.dart';
 import '../../domain/filter/sms_sort_order.dart';
 import '../../domain/notification_access_availability.dart';
 import '../../domain/sms_availability.dart';
@@ -19,6 +20,8 @@ import '../../domain/sms_inbox_item.dart';
 import '../../domain/sms_read_exception.dart';
 import '../../domain/sms_transaction_direction.dart';
 import '../../domain/transaction_candidate.dart';
+import '../../pairing/sms_pairing_providers.dart';
+import '../providers/sms_auto_sync_providers.dart';
 import '../providers/sms_inbox_providers.dart';
 import '../sms_bulk_converter.dart';
 import '../sms_conversion_router.dart';
@@ -30,8 +33,10 @@ import '../widgets/sms_empty_state.dart';
 import '../widgets/sms_inbox_skeleton_list.dart';
 import '../widgets/sms_message_detail_sheet.dart';
 import '../widgets/sms_message_tile.dart';
+import '../widgets/sms_pairing_guide.dart';
 import '../widgets/notification_access_dialog.dart';
 import '../widgets/notification_capture_banner.dart';
+import '../widgets/sms_ai_classification_card.dart';
 import '../widgets/sms_auto_sync_card.dart';
 import '../widgets/sms_multi_select_toolbar.dart';
 import '../widgets/sms_permission_gate_view.dart';
@@ -282,6 +287,23 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
         onRetry: () => ref.read(smsInboxItemsProvider.notifier).scan(),
       ),
       data: (_) {
+        // Until this phone is paired with FlowFi Web, the inbox shows only
+        // the SMS Sync setup: no message list. Local data is kept and shows
+        // again once paired. Builds without native SMS Sync (`play`) can't
+        // pair, so they keep the list.
+        final autoSync = ref.watch(smsAutoSyncProvider).value;
+        final uid = defaultCapturedUidResolver();
+        final pairedUid = ref.watch(smsPairedUidProvider).value;
+        final paired = uid != null && pairedUid == uid;
+        if (autoSync?.supported == true && !paired) {
+          return const CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: SmsAutoSyncCard()),
+              SliverToBoxAdapter(child: SmsPairFirstEmptyState()),
+            ],
+          );
+        }
+
         final visible = ref.watch(smsFilteredItemsProvider);
         final rows = _buildRows(visible);
         final candidatesBySmsId = <String, TransactionCandidate>{
@@ -305,6 +327,7 @@ class _SmsInboxScreenState extends ConsumerState<SmsInboxScreen>
               ),
               const SliverToBoxAdapter(child: NotificationCaptureBanner()),
               const SliverToBoxAdapter(child: SmsAutoSyncCard()),
+              const SliverToBoxAdapter(child: SmsAiClassificationCard()),
               if (rows.isEmpty)
                 SliverFillRemaining(
                   child: SmsEmptyState(

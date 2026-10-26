@@ -21,7 +21,7 @@ if (hasKeystore) {
 }
 
 android {
-    namespace = "com.example.finance_app"
+    namespace = "com.flowfi.app"
     // Flutter's own default (flutter.compileSdkVersion) is 34, but
     // flutter_plugin_android_lifecycle (a transitive dependency of
     // file_picker) requires compiling against API 36+ — overridden
@@ -62,13 +62,11 @@ android {
     }
 
     defaultConfig {
-        // NOT PLAY-STORE PUBLISHABLE AS-IS: Google Play rejects any `com.example.*`
-        // applicationId. Renaming this is a coordinated change — the id is also
-        // baked into google-services.json, and the google-services plugin fails the
-        // build ("No matching client found for package name") if the two disagree.
-        // Do not edit this line alone; follow PLAY_STORE.md > "Renaming the
-        // application ID", which sequences the Firebase Console registration first.
-        applicationId = "com.example.finance_app"
+        // Final application ID (decided 2025-10-25; permanent once users install it). It is also baked
+        // into google-services.json, and the google-services plugin fails the build ("No matching
+        // client found for package name") if the two disagree — register com.flowfi.app in the
+        // Firebase project and refresh google-services.json BEFORE changing this again.
+        applicationId = "com.flowfi.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import '../data/sms_inbox_repository.dart';
 import '../domain/sms_read_exception.dart';
+import '../domain/sms_sync_diagnostics.dart';
 import '../presentation/sms_candidate_cloud_sync.dart';
 
 /// Result of one background scan (and, since Phase D, the upload attempt
@@ -9,7 +12,9 @@ class SmsBackgroundScanResult {
     this.newItems, {
     this.uploaded = 0,
     this.uploadSkippedHandled = 0,
+    this.uploadSkippedNotOwned = 0,
     this.uploadError,
+    this.uploadFailure,
   }) : success = true,
        error = null;
   const SmsBackgroundScanResult.failure(this.error)
@@ -17,7 +22,9 @@ class SmsBackgroundScanResult {
       newItems = 0,
       uploaded = 0,
       uploadSkippedHandled = 0,
-      uploadError = null;
+      uploadSkippedNotOwned = 0,
+      uploadError = null,
+      uploadFailure = null;
 
   final bool success;
   final int newItems;
@@ -27,7 +34,7 @@ class SmsBackgroundScanResult {
   final String? error;
 
   /// Candidates uploaded to Firestore this run — always `0` while
-  /// `kSmsAutoSyncCloudUploadEnabled` is `false` (the upload step is never
+  /// the runtime upload switch is off (the upload step is never
   /// even attempted; see [runBackgroundSmsScan]'s `cloudSyncBuilder` param).
   final int uploaded;
 
@@ -35,11 +42,18 @@ class SmsBackgroundScanResult {
   /// id (already handled on the web) — see `SmsCandidateCloudSync`.
   final int uploadSkippedHandled;
 
+  /// Pending candidates left out of the upload because they are not bound to
+  /// the signed-in uid — see `SmsCandidateSyncResult.skippedNotOwned`.
+  final int uploadSkippedNotOwned;
+
   /// Short machine code for an upload-step failure ("upload_failed") —
   /// never swallowed into [error], because a scan can succeed (new SMS were
   /// captured locally, which is the part that must never be lost) even
   /// while the separate, best-effort upload step fails.
   final String? uploadError;
+
+  /// Privacy-safe category for [uploadError] (never an exception message).
+  final SmsSyncFailureCategory? uploadFailure;
 
   Map<String, Object?> toMap() => {
     'success': success,
@@ -47,7 +61,9 @@ class SmsBackgroundScanResult {
     'error': error,
     'uploaded': uploaded,
     'uploadSkippedHandled': uploadSkippedHandled,
+    'uploadSkippedNotOwned': uploadSkippedNotOwned,
     'uploadError': uploadError,
+    'uploadFailure': uploadFailure?.code,
   };
 }
 
@@ -59,7 +75,7 @@ class SmsBackgroundScanResult {
 /// is attempted as a separate, best-effort step.
 ///
 /// `cloudSyncBuilder` is `null` in production today
-/// (`kSmsAutoSyncCloudUploadEnabled == false` — see `sms_background_entry
+/// (runtime switch off by default — see `sms_background_entry
 /// .dart`, which is the only real caller), so this still behaves exactly as
 /// it always has: local-capture-only, no Firestore, no candidate upload, no
 /// financial records. The parameter exists (rather than the upload call
@@ -72,7 +88,8 @@ class SmsBackgroundScanResult {
 /// always surfaced as separate fields rather than one conflated boolean.
 Future<SmsBackgroundScanResult> runBackgroundSmsScan(
   SmsInboxRepository repository, {
-  SmsCandidateCloudSync? Function()? cloudSyncBuilder,
+  FutureOr<SmsCandidateCloudSync?> Function()? cloudSyncBuilder,
+  void Function(SmsCandidateSyncProgress progress)? onUploadProgress,
 }) async {
   int newItems;
   try {
@@ -87,7 +104,14 @@ Future<SmsBackgroundScanResult> runBackgroundSmsScan(
     return SmsBackgroundScanResult.success(newItems);
   }
 
-  final cloudSync = cloudSyncBuilder();
+  // The builder reads the runtime upload switch. If it throws, upload is
+  // simply not attempted (fail closed) — never an upload, never a scan failure.
+  SmsCandidateCloudSync? cloudSync;
+  try {
+    cloudSync = await cloudSyncBuilder();
+  } catch (_) {
+    return SmsBackgroundScanResult.success(newItems);
+  }
   if (cloudSync == null) {
     // No verified uid available in this isolate (signed out, Auth
     // unavailable, or Firebase never initialized) — upload is simply never
@@ -96,13 +120,14 @@ Future<SmsBackgroundScanResult> runBackgroundSmsScan(
   }
 
   try {
-    final syncResult = await cloudSync.sync();
+    final syncResult = await cloudSync.sync(onProgress: onUploadProgress);
     return SmsBackgroundScanResult.success(
       newItems,
       uploaded: syncResult.synced,
       uploadSkippedHandled: syncResult.skippedHandled,
+      uploadSkippedNotOwned: syncResult.skippedNotOwned,
     );
-  } catch (_) {
+  } catch (error) {
     // The scan already succeeded and is reported as such — only the upload
     // half failed. WorkManager's own retry/backoff (native side) covers
     // transient network/permission failures on the NEXT scheduled run;
@@ -110,6 +135,7 @@ Future<SmsBackgroundScanResult> runBackgroundSmsScan(
     return SmsBackgroundScanResult.success(
       newItems,
       uploadError: 'upload_failed',
+      uploadFailure: classifySmsSyncFailure(error),
     );
   }
 }

@@ -4,4 +4,11 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- TEMPORARY (Phase D Firestore Emulator verification, 2026-10-24):
+         lets a debug build reach the Firestore Emulator over plain HTTP on
+         the dev machine's LAN IP (useFirestoreEmulator uses cleartext, and
+         API 28+ blocks that by default). Debug-only — merges into no
+         release/sideload-release build. Remove once emulator verification
+         is done. -->
+    <application android:usesCleartextTraffic="true" tools:replace="android:usesCleartextTraffic" xmlns:tools="http://schemas.android.com/tools" />
 </manifest>

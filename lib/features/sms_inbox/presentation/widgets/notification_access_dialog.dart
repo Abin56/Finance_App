@@ -127,7 +127,9 @@ class NotificationAccessDialog extends StatelessWidget {
                   const SizedBox(width: AppSizes.xs),
                   Expanded(
                     child: Text(
-                      'Enable notification access so FlowFi can catch those too.',
+                      'FlowFi reads notifications from your messaging app only. Alert text '
+                      'stays on this phone; transaction details it finds are saved to your '
+                      'FlowFi account for review, just like bank SMS.',
                       style: context.textTheme.bodySmall?.copyWith(
                         color: context.isDarkMode
                             ? AppColors.primaryDark

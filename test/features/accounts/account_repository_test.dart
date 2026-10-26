@@ -211,28 +211,25 @@ void main() {
       ),
     );
 
-    test(
-      'composes three deltas from three independent stale snapshots '
-      '(+150, -400, +900)',
-      () async {
-        final created = await repository.createAccount(
-          name: 'Shared Wallet',
-          type: AccountType.cash,
-          openingBalance: 1000,
-          colorValue: 0xFF000000,
-        );
-        final copyA = await repository.getByKey(created.id);
-        final copyB = await repository.getByKey(created.id);
-        final copyC = await repository.getByKey(created.id);
+    test('composes three deltas from three independent stale snapshots '
+        '(+150, -400, +900)', () async {
+      final created = await repository.createAccount(
+        name: 'Shared Wallet',
+        type: AccountType.cash,
+        openingBalance: 1000,
+        colorValue: 0xFF000000,
+      );
+      final copyA = await repository.getByKey(created.id);
+      final copyB = await repository.getByKey(created.id);
+      final copyC = await repository.getByKey(created.id);
 
-        await repository.adjustBalance(copyA!, 150);
-        await repository.adjustBalance(copyB!, -400);
-        await repository.adjustBalance(copyC!, 900);
+      await repository.adjustBalance(copyA!, 150);
+      await repository.adjustBalance(copyB!, -400);
+      await repository.adjustBalance(copyC!, 900);
 
-        final finalAccount = await repository.getByKey(created.id);
-        expect(finalAccount?.currentBalance, 1650); // 1000+150-400+900
-      },
-    );
+      final finalAccount = await repository.getByKey(created.id);
+      expect(finalAccount?.currentBalance, 1650); // 1000+150-400+900
+    });
 
     test(
       'KNOWN TEST-HARNESS LIMITATION (verification pass, 2026-09-23): '

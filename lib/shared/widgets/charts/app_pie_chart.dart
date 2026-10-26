@@ -14,11 +14,16 @@ class AppPieChart extends StatelessWidget {
     required this.data,
     this.size = 160,
     this.centerSpaceRadius = 40,
+    this.showSliceLabels = true,
   });
 
   final AppPieChartData data;
   final double size;
   final double centerSpaceRadius;
+
+  /// Percent labels drawn on each slice. Off for compact donuts whose legend
+  /// already lists the percentages — on small slices the labels collide.
+  final bool showSliceLabels;
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +44,7 @@ class AppPieChart extends StatelessWidget {
               PieChartSectionData(
                 value: slice.value,
                 color: slice.color,
+                showTitle: showSliceLabels,
                 title: '${(slice.value / total * 100).round()}%',
                 titleStyle: context.textTheme.bodySmall?.copyWith(
                   color: Colors.white,

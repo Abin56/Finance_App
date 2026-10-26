@@ -146,11 +146,9 @@ void main() {
     });
 
     test(
-      'a row referencing a since-deleted account fails without blocking the rest of the batch '
-      '(and documents a pre-existing repository quirk: the transaction document is written '
-      'before the account lookup, so the failed row still leaves an orphaned document behind — '
-      "this is why SmartImportController checks the account exists before calling import() at "
-      'all, rather than relying on this per-row try/catch)',
+      'a row referencing a since-deleted account fails without blocking the rest of the batch, '
+      'and leaves no orphaned document behind (`createTransaction` runs in one Firestore '
+      'transaction, so the failed account lookup rolls the whole write back)',
       () async {
         final detected = [
           _row(date: DateTime(2026, 9, 5), description: 'Swiggy', amount: 420),
@@ -183,15 +181,11 @@ void main() {
 
         expect(imported, 1);
         expect(failed, 1);
-        // Both documents exist — `createTransaction` writes the transaction
-        // before it looks up the account, so the failed row's document was
-        // still created, just without its balance effect ever applied.
+        // Only the successful row exists — the failed row's write was rolled
+        // back with its transaction, so no balance-less orphan is left.
         final saved = await transactionRepository.getAll();
-        expect(saved, hasLength(2));
-        expect(
-          saved.map((t) => t.description),
-          containsAll(['Swiggy', 'Uber']),
-        );
+        expect(saved, hasLength(1));
+        expect(saved.single.description, 'Swiggy');
       },
     );
 
