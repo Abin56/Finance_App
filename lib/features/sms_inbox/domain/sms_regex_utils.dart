@@ -46,8 +46,17 @@ abstract class SmsRegexUtils {
     caseSensitive: false,
   );
 
+  /// Keyword (`a/c`, `ac`, `acct`, `account`, `card`) + up to 15 non-digit
+  /// chars (mask `XX`/`xx`/`*`/`•`, "no.", "ending with", separators — all
+  /// optional) + EXACTLY 4 digits followed by a word boundary. The keyword
+  /// has no trailing `\b` so a glued mask like `A/cXX9585` matches; instead
+  /// `(?![a-wyz])` keeps it from matching inside longer words
+  /// ("cardholder", "accounting") while still allowing a mask letter `x`.
+  /// Because `[^\d]` can't cross digits and `\d{4}\b` needs a boundary, a
+  /// longer number (helpline 18001031906, Ref No, amount, date) never yields
+  /// a last-4.
   static final RegExp _maskedAccountPattern = RegExp(
-    r'\b(?:a/?c|acct|account|card)\b[^\d]{0,15}([xX*]{2,}|no\.?\s*)?(\d{4})\b',
+    r'\b(?:a/?c|acct|account|card)(?![a-wyz])[^\d]{0,15}(\d{4})\b',
     caseSensitive: false,
   );
 
@@ -169,7 +178,7 @@ abstract class SmsRegexUtils {
 
   static String? extractMaskedAccount(String body) {
     final match = _maskedAccountPattern.firstMatch(body);
-    return match?.group(2);
+    return match?.group(1);
   }
 
   static String? extractReferenceNumber(String body) {

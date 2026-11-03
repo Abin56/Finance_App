@@ -3,6 +3,8 @@ import 'package:finance_app/features/accounts/domain/account_type.dart';
 import 'package:finance_app/features/credit_cards/domain/credit_card_profile.dart';
 import 'package:finance_app/features/sms_inbox/domain/account_card_matcher.dart';
 import 'package:finance_app/features/sms_inbox/domain/parsed_sms_transaction.dart';
+import 'package:finance_app/features/sms_inbox/domain/raw_sms_message.dart';
+import 'package:finance_app/features/sms_inbox/domain/sms_parser_registry.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_category.dart';
 import 'package:finance_app/features/sms_inbox/domain/sms_transaction_direction.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -219,4 +221,42 @@ void main() {
       expect(result.matchedCardId, 'card-1');
     },
   );
+
+  test('BOI "A/cXX9585" UPI SMS parses and matches the account ending 9585', () {
+    final parsedSms = const SmsParserRegistry().tryParse(
+      RawSmsMessage(
+        address: 'VM-BOIIND',
+        body:
+            'Rs.350.00 debited A/cXX9585 and credited to ABIN  JOHN via UPI Ref No 630557620611 on 01Nov26. Call 18001031906, if not done by you. -BOI',
+        date: DateTime(2026, 11, 1),
+      ),
+    )!;
+    expect(parsedSms.maskedAccountOrCard, '9585');
+    expect(parsedSms.direction, SmsTransactionDirection.debit);
+    expect(parsedSms.amount, 350.00);
+    expect(parsedSms.bankName, 'Bank of India');
+
+    final matcher = AccountCardMatcher(
+      accounts: [
+        account(id: 'boi-1', name: 'BOI Savings', bankId: 'boi', last4: '9585'),
+      ],
+      cards: const [],
+    );
+    final result = matcher.match(parsedSms);
+    expect(result.isResolved, isTrue);
+    expect(result.matchedAccountId, 'boi-1');
+  });
+
+  test('bank signature alone (no last-4) does not match an account', () {
+    final matcher = AccountCardMatcher(
+      accounts: [
+        account(id: 'boi-1', name: 'BOI Savings', bankId: 'boi', last4: '9585'),
+      ],
+      cards: const [],
+    );
+    final result = matcher.match(
+      parsed(bankName: 'Bank of India', maskedAccountOrCard: null),
+    );
+    expect(result.matchedAccountId, isNull);
+  });
 }

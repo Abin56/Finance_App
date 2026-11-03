@@ -170,4 +170,59 @@ void main() {
       },
     );
   });
+
+  group('extractMaskedAccount', () {
+    const boiSms =
+        'Rs.350.00 debited A/cXX9585 and credited to ABIN  JOHN via UPI Ref No 630557620611 on 01Nov26. Call 18001031906, if not done by you. -BOI';
+
+    test('BOI SMS with glued "A/cXX9585" yields 9585', () {
+      expect(SmsRegexUtils.extractMaskedAccount(boiSms), '9585');
+    });
+
+    const variants = <String, String>{
+      'A/cXX9585': '9585',
+      'A/c XX9585': '9585',
+      'A/c no. XXXX9585': '9585',
+      'A/c No: XX9585': '9585',
+      'a/c *9585': '9585',
+      'Ac XX9585': '9585',
+      'AC XXXXXX9585': '9585',
+      'acct XX9585': '9585',
+      'account ending 9585': '9585',
+      'a/c ending with 9585': '9585',
+      'A/c ••••9585': '9585',
+      'A/c x*X•9585': '9585',
+      'card ending 1234': '1234',
+      'Card xx1234': '1234',
+      'card XXXX1234': '1234',
+    };
+    variants.forEach((fragment, expected) {
+      test('"$fragment" -> $expected', () {
+        expect(
+          SmsRegexUtils.extractMaskedAccount('Rs.10 debited from $fragment.'),
+          expected,
+        );
+      });
+    });
+
+    test('helpline number and Ref No alone give null', () {
+      const body =
+          'Txn done via UPI Ref No 630557620611. Call 18001031906 if not done by you.';
+      expect(SmsRegexUtils.extractMaskedAccount(body), isNull);
+    });
+
+    test('no account number gives null', () {
+      expect(
+        SmsRegexUtils.extractMaskedAccount('Rs.350.00 debited on 01Nov26.'),
+        isNull,
+      );
+    });
+
+    test('never takes a longer number after the keyword as a last-4', () {
+      expect(
+        SmsRegexUtils.extractMaskedAccount('A/c 18001031906 debited'),
+        isNull,
+      );
+    });
+  });
 }

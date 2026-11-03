@@ -24,7 +24,26 @@ abstract class BankSenderMatcher {
     'YESBNK': 'Yes Bank',
     'PAYTMB': 'Paytm Payments Bank',
     'AMZNPY': 'Amazon Pay',
+    'BOIIND': 'Bank of India',
+    'BOIBNK': 'Bank of India',
   };
+
+  /// Bank-signature fallback for when the sender id is unrecognized (e.g.
+  /// a UPI-app or numeric sender): a trailing `-BOI` signature. The bank is
+  /// only a confirmation signal — the account's last-4 stays the match key.
+  static final RegExp _boiSignature = RegExp(
+    r'-\s*BOI\s*$',
+    caseSensitive: false,
+  );
+
+  static String? bankNameFor(String sender, {String? body}) {
+    final fromSender = _bankNameFromSender(sender);
+    if (fromSender != null) return fromSender;
+    if (body != null && _boiSignature.hasMatch(body.trim())) {
+      return 'Bank of India';
+    }
+    return null;
+  }
 
   /// Strips a 2-letter DLT route prefix (`VM-`, `VD-`, `AX-`, `JM-`, ...)
   /// followed by a hyphen, if present, then upper-cases the remainder.
@@ -36,7 +55,7 @@ abstract class BankSenderMatcher {
 
   /// Best-effort bank name for a sender id, or null if unrecognized (the
   /// generic parser/UI still work — this only drives the display name/logo).
-  static String? bankNameFor(String sender) {
+  static String? _bankNameFromSender(String sender) {
     final normalized = normalize(sender);
     for (final entry in _headerToBankName.entries) {
       if (normalized.startsWith(entry.key)) return entry.value;

@@ -1,3 +1,4 @@
+import '../bank_sender_matcher.dart';
 import '../parsed_sms_transaction.dart';
 import '../raw_sms_message.dart';
 import '../sms_parser.dart';
@@ -33,6 +34,7 @@ class GenericUpiSmsParser extends SmsParser {
       confidence: 0.7,
       rawBody: body,
       merchantOrSender: SmsRegexUtils.extractMerchant(body),
+      bankName: BankSenderMatcher.bankNameFor(message.address, body: body),
       maskedAccountOrCard: SmsRegexUtils.extractMaskedAccount(body),
       referenceNumber: SmsRegexUtils.extractReferenceNumber(body),
     );
