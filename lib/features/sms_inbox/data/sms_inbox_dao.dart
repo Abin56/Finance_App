@@ -122,6 +122,22 @@ class SmsInboxDao {
     return null;
   }
 
+  /// Back-fills the account last-4 (and bank, if it was missing) on a row
+  /// whose original parse found none. Never overwrites an existing
+  /// `masked_account`, so a value the parser already extracted is untouched.
+  Future<void> updateParsedAccountFields(
+    String id, {
+    required String maskedAccount,
+    String? bankName,
+  }) async {
+    await _database.update(
+      SmsInboxDatabase.tableName,
+      {'masked_account': maskedAccount, 'bank_name': ?bankName},
+      where: "id = ? AND (masked_account IS NULL OR masked_account = '')",
+      whereArgs: [id],
+    );
+  }
+
   /// Sets [status] on many rows in one batch — bulk Ignore over a large
   /// selection, without a round trip per id.
   Future<void> updateStatusMany(

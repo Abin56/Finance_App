@@ -225,4 +225,36 @@ void main() {
       );
     });
   });
+
+  group('UPI id (VPA) with a hyphen', () {
+    const sent =
+        'Rs.350.00 debited from A/cXX9585 and credited to anjeljohn58-3@oksbi via UPI Ref No 630557620611 on 01Nov26. -BOI';
+    const received =
+        'Rs.350.00 credited to A/c XX9585 from anjeljohn58-3@oksbi via UPI Ref No 630557620612 on 01Nov26. -BOI';
+
+    test('merchant is the full VPA, hyphen and digits included', () {
+      expect(SmsRegexUtils.extractMerchant(sent), 'anjeljohn58-3@oksbi');
+      expect(SmsRegexUtils.extractMerchant(received), 'anjeljohn58-3@oksbi');
+    });
+
+    test('own account last-4, amount and direction still extracted', () {
+      expect(SmsRegexUtils.extractMaskedAccount(sent), '9585');
+      expect(SmsRegexUtils.extractMaskedAccount(received), '9585');
+      expect(SmsRegexUtils.extractAmount(sent), 350.0);
+      expect(SmsRegexUtils.extractDirection(sent), SmsTransactionDirection.debit);
+      expect(
+        SmsRegexUtils.extractDirection(received),
+        SmsTransactionDirection.credit,
+      );
+    });
+
+    test('digits inside the VPA are never taken as an account last-4', () {
+      expect(
+        SmsRegexUtils.extractMaskedAccount(
+          'Rs.350.00 paid to anjeljohn58-3@oksbi via UPI Ref No 630557620611.',
+        ),
+        isNull,
+      );
+    });
+  });
 }

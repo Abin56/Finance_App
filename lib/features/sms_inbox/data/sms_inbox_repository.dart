@@ -262,6 +262,33 @@ class SmsInboxRepository {
   Future<List<SmsInboxItem>> getByStatus(SmsImportStatus status) =>
       _dao.getByStatus(status);
 
+  /// Re-runs the current parser over pending messages that were stored
+  /// WITHOUT an account last-4 and back-fills it when the (since-improved)
+  /// parser now finds one — e.g. `A/cXX9585`, which an older pattern missed.
+  /// Rows are otherwise never re-parsed, so without this they would stay
+  /// "Not matched" forever. Only ever fills a missing value; returns the ids
+  /// that were repaired so callers can rebuild their derived rows.
+  Future<List<String>> reparseMissingAccountFields() async {
+    final pending = await _dao.getByStatus(SmsImportStatus.pending);
+    final repaired = <String>[];
+    for (final item in pending) {
+      final stored = item.parsed;
+      if (stored == null || (stored.maskedAccountOrCard ?? '').isNotEmpty) {
+        continue;
+      }
+      final fresh = parserRegistry.tryParse(item.rawMessage);
+      final lastFour = fresh?.maskedAccountOrCard;
+      if (lastFour == null || lastFour.isEmpty) continue;
+      await _dao.updateParsedAccountFields(
+        item.id,
+        maskedAccount: lastFour,
+        bankName: stored.bankName == null ? fresh!.bankName : null,
+      );
+      repaired.add(item.id);
+    }
+    return repaired;
+  }
+
   /// Marks [id] as imported and links it to the FlowFi record it became.
   /// Callers must only invoke this *after* the target record's own save
   /// call has genuinely succeeded — never optimistically before — so a

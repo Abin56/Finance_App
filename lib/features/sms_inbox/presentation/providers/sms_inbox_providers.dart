@@ -363,6 +363,7 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
   Future<int> scan() async {
     try {
       final newCount = await ref.read(smsInboxRepositoryProvider).scanInbox();
+      await _repairStaleAccountFields();
       await refresh();
       await _generateFinancialEventsForPending();
       await _generateCandidatesForPending();
@@ -387,6 +388,38 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
   /// event surfaces through the existing manual `SmsConvertSheet`/
   /// `SmsConversionRouter` flow regardless of confidence. See
   /// `AutomationAction`'s doc comment for why.
+  /// A matcher built from the user's REAL accounts: waits for the account
+  /// stream's first emission instead of `.value ?? const []`, which yields an
+  /// empty list (every SMS "Not matched", and the candidate then frozen that
+  /// way) whenever the scan runs before accounts have loaded.
+  Future<AccountCardMatcher> _loadAccountMatcher() async {
+    final accounts = await ref.read(accountsStreamProvider.future);
+    await ref.read(creditCardsStreamProvider.future);
+    return AccountCardMatcher(
+      accounts: accounts,
+      cards: ref.read(activeCreditCardsProvider),
+    );
+  }
+
+  /// Re-reads account last-4s the parser used to miss, so already-scanned
+  /// messages stop being "Not matched" — see [repairStaleAccountFields].
+  /// Isolated like the generators below: a failure never fails the scan.
+  Future<void> _repairStaleAccountFields() async {
+    try {
+      final repaired = await repairStaleAccountFields(
+        inboxRepository: ref.read(smsInboxRepositoryProvider),
+        candidateDao: ref.read(transactionCandidateDaoProvider),
+        eventDao: ref.read(financialEventDaoProvider),
+        matcher: _loadAccountMatcher,
+      );
+      if (repaired == 0) return;
+      ref.invalidate(transactionCandidatesProvider);
+      ref.invalidate(financialEventsProvider);
+    } catch (e, st) {
+      debugPrint('Stale account-field repair failed (scan still ok): $e\n$st');
+    }
+  }
+
   Future<void> _generateFinancialEventsForPending() async {
     try {
       final eventDao = ref.read(financialEventDaoProvider);
@@ -402,10 +435,7 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
           .toList();
       if (toProcess.isEmpty) return;
 
-      final accountMatcher = AccountCardMatcher(
-        accounts: ref.read(accountsStreamProvider).value ?? const [],
-        cards: ref.read(activeCreditCardsProvider),
-      );
+      final accountMatcher = await _loadAccountMatcher();
       final extractor = FinancialEventExtractor(
         aiProvider: ref.read(financialEventAiProviderProvider),
         categoryResolver: ref.read(categoryResolverProvider),
@@ -611,10 +641,7 @@ class SmsInboxItemsNotifier extends AsyncNotifier<List<SmsInboxItem>> {
       final built = await generateMissingTransactionCandidates(
         inboxRepository: ref.read(smsInboxRepositoryProvider),
         dao: ref.read(transactionCandidateDaoProvider),
-        matcher: () => AccountCardMatcher(
-          accounts: ref.read(accountsStreamProvider).value ?? const [],
-          cards: ref.read(activeCreditCardsProvider),
-        ),
+        matcher: _loadAccountMatcher,
       );
       if (built == 0) return;
       ref.invalidate(transactionCandidatesProvider);

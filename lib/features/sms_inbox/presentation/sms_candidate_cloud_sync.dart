@@ -232,6 +232,7 @@ class SmsCandidateCloudSync {
     var failed = 0;
     var consecutiveFailures = 0;
     final existingIds = {for (final doc in existingCloud) doc.id};
+    final existingById = {for (final doc in existingCloud) doc.id: doc};
     void progress(int done) => onProgress?.call(
       SmsCandidateSyncProgress(
         total: targets.length,
@@ -244,6 +245,26 @@ class SmsCandidateCloudSync {
     progress(0);
     for (var i = 0; i < targets.length; i++) {
       final target = targets[i];
+      // Already in the cloud WITHOUT an account, but the phone has since
+      // matched one (account added/edited/loaded after the first upload):
+      // refresh that one document so the web stops showing "Not matched".
+      // Only ever fills a missing match — a doc that already has an account
+      // is never overwritten, and a doc the web already handled (deleted,
+      // tombstoned) is never recreated.
+      final existingDoc = existingById[target.cloudDoc.id];
+      if (existingDoc != null &&
+          existingDoc.accountId == null &&
+          existingDoc.cardId == null &&
+          target.cloudDoc.accountId != null) {
+        try {
+          if (await _refreshMatchOnExisting(target.cloudDoc)) uploaded++;
+        } catch (_) {
+          if (!continueOnUploadError) rethrow;
+          failed++;
+        }
+        progress(i + 1);
+        continue;
+      }
       // Already in the cloud (same stable id): nothing to send. This is what
       // makes a repeat scan — every app open — cheap, and an interrupted
       // initial sync resumable: only what's missing is uploaded.
@@ -288,6 +309,32 @@ class SmsCandidateCloudSync {
       skippedNotOwned: skippedNotOwned,
       failed: failed,
     );
+  }
+
+  /// Overwrites an EXISTING candidate document with [cloudDoc] (which now
+  /// carries the matched account). Runs in one transaction that re-reads the
+  /// document and writes only if it is still there and still has no account,
+  /// so it can never resurrect a candidate the web just imported/dismissed
+  /// (those are deleted + tombstoned) or clobber a match made elsewhere.
+  /// Returns whether it wrote.
+  Future<bool> _refreshMatchOnExisting(
+    SmsTransactionCandidateCloud cloudDoc,
+  ) async {
+    final ref = _cloudRepository.collection.doc(cloudDoc.id);
+    var wrote = false;
+    await _cloudRepository.collection.firestore.runTransaction((tx) async {
+      final snapshot = await tx.get(ref);
+      if (!snapshot.exists) return;
+      final current = snapshot.data();
+      if (current == null ||
+          current.accountId != null ||
+          current.cardId != null) {
+        return;
+      }
+      tx.set(ref, cloudDoc);
+      wrote = true;
+    });
+    return wrote;
   }
 
   /// The V1-formula id for this candidate, or `null` when V1 and V2 would

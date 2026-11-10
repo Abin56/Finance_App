@@ -322,6 +322,15 @@ Future<SmsCandidateCloudSync?> buildBackgroundCloudSync(
   // SMS stays pending for a later run or the screen) but never blocks the
   // upload of candidates that already exist.
   try {
+    await repairStaleAccountFields(
+      inboxRepository: inboxRepository,
+      candidateDao: TransactionCandidateDao(db),
+      matcher: () => loadBackgroundAccountCardMatcher(firestore, uid),
+    );
+  } catch (_) {
+    debugPrint('SmsBackground: account_repair_failed');
+  }
+  try {
     final built = await generateMissingTransactionCandidates(
       inboxRepository: inboxRepository,
       dao: TransactionCandidateDao(db),

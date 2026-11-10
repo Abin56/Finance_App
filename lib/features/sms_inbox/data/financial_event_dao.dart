@@ -28,7 +28,7 @@ class FinancialEventDao {
 
   /// Reasons are free-text sentences that never contain this control
   /// character — same convention [TransactionCandidateDao] already uses.
-  static const String _reasonSeparator = '';
+  static const String _reasonSeparator = '';
 
   /// Upserts one event. Used both for a brand-new event and for bumping an
   /// existing one's confidence when [TransactionMatcher] finds additional
@@ -192,6 +192,36 @@ class FinancialEventDao {
       where: 'sms_item_id IN ($placeholders)',
       whereArgs: smsItemIds,
     );
+  }
+
+  /// Drops the still-unconverted events (and their links) built from
+  /// [smsItemIds] so they regenerate from corrected parse data. An event
+  /// already converted to a transaction (`linked_transaction_id` set) is
+  /// never touched, and its link is kept.
+  Future<void> deleteUnconvertedForSmsIds(List<String> smsItemIds) async {
+    if (smsItemIds.isEmpty) return;
+    final placeholders = List.filled(smsItemIds.length, '?').join(',');
+    final unconverted = await _database.query(
+      SmsInboxDatabase.smsFinancialEventLinksTableName,
+      columns: ['sms_item_id', 'financial_event_id'],
+      where: 'sms_item_id IN ($placeholders)',
+      whereArgs: smsItemIds,
+    );
+    for (final row in unconverted) {
+      final eventId = row['financial_event_id']! as String;
+      final event = await getById(eventId);
+      if (event == null || event.linkedTransactionId != null) continue;
+      await _database.delete(
+        SmsInboxDatabase.smsFinancialEventLinksTableName,
+        where: 'sms_item_id = ?',
+        whereArgs: [row['sms_item_id']],
+      );
+      await _database.delete(
+        SmsInboxDatabase.financialEventsTableName,
+        where: 'id = ?',
+        whereArgs: [eventId],
+      );
+    }
   }
 
   Map<String, Object?> _toRow(FinancialEvent event) {
