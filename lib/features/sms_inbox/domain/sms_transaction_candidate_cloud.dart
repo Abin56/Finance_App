@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/models/soft_deletable_entity.dart';
+import 'financial_event/transaction_status.dart';
 import 'sms_candidate_cloud_identity.dart';
+import 'sms_candidate_verification.dart';
 import 'sms_confidence_scorer.dart';
+import 'sms_direction_resolver.dart';
+import 'sms_event_class.dart';
 import 'sms_transaction_category.dart';
 import 'sms_transaction_direction.dart';
 import 'transaction_candidate.dart';
@@ -55,8 +59,47 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     this.cardId,
     this.referenceNumber,
     this.needsReviewReasons = const [],
+    this.eventClass,
+    this.moneyMovement,
+    this.transactionStatus,
+    this.directionEvidence,
+    this.ownership,
+    this.messageReceivedAt,
+    this.dateSource,
+    this.classificationVersion,
     // ignore: prefer_initializing_formals
   }) : _cloudId = cloudId;
+
+  // --- Integrity fields (classification v1, 2026-11). All optional: a
+  // document written before them simply lacks them, and FlowFi Web keeps its
+  // earlier behaviour for such a document. See SmsCandidateVerification. ---
+
+  /// What the message describes (`SmsEventClass.name`). Only a money-moving
+  /// class may ever be imported.
+  final SmsEventClass? eventClass;
+
+  /// Whether money actually moved (derived from [eventClass]).
+  final bool? moneyMovement;
+
+  /// `TransactionStatus.name` read from the message (success/pending/…).
+  final TransactionStatus? transactionStatus;
+
+  /// `DirectionEvidence.name` — `contextual` (the message says whose
+  /// account moved) or `keyword` (bare verbs only).
+  final DirectionEvidence? directionEvidence;
+
+  /// `SmsOwnership.name` — `verified` only when the last-4 resolved to one
+  /// of the user's own accounts/cards on the phone.
+  final SmsOwnership? ownership;
+
+  /// When the SMS arrived — kept separately from [transactionDate], which
+  /// may come from the date written in the message body ([dateSource]).
+  final DateTime? messageReceivedAt;
+  final SmsDateSource? dateSource;
+
+  /// `kSmsCandidateClassificationVersion` at upload; a document with an
+  /// older or missing value is refreshed by `SmsCandidateCloudSync`.
+  final int? classificationVersion;
 
   /// Always `'sms'` — this collection is dedicated to SMS-derived candidates
   /// (see the collection-path comment in `firestore_constants.dart`), but
@@ -140,11 +183,25 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
   /// raw SMS sender/address — needed only to compute [cloudId], never
   /// stored in the document itself; see the class doc for why no raw SMS
   /// data is persisted here).
+  ///
+  /// [verification] (from `SmsCandidateVerifier`, recomputed from the stored
+  /// raw SMS at every sync) fills the integrity fields and overrides the
+  /// stored review state and date, so a candidate built before those checks
+  /// existed is still uploaded with current answers. Without it the
+  /// document is legacy-shaped (no integrity fields).
   factory SmsTransactionCandidateCloud.fromLocal(
     TransactionCandidate candidate, {
     required String sender,
     String? rawLastFour,
+    SmsCandidateVerification? verification,
   }) {
+    final v = verification;
+    final reasons = [
+      ...candidate.reviewReasons,
+      if (v != null)
+        for (final r in v.reasons)
+          if (!candidate.reviewReasons.contains(r)) r,
+    ];
     return SmsTransactionCandidateCloud(
       smsItemId: candidate.smsItemId,
       cloudId: SmsCandidateCloudIdentity.compute(
@@ -158,20 +215,68 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
       amount: candidate.amount,
       direction: candidate.direction,
       eventType: candidate.eventType,
-      transactionDate: candidate.transactionDate,
+      transactionDate: v?.transactionDate ?? candidate.transactionDate,
       merchant: candidate.merchant,
       bankName: candidate.bankName,
       rawLastFour: rawLastFour,
       accountId: candidate.matchedAccountId,
       cardId: candidate.matchedCardId,
       referenceNumber: candidate.referenceNumber,
-      confidenceLevel: candidate.confidenceLevel,
+      confidenceLevel:
+          v != null && !(v.moneyMovement && v.directionMatchesParse)
+          ? ConfidenceLevel.low
+          : candidate.confidenceLevel,
       confidenceScore: candidate.confidenceScore,
-      needsReview: candidate.needsReview,
-      needsReviewReasons: candidate.reviewReasons,
+      needsReview: candidate.needsReview || (v != null && !v.cleanForImport),
+      needsReviewReasons: reasons,
       createdAt: candidate.createdAt,
+      eventClass: v?.eventClass,
+      moneyMovement: v?.moneyMovement,
+      transactionStatus: v?.transactionStatus,
+      directionEvidence: v?.direction.evidence,
+      ownership: v?.ownership,
+      messageReceivedAt: v?.messageReceivedAt,
+      dateSource: v?.dateSource,
+      classificationVersion: v == null
+          ? null
+          : kSmsCandidateClassificationVersion,
     );
   }
+
+  /// This document with [accountId]/[cardId] replaced — used when a refresh
+  /// must keep a match the existing cloud document already has.
+  SmsTransactionCandidateCloud withMatch({
+    required String? accountId,
+    required String? cardId,
+  }) => SmsTransactionCandidateCloud(
+    smsItemId: smsItemId,
+    cloudId: _cloudId,
+    amount: amount,
+    direction: direction,
+    eventType: eventType,
+    transactionDate: transactionDate,
+    merchant: merchant,
+    bankName: bankName,
+    rawLastFour: rawLastFour,
+    accountId: accountId,
+    cardId: cardId,
+    referenceNumber: referenceNumber,
+    confidenceLevel: confidenceLevel,
+    confidenceScore: confidenceScore,
+    needsReview: needsReview,
+    needsReviewReasons: needsReviewReasons,
+    createdAt: createdAt,
+    eventClass: eventClass,
+    moneyMovement: moneyMovement,
+    transactionStatus: transactionStatus,
+    directionEvidence: directionEvidence,
+    ownership: accountId != null || cardId != null
+        ? SmsOwnership.verified
+        : ownership,
+    messageReceivedAt: messageReceivedAt,
+    dateSource: dateSource,
+    classificationVersion: classificationVersion,
+  );
 
   factory SmsTransactionCandidateCloud.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -216,7 +321,28 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
           (data['needsReviewReasons'] as List<dynamic>? ?? const [])
               .cast<String>(),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      eventClass: SmsEventClassX.fromName(data['eventClass'] as String?),
+      moneyMovement: data['moneyMovement'] as bool?,
+      transactionStatus: data['transactionStatus'] == null
+          ? null
+          : TransactionStatusX.fromName(data['transactionStatus'] as String?),
+      directionEvidence: _byName(
+        DirectionEvidence.values,
+        data['directionEvidence'],
+      ),
+      ownership: _byName(SmsOwnership.values, data['ownership']),
+      messageReceivedAt: (data['messageReceivedAt'] as Timestamp?)?.toDate(),
+      dateSource: _byName(SmsDateSource.values, data['dateSource']),
+      classificationVersion: (data['classificationVersion'] as num?)?.toInt(),
     )..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate();
+  }
+
+  static T? _byName<T extends Enum>(List<T> values, Object? raw) {
+    if (raw is! String) return null;
+    for (final value in values) {
+      if (value.name == raw) return value;
+    }
+    return null;
   }
 
   Map<String, dynamic> toFirestore() {
@@ -241,6 +367,20 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
       'needsReviewReasons': needsReviewReasons,
       'source': source,
       'createdAt': Timestamp.fromDate(createdAt),
+      // Integrity fields — written only when computed, so a legacy-shaped
+      // document stays byte-for-byte what it was.
+      if (eventClass != null) 'eventClass': eventClass!.name,
+      if (moneyMovement != null) 'moneyMovement': moneyMovement,
+      if (transactionStatus != null)
+        'transactionStatus': transactionStatus!.name,
+      if (directionEvidence != null)
+        'directionEvidence': directionEvidence!.name,
+      if (ownership != null) 'ownership': ownership!.name,
+      if (messageReceivedAt != null)
+        'messageReceivedAt': Timestamp.fromDate(messageReceivedAt!),
+      if (dateSource != null) 'dateSource': dateSource!.name,
+      if (classificationVersion != null)
+        'classificationVersion': classificationVersion,
       // Written explicitly (rather than omitted) because
       // `FirestoreCrudRepository.getAll/watchAll` filter on
       // `where('deletedAt', isNull: true)` — a Firestore equality query

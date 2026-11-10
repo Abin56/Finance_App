@@ -1,3 +1,4 @@
+import 'sms_direction_resolver.dart';
 import 'sms_transaction_category.dart';
 import 'sms_transaction_direction.dart';
 
@@ -22,27 +23,6 @@ abstract class SmsRegexUtils {
   /// that phrasing.
   static final RegExp _amountByPattern = RegExp(
     r'\b(?:debited|credited)\s+by\s+([\d,]+(?:\.\d{1,2})?)',
-    caseSensitive: false,
-  );
-
-  static final RegExp _creditPattern = RegExp(
-    r'\b(credited|received|deposited|added|refunded|reversed)\b',
-    caseSensitive: false,
-  );
-
-  static final RegExp _debitPattern = RegExp(
-    r'\b(debited|spent|paid|withdrawn|deducted|txn|transaction|sent|charged|transferred)\b',
-    caseSensitive: false,
-  );
-
-  /// Status/completion wording with no explicit debit/credit keyword at all
-  /// ("payment successful", "transaction failed", "payment is pending") —
-  /// common in UPI-app-style confirmations and failure/reminder alerts that
-  /// never use the bank-SMS-standard "debited"/"credited" phrasing. Checked
-  /// only as [extractDirection]'s last resort, after the real credit/debit
-  /// keywords above have both come up empty.
-  static final RegExp _statusOnlyPattern = RegExp(
-    r'\b(successful|successfully|completed|processed|failed|declined|unsuccessful|pending|processing)\b',
     caseSensitive: false,
   );
 
@@ -148,31 +128,59 @@ abstract class SmsRegexUtils {
     return matches.first;
   }
 
-  static SmsTransactionDirection? extractDirection(String body) {
-    final creditMatch = _creditPattern.hasMatch(body);
-    final debitMatch = _debitPattern.hasMatch(body);
-    if (creditMatch && !debitMatch) return SmsTransactionDirection.credit;
-    if (debitMatch && !creditMatch) return SmsTransactionDirection.debit;
-    if (creditMatch && debitMatch) {
-      // Both matched (rare) — trust whichever keyword appears first.
-      final creditIndex = _creditPattern.firstMatch(body)!.start;
-      final debitIndex = _debitPattern.firstMatch(body)!.start;
-      return creditIndex < debitIndex
+  /// The direction a parser stores on [ParsedSmsTransaction].
+  ///
+  /// When [SmsDirectionResolver] can decide from the message's context, that
+  /// is the answer. When it can't (conflicting evidence, or only status
+  /// wording — "payment successful", "payment failed", "is pending"), this
+  /// still returns a PROVISIONAL direction from the legacy keyword rules so
+  /// the message keeps parsing: the financial-event layer needs a parse to
+  /// recognise failed/pending/reminder messages as "no money moved".
+  ///
+  /// A provisional direction is never trusted for an import: every path
+  /// that can lead to one (`TransactionCandidateBuilder`, the cloud upload,
+  /// the web import) re-checks the message with
+  /// [SmsDirectionResolver.resolve] via `SmsCandidateVerifier` and treats an
+  /// unknown or disagreeing verdict as "direction unclear — review".
+  static SmsTransactionDirection? extractDirection(String body) =>
+      SmsDirectionResolver.resolve(body).direction ??
+      _provisionalDirection(body);
+
+  static final RegExp _legacyCreditPattern = RegExp(
+    r'\b(credited|received|deposited|added|refunded|reversed)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _legacyDebitPattern = RegExp(
+    r'\b(debited|spent|paid|withdrawn|deducted|txn|transaction|sent|charged|transferred)\b',
+    caseSensitive: false,
+  );
+
+  static final RegExp _legacyStatusOnlyPattern = RegExp(
+    r'\b(successful|successfully|completed|processed|failed|declined|unsuccessful|pending|processing)\b',
+    caseSensitive: false,
+  );
+
+  /// The pre-2026-11 keyword rules (first keyword wins; status-only wording
+  /// reads as debit), kept ONLY so an unclear message still parses. See
+  /// [extractDirection] — never an import decision.
+  static SmsTransactionDirection? _provisionalDirection(String body) {
+    final creditMatch = _legacyCreditPattern.firstMatch(body);
+    final debitMatch = _legacyDebitPattern.firstMatch(body);
+    if (creditMatch != null && debitMatch == null) {
+      return SmsTransactionDirection.credit;
+    }
+    if (debitMatch != null && creditMatch == null) {
+      return SmsTransactionDirection.debit;
+    }
+    if (creditMatch != null && debitMatch != null) {
+      return creditMatch.start < debitMatch.start
           ? SmsTransactionDirection.credit
           : SmsTransactionDirection.debit;
     }
-    // Last resort: no real debit/credit keyword at all, but the message
-    // still reads as transaction-status wording ("payment successful",
-    // "transaction failed", "payment is pending") — common in UPI-app-style
-    // confirmations that skip the bank-SMS-standard "debited"/"credited"
-    // phrasing entirely. Defaults to debit: the far more common case for a
-    // personal-expense message, and — for the failed/pending subset
-    // specifically — `TransactionStatusSignals`/`ReminderSignals` already
-    // ensure `FinancialEvent.moneyMovement` ends up false regardless, so an
-    // imperfect direction guess here has no practical consequence for those.
-    // Never invents a direction when there is no transaction-shaped
-    // language at all — a plain non-financial sentence still returns null.
-    if (_statusOnlyPattern.hasMatch(body)) return SmsTransactionDirection.debit;
+    if (_legacyStatusOnlyPattern.hasMatch(body)) {
+      return SmsTransactionDirection.debit;
+    }
     return null;
   }
 

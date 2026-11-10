@@ -7,6 +7,7 @@ import '../data/merchant_memory_repository.dart';
 import '../data/sms_inbox_repository.dart';
 import '../data/sms_transaction_candidate_repository.dart';
 import '../domain/sms_candidate_cloud_identity.dart';
+import '../domain/sms_candidate_verification.dart';
 import '../domain/sms_inbox_item.dart';
 import '../domain/sms_transaction_direction.dart';
 import 'providers/sms_inbox_providers.dart';
@@ -43,8 +44,10 @@ class SmsBulkConvertResult {
   /// Genuinely created a transaction *and* marked its SMS imported.
   final int converted;
 
-  /// Left untouched and still pending: either the parser couldn't extract an
-  /// amount, or the message is a flagged duplicate. Never guessed at.
+  /// Left untouched and still pending: the parser couldn't extract an
+  /// amount, the message is a flagged duplicate, or it isn't a verified
+  /// completed money movement matching the chosen type (failed, pending,
+  /// reminder, unclear direction…). Never guessed at.
   final int skipped;
 
   /// The create call itself threw. Left pending so the user can retry.
@@ -115,21 +118,45 @@ class SmsBulkConverter {
         continue;
       }
 
-      final amount = item.parsed?.amount;
+      final parsed = item.parsed;
+      final amount = parsed?.amount;
       // An SMS the parser couldn't pull an amount from has nothing to create
       // a transaction from. Inventing one — or defaulting to zero — would
       // write a bogus record into the user's real balances.
-      if (amount == null || amount <= 0) {
+      if (parsed == null || amount == null || amount <= 0) {
+        skipped++;
+        continue;
+      }
+
+      // Same integrity checks the cloud candidate carries: only a verified,
+      // completed money movement whose debit/credit agrees with the type the
+      // user chose for the batch may be written. A failed/pending payment,
+      // a reminder, a balance alert or a message whose direction can't be
+      // verified stays pending for single conversion, never guessed.
+      final verification = SmsCandidateVerifier.verify(
+        body: item.rawMessage.body,
+        receivedAt: item.rawMessage.date,
+        parsedDirection: parsed.direction,
+        accountResolved: false,
+        matchedCardId: null,
+      );
+      final verifiedType =
+          verification.direction.direction == SmsTransactionDirection.credit
+          ? TransactionType.income
+          : TransactionType.expense;
+      if (!verification.moneyMovement ||
+          !verification.directionMatchesParse ||
+          verifiedType != config.type) {
         skipped++;
         continue;
       }
 
       try {
-        final merchant = item.parsed?.merchantOrSender;
+        final merchant = parsed.merchantOrSender;
         final created = await _transactions.createTransaction(
           type: config.type,
           amount: amount,
-          dateTime: item.rawMessage.date,
+          dateTime: verification.transactionDate,
           accountId: config.accountId,
           categoryId: config.categoryId,
           description: merchant ?? '',

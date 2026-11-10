@@ -5,6 +5,7 @@ import '../data/sms_inbox_repository.dart';
 import '../data/sms_transaction_candidate_repository.dart';
 import '../data/transaction_candidate_dao.dart';
 import '../domain/sms_candidate_cloud_identity.dart';
+import '../domain/sms_candidate_verification.dart';
 import '../domain/sms_import_status.dart';
 import '../domain/sms_transaction_candidate_cloud.dart';
 import '../domain/sms_transaction_direction.dart';
@@ -187,22 +188,41 @@ class SmsCandidateCloudSync {
     // [_uploadUnlessHandled]'s versioned-compatibility doc comment (V1/V2
     // hardening, 2026-10-24) for why both are checked together before a
     // write.
+    // Integrity checks recomputed from the stored raw SMS on every sync (see
+    // SmsCandidateVerifier), so candidates built before those checks existed
+    // are uploaded with current answers too. A candidate whose debit/credit
+    // can't be verified is NOT uploaded: the web cannot change a candidate's
+    // direction, so it would import it with a guessed sign. It stays listed
+    // on the phone for manual review, and any earlier copy of it in the
+    // cloud is removed by the step below (it is no longer a target).
+    final verificationById = {
+      for (final candidate in targetCandidates)
+        candidate.smsItemId: SmsCandidateVerifier.verify(
+          body: itemById[candidate.smsItemId]!.rawMessage.body,
+          receivedAt: itemById[candidate.smsItemId]!.rawMessage.date,
+          parsedDirection: candidate.direction,
+          accountResolved: candidate.matchedAccountId != null,
+          matchedCardId: candidate.matchedCardId,
+        ),
+    };
     final targets = [
       for (final candidate in targetCandidates)
-        (
-          cloudDoc: SmsTransactionCandidateCloud.fromLocal(
-            candidate,
-            sender: itemById[candidate.smsItemId]!.rawMessage.address,
-            rawLastFour:
-                itemById[candidate.smsItemId]!.parsed?.maskedAccountOrCard,
+        if (verificationById[candidate.smsItemId]!.uploadable)
+          (
+            cloudDoc: SmsTransactionCandidateCloud.fromLocal(
+              candidate,
+              sender: itemById[candidate.smsItemId]!.rawMessage.address,
+              rawLastFour:
+                  itemById[candidate.smsItemId]!.parsed?.maskedAccountOrCard,
+              verification: verificationById[candidate.smsItemId],
+            ),
+            legacyV1Id: _legacyV1IdIfApplicable(
+              sender: itemById[candidate.smsItemId]!.rawMessage.address,
+              referenceNumber: candidate.referenceNumber,
+              amount: candidate.amount,
+              direction: candidate.direction,
+            ),
           ),
-          legacyV1Id: _legacyV1IdIfApplicable(
-            sender: itemById[candidate.smsItemId]!.rawMessage.address,
-            referenceNumber: candidate.referenceNumber,
-            amount: candidate.amount,
-            direction: candidate.direction,
-          ),
-        ),
     ];
     // Includes each target's `legacyV1Id` too (when present) — otherwise
     // this removal step would delete a still-relevant V1 document out from
@@ -252,10 +272,22 @@ class SmsCandidateCloudSync {
       // is never overwritten, and a doc the web already handled (deleted,
       // tombstoned) is never recreated.
       final existingDoc = existingById[target.cloudDoc.id];
-      if (existingDoc != null &&
+      // ...or it was written before the current integrity checks (older or
+      // missing `classificationVersion`): refresh it once so the web sees
+      // its event class, money movement and review reasons. Same guarded
+      // transaction — never recreates a handled document, never drops an
+      // account the existing document already has.
+      final fillsMatch =
+          existingDoc != null &&
           existingDoc.accountId == null &&
           existingDoc.cardId == null &&
-          target.cloudDoc.accountId != null) {
+          target.cloudDoc.accountId != null;
+      final classificationStale =
+          existingDoc != null &&
+          target.cloudDoc.classificationVersion != null &&
+          existingDoc.classificationVersion !=
+              target.cloudDoc.classificationVersion;
+      if (fillsMatch || classificationStale) {
         try {
           if (await _refreshMatchOnExisting(target.cloudDoc)) uploaded++;
         } catch (_) {
@@ -312,11 +344,13 @@ class SmsCandidateCloudSync {
   }
 
   /// Overwrites an EXISTING candidate document with [cloudDoc] (which now
-  /// carries the matched account). Runs in one transaction that re-reads the
-  /// document and writes only if it is still there and still has no account,
-  /// so it can never resurrect a candidate the web just imported/dismissed
-  /// (those are deleted + tombstoned) or clobber a match made elsewhere.
-  /// Returns whether it wrote.
+  /// carries the matched account and/or the current integrity fields). Runs
+  /// in one transaction that re-reads the document and writes only if it is
+  /// still there, so it can never resurrect a candidate the web just
+  /// imported/dismissed (those are deleted + tombstoned). A match the
+  /// existing document already has is kept, never replaced or cleared.
+  /// Writes only when it adds something: a missing match, or a newer
+  /// classification. Returns whether it wrote.
   Future<bool> _refreshMatchOnExisting(
     SmsTransactionCandidateCloud cloudDoc,
   ) async {
@@ -326,12 +360,23 @@ class SmsCandidateCloudSync {
       final snapshot = await tx.get(ref);
       if (!snapshot.exists) return;
       final current = snapshot.data();
-      if (current == null ||
-          current.accountId != null ||
-          current.cardId != null) {
-        return;
-      }
-      tx.set(ref, cloudDoc);
+      if (current == null) return;
+      final currentHasMatch =
+          current.accountId != null || current.cardId != null;
+      final addsMatch = !currentHasMatch && cloudDoc.accountId != null;
+      final addsClassification =
+          cloudDoc.classificationVersion != null &&
+          current.classificationVersion != cloudDoc.classificationVersion;
+      if (!addsMatch && !addsClassification) return;
+      tx.set(
+        ref,
+        currentHasMatch
+            ? cloudDoc.withMatch(
+                accountId: current.accountId,
+                cardId: current.cardId,
+              )
+            : cloudDoc,
+      );
       wrote = true;
     });
     return wrote;

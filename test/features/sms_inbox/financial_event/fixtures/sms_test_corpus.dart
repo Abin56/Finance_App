@@ -1185,12 +1185,11 @@ final List<SmsTestCase> _creditCardSemanticsExpanded = [
       shouldParse: true,
       eventType: FinancialEventType.reversal,
       transactionStatus: TransactionStatus.reversed,
-      // "transaction" (a debit-pattern word) appears before "reversed" (a
-      // credit-pattern word) — SmsRegexUtils.extractDirection breaks a
-      // debit/credit tie by trusting whichever keyword appears first, so
-      // this resolves to debit despite the net effect reading as money
-      // coming back.
-      direction: SmsTransactionDirection.debit,
+      // A reversal returns money to the card. The old first-keyword-wins
+      // rule read "transaction" as a debit word and returned debit here;
+      // SmsDirectionResolver no longer treats "transaction" as direction
+      // evidence, so the only verb ("reversed") decides.
+      direction: SmsTransactionDirection.credit,
       moneyMovement: true,
     ),
     explanation:
@@ -1525,7 +1524,10 @@ final List<SmsTestCase> _reversalRefundExpanded = [
       moneyMovement: true,
       eventType: FinancialEventType.reversal,
       transactionStatus: TransactionStatus.reversed,
-      direction: SmsTransactionDirection.debit,
+      // Money came back to the user's account. (Was debit under the old
+      // first-keyword-wins rule, where "transaction" counted as a debit
+      // word — see SmsDirectionResolver.)
+      direction: SmsTransactionDirection.credit,
     ),
     explanation: 'Plain reversal notice.',
   ),
@@ -2159,7 +2161,9 @@ final List<SmsTestCase> _statusCombinations = [
       moneyMovement: true,
       eventType: FinancialEventType.reversal,
       transactionStatus: TransactionStatus.reversed,
-      direction: SmsTransactionDirection.debit,
+      // A reversal returns money (keyword-only evidence, so it still needs
+      // review before import). Was debit under first-keyword-wins.
+      direction: SmsTransactionDirection.credit,
     ),
     explanation:
         'A plain reversal, no failure/decline wording at all — unambiguous, real money movement.',
@@ -2201,7 +2205,8 @@ final List<SmsTestCase> _statusCombinations = [
       moneyMovement: true,
       eventType: FinancialEventType.reversal,
       transactionStatus: TransactionStatus.reversed,
-      direction: SmsTransactionDirection.debit,
+      // Was debit under first-keyword-wins ("transaction" before "reversed").
+      direction: SmsTransactionDirection.credit,
     ),
     explanation:
         'BOUNDARY CASE (documented, not fixed): "decline" (a bare noun) does not match any `_failedPatterns` word (which requires the literal past-tense "declined") — so this phrasing genuinely has no failed/pending signal at all, and correctly resolves via the reversed-status fallback to a real, completed reversal. This is precedence-sensitive to the exact word form used, which is itself worth knowing about rather than silently relying on.',

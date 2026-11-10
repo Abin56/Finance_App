@@ -128,16 +128,18 @@ void main() {
     double? amount,
     String merchant = 'Amazon',
     String? duplicateOf,
+    String? body,
+    SmsTransactionDirection direction = SmsTransactionDirection.debit,
   }) {
     final date = DateTime(2026, 7, 15, 12);
+    // A real completed debit by default: the converter now refuses messages
+    // that aren't a verified money movement (see the integrity tests below).
+    final text =
+        body ?? 'Rs.${amount ?? 0} debited from your a/c XX1234 at $merchant.';
     return SmsInboxItem(
       id: id,
       messageKey: 'msg-$id',
-      rawMessage: RawSmsMessage(
-        address: 'VM-HDFCBK',
-        body: 'body $id',
-        date: date,
-      ),
+      rawMessage: RawSmsMessage(address: 'VM-HDFCBK', body: text, date: date),
       dedupKey: 'dedup-$id',
       duplicateOfId: duplicateOf,
       duplicateReason: duplicateOf == null
@@ -149,11 +151,11 @@ void main() {
           ? null
           : ParsedSmsTransaction(
               amount: amount,
-              direction: SmsTransactionDirection.debit,
+              direction: direction,
               dateTime: date,
               category: SmsTransactionCategory.cardPurchase,
               confidence: 0.9,
-              rawBody: 'body $id',
+              rawBody: text,
               merchantOrSender: merchant,
             ),
     );
@@ -235,12 +237,89 @@ void main() {
   });
 
   test('income adds to the balance rather than subtracting', () async {
-    final items = await seed([smsItem(id: 'a', amount: 500)]);
+    final items = await seed([
+      smsItem(
+        id: 'a',
+        amount: 500,
+        body: 'Rs.500 credited to your a/c XX1234 from Employer.',
+        direction: SmsTransactionDirection.credit,
+      ),
+    ]);
 
     await converter.convert(items, config(type: TransactionType.income));
 
     final account = await accountRepository.getByKey(accountId);
     expect(account?.currentBalance, 10500);
+  });
+
+  group('integrity: only verified completed movements are written', () {
+    Future<SmsBulkConvertResult> convertOne(
+      String body, {
+      TransactionType type = TransactionType.expense,
+      SmsTransactionDirection direction = SmsTransactionDirection.debit,
+    }) async {
+      final items = await seed([
+        smsItem(id: 'x', amount: 500, body: body, direction: direction),
+      ]);
+      return converter.convert(items, config(type: type));
+    }
+
+    Future<void> expectUntouched(SmsBulkConvertResult result) async {
+      expect(result.converted, 0);
+      expect(result.skipped, 1);
+      expect(
+        (await accountRepository.getByKey(accountId))?.currentBalance,
+        10000,
+      );
+    }
+
+    test('a failed payment is skipped, balance unchanged', () async {
+      await expectUntouched(
+        await convertOne('Your payment of Rs.500 to Swiggy failed.'),
+      );
+    });
+
+    test('a pending payment is skipped', () async {
+      await expectUntouched(
+        await convertOne('Your payment of Rs.500 is pending confirmation.'),
+      );
+    });
+
+    test('a reminder ("will be debited") is skipped', () async {
+      await expectUntouched(
+        await convertOne(
+          'Rs.500 will be debited from your a/c XX1234 on 05-Nov for your SIP.',
+        ),
+      );
+    });
+
+    test('status-only wording ("payment successful") is skipped', () async {
+      await expectUntouched(await convertOne('Payment of Rs.500 successful.'));
+    });
+
+    test(
+      'a verified debit converted as income is skipped (wrong sign)',
+      () async {
+        await expectUntouched(
+          await convertOne(
+            'Rs.500 debited from your a/c XX1234 at Amazon.',
+            type: TransactionType.income,
+          ),
+        );
+      },
+    );
+
+    test(
+      'uses the date written in the message, not the arrival time',
+      () async {
+        final result = await convertOne(
+          'Rs.500 debited from your a/c XX1234 on 13-07-26 at Amazon.',
+        );
+        expect(result.converted, 1);
+        final txns = await transactionRepository.getAll();
+        expect(txns.single.dateTime, DateTime(2026, 7, 13, 12));
+      },
+    );
   });
 
   test(

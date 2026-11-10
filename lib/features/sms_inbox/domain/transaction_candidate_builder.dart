@@ -1,5 +1,6 @@
 import '../../../core/utils/id_generator.dart';
 import 'account_card_matcher.dart';
+import 'sms_candidate_verification.dart';
 import 'sms_confidence_scorer.dart';
 import 'sms_inbox_item.dart';
 import 'transaction_candidate.dart';
@@ -31,6 +32,27 @@ class TransactionCandidateBuilder {
       accountMatch: accountMatch,
       isDuplicate: item.isDuplicate,
     );
+    // The integrity checks (direction from context, real money movement,
+    // ownership, transaction date) — see SmsCandidateVerifier. Folded into
+    // the existing review fields so every consumer, local or web, sees them.
+    final verification = SmsCandidateVerifier.verify(
+      body: item.rawMessage.body,
+      receivedAt: item.rawMessage.date,
+      parsedDirection: parsed.direction,
+      accountResolved: accountMatch.isResolved,
+      matchedCardId: accountMatch.matchedCardId,
+    );
+    final reasons = [
+      ...confidence.reasons,
+      for (final r in verification.reasons)
+        if (!confidence.reasons.contains(r)) r,
+    ];
+    // "High confidence" is never shown for something that isn't a verified
+    // money movement.
+    final level =
+        verification.moneyMovement && verification.directionMatchesParse
+        ? confidence.level
+        : ConfidenceLevel.low;
 
     return TransactionCandidate(
       id: IdGenerator.generate(),
@@ -38,16 +60,16 @@ class TransactionCandidateBuilder {
       amount: parsed.amount,
       direction: parsed.direction,
       eventType: parsed.category,
-      transactionDate: parsed.dateTime,
+      transactionDate: verification.transactionDate,
       merchant: parsed.merchantOrSender,
       bankName: parsed.bankName,
       matchedAccountId: accountMatch.matchedAccountId,
       matchedCardId: accountMatch.matchedCardId,
       referenceNumber: parsed.referenceNumber,
-      confidenceLevel: confidence.level,
+      confidenceLevel: level,
       confidenceScore: confidence.score,
-      needsReview: confidence.needsReview,
-      reviewReasons: confidence.reasons,
+      needsReview: confidence.needsReview || !verification.cleanForImport,
+      reviewReasons: reasons,
       createdAt: DateTime.now(),
     );
   }
