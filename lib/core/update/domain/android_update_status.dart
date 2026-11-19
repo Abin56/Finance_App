@@ -44,12 +44,23 @@ AndroidUpdateStatus computeAndroidUpdateStatus({
     return const UpdateNotAvailable();
   }
 
-  final minSupportedVersionCode =
-      override?.minSupportedVersionCode ?? release.minSupportedVersionCode;
+  // The stricter (higher) floor wins: an operator override can raise the
+  // minimum supported build but never silently lower what the release itself
+  // published.
+  final minSupportedVersionCode = _maxOrNull(
+    override?.minSupportedVersionCode,
+    release.minSupportedVersionCode,
+  );
   final belowFloor = minSupportedVersionCode != null &&
       installedVersionCode < minSupportedVersionCode;
   final isMandatory =
       release.mandatory || (override?.mandatory ?? false) || belowFloor;
 
   return isMandatory ? UpdateMandatory(release) : UpdateOptional(release);
+}
+
+int? _maxOrNull(int? a, int? b) {
+  if (a == null) return b;
+  if (b == null) return a;
+  return a > b ? a : b;
 }

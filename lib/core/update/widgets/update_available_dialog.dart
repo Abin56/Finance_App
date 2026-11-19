@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../constants/app_sizes.dart';
 import '../../extensions/context_extensions.dart';
+import '../data/android_update_downloader.dart';
 import '../domain/android_release_info.dart';
+import '../domain/update_download_state.dart';
 import 'update_progress_view.dart';
 
-/// Optional-update prompt, shown once per app session from `AppShell` when
-/// `androidUpdateStatusProvider` resolves to `UpdateOptional`. Dismissible —
-/// "Later" just closes it; the download/install flow (if started) keeps
-/// running even after the dialog is closed, since `androidUpdateDownloadProvider`
-/// lives above this dialog in the provider tree.
-class UpdateAvailableDialog extends StatelessWidget {
+/// Optional-update prompt, shown by `UpdatePromptHost` when a newer sideload
+/// build is published. "Later" snoozes the reminder (see
+/// `UpdateReminderStore`); the download/install flow, if started, keeps
+/// running even after the dialog is closed, since
+/// `androidUpdateDownloadProvider` lives above this dialog.
+class UpdateAvailableDialog extends ConsumerWidget {
   const UpdateAvailableDialog({super.key, required this.release});
 
   final AndroidReleaseInfo release;
@@ -23,7 +26,10 @@ class UpdateAvailableDialog extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(androidUpdateDownloadProvider);
+    final canPostpone = state is UpdateDownloadIdle || state is UpdateFailed;
+
     return Dialog(
       child: Padding(
         padding: const EdgeInsets.all(AppSizes.lg),
@@ -38,17 +44,19 @@ class UpdateAvailableDialog extends StatelessWidget {
             ),
             const SizedBox(height: AppSizes.md),
             Text(
-              'A new version of FlowFi is available',
+              'Update available',
               textAlign: TextAlign.center,
-              style: context.textTheme.titleMedium,
+              style: context.textTheme.titleLarge,
             ),
-            const SizedBox(height: AppSizes.lg),
-            UpdateProgressView(release: release),
             const SizedBox(height: AppSizes.md),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Later'),
-            ),
+            UpdateProgressView(release: release),
+            if (canPostpone) ...[
+              const SizedBox(height: AppSizes.sm),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Later'),
+              ),
+            ],
           ],
         ),
       ),

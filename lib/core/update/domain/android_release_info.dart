@@ -36,6 +36,9 @@ class AndroidReleaseInfo {
   /// even when [mandatory] itself is false.
   final int? minSupportedVersionCode;
 
+  /// Final, permanent application id (see android/app/build.gradle.kts).
+  static const String expectedPackageName = 'com.flowfi.app';
+
   static final RegExp _versionPattern = RegExp(r'^[0-9A-Za-z.+_-]{1,40}$');
   static final RegExp _sha256Pattern = RegExp(r'^[0-9a-f]{64}$');
   static final RegExp _safeFile = RegExp(
@@ -59,6 +62,11 @@ class AndroidReleaseInfo {
     if (sha256 is! String || !_sha256Pattern.hasMatch(sha256)) return null;
     if (sizeBytes is! num || sizeBytes <= 0) return null;
     if (file is! String || !_safeFile.hasMatch(file)) return null;
+    // The manifest names the package it was prepared for (the release script
+    // already refuses any other id). A manifest for a different app is never
+    // offered here, even if everything else parses.
+    final packageName = raw['packageName'];
+    if (packageName != null && packageName != expectedPackageName) return null;
 
     final mandatory = raw['mandatory'];
     final releaseNotes = raw['releaseNotes'];

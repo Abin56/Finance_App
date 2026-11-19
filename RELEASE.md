@@ -89,6 +89,38 @@ update screen detects this and falls back to a link to `/pair` rather than
 failing silently, but there's no way to make the install always succeed
 in-app for affected devices.
 
+### How the in-app update behaves (sideload only)
+
+- **Bootstrap:** builds older than `1.0.4+5` have no updater. Install the
+  first update-enabled APK once, manually (QR / `/pair` / hosted link). Every
+  later release is detected in-app.
+- **Detection:** on launch and on app resume (throttled to once per 10 min),
+  from `/downloads/flowfi-android.json`. A failed check keeps the last good
+  result and never blocks the app.
+- **Optional update:** "Update available" dialog with version, size and
+  release notes. **Update** downloads inside the app (progress, Cancel,
+  resume after a dropped connection), verifies size + SHA-256, then opens
+  Android's installer — the user always confirms. **Later** snoozes that
+  release for 24 h (a newer release prompts immediately). More → About →
+  *Check for updates* is the manual path.
+- **Mandatory update:** `--mandatory` / `--min-supported-code` (or the
+  Firestore override) routes to a non-dismissible `/update-required` screen.
+- **One-time permission:** Android's "Install unknown apps → Allow from this
+  source" for FlowFi; the app checks it *before* downloading and links to the
+  right settings page.
+- **Data & permissions:** same package id + same release key, so Android
+  updates in place: sign-in, local data, SMS permissions, Auto Sync, the
+  notification listener and Firebase all carry over. Android restarts the app
+  during install and does not reopen it — tap FlowFi again.
+- **Play flavor:** `play` removes REQUEST_INSTALL_PACKAGES; the app reads that
+  from its own manifest, so the updater is inert there with no code change.
+  Play builds update through Play only.
+
+**Requirements for every release:** bump `pubspec.yaml` (`versionCode` must
+strictly increase), build with `--flavor sideload`, sign with the same
+keystore. **Back up `android/app/upload-keystore.jks` and `key.properties`
+offline** — losing the key means no installed copy can ever update again.
+
 ## Release App Bundle (Play upload)
 
 ```
@@ -137,8 +169,8 @@ Rules:
 - **versionCode** must strictly increase on every upload. Play permanently
   rejects a versionCode it has already seen, even from a deleted draft release.
 - **versionName** is cosmetic and may repeat.
-- Currently `1.0.0+1`. The first Play upload should be `1.0.0+1`; each subsequent
-  upload bumps the code (`1.0.1+2`, `1.1.0+3`, …).
+- Sideload releases are currently at `1.0.4+5` (first update-enabled build).
+  Always bump the code before the next `prepare` — it refuses a non-increasing one.
 
 ## What the release build does
 

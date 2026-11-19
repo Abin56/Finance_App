@@ -58,9 +58,6 @@
         <service
             android:name="com.flowfi.app.NotificationCaptureListenerService"
             tools:node="remove" />
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            tools:node="remove" />
     </application>
 
 </manifest>

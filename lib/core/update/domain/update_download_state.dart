@@ -18,6 +18,9 @@ enum UpdateFailureReason {
   /// for this; the user has to fall back to the browser/QR download.
   installerBlocked,
 
+  /// The device ran out of storage while saving the APK.
+  storage,
+
   unknown,
 }
 
@@ -32,7 +35,14 @@ class UpdateDownloadIdle extends UpdateDownloadState {
 }
 
 class UpdateDownloading extends UpdateDownloadState {
-  const UpdateDownloading({required this.receivedBytes, this.totalBytes});
+  const UpdateDownloading({
+    required this.receivedBytes,
+    this.totalBytes,
+    this.resumed = false,
+  });
+
+  /// True when this attempt continued a previous partial download.
+  final bool resumed;
   final int receivedBytes;
   final int? totalBytes;
 

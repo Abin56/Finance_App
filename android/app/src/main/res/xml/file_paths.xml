@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Exposes only the app's private cache "updates" subfolder to the
-     FileProvider declared in AndroidManifest.xml — the directory
-     lib/core/update/android_update_downloader.dart downloads the APK into
-     (via getTemporaryDirectory()). Nothing else on device is shared. -->
-<paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <cache-path name="updates" path="updates/" />
-</paths>

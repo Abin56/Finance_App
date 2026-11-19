@@ -5,9 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../shared/widgets/dialogs/add_entry_menu.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
-import '../update/domain/android_update_status.dart';
-import '../update/providers/android_update_providers.dart';
-import '../update/widgets/update_available_dialog.dart';
+import '../update/widgets/update_prompt_host.dart';
 import 'fab_visibility.dart';
 
 /// Bottom-navigation shell wrapping the five screen tabs (Dashboard,
@@ -63,25 +61,12 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Optional-update prompt (mandatory updates are a router gate instead —
-    // see app_router.dart). Fires only on the transition into
-    // `UpdateOptional`, so it shows once per app session rather than on
-    // every tab switch/rebuild, and never reappears just because the
-    // underlying status recomputes with the same outcome.
-    ref.listen<AndroidUpdateStatus>(androidUpdateStatusProvider, (
-      previous,
-      next,
-    ) {
-      if (next is UpdateOptional && previous is! UpdateOptional) {
-        UpdateAvailableDialog.show(context, release: next.release);
-      }
-    });
-
     final fabVisible =
         ref.watch(fabVisibleProvider) &&
         navigationShell.currentIndex != _peopleBranchIndex;
 
-    return Scaffold(
+    return UpdatePromptHost(
+      child: Scaffold(
       body: navigationShell,
       // Scaled/faded in place rather than swapped for null: the FAB keeps its
       // slot, so nothing else in the Scaffold reflows as it comes and goes.
@@ -115,6 +100,7 @@ class AppShell extends ConsumerWidget {
         ),
         destinations: _destinations,
       ),
+    ),
     );
   }
 }

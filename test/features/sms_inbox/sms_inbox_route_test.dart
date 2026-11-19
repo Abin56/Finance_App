@@ -55,7 +55,7 @@ void main() {
         smsPermissionServiceProvider.overrideWithValue(
           const _GatedPermissionService(),
         ),
-        androidReleaseInfoProvider.overrideWith((ref) async => null),
+        selfUpdateSupportedProvider.overrideWith((ref) async => false),
       ],
       child: const _TestApp(),
     );

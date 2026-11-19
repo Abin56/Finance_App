@@ -45,7 +45,7 @@ void main() {
         firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
         smsPermissionServiceProvider.overrideWithValue(const _NoSms()),
         notificationsGrantedProvider.overrideWith((ref) async => false),
-        androidReleaseInfoProvider.overrideWith((ref) async => null),
+        selfUpdateSupportedProvider.overrideWith((ref) async => false),
       ],
       child: const _TestApp(),
     );

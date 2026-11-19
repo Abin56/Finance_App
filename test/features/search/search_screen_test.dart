@@ -44,7 +44,7 @@ void main() {
             ),
           ),
           firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
-          androidReleaseInfoProvider.overrideWith((ref) async => null),
+          selfUpdateSupportedProvider.overrideWith((ref) async => false),
         ],
         child: const _TestApp(),
       ),

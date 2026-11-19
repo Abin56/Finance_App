@@ -18,8 +18,8 @@ import 'package:finance_app/features/setup_wizard/presentation/providers/setup_w
 /// Keeps the in-app update check (lib/core/update/) off the real network —
 /// the router's redirect reads it on every navigation, so any test that
 /// drives the real router needs this override, same as the Firebase ones.
-final _noAndroidUpdateOverride = androidReleaseInfoProvider.overrideWith(
-  (ref) async => null,
+final _noAndroidUpdateOverride = selfUpdateSupportedProvider.overrideWith(
+  (ref) async => false,
 );
 
 /// A fixed uid so the per-account setup-wizard flag can be seeded below —
