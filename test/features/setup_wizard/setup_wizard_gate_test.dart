@@ -11,6 +11,7 @@ import 'package:finance_app/core/router/app_router.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
 import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
+import 'package:finance_app/core/update/providers/android_update_providers.dart';
 import 'package:finance_app/features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'package:finance_app/features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
 import 'package:finance_app/features/setup_wizard/presentation/screens/setup_wizard_screen.dart';
@@ -44,6 +45,7 @@ void main() {
         firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
         smsPermissionServiceProvider.overrideWithValue(const _NoSms()),
         notificationsGrantedProvider.overrideWith((ref) async => false),
+        androidReleaseInfoProvider.overrideWith((ref) async => null),
       ],
       child: const _TestApp(),
     );

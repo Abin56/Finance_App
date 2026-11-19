@@ -47,6 +47,48 @@ from the merged manifest, so a successful build is proof the permission is
 present — not just an assumption. Never upload this flavor's output to Play —
 see [PLAY_STORE.md](PLAY_STORE.md#sms-inbox-and-the-play-build) for why.
 
+## Publishing the sideload APK (in-app update)
+
+Already-installed sideload users do **not** re-scan the QR code for a new
+release — they get an in-app update prompt (see `lib/core/update/`), which
+reads the same signed manifest the `/pair` page already uses. Publishing is
+one command in the **Flow-Fi-WEB** repo, run against the APK you just built
+above:
+
+```
+node scripts/android-release.mjs prepare <path-to-app-sideload-release.apk> [--notes "text"] [--mandatory] [--min-supported-code <n>]
+```
+
+- `--notes "text"` — shown in the update dialog/screen. Omit to publish with
+  no notes.
+- `--mandatory` — every installed app below this versionCode is blocked from
+  using the app until it updates (see `UpdateRequiredScreen`). Use for a
+  release that fixes something that must not keep running, e.g. a data-safety
+  bug.
+- `--min-supported-code <n>` — same effect as `--mandatory`, but scoped to
+  builds *below* `n` specifically (newer-but-still-old builds stay optional).
+  Omit to carry over whatever was set for the previous release unchanged.
+
+Then `npm run build` (stages the APK + manifest into `out/downloads/`) and
+deploy Firebase Hosting as usual. That's the entire release workflow — no
+separate step updates "version info" anywhere else.
+
+**Emergency override, without a new release:** if a bad build is already out
+and needs to be forced mandatory (or the minimum supported build raised)
+*before* you can cut a fix, edit the `appConfig/androidUpdate` document in the
+`financeapp-585eb` Firestore console directly — `{ mandatory: true }` or
+`{ minSupportedVersionCode: <n> }`. This is a manual, admin-only "break glass"
+switch (same convention as `smsSyncControl/global`), not something either
+repo's tooling writes automatically — see `firestore.rules` in both repos.
+
+**Known limitation:** Google Play Protect's enhanced fraud protection can
+block installing this APK on some devices (it already blocks some *first*
+installs — see `docs/sms-sync-pairing.md`), and an in-app-triggered install
+goes through the same system installer, so it can hit the same block. The
+update screen detects this and falls back to a link to `/pair` rather than
+failing silently, but there's no way to make the install always succeed
+in-app for affected devices.
+
 ## Release App Bundle (Play upload)
 
 ```

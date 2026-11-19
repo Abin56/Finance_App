@@ -5,6 +5,7 @@ import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/onboarding/presentation/providers/onboarding_providers.dart';
 import '../../features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
 import '../services/security/app_lock_controller.dart';
+import '../update/providers/android_update_providers.dart';
 
 /// Bridges Riverpod state changes into go_router's `refreshListenable` so
 /// the onboarding, auth-gate and lock-screen redirects re-evaluate the
@@ -35,6 +36,13 @@ class RouterRefreshNotifier extends ChangeNotifier {
       if (previous?.isLoading != next.isLoading || previousUid != nextUid) {
         notifyListeners();
       }
+    });
+
+    // Fires once the in-app update check resolves (or an operator override
+    // changes) — that's what moves the user onto `/update-required`, or lets
+    // them leave it once the gate clears.
+    ref.listen(updateRequiredProvider, (previous, next) {
+      if (previous != next) notifyListeners();
     });
   }
 }

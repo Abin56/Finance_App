@@ -49,6 +49,8 @@ import '../../features/sms_inbox/pairing/sms_pairing_screen.dart';
 import '../../features/sms_inbox/presentation/screens/sms_inbox_screen.dart';
 import '../../features/transactions/presentation/screens/transactions_screen.dart';
 import '../services/security/app_lock_controller.dart';
+import '../update/providers/android_update_providers.dart';
+import '../update/widgets/update_required_screen.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 import 'fab_visibility.dart';
@@ -80,6 +82,12 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>();
 ///   account has completed *or* dismissed the first-time setup wizard, every
 ///   navigation goes to `/setup`. Dismissing it marks it done, so it never
 ///   permanently blocks the app.
+/// - Update gate (only reached once signed in, unlocked, and set up): whenever
+///   [updateRequiredProvider] is true — a mandatory release, or the installed
+///   build fell below the operator-set minimum — every navigation goes to
+///   `/update-required` (see lib/core/update/). Fail-open by construction: it
+///   defaults to false while the check is loading or failed, so it can never
+///   lock anyone out over a flaky connection.
 ///
 /// SMS Sync pairing deep links (`/pair?t=…`, from FlowFi Web's QR) can land
 /// before any of those gates are satisfied. The token is captured into
@@ -144,6 +152,16 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       if (goingToSetup) return AppRoutes.dashboard;
 
+      // Update gate (only reached once signed in, unlocked, and set up): a
+      // mandatory release blocks every other screen, including a pending
+      // pairing resume below, until the app is updated.
+      final goingToUpdateRequired =
+          state.matchedLocation == AppRoutes.updateRequired;
+      if (ref.read(updateRequiredProvider)) {
+        return goingToUpdateRequired ? null : AppRoutes.updateRequired;
+      }
+      if (goingToUpdateRequired) return AppRoutes.dashboard;
+
       // Every gate passed: resume a scanned pairing code.
       final goingToPairing = state.matchedLocation == AppRoutes.smsPairing;
       if (!goingToPairing && ref.read(pendingSmsPairingProvider).hasToken) {
@@ -171,6 +189,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.lock,
         builder: (context, state) => const LockScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.updateRequired,
+        builder: (context, state) => const UpdateRequiredScreen(),
       ),
       GoRoute(
         path: AppRoutes.smsPairing,

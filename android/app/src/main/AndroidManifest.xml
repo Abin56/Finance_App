@@ -28,6 +28,14 @@
          screenshot (see lib/features/smart_import). Requested on demand via
          permission_handler, never at launch. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- In-app update (see lib/core/update/): lets the user approve
+         installing a downloaded APK directly from FlowFi instead of going
+         back through the browser/QR flow. A special permission the user
+         grants per-app via system settings (Android 8+); requested on demand,
+         never at launch. Sideload only — removed for `play` via
+         src/play/AndroidManifest.xml, since a Play-distributed build must
+         never self-update outside Play's own mechanism. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="FlowFi"
         android:name="${applicationName}"
@@ -111,6 +119,22 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- In-app update (see lib/core/update/): grants Android's package
+             installer a temporary, revocable URI to the APK FlowFi downloads
+             into its own cache dir — needed because `file://` URIs to
+             app-private storage are blocked by FileUriExposedException on
+             modern Android. Sideload only — removed for `play` via
+             src/play/AndroidManifest.xml, matching the permission above. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

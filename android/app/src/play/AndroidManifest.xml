@@ -44,12 +44,22 @@
         android:name="android.permission.RECEIVE_SMS"
         tools:node="remove" />
 
+    <!-- In-app update is sideload-only (see src/main/AndroidManifest.xml):
+         a Play-distributed build must go through Play's own update
+         mechanism, not self-install a downloaded APK. -->
+    <uses-permission
+        android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:node="remove" />
+
     <application>
         <receiver
             android:name="com.flowfi.app.SmsReceiver"
             tools:node="remove" />
         <service
             android:name="com.flowfi.app.NotificationCaptureListenerService"
+            tools:node="remove" />
+        <provider
+            android:name="androidx.core.content.FileProvider"
             tools:node="remove" />
     </application>
 
