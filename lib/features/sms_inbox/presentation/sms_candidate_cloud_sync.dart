@@ -215,6 +215,7 @@ class SmsCandidateCloudSync {
               rawLastFour:
                   itemById[candidate.smsItemId]!.parsed?.maskedAccountOrCard,
               verification: verificationById[candidate.smsItemId],
+              originalMessage: itemById[candidate.smsItemId]!.rawMessage.body,
             ),
             legacyV1Id: _legacyV1IdIfApplicable(
               sender: itemById[candidate.smsItemId]!.rawMessage.address,

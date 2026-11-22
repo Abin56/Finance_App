@@ -16,8 +16,9 @@ import 'transaction_candidate.dart';
 /// review one SMS-detected transaction, and nothing else.
 ///
 /// What this deliberately does NOT carry, and why:
-///  - No raw SMS body/sender — the whole point of this collection existing
-///    is that it's safe to sync; the message itself never leaves the device.
+///  - No raw SMS sender. The body IS now carried as [originalMessage]
+///    (explicit decision, 2026-11-22); the sender still never leaves the
+///    device.
 ///  - No full account/card number, PIN, or CVV — only [accountId]/[cardId]
 ///    (pointers into the user's own already-synced `accounts`/`creditCards`
 ///    collections) and, when unresolved, [rawLastFour] — 4 digits only, the
@@ -67,8 +68,15 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     this.messageReceivedAt,
     this.dateSource,
     this.classificationVersion,
+    this.originalMessage,
     // ignore: prefer_initializing_formals
   }) : _cloudId = cloudId;
+
+  /// The full original SMS text, shown by FlowFi Web next to the parsed
+  /// fields. Added by explicit decision (2026-11-22) — this reverses the
+  /// earlier "raw SMS never leaves the device" rule, so it contains whatever
+  /// the bank sent (balances, partial numbers). Null on older documents.
+  final String? originalMessage;
 
   // --- Integrity fields (classification v1, 2026-11). All optional: a
   // document written before them simply lacks them, and FlowFi Web keeps its
@@ -194,6 +202,7 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     required String sender,
     String? rawLastFour,
     SmsCandidateVerification? verification,
+    String? originalMessage,
   }) {
     final v = verification;
     final reasons = [
@@ -240,6 +249,7 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
       classificationVersion: v == null
           ? null
           : kSmsCandidateClassificationVersion,
+      originalMessage: originalMessage,
     );
   }
 
@@ -276,6 +286,7 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
     messageReceivedAt: messageReceivedAt,
     dateSource: dateSource,
     classificationVersion: classificationVersion,
+    originalMessage: originalMessage,
   );
 
   factory SmsTransactionCandidateCloud.fromFirestore(
@@ -334,6 +345,7 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
       messageReceivedAt: (data['messageReceivedAt'] as Timestamp?)?.toDate(),
       dateSource: _byName(SmsDateSource.values, data['dateSource']),
       classificationVersion: (data['classificationVersion'] as num?)?.toInt(),
+      originalMessage: data['originalMessage'] as String?,
     )..deletedAt = (data['deletedAt'] as Timestamp?)?.toDate();
   }
 
@@ -381,6 +393,7 @@ class SmsTransactionCandidateCloud extends SoftDeletableEntity {
       if (dateSource != null) 'dateSource': dateSource!.name,
       if (classificationVersion != null)
         'classificationVersion': classificationVersion,
+      if (originalMessage != null) 'originalMessage': originalMessage,
       // Written explicitly (rather than omitted) because
       // `FirestoreCrudRepository.getAll/watchAll` filter on
       // `where('deletedAt', isNull: true)` — a Firestore equality query

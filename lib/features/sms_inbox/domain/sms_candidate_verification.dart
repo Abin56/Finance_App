@@ -10,7 +10,7 @@ import 'sms_transaction_direction.dart';
 /// Bumped whenever the verification rules change in a way already-uploaded
 /// candidates should pick up. `SmsCandidateCloudSync` refreshes any cloud
 /// document written under an older (or no) version — see there.
-const int kSmsCandidateClassificationVersion = 1;
+const int kSmsCandidateClassificationVersion = 2; // v2: originalMessage
 
 /// The integrity checks one SMS candidate must pass before it may ever
 /// affect a balance — computed from the stored raw message, so it is always

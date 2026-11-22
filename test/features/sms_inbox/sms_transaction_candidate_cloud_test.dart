@@ -243,6 +243,21 @@ void main() {
       },
     );
 
+    test('originalMessage is written when supplied and round-trips', () async {
+      final collection = firestore.collection('smsTransactionCandidates');
+      final cloud = SmsTransactionCandidateCloud.fromLocal(
+        localCandidate(),
+        sender: sender,
+        rawLastFour: '1234',
+        originalMessage: 'Rs 500 debited from A/c XX1234',
+      );
+      await collection.doc(cloud.id).set(cloud.toFirestore());
+      final snap = await collection.doc(cloud.id).get();
+      expect(snap.data()!['originalMessage'], 'Rs 500 debited from A/c XX1234');
+      final reloaded = SmsTransactionCandidateCloud.fromFirestore(snap, null);
+      expect(reloaded.originalMessage, 'Rs 500 debited from A/c XX1234');
+    });
+
     test('enum fields serialize as their Dart enum name', () async {
       final collection = firestore.collection('smsTransactionCandidates');
       final cloud = SmsTransactionCandidateCloud.fromLocal(
