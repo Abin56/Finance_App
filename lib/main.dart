@@ -15,6 +15,7 @@ import 'core/services/reminder_notification_service.dart';
 import 'core/services/security/app_lock_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/update/providers/android_update_providers.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/sms_inbox/background/sms_background_entry.dart';
 import 'features/sms_inbox/data/sms_inbox_database.dart';
@@ -90,6 +91,10 @@ class _FinanceAppState extends ConsumerState<FinanceApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     ref.read(smsPresenceLifecycleProvider).onLifecycle(state);
+    // Self-hosted update check (sideload only; no-op otherwise, throttled).
+    if (state == AppLifecycleState.resumed) {
+      ref.read(androidReleaseInfoProvider.notifier).refresh();
+    }
     final lockState = ref.read(appLockProvider);
     if (!lockState.pinEnabled) return;
 

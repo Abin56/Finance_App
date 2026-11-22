@@ -11,6 +11,7 @@ import 'package:finance_app/core/router/app_router.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
 import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
+import 'package:finance_app/core/update/providers/android_update_providers.dart';
 import 'package:finance_app/features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'package:finance_app/features/search/presentation/screens/search_screen.dart';
 import 'package:finance_app/features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
@@ -43,6 +44,7 @@ void main() {
             ),
           ),
           firestoreProvider.overrideWithValue(FakeFirebaseFirestore()),
+          selfUpdateSupportedProvider.overrideWith((ref) async => false),
         ],
         child: const _TestApp(),
       ),

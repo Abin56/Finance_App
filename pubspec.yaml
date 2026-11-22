@@ -1,7 +1,7 @@
 name: finance_app
 description: "FlowFi — a premium offline-first personal finance manager."
 publish_to: 'none'
-version: 1.0.2+3
+version: 1.0.4+5
 
 environment:
   sdk: ^3.12.2
@@ -111,6 +111,19 @@ dependencies:
   # PdfFilePickerService relies on; upgrading past 10.x/11.x would require
   # rewriting that call site, which is out of scope for this dependency fix.
   file_picker: ">=10.3.3 <11.0.0"
+
+  # In-app update (self-hosted APK, sideload flavor only — see
+  # lib/core/update/). `http` streams the APK download with progress;
+  # `package_info_plus` reads the installed versionCode/versionName to
+  # compare against the published release; `open_filex` hands the
+  # downloaded, hash-verified APK to Android's system installer via the
+  # sideload-only FileProvider; `url_launcher` opens the browser-based
+  # /pair download page as a fallback when the system installer itself
+  # refuses the file (the known Play Protect risk — see RELEASE.md).
+  http: ^1.6.0
+  package_info_plus: ^8.1.3
+  open_filex: ^4.5.0
+  url_launcher: ^6.3.2
 
 # google_sign_in_android 7.2.x fails to compile against this project's
 # Kotlin/AGP setup ("cannot find symbol ResultUtilsKt") because the plugin's

@@ -11,8 +11,16 @@ import 'package:finance_app/core/theme/app_theme.dart';
 import 'package:finance_app/core/theme/theme_controller.dart';
 import 'package:finance_app/core/constants/app_strings.dart';
 import 'package:finance_app/core/services/local_settings_service.dart';
+import 'package:finance_app/core/update/providers/android_update_providers.dart';
 import 'package:finance_app/features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'package:finance_app/features/setup_wizard/presentation/providers/setup_wizard_providers.dart';
+
+/// Keeps the in-app update check (lib/core/update/) off the real network —
+/// the router's redirect reads it on every navigation, so any test that
+/// drives the real router needs this override, same as the Firebase ones.
+final _noAndroidUpdateOverride = selfUpdateSupportedProvider.overrideWith(
+  (ref) async => false,
+);
 
 /// A fixed uid so the per-account setup-wizard flag can be seeded below —
 /// the mock's default uid is a random UUID, which nothing could pre-seed.
@@ -44,6 +52,7 @@ void main() {
         overrides: [
           firebaseAuthProvider.overrideWithValue(auth),
           firestoreProvider.overrideWithValue(firestore),
+          _noAndroidUpdateOverride,
         ],
         child: const _TestApp(),
       ),
@@ -73,6 +82,7 @@ void main() {
         overrides: [
           firebaseAuthProvider.overrideWithValue(auth),
           firestoreProvider.overrideWithValue(firestore),
+          _noAndroidUpdateOverride,
         ],
         child: const _TestApp(),
       ),
@@ -97,6 +107,7 @@ void main() {
           overrides: [
             firebaseAuthProvider.overrideWithValue(auth),
             firestoreProvider.overrideWithValue(firestore),
+            _noAndroidUpdateOverride,
           ],
           child: const _TestApp(),
         ),

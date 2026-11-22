@@ -197,8 +197,41 @@ androidComponents {
                 }
             }
 
+        // Same guardrail again, for the in-app update feature's install
+        // permission (see src/main|play/AndroidManifest.xml) — must never
+        // reach a Play-distributed build.
+        val expectInstallPermission = variant.flavorName == "sideload"
+        val verifyInstallPermissionTask =
+            tasks.register("verifyInstallPermission$variantNameCapitalized") {
+                group = "verification"
+                description = "Checks that the $variantNameCapitalized merged manifest has " +
+                    "REQUEST_INSTALL_PACKAGES " +
+                    (if (expectInstallPermission) "present (sideload flavor)." else "absent (play flavor).")
+                val manifestFileProperty = manifestArtifact
+                inputs.file(manifestFileProperty)
+                doLast {
+                    val manifestText = manifestFileProperty.get().asFile.readText()
+                    val hasPermission = Regex("""android\.permission\.REQUEST_INSTALL_PACKAGES""")
+                        .containsMatchIn(manifestText)
+                    if (hasPermission != expectInstallPermission) {
+                        throw GradleException(
+                            "In-app update permission check failed for variant '${variant.name}': " +
+                                "expected REQUEST_INSTALL_PACKAGES to be " +
+                                "${if (expectInstallPermission) "PRESENT" else "ABSENT"} in the merged " +
+                                "manifest, but it was ${if (hasPermission) "present" else "absent"}. " +
+                                "See android/app/build.gradle.kts productFlavors and " +
+                                "src/play|sideload/AndroidManifest.xml."
+                        )
+                    }
+                    logger.lifecycle(
+                        "verifyInstallPermission$variantNameCapitalized: REQUEST_INSTALL_PACKAGES is " +
+                            "${if (hasPermission) "present" else "absent"} as expected."
+                    )
+                }
+            }
+
         tasks.matching { it.name == "assemble$variantNameCapitalized" }.configureEach {
-            finalizedBy(verifyTask, verifyNotificationListenerTask)
+            finalizedBy(verifyTask, verifyNotificationListenerTask, verifyInstallPermissionTask)
         }
     }
 }

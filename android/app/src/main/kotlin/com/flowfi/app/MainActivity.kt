@@ -17,10 +17,12 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val notificationListenerChannel = "finance_app/notification_listener"
     private val AUTO_SYNC_CHANNEL = "finance_app/sms_auto_sync"
+    private val APP_UPDATE_CHANNEL = "finance_app/app_update"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         registerAutoSyncChannel(flutterEngine)
+        registerAppUpdateChannel(flutterEngine)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, notificationListenerChannel)
             .setMethodCallHandler { call, result ->
@@ -101,6 +103,51 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * In-app update support (self-hosted APK updates; see lib/core/update/).
+     * `isSelfUpdateSupported` is driven by the merged manifest — only the
+     * `sideload` flavor declares REQUEST_INSTALL_PACKAGES — so a `play` build
+     * never offers to self-install an APK, with no separate flavor flag to
+     * drift out of sync. Nothing here touches SMS, Firebase or app data.
+     */
+    private fun registerAppUpdateChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_UPDATE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isSelfUpdateSupported" -> result.success(isInstallPermissionDeclared())
+                    "canInstallPackages" -> result.success(
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                            packageManager.canRequestPackageInstalls()
+                    )
+                    // The per-app "Install unknown apps" page for FlowFi itself.
+                    "openInstallSettings" -> {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                            Uri.parse("package:$packageName")
+                        )
+                        startActivity(intent)
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun isInstallPermissionDeclared(): Boolean = try {
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageInfo(
+                packageName,
+                PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong())
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getPackageInfo(packageName, PackageManager.GET_PERMISSIONS)
+        }
+        info.requestedPermissions?.contains("android.permission.REQUEST_INSTALL_PACKAGES") == true
+    } catch (e: Exception) {
+        false
     }
 
     /** False in the `play` flavor, whose manifest removes [SmsReceiver]. */

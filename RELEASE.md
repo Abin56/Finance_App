@@ -47,6 +47,80 @@ from the merged manifest, so a successful build is proof the permission is
 present — not just an assumption. Never upload this flavor's output to Play —
 see [PLAY_STORE.md](PLAY_STORE.md#sms-inbox-and-the-play-build) for why.
 
+## Publishing the sideload APK (in-app update)
+
+Already-installed sideload users do **not** re-scan the QR code for a new
+release — they get an in-app update prompt (see `lib/core/update/`), which
+reads the same signed manifest the `/pair` page already uses. Publishing is
+one command in the **Flow-Fi-WEB** repo, run against the APK you just built
+above:
+
+```
+node scripts/android-release.mjs prepare <path-to-app-sideload-release.apk> [--notes "text"] [--mandatory] [--min-supported-code <n>]
+```
+
+- `--notes "text"` — shown in the update dialog/screen. Omit to publish with
+  no notes.
+- `--mandatory` — every installed app below this versionCode is blocked from
+  using the app until it updates (see `UpdateRequiredScreen`). Use for a
+  release that fixes something that must not keep running, e.g. a data-safety
+  bug.
+- `--min-supported-code <n>` — same effect as `--mandatory`, but scoped to
+  builds *below* `n` specifically (newer-but-still-old builds stay optional).
+  Omit to carry over whatever was set for the previous release unchanged.
+
+Then `npm run build` (stages the APK + manifest into `out/downloads/`) and
+deploy Firebase Hosting as usual. That's the entire release workflow — no
+separate step updates "version info" anywhere else.
+
+**Emergency override, without a new release:** if a bad build is already out
+and needs to be forced mandatory (or the minimum supported build raised)
+*before* you can cut a fix, edit the `appConfig/androidUpdate` document in the
+`financeapp-585eb` Firestore console directly — `{ mandatory: true }` or
+`{ minSupportedVersionCode: <n> }`. This is a manual, admin-only "break glass"
+switch (same convention as `smsSyncControl/global`), not something either
+repo's tooling writes automatically — see `firestore.rules` in both repos.
+
+**Known limitation:** Google Play Protect's enhanced fraud protection can
+block installing this APK on some devices (it already blocks some *first*
+installs — see `docs/sms-sync-pairing.md`), and an in-app-triggered install
+goes through the same system installer, so it can hit the same block. The
+update screen detects this and falls back to a link to `/pair` rather than
+failing silently, but there's no way to make the install always succeed
+in-app for affected devices.
+
+### How the in-app update behaves (sideload only)
+
+- **Bootstrap:** builds older than `1.0.4+5` have no updater. Install the
+  first update-enabled APK once, manually (QR / `/pair` / hosted link). Every
+  later release is detected in-app.
+- **Detection:** on launch and on app resume (throttled to once per 10 min),
+  from `/downloads/flowfi-android.json`. A failed check keeps the last good
+  result and never blocks the app.
+- **Optional update:** "Update available" dialog with version, size and
+  release notes. **Update** downloads inside the app (progress, Cancel,
+  resume after a dropped connection), verifies size + SHA-256, then opens
+  Android's installer — the user always confirms. **Later** snoozes that
+  release for 24 h (a newer release prompts immediately). More → About →
+  *Check for updates* is the manual path.
+- **Mandatory update:** `--mandatory` / `--min-supported-code` (or the
+  Firestore override) routes to a non-dismissible `/update-required` screen.
+- **One-time permission:** Android's "Install unknown apps → Allow from this
+  source" for FlowFi; the app checks it *before* downloading and links to the
+  right settings page.
+- **Data & permissions:** same package id + same release key, so Android
+  updates in place: sign-in, local data, SMS permissions, Auto Sync, the
+  notification listener and Firebase all carry over. Android restarts the app
+  during install and does not reopen it — tap FlowFi again.
+- **Play flavor:** `play` removes REQUEST_INSTALL_PACKAGES; the app reads that
+  from its own manifest, so the updater is inert there with no code change.
+  Play builds update through Play only.
+
+**Requirements for every release:** bump `pubspec.yaml` (`versionCode` must
+strictly increase), build with `--flavor sideload`, sign with the same
+keystore. **Back up `android/app/upload-keystore.jks` and `key.properties`
+offline** — losing the key means no installed copy can ever update again.
+
 ## Release App Bundle (Play upload)
 
 ```
@@ -95,8 +169,8 @@ Rules:
 - **versionCode** must strictly increase on every upload. Play permanently
   rejects a versionCode it has already seen, even from a deleted draft release.
 - **versionName** is cosmetic and may repeat.
-- Currently `1.0.0+1`. The first Play upload should be `1.0.0+1`; each subsequent
-  upload bumps the code (`1.0.1+2`, `1.1.0+3`, …).
+- Sideload releases are currently at `1.0.4+5` (first update-enabled build).
+  Always bump the code before the next `prepare` — it refuses a non-increasing one.
 
 ## What the release build does
 

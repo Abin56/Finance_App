@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../shared/widgets/dialogs/add_entry_menu.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
+import '../update/widgets/update_prompt_host.dart';
 import 'fab_visibility.dart';
 
 /// Bottom-navigation shell wrapping the five screen tabs (Dashboard,
@@ -64,7 +65,8 @@ class AppShell extends ConsumerWidget {
         ref.watch(fabVisibleProvider) &&
         navigationShell.currentIndex != _peopleBranchIndex;
 
-    return Scaffold(
+    return UpdatePromptHost(
+      child: Scaffold(
       body: navigationShell,
       // Scaled/faded in place rather than swapped for null: the FAB keeps its
       // slot, so nothing else in the Scaffold reflows as it comes and goes.
@@ -98,6 +100,7 @@ class AppShell extends ConsumerWidget {
         ),
         destinations: _destinations,
       ),
+    ),
     );
   }
 }

@@ -53,6 +53,9 @@ abstract class AppRoutes {
   // SMS Sync pairing — opened by FlowFi Web's QR (`flowfi://app/pair?t=…`).
   static const String smsPairing = '/pair';
   static const String lock = '/lock';
+  // In-app update gate (see lib/core/update/) — reached only when
+  // updateRequiredProvider is true.
+  static const String updateRequired = '/update-required';
 
   static const String dashboardName = 'dashboard';
   static const String transactionsName = 'transactions';
